@@ -1,0 +1,44 @@
+# =====================================================
+# .gitignore — PREFERRED BUILDERS AI SYSTEM
+# =====================================================
+
+# Environment & secrets — NEVER commit these
+.env
+.env.local
+.env.production
+
+# Database — lives in /data, backed up separately
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Generated PDFs — regeneratable
+outputs/*.pdf
+
+# Uploaded files
+uploads/*
+!uploads/.gitkeep
+
+# Node modules
+node_modules/
+client/node_modules/
+
+# React build
+client/build/
+
+# Docker
+docker/ssl/*.pem
+docker/ssl/*.crt
+docker/ssl/*.key
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Replit
+.replit.nix
+replit.nix

@@ -1,0 +1,81 @@
+# ============================================================
+# docker-compose.yml
+# PREFERRED BUILDERS AI SYSTEM
+# 
+# HOW TO USE:
+#   Start:   docker-compose up -d
+#   Stop:    docker-compose down
+#   Logs:    docker-compose logs -f
+#   Backup:  tar -czf pb-backup.tar.gz ./data
+#
+# MOVE TO NEW SERVER:
+#   1. Copy entire project folder to new server
+#   2. Install Docker on new server
+#   3. Run: docker-compose up -d
+#   4. Done — everything works identically
+# ============================================================
+
+version: '3.9'
+
+services:
+
+  # ── MAIN APP SERVER ──────────────────────────────────────
+  app:
+    build: .
+    container_name: pb_app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      # All secrets come from .env file — never hardcoded
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - MAILGUN_API_KEY=${MAILGUN_API_KEY}
+      - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
+      - BOT_EMAIL=${BOT_EMAIL}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_WHATSAPP_NUMBER=${TWILIO_WHATSAPP_NUMBER}
+      - HEARTH_API_KEY=${HEARTH_API_KEY}
+      - HEARTH_WEBHOOK_SECRET=${HEARTH_WEBHOOK_SECRET}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - OWNER_WHATSAPP=${OWNER_WHATSAPP}
+      - JACKSON_WHATSAPP=${JACKSON_WHATSAPP}
+      - OWNER_EMAIL=${OWNER_EMAIL}
+    volumes:
+      # These folders live on YOUR machine — survive container restarts
+      - ./data:/app/data               # SQLite database
+      - ./uploads:/app/uploads         # Uploaded invoices & docs
+      - ./outputs:/app/outputs         # Generated PDFs
+      - ./knowledge-base:/app/knowledge-base  # Your knowledge docs
+    depends_on:
+      - nginx
+    networks:
+      - pb_network
+
+  # ── NGINX REVERSE PROXY ──────────────────────────────────
+  # Handles HTTPS, serves the React frontend, routes /api to app
+  nginx:
+    image: nginx:alpine
+    container_name: pb_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./client/build:/usr/share/nginx/html:ro   # React frontend
+      - ./docker/ssl:/etc/nginx/ssl:ro             # SSL certs (optional)
+    networks:
+      - pb_network
+
+networks:
+  pb_network:
+    driver: bridge
+
+# ── VOLUMES (persistent data on your machine) ────────────────
+volumes:
+  pb_data:
+    driver: local
