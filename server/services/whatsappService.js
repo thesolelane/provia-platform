@@ -7,10 +7,14 @@ let twilioClient;
 
 function getClient() {
   if (!twilioClient) {
-    const sid = process.env.TWILIO_LIVE_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID;
-    const token = process.env.TWILIO_LIVE_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN;
-    if (sid) {
-      twilioClient = twilio(sid, token);
+    const accountSid = process.env.TWILIO_LIVE_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID;
+    const apiKey = process.env.TWILIO_API_KEY;
+    const apiSecret = process.env.TWILIO_API_SECRET;
+    if (apiKey && apiSecret && accountSid) {
+      twilioClient = twilio(apiKey, apiSecret, { accountSid });
+    } else if (accountSid) {
+      const token = process.env.TWILIO_LIVE_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN;
+      twilioClient = twilio(accountSid, token);
     }
   }
   return twilioClient;
