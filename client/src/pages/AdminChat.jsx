@@ -25,7 +25,17 @@ export default function AdminChat({ token }) {
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
         body: JSON.stringify({ message: userMsg, language })
       });
+      if (res.status === 401) {
+        setMessages(prev => [...prev, { role: 'assistant', content: '❌ Session expired. Please refresh the page and log in again.' }]);
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
+      if (!res.ok) {
+        setMessages(prev => [...prev, { role: 'assistant', content: '❌ Error: ' + (data.error || 'Something went wrong. Please try again.') }]);
+        setLoading(false);
+        return;
+      }
       setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: '❌ Connection error. Please try again.' }]);
