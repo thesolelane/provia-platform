@@ -22,15 +22,9 @@ router.post('/', async (req, res) => {
     const body = req.body.Body?.trim() || '';
     const mediaUrl = req.body.MediaUrl0;
 
-    // Normalize number for whitelist lookup — strip "whatsapp:", "+", and country code "1"
-    const rawNumber = from.replace('whatsapp:', '').replace('+', '');
-    const shortNumber = rawNumber.startsWith('1') ? rawNumber.substring(1) : rawNumber;
-
-    // Check approved senders — try full Twilio format, raw digits, and short (no country code)
+    // Check approved senders — exact match against whatsapp:+1XXXXXXXXXX format
     const db = getDb();
-    const sender = db.prepare(
-      'SELECT * FROM approved_senders WHERE (identifier = ? OR identifier = ? OR identifier = ?) AND active = 1'
-    ).get(from, rawNumber, shortNumber);
+    const sender = db.prepare('SELECT * FROM approved_senders WHERE identifier = ? AND active = 1').get(from);
     if (!sender) {
       console.warn(`Blocked WhatsApp from unapproved number: ${from}`);
       return;
