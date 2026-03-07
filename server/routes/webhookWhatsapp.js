@@ -1,6 +1,3 @@
-// server/routes/webhookWhatsapp.js
-// Handles replies from Jackson and Owner via WhatsApp
-
 const express = require('express');
 const router = express.Router();
 const twilio = require('twilio');
@@ -11,18 +8,14 @@ const { generatePDF } = require('../services/pdfService');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
 
-router.post('/', async (req, res) => {
-  // Twilio expects TwiML response
-  res.set('Content-Type', 'text/xml');
-  res.send('<Response></Response>');
-
+async function handleIncomingWhatsApp(data) {
   try {
-    console.log('WhatsApp webhook received:', { From: req.body.From, Body: req.body.Body?.substring(0, 50) });
-    const from = req.body.From;    // e.g. "whatsapp:+11234567890"
-    const body = req.body.Body?.trim() || '';
-    const mediaUrl = req.body.MediaUrl0;
+    const from = data.From;
+    const body = (data.Body || '').trim();
+    const mediaUrl = data.MediaUrl0;
 
-    // Check approved senders — exact match against whatsapp:+1XXXXXXXXXX format
+    console.log('WhatsApp processing:', { From: from, Body: body?.substring(0, 50) });
+
     const db = getDb();
     const sender = db.prepare('SELECT * FROM approved_senders WHERE identifier = ? AND active = 1').get(from);
     if (!sender) {
@@ -34,7 +27,6 @@ router.post('/', async (req, res) => {
     const language = sender.language || 'en';
     const isPortuguese = language === 'pt-BR';
 
-    // Find the most recent job in clarification or proposal_ready status for this sender
     const activeJob = db.prepare(`
       SELECT * FROM jobs 
       WHERE (submitted_by = ? OR submitted_by = 'hearth_api')
@@ -42,7 +34,6 @@ router.post('/', async (req, res) => {
       ORDER BY created_at DESC LIMIT 1
     `).get(sender.role === 'pm' ? 'hearth_api' : sender.identifier);
 
-    // ── APPROVE COMMAND ─────────────────────────────────────────
     if (upperBody === 'APROVAR' || upperBody === 'APPROVE') {
       if (!activeJob) {
         await sendWhatsApp(from, isPortuguese
@@ -55,7 +46,6 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // ── REVISE COMMAND ───────────────────────────────────────────
     if (upperBody === 'REVISAR' || upperBody === 'REVISE') {
       await sendWhatsApp(from, isPortuguese
         ? `✏️ O que você gostaria de alterar na proposta?\n\nPor favor descreva as mudanças e eu vou regenerar.`
@@ -64,7 +54,6 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // ── REVISION WITH DETAILS ────────────────────────────────────
     if (upperBody.startsWith('REVISAR:') || upperBody.startsWith('REVISE:')) {
       const changes = body.substring(body.indexOf(':') + 1).trim();
       if (activeJob) {
@@ -73,7 +62,6 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // ── STATUS CHECK ─────────────────────────────────────────────
     if (upperBody === 'STATUS') {
       const jobs = db.prepare(`
         SELECT customer_name, project_address, total_value, status, created_at 
@@ -91,7 +79,6 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // ── HELP ─────────────────────────────────────────────────────
     if (upperBody === 'HELP' || upperBody === 'AJUDA') {
       await sendWhatsApp(from, isPortuguese
         ? `🤖 *Comandos disponíveis:*\n\nAPROVAR — Aprovar proposta atual\nREVISAR — Revisar proposta\nREVISAR: [mudanças] — Revisar com detalhes\nSTATUS — Ver jobs recentes\nAJUDA — Este menu\n\nOu simplesmente escreva sua pergunta!`
@@ -100,16 +87,13 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    // ── CLARIFICATION ANSWER ─────────────────────────────────────
     if (activeJob && activeJob.status === 'clarification') {
       await handleClarificationReply(activeJob, body, from, db, language);
       return;
     }
 
-    // ── FREE-FORM QUESTION TO BOT ────────────────────────────────
     const { adminChat } = require('../services/claudeService');
 
-    // Load conversation history for context
     const history = db.prepare(`
       SELECT direction, message FROM conversations 
       WHERE job_id = ? AND channel = 'whatsapp'
@@ -125,15 +109,21 @@ router.post('/', async (req, res) => {
     const reply = await adminChat(messages, language);
     await sendWhatsApp(from, reply);
 
-    // Log conversation
     if (activeJob) {
       logConversation(db, activeJob.id, 'inbound', 'whatsapp', from, 'bot', body);
       logConversation(db, activeJob.id, 'outbound', 'whatsapp', 'bot', from, reply);
     }
 
   } catch (err) {
-    console.error('WhatsApp webhook error:', err);
+    console.error('WhatsApp handler error:', err);
   }
+}
+
+router.post('/', async (req, res) => {
+  res.set('Content-Type', 'text/xml');
+  res.send('<Response></Response>');
+  console.log('WhatsApp webhook received:', { From: req.body.From, Body: req.body.Body?.substring(0, 50) });
+  await handleIncomingWhatsApp(req.body);
 });
 
 async function handleApproval(job, from, db, language) {
@@ -189,7 +179,6 @@ async function handleApproval(job, from, db, language) {
 async function handleClarificationReply(job, answer, from, db, language) {
   const isPortuguese = language === 'pt-BR';
 
-  // Save the answer
   const pending = db.prepare(
     'SELECT * FROM clarifications WHERE job_id = ? AND answer IS NULL ORDER BY asked_at ASC LIMIT 1'
   ).get(job.id);
@@ -199,13 +188,11 @@ async function handleClarificationReply(job, answer, from, db, language) {
       .run(answer, pending.id);
   }
 
-  // Check if all answered
   const remaining = db.prepare(
     'SELECT COUNT(*) as count FROM clarifications WHERE job_id = ? AND answer IS NULL'
   ).get(job.id);
 
   if (remaining.count === 0) {
-    // All answered — retry estimate generation
     await sendWhatsApp(from, isPortuguese
       ? `✅ Obrigado! Gerando a proposta agora...`
       : `✅ Got it! Generating the proposal now...`
@@ -277,3 +264,4 @@ function logConversation(db, jobId, direction, channel, from, to, message) {
 }
 
 module.exports = router;
+module.exports.handleIncomingWhatsApp = handleIncomingWhatsApp;

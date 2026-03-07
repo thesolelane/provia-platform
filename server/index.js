@@ -23,6 +23,14 @@ app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 }, useTempFiles: true 
 // Serve generated PDFs
 app.use('/outputs', express.static(path.join(__dirname, '../outputs')));
 
+// ── REQUEST LOGGER (catch all incoming) ─────────────────────
+app.use((req, res, next) => {
+  if (req.path.startsWith('/webhook') || req.path === '/health') {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} from ${req.ip}`);
+  }
+  next();
+});
+
 // ── HEALTH CHECK ─────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
@@ -71,6 +79,10 @@ async function start() {
 ║   Admin panel: http://localhost:${PORT}      ║
 ╚═══════════════════════════════════════════╝
       `);
+
+      const { startPolling } = require('./services/whatsappPoller');
+      const { handleIncomingWhatsApp } = require('./routes/webhookWhatsapp');
+      startPolling(handleIncomingWhatsApp, 5000);
     });
   } catch (err) {
     console.error('Failed to start:', err);
