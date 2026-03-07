@@ -50,16 +50,16 @@ Deposit: ${Math.round((settings['markup.deposit'] || 0.33) * 100)}%
 Default rate point: ${settings['bot.defaultRatePoint'] || 'mid'}
 
 ## KEY ALLOWANCES (contractor-grade pricing)
-Kitchen Cabinets: $${JSON.parse(settings['allowance.cabinets'] || '{"amount":12000}').amount?.toLocaleString()}
-Quartz Countertop: $${JSON.parse(settings['allowance.quartz'] || '{"amount":4250}').amount?.toLocaleString()}
-Kitchen Faucet: $${JSON.parse(settings['allowance.kitFaucet'] || '{"amount":250}').amount} each
-Toilet: $${JSON.parse(settings['allowance.toilet'] || '{"amount":280}').amount} each
-Tub: $${JSON.parse(settings['allowance.tub'] || '{"amount":850}').amount} each
-Vanity (full): $${JSON.parse(settings['allowance.vanity'] || '{"amount":650}').amount} each
-LVP Flooring: $${JSON.parse(settings['allowance.lvp'] || '{"amount":6.50}').amount}/sqft supply
-Base Molding: $${JSON.parse(settings['allowance.baseMold'] || '{"amount":1.85}').amount}/LF
-Interior Door: $${JSON.parse(settings['allowance.intDoor'] || '{"amount":180}').amount} each
-Passage Set (doorknob): $${JSON.parse(settings['allowance.passage'] || '{"amount":45}').amount} each
+Kitchen Cabinets: $${(settings['allowance.cabinets'] || {amount:12000}).amount?.toLocaleString()}
+Quartz Countertop: $${(settings['allowance.quartz'] || {amount:4250}).amount?.toLocaleString()}
+Kitchen Faucet: $${(settings['allowance.kitFaucet'] || {amount:250}).amount} each
+Toilet: $${(settings['allowance.toilet'] || {amount:280}).amount} each
+Tub: $${(settings['allowance.tub'] || {amount:850}).amount} each
+Vanity (full): $${(settings['allowance.vanity'] || {amount:650}).amount} each
+LVP Flooring: $${(settings['allowance.lvp'] || {amount:6.50}).amount}/sqft supply
+Base Molding: $${(settings['allowance.baseMold'] || {amount:1.85}).amount}/LF
+Interior Door: $${(settings['allowance.intDoor'] || {amount:180}).amount} each
+Passage Set (doorknob): $${(settings['allowance.passage'] || {amount:45}).amount} each
 
 ## KNOWLEDGE BASE
 ${knowledgeBase}
