@@ -3,10 +3,11 @@
 // Preferred Builders AI System
 // ============================================================
 
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
+const fs = require('fs');
 const path = require('path');
 const { initDatabase } = require('./db/database');
 
@@ -42,10 +43,11 @@ app.use('/webhook/email',     require('./routes/webhookEmail'));
 app.use('/webhook/whatsapp',  require('./routes/webhookWhatsapp'));
 
 // ── SERVE REACT FRONTEND (production) ────────────────────────
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/build')));
+const clientBuild = path.join(__dirname, '../client/build');
+if (fs.existsSync(clientBuild)) {
+  app.use(express.static(clientBuild));
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build/index.html'));
+    res.sendFile(path.join(clientBuild, 'index.html'));
   });
 }
 
