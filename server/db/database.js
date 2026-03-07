@@ -189,7 +189,7 @@ function seedDefaultSettings() {
 function seedDefaultSenders() {
   const senders = [
     { identifier: 'jackson.deaquino@preferredbuildersusa.com', type: 'email',     name: 'Jackson Deaquino', role: 'pm',    language: 'pt-BR' },
-    { identifier: 'owner@preferredbuildersusa.com',            type: 'email',     name: 'Owner',            role: 'owner', language: 'en' },
+    { identifier: 'cooper@preferredbuilders.com',               type: 'email',     name: 'Anthony Cooper',   role: 'owner', language: 'en' },
   ];
 
   const insert = db.prepare(`
