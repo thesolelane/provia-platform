@@ -19,8 +19,9 @@ async function sendWhatsApp(to, message, attachmentPath = null) {
     return;
   }
 
+  const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER || '';
   const params = {
-    from: process.env.TWILIO_WHATSAPP_NUMBER,
+    from: fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`,
     to,
     body: message
   };
