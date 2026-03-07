@@ -6,8 +6,12 @@ const path = require('path');
 let twilioClient;
 
 function getClient() {
-  if (!twilioClient && process.env.TWILIO_ACCOUNT_SID) {
-    twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+  if (!twilioClient) {
+    const sid = process.env.TWILIO_LIVE_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_LIVE_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN;
+    if (sid) {
+      twilioClient = twilio(sid, token);
+    }
   }
   return twilioClient;
 }
