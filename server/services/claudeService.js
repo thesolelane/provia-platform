@@ -185,7 +185,7 @@ INSTRUCTIONS:
 - If line item prices are provided, USE THEM as base costs — do not ask for clarification on pricing.
 - Only set readyToGenerate to false if CRITICAL construction details are missing (like foundation type for a new build). NEVER ask for customer name, email, phone, or address — those are always provided above the estimate data.
 - For any details not specified (like sqft, foundation type, etc.), make reasonable assumptions based on the scope and note them in the proposal.
-- For Stretch Code towns: add HERS rater ($1,200), ERV ($3,500), EV outlet ($350), solar conduit ($300) as separate line items ONLY if NOT already in the estimate.
+- For Stretch Code towns: ONLY add HERS rater ($1,200), ERV ($3,500), EV outlet ($350), solar conduit ($300) if NONE of these are mentioned or covered anywhere in the estimate. If there is a "Permits" line that says "stretch code compliance" or similar, those items are ALREADY INCLUDED — do NOT add them again. When in doubt, do NOT add them. If you do add any, mark them with "isStretchCode": true.
 - Set readyToGenerate to true and generate the full proposal.
 - Leave "validUntil", "totalValue", and "depositAmount" empty — the system fills them.
 
@@ -193,11 +193,15 @@ IMPORTANT — Cost Summary (sections[type="cost_summary"].content) format:
 {
   "lineItems": [
     { "label": "Foundation", "baseCost": 28000 },
-    { "label": "Framing", "baseCost": 130000 }
+    { "label": "Framing", "baseCost": 130000 },
+    { "label": "HERS Rater", "baseCost": 1200, "isStretchCode": true },
+    { "label": "ERV System", "baseCost": 3500, "isStretchCode": true }
   ]
 }
-ONLY provide lineItems with "label" and "baseCost". Nothing else in the cost summary content.
-The system will calculate all markup, totals, and deposit automatically.`
+ONLY provide lineItems with "label", "baseCost", and optionally "isStretchCode": true for stretch code compliance items.
+Stretch code items (HERS rater, ERV, EV outlet, solar conduit) MUST have "isStretchCode": true.
+The system will calculate all markup, totals, and deposit automatically.
+Stretch code items are added at flat cost — NO markup is applied to them.`
       }
     ]
   });
@@ -229,23 +233,33 @@ function recalculatePricing(data, rates) {
   if (!costSection || !costSection.content) return;
 
   const items = costSection.content.lineItems || [];
-  const baseCostTotal = items.reduce((sum, item) => {
+
+  let tradeTotal = 0;
+  let stretchCodeTotal = 0;
+
+  for (const item of items) {
     const cost = item.baseCost || item.amount || item.cost || 0;
     item.baseCost = cost;
-    return sum + cost;
-  }, 0);
+    if (item.isStretchCode) {
+      stretchCodeTotal += cost;
+    } else {
+      tradeTotal += cost;
+    }
+  }
 
-  const subOandPAmount = Math.round(baseCostTotal * rates.subOandP);
-  const subtotalAfterSubOP = baseCostTotal + subOandPAmount;
+  const subOandPAmount = Math.round(tradeTotal * rates.subOandP);
+  const subtotalAfterSubOP = tradeTotal + subOandPAmount;
   const gcOandPAmount = Math.round(subtotalAfterSubOP * rates.gcOandP);
   const subtotalAfterGCOP = subtotalAfterSubOP + gcOandPAmount;
   const contingencyAmount = Math.round(subtotalAfterGCOP * rates.contingency);
-  const totalContractPrice = subtotalAfterGCOP + contingencyAmount;
+  const markedUpTotal = subtotalAfterGCOP + contingencyAmount;
+  const totalContractPrice = markedUpTotal + stretchCodeTotal;
   const depositAmount = Math.round(totalContractPrice * rates.deposit);
 
   costSection.content = {
     lineItems: items,
-    baseCostTotal,
+    tradeTotal,
+    stretchCodeTotal,
     subOandPPercent: Math.round(rates.subOandP * 100),
     subOandPAmount,
     subtotalAfterSubOP,
@@ -262,7 +276,7 @@ function recalculatePricing(data, rates) {
   data.totalValue = totalContractPrice;
   data.depositAmount = depositAmount;
 
-  console.log(`[Pricing] Base: $${baseCostTotal.toLocaleString()} → Sub O&P: $${subOandPAmount.toLocaleString()} → GC O&P: $${gcOandPAmount.toLocaleString()} → Contingency: $${contingencyAmount.toLocaleString()} → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
+  console.log(`[Pricing] Trades: $${tradeTotal.toLocaleString()} → Sub O&P: $${subOandPAmount.toLocaleString()} → GC O&P: $${gcOandPAmount.toLocaleString()} → Contingency: $${contingencyAmount.toLocaleString()} + Stretch Code: $${stretchCodeTotal.toLocaleString()} → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
 }
 
 // ── GENERATE CONTRACT (after customer approval) ──────────────────────
