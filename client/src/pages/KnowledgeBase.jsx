@@ -26,7 +26,9 @@ export default function KnowledgeBase({ token }) {
   const headers = { 'x-auth-token': token };
 
   const load = () => {
-    fetch('/api/knowledge', { headers }).then(r => r.json()).then(setDocs);
+    fetch('/api/knowledge', { headers }).then(r => r.json()).then(data => {
+      setDocs(Array.isArray(data) ? data : []);
+    });
   };
 
   useEffect(() => { load(); }, []);

@@ -15,9 +15,13 @@ export default function Settings({ token }) {
 
   useEffect(() => {
     fetch('/api/settings', { headers: { 'x-auth-token': token } })
-      .then(r => r.json()).then(setSettings);
+      .then(r => r.json()).then(data => {
+        if (data && !data.error) setSettings(data);
+      });
     fetch('/api/settings/integrations/status', { headers: { 'x-auth-token': token } })
-      .then(r => r.json()).then(setIntegration);
+      .then(r => r.json()).then(data => {
+        if (data && !data.error) setIntegration(data);
+      });
   }, []);
 
   const update = (key, value) => {

@@ -12,7 +12,9 @@ export default function Whitelist({ token }) {
   const [form, setForm] = useState({ identifier: '', type: 'email', name: '', role: 'pm', language: 'en' });
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
-  const load = () => fetch('/api/whitelist', { headers: { 'x-auth-token': token } }).then(r => r.json()).then(setSenders);
+  const load = () => fetch('/api/whitelist', { headers: { 'x-auth-token': token } }).then(r => r.json()).then(data => {
+    setSenders(Array.isArray(data) ? data : []);
+  });
   useEffect(() => { load(); }, []);
 
   const add = async () => {
