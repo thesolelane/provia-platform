@@ -106,23 +106,32 @@ router.post('/manual', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'received', 'manual')
   `).run(jobId, customerName, customerEmail, customerPhone, projectAddress, estimateText);
 
-  const { processEstimate } = require('../services/claudeService');
-  try {
-    const proposalData = await processEstimate(estimateText, jobId, 'en');
+  res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
 
-    if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
-      db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', jobId);
-      res.json({ jobId, status: 'clarification', clarificationsNeeded: proposalData.clarificationsNeeded });
-    } else {
-      const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
-      db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
-        .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
-      logAudit(jobId, 'manual_estimate_processed', `Manual entry by admin`, 'admin');
-      res.json({ jobId, status: 'proposal_ready', proposalPDF: `/outputs/${require('path').basename(pdfPath)}`, totalValue: proposalData.totalValue });
+  const { processEstimate } = require('../services/claudeService');
+  (async () => {
+    try {
+      console.log(`[Manual Job ${jobId}] Starting Claude processEstimate...`);
+      db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', jobId);
+
+      const proposalData = await processEstimate(estimateText, jobId, 'en');
+      console.log(`[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
+
+      if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', jobId);
+        console.log(`[Manual Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`);
+      } else {
+        const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
+        db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
+          .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
+        logAudit(jobId, 'manual_estimate_processed', `Manual entry by admin`, 'admin');
+        console.log(`[Manual Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
+      }
+    } catch (err) {
+      console.error(`[Manual Job ${jobId}] ERROR:`, err.message, err.stack);
+      db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('error', jobId);
     }
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  })();
 });
 
 // PATCH update job notes
