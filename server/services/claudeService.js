@@ -187,7 +187,8 @@ INSTRUCTIONS:
 - For any details not specified (like sqft, foundation type, etc.), make reasonable assumptions based on the scope and note them in the proposal.
 - For Stretch Code towns: ONLY add HERS rater ($1,200), ERV ($3,500), EV outlet ($350), solar conduit ($300) if NONE of these are mentioned or covered anywhere in the estimate. If there is a "Permits" line that says "stretch code compliance" or similar, those items are ALREADY INCLUDED — do NOT add them again. When in doubt, do NOT add them. If you do add any, mark them with "isStretchCode": true.
 - Set readyToGenerate to true and generate the full proposal.
-- Leave "validUntil", "totalValue", and "depositAmount" empty — the system fills them.
+- If the estimate specifies a "Valid Until" date, use it for "validUntil" (format: "Month Day, Year"). Otherwise leave it empty — the system defaults to 15 days.
+- Leave "totalValue" and "depositAmount" empty — the system fills them.
 
 IMPORTANT — Cost Summary (sections[type="cost_summary"].content) format:
 {
@@ -225,9 +226,11 @@ Stretch code items are added at flat cost — NO markup is applied to them.`
 
 // ── SYSTEM-CONTROLLED PRICING MATH ──────────────────────────────────
 function recalculatePricing(data, rates) {
-  const validDate = new Date();
-  validDate.setDate(validDate.getDate() + 15);
-  data.validUntil = validDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  if (!data.validUntil) {
+    const validDate = new Date();
+    validDate.setDate(validDate.getDate() + 15);
+    data.validUntil = validDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
 
   const costSection = data.sections?.find(s => s.type === 'cost_summary');
   if (!costSection || !costSection.content) return;

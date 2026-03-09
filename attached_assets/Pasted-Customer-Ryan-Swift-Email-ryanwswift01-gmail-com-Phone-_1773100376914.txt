@@ -1,0 +1,51 @@
+Customer: Ryan Swift
+Email: ryanwswift01@gmail.com
+Phone: 978-427-7320
+Address: 0 Jones Hill Road, Ashby, MA 01431
+Quote: 311
+Valid Until: 03/13/2026
+
+BASE COSTS (before markup):
+Foundation: 28000
+Framing: 130000
+Deck: 13000
+Roofing: 11585
+Siding: 14200
+Windows & Doors: 19000
+Electrical: 33000
+Plumbing: 24600
+HVAC: 18000
+Insulation + Drywall: 36000
+Interior Finishes 2nd Floor: 42750
+Permits: 6000
+
+SCOPE NOTES:
+Foundation: 30" wide x 12" deep footing, 4" 4000PSI slab, 12" dia piers, forms, pump, rebar
+Framing: 2x6 exterior walls, interior partitions, 11 7/8" TJI floor system, 2x12 roof rafters, structural LVL ridge beam, sheathing, 1st and 2nd floor framing
+Deck: PT framing, ledger, posts, joists — deck boards not included
+Roofing: Architectural asphalt shingles, ice and water shield, synthetic underlayment, drip edge, ridge vent, ridge cap, flashing, labor and cleanup
+Siding: Vinyl siding panels, starter strips, J-channel, corner trims, housewrap, labor
+Windows & Doors: 3 overhead garage doors 9x8 insulated with openers, 10-14 vinyl windows, 2 exterior doors
+Electrical: 200A service, subpanel, full rough and finish, recessed lights, smoke/CO detectors, bathroom exhaust fans, garage outlets and door openers
+Plumbing: 2 full bathrooms, kitchen, laundry, water heater
+HVAC: 3-4 head mini split system
+Insulation + Drywall: Full 2nd floor insulation, 165 sheets blueboard and plaster, garage not included
+Interior Finishes 2nd Floor: LVP flooring, builder grade kitchen cabinets, quartz countertop, 2 bathroom finishes
+Permits: All building permits, stretch code compliance, blower door test
+
+EXCLUSIONS:
+Well
+Septic
+Perc test and engineering
+Underground electric
+Wood stove and chimney
+Sitework and excavation (customer may self-perform — add $35,000 if needed)
+Garage insulation and drywall
+Appliances
+Driveway
+
+Building: 2-story structure, 42x26 footprint
+1st floor: 3-bay garage, 1092 sqft
+2nd floor: Living space, 1092 sqft, master bed, living room, eat-in kitchen, master bath, walk-in closet, deck
+Total living sqft: 1092
+Stretch code town: Yes - Ashby MA
