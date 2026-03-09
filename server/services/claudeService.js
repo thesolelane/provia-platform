@@ -134,14 +134,21 @@ async function processEstimate(rawEstimateText, jobId, language = 'en') {
     messages: [
       {
         role: 'user',
-        content: `Please process this Hearth estimate and generate a Preferred Builders PROPOSAL & SCOPE OF WORK document.
+        content: `Process this estimate and generate a Preferred Builders PROPOSAL & SCOPE OF WORK document.
 
 Job ID: ${jobId}
 
 ESTIMATE DATA:
 ${rawEstimateText}
 
-Generate the complete proposal JSON. If any critical information is missing, set readyToGenerate to false and list the clarificationsNeeded.`
+INSTRUCTIONS:
+- Generate the complete proposal JSON using the numbers provided.
+- Apply all markup percentages (Sub O&P, GC O&P, Contingency) to the line items given.
+- Calculate the deposit based on the final total.
+- If line item prices are provided, USE THEM — do not ask for clarification on pricing.
+- Only set readyToGenerate to false if the customer name or project address is completely missing.
+- For any details not specified (like sqft, foundation type, etc.), make reasonable assumptions based on the scope and note them in the proposal.
+- Set readyToGenerate to true and generate the full proposal.`
       }
     ]
   });
