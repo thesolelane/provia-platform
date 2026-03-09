@@ -227,8 +227,8 @@ async function handleClarificationReply(job, answer, from, db, language) {
     const answeredQ = totalQ.count - remaining.count;
 
     await sendWhatsApp(from, isPortuguese
-      ? `✅ Anotado.\n\n❓ Pergunta ${answeredQ + 1} de ${totalQ.count}:\n${nextQ.question}`
-      : `✅ Got it.\n\n❓ Question ${answeredQ + 1} of ${totalQ.count}:\n${nextQ.question}`
+      ? `✅ Anotado, obrigado!\n\n❓ Pergunta ${answeredQ + 1} de ${totalQ.count}:\n${nextQ.question}`
+      : `✅ Got it, thanks!\n\n❓ Question ${answeredQ + 1} of ${totalQ.count}:\n${nextQ.question}`
     );
   }
 }

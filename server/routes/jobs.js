@@ -129,7 +129,8 @@ router.post('/manual', requireAuth, async (req, res) => {
         if (ownerWhatsApp) {
           const to = ownerWhatsApp.startsWith('whatsapp:') ? ownerWhatsApp : `whatsapp:${ownerWhatsApp}`;
           const firstQ = proposalData.clarificationsNeeded[0];
-          await sendWhatsApp(to, `📋 *New estimate needs info*\n\nCustomer: ${customerName}\nAddress: ${projectAddress}\n\n❓ Question 1 of ${proposalData.clarificationsNeeded.length}:\n${firstQ}`);
+          const total = proposalData.clarificationsNeeded.length;
+          await sendWhatsApp(to, `Hey! 👋 I'm working on the estimate for *${customerName}* at ${projectAddress} but I'm missing a few details.\n\nI'll ask you one question at a time — just reply and I'll move to the next one.\n\n❓ Question 1 of ${total}:\n${firstQ}`);
         }
       } else {
         const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
