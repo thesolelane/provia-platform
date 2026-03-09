@@ -178,53 +178,91 @@ ${rawEstimateText}
 
 INSTRUCTIONS:
 - All submitted line item prices are BASE COSTS (what we pay subs/materials).
-- Apply the Option A markup formula:
-  1. Add Sub O&P (${Math.round(rates.subOandP * 100)}%) to each line item base cost
-  2. Sum all line items after Sub O&P = subtotal
-  3. Add GC O&P (${Math.round(rates.gcOandP * 100)}%) to the subtotal
-  4. Add Contingency (${Math.round(rates.contingency * 100)}%) to get CONTRACT TOTAL
-  5. Deposit = ${Math.round(rates.deposit * 100)}% of contract total
-- If the estimate includes a total, verify it matches the sum of line items. Flag any variance.
-- Grade each trade against Central MA market rates. Flag items >15% above or below typical range.
+- DO NOT calculate markup, totals, or deposit. The system will do the math automatically.
+- Just provide the line items with their base costs exactly as submitted.
+- If the estimate includes a total, verify it matches the sum of line items. If they differ, flag the variance in flaggedItems.
+- Grade each trade against Central MA market rates. Flag items >15% above or below typical range in flaggedItems.
 - If line item prices are provided, USE THEM as base costs — do not ask for clarification on pricing.
 - Only set readyToGenerate to false if CRITICAL construction details are missing (like foundation type for a new build). NEVER ask for customer name, email, phone, or address — those are always provided above the estimate data.
 - For any details not specified (like sqft, foundation type, etc.), make reasonable assumptions based on the scope and note them in the proposal.
-- For Stretch Code towns: add HERS rater, ERV, EV outlet, solar conduit ONLY if they are NOT already in the line items.
+- For Stretch Code towns: add HERS rater ($1,200), ERV ($3,500), EV outlet ($350), solar conduit ($300) as separate line items ONLY if NOT already in the estimate.
 - Set readyToGenerate to true and generate the full proposal.
+- Leave "validUntil", "totalValue", and "depositAmount" empty — the system fills them.
 
 IMPORTANT — Cost Summary (sections[type="cost_summary"].content) format:
 {
   "lineItems": [
     { "label": "Foundation", "baseCost": 28000 },
     { "label": "Framing", "baseCost": 130000 }
-  ],
-  "baseCostTotal": (sum of all baseCost values),
-  "subOandPPercent": ${Math.round(rates.subOandP * 100)},
-  "subOandPAmount": (baseCostTotal × ${rates.subOandP}),
-  "subtotalAfterSubOP": (baseCostTotal + subOandPAmount),
-  "gcOandPPercent": ${Math.round(rates.gcOandP * 100)},
-  "gcOandPAmount": (subtotalAfterSubOP × ${rates.gcOandP}),
-  "subtotalAfterGCOP": (subtotalAfterSubOP + gcOandPAmount),
-  "contingencyPercent": ${Math.round(rates.contingency * 100)},
-  "contingencyAmount": (subtotalAfterGCOP × ${rates.contingency}),
-  "totalContractPrice": (subtotalAfterGCOP + contingencyAmount),
-  "depositPercent": ${Math.round(rates.deposit * 100)},
-  "depositAmount": (totalContractPrice × ${rates.deposit})
+  ]
 }
-Use "baseCost" (not "amount") for each line item. This is the base cost before any markup.
-The "totalValue" and "depositAmount" at the top level of the JSON should match totalContractPrice and depositAmount from the cost summary.`
+ONLY provide lineItems with "label" and "baseCost". Nothing else in the cost summary content.
+The system will calculate all markup, totals, and deposit automatically.`
       }
     ]
   });
 
   const text = response.content[0].text;
+  let proposalData;
   try {
     const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean);
+    proposalData = JSON.parse(clean);
   } catch (e) {
     console.error('Failed to parse Claude response:', e);
     throw new Error('AI response parsing failed');
   }
+
+  if (proposalData.readyToGenerate) {
+    recalculatePricing(proposalData, rates);
+  }
+
+  return proposalData;
+}
+
+// ── SYSTEM-CONTROLLED PRICING MATH ──────────────────────────────────
+function recalculatePricing(data, rates) {
+  const validDate = new Date();
+  validDate.setDate(validDate.getDate() + 15);
+  data.validUntil = validDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const costSection = data.sections?.find(s => s.type === 'cost_summary');
+  if (!costSection || !costSection.content) return;
+
+  const items = costSection.content.lineItems || [];
+  const baseCostTotal = items.reduce((sum, item) => {
+    const cost = item.baseCost || item.amount || item.cost || 0;
+    item.baseCost = cost;
+    return sum + cost;
+  }, 0);
+
+  const subOandPAmount = Math.round(baseCostTotal * rates.subOandP);
+  const subtotalAfterSubOP = baseCostTotal + subOandPAmount;
+  const gcOandPAmount = Math.round(subtotalAfterSubOP * rates.gcOandP);
+  const subtotalAfterGCOP = subtotalAfterSubOP + gcOandPAmount;
+  const contingencyAmount = Math.round(subtotalAfterGCOP * rates.contingency);
+  const totalContractPrice = subtotalAfterGCOP + contingencyAmount;
+  const depositAmount = Math.round(totalContractPrice * rates.deposit);
+
+  costSection.content = {
+    lineItems: items,
+    baseCostTotal,
+    subOandPPercent: Math.round(rates.subOandP * 100),
+    subOandPAmount,
+    subtotalAfterSubOP,
+    gcOandPPercent: Math.round(rates.gcOandP * 100),
+    gcOandPAmount,
+    subtotalAfterGCOP,
+    contingencyPercent: Math.round(rates.contingency * 100),
+    contingencyAmount,
+    totalContractPrice,
+    depositPercent: Math.round(rates.deposit * 100),
+    depositAmount
+  };
+
+  data.totalValue = totalContractPrice;
+  data.depositAmount = depositAmount;
+
+  console.log(`[Pricing] Base: $${baseCostTotal.toLocaleString()} → Sub O&P: $${subOandPAmount.toLocaleString()} → GC O&P: $${gcOandPAmount.toLocaleString()} → Contingency: $${contingencyAmount.toLocaleString()} → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
 }
 
 // ── GENERATE CONTRACT (after customer approval) ──────────────────────
