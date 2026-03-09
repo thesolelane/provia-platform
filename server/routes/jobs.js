@@ -121,7 +121,15 @@ router.post('/manual', requireAuth, async (req, res) => {
       console.log(`[Manual Job ${jobId}] Starting Claude processEstimate...`);
       db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', jobId);
 
-      const proposalData = await processEstimate(estimateText, jobId, 'en');
+      const fullEstimate = `CUSTOMER INFORMATION (already collected — do NOT ask for this):
+Customer Name: ${customerName || 'N/A'}
+Customer Email: ${customerEmail || 'N/A'}
+Customer Phone: ${customerPhone || 'N/A'}
+Project Address: ${projectAddress || 'N/A'}
+
+ESTIMATE DETAILS:
+${estimateText}`;
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en');
       console.log(`[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {

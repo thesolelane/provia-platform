@@ -146,7 +146,7 @@ INSTRUCTIONS:
 - Apply all markup percentages (Sub O&P, GC O&P, Contingency) to the line items given.
 - Calculate the deposit based on the final total.
 - If line item prices are provided, USE THEM — do not ask for clarification on pricing.
-- Only set readyToGenerate to false if the customer name or project address is completely missing.
+- Only set readyToGenerate to false if CRITICAL construction details are missing (like foundation type for a new build). NEVER ask for customer name, email, phone, or address — those are always provided above the estimate data.
 - For any details not specified (like sqft, foundation type, etc.), make reasonable assumptions based on the scope and note them in the proposal.
 - Set readyToGenerate to true and generate the full proposal.
 
