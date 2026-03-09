@@ -22,11 +22,14 @@ AI-powered construction estimation, contract generation, and team communication 
 - `client/src/pages/` — Dashboard, JobDetail, Settings, KnowledgeBase, AdminChat, Whitelist, FieldGuide
 
 ## Pricing Model (Option A)
-Jackson submits BASE COSTS (what we pay subs/materials). Claude applies markup to calculate customer-facing price:
-1. Sub O&P: 15% on base cost
-2. GC O&P: 25% on (base + Sub O&P)
-3. Contingency: 10% on subtotal
-4. Deposit: 33% of contract total
+Jackson submits BASE COSTS (what we pay subs/materials). The SYSTEM applies markup per line item — Claude never does math:
+- Combined multiplier: (1 + Sub O&P 15%) × (1 + GC O&P 25%) × (1 + Contingency 10%) = ~1.5813x
+- Each trade line item: baseCost × multiplier = finalPrice (customer-facing)
+- Stretch code items (isStretchCode: true) are passed through at flat cost — no markup
+- Customer sees final prices per trade — no separate markup breakdown shown
+- Deposit: 33% of contract total
+- Valid-until: 15 days from proposal date
+- If estimate already includes stretch code compliance (e.g. in Permits line), system does NOT add duplicate items
 Config: `config/parameters.js` (defaults) + `settings` table in DB (runtime overrides)
 Claude also grades each trade against Central MA market rates and flags items >15% above/below typical range.
 

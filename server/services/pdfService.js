@@ -467,37 +467,13 @@ function renderCostSummary(section, data) {
 
   let rows = items.map(item => {
     const label = item.label || item.trade || item.description || String(item);
-    const amount = item.baseCost || item.amount || item.cost || item.finalPrice || item.basePrice || 0;
+    const price = item.finalPrice || item.baseCost || item.amount || item.cost || 0;
     return `
     <tr>
       <td>${label}</td>
-      <td style="text-align:right;">${fmt(amount)}</td>
+      <td style="text-align:right;">${fmt(price)}</td>
     </tr>`;
   }).join('');
-
-  const baseCostTotal = content.baseCostTotal || items.reduce((s, i) => s + (i.baseCost || i.amount || i.cost || i.finalPrice || i.basePrice || 0), 0);
-
-  rows += `
-    <tr><td><strong>Subtotal</strong></td><td style="text-align:right;"><strong>${fmt(baseCostTotal)}</strong></td></tr>`;
-
-  const subOPAmt = content.subOandPAmount || content.subOPAmount || content.subOHAmount;
-  const subOPPct = content.subOandPPercent || content.subOPPercent || content.subOHPercent;
-  if (subOPAmt) {
-    rows += `
-    <tr><td>Sub Overhead & Profit (${subOPPct || 15}%)</td><td style="text-align:right;">${fmt(subOPAmt)}</td></tr>`;
-  }
-
-  const gcOPAmt = content.gcOandPAmount || content.gcOPAmount || content.gcOHAmount;
-  const gcOPPct = content.gcOandPPercent || content.gcOPPercent || content.gcOHPercent;
-  if (gcOPAmt) {
-    rows += `
-    <tr><td>GC Overhead & Profit (${gcOPPct || 25}%)</td><td style="text-align:right;">${fmt(gcOPAmt)}</td></tr>`;
-  }
-
-  if (content.contingencyAmount) {
-    rows += `
-    <tr><td>Contingency (${content.contingencyPercent || 10}%)</td><td style="text-align:right;">${fmt(content.contingencyAmount)}</td></tr>`;
-  }
 
   rows += `
     <tr class="total">

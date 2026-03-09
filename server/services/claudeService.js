@@ -234,40 +234,24 @@ function recalculatePricing(data, rates) {
 
   const items = costSection.content.lineItems || [];
 
-  let tradeTotal = 0;
-  let stretchCodeTotal = 0;
+  const markupMultiplier = (1 + rates.subOandP) * (1 + rates.gcOandP) * (1 + rates.contingency);
+  let totalContractPrice = 0;
 
   for (const item of items) {
     const cost = item.baseCost || item.amount || item.cost || 0;
     item.baseCost = cost;
     if (item.isStretchCode) {
-      stretchCodeTotal += cost;
+      item.finalPrice = cost;
     } else {
-      tradeTotal += cost;
+      item.finalPrice = Math.round(cost * markupMultiplier);
     }
+    totalContractPrice += item.finalPrice;
   }
 
-  const subOandPAmount = Math.round(tradeTotal * rates.subOandP);
-  const subtotalAfterSubOP = tradeTotal + subOandPAmount;
-  const gcOandPAmount = Math.round(subtotalAfterSubOP * rates.gcOandP);
-  const subtotalAfterGCOP = subtotalAfterSubOP + gcOandPAmount;
-  const contingencyAmount = Math.round(subtotalAfterGCOP * rates.contingency);
-  const markedUpTotal = subtotalAfterGCOP + contingencyAmount;
-  const totalContractPrice = markedUpTotal + stretchCodeTotal;
   const depositAmount = Math.round(totalContractPrice * rates.deposit);
 
   costSection.content = {
     lineItems: items,
-    tradeTotal,
-    stretchCodeTotal,
-    subOandPPercent: Math.round(rates.subOandP * 100),
-    subOandPAmount,
-    subtotalAfterSubOP,
-    gcOandPPercent: Math.round(rates.gcOandP * 100),
-    gcOandPAmount,
-    subtotalAfterGCOP,
-    contingencyPercent: Math.round(rates.contingency * 100),
-    contingencyAmount,
     totalContractPrice,
     depositPercent: Math.round(rates.deposit * 100),
     depositAmount
@@ -276,7 +260,7 @@ function recalculatePricing(data, rates) {
   data.totalValue = totalContractPrice;
   data.depositAmount = depositAmount;
 
-  console.log(`[Pricing] Trades: $${tradeTotal.toLocaleString()} → Sub O&P: $${subOandPAmount.toLocaleString()} → GC O&P: $${gcOandPAmount.toLocaleString()} → Contingency: $${contingencyAmount.toLocaleString()} + Stretch Code: $${stretchCodeTotal.toLocaleString()} → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
+  console.log(`[Pricing] Markup multiplier: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
 }
 
 // ── GENERATE CONTRACT (after customer approval) ──────────────────────
