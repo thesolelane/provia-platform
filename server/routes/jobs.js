@@ -146,6 +146,55 @@ router.post('/manual', requireAuth, async (req, res) => {
   })();
 });
 
+// POST answer a clarification question
+router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
+  const db = getDb();
+  const { answer } = req.body;
+  if (!answer) return res.status(400).json({ error: 'Answer is required' });
+
+  db.prepare('UPDATE clarifications SET answer = ?, answered_at = CURRENT_TIMESTAMP WHERE id = ? AND job_id = ?')
+    .run(answer, req.params.clarId, req.params.id);
+
+  const remaining = db.prepare(
+    'SELECT COUNT(*) as count FROM clarifications WHERE job_id = ? AND answer IS NULL'
+  ).get(req.params.id);
+
+  if (remaining.count === 0) {
+    res.json({ success: true, allAnswered: true, message: 'All questions answered. Generating proposal...' });
+
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+    if (job) {
+      (async () => {
+        try {
+          console.log(`[Job ${job.id}] All clarifications answered. Generating proposal...`);
+          db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', job.id);
+
+          const allAnswers = db.prepare('SELECT question, answer FROM clarifications WHERE job_id = ?').all(job.id);
+          const answersText = allAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n');
+          const rawEstimate = job.raw_estimate_data || '';
+
+          const { processEstimate } = require('../services/claudeService');
+          const proposalData = await processEstimate(
+            `${rawEstimate}\n\nCLARIFICATION ANSWERS:\n${answersText}`,
+            job.id, 'en'
+          );
+
+          const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
+          db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
+            .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', job.id);
+          logAudit(job.id, 'proposal_generated', `Proposal generated after clarification`, 'admin');
+          console.log(`[Job ${job.id}] Proposal ready. Total: $${proposalData.totalValue}`);
+        } catch (err) {
+          console.error(`[Job ${job.id}] Proposal generation error:`, err.message);
+          db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('error', job.id);
+        }
+      })();
+    }
+  } else {
+    res.json({ success: true, allAnswered: false, remaining: remaining.count });
+  }
+});
+
 // PATCH update job notes
 router.patch('/:id/notes', requireAuth, (req, res) => {
   const db = getDb();

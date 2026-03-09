@@ -19,10 +19,12 @@ export default function JobDetail({ token }) {
   const navigate = useNavigate();
   const [job, setJob] = useState(null);
   const [conversations, setConversations] = useState([]);
+  const [clarifications, setClarifications] = useState([]);
   const [auditLog, setAuditLog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [note, setNote] = useState('');
+  const [clarAnswer, setClarAnswer] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
@@ -33,6 +35,7 @@ export default function JobDetail({ token }) {
       .then(data => {
         setJob(data.job);
         setConversations(data.conversations || []);
+        setClarifications(data.clarifications || []);
         setAuditLog(data.auditLog || []);
         setNote(data.job?.notes || '');
         setLoading(false);
@@ -62,6 +65,21 @@ export default function JobDetail({ token }) {
 
   const saveNote = async () => {
     await fetch(`/api/jobs/${id}/notes`, { method: 'PATCH', headers, body: JSON.stringify({ notes: note }) });
+  };
+
+  const submitClarAnswer = async (clarId) => {
+    if (!clarAnswer.trim()) return;
+    setActionLoading(true);
+    const res = await fetch(`/api/jobs/${id}/clarify/${clarId}`, {
+      method: 'POST', headers, body: JSON.stringify({ answer: clarAnswer.trim() })
+    });
+    const data = await res.json();
+    setClarAnswer('');
+    setActionLoading(false);
+    load();
+    if (data.allAnswered) {
+      alert('All questions answered! Generating proposal...');
+    }
   };
 
   if (loading) return <div style={{ padding: 40, color: '#888' }}>Loading job...</div>;
@@ -139,6 +157,46 @@ export default function JobDetail({ token }) {
           </ul>
         </div>
       )}
+
+      {/* Clarification questions */}
+      {job.status === 'clarification' && clarifications.length > 0 && (() => {
+        const pending = clarifications.find(c => !c.answer);
+        const answered = clarifications.filter(c => c.answer);
+        const total = clarifications.length;
+        return (
+          <div style={{ background: '#FFFDE7', border: '1px solid #F59E0B', borderRadius: 8, padding: 20, marginBottom: 16 }}>
+            <strong style={{ color: '#92400E', fontSize: 14 }}>❓ Clarification Needed ({answered.length} of {total} answered)</strong>
+            {answered.map((c, i) => (
+              <div key={c.id} style={{ marginTop: 12, padding: 10, background: '#f0fdf4', borderRadius: 6, borderLeft: `3px solid ${GREEN}` }}>
+                <div style={{ fontSize: 12, color: '#888' }}>Question {i + 1}:</div>
+                <div style={{ fontSize: 13, color: '#333', marginBottom: 4 }}>{c.question}</div>
+                <div style={{ fontSize: 12, color: GREEN, fontWeight: 'bold' }}>✅ {c.answer}</div>
+              </div>
+            ))}
+            {pending && (
+              <div style={{ marginTop: 12, padding: 10, background: 'white', borderRadius: 6, borderLeft: `3px solid #F59E0B` }}>
+                <div style={{ fontSize: 12, color: '#92400E', fontWeight: 'bold' }}>Question {answered.length + 1} of {total}:</div>
+                <div style={{ fontSize: 13, color: '#333', marginTop: 4, marginBottom: 8 }}>{pending.question}</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    value={clarAnswer}
+                    onChange={e => setClarAnswer(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && clarAnswer.trim()) { submitClarAnswer(pending.id); } }}
+                    placeholder="Type your answer..."
+                    style={{ flex: 1, padding: 8, border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}
+                  />
+                  <button
+                    onClick={() => submitClarAnswer(pending.id)}
+                    disabled={!clarAnswer.trim() || actionLoading}
+                    style={{ padding: '8px 16px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+                    {actionLoading ? '...' : 'Submit'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid #eee' }}>
