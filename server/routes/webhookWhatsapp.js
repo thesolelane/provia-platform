@@ -104,7 +104,12 @@ async function handleIncomingWhatsApp(data) {
       role: h.direction === 'inbound' ? 'user' : 'assistant',
       content: h.message
     }));
-    messages.push({ role: 'user', content: body });
+
+    let userMessage = body;
+    if (activeJob) {
+      userMessage = `[Context: Active job for ${activeJob.customer_name || 'unknown customer'} at ${activeJob.project_address || 'unknown address'}, status: ${activeJob.status}, estimate data: ${(activeJob.raw_estimate_data || '').substring(0, 500)}]\n\n${body}`;
+    }
+    messages.push({ role: 'user', content: userMessage });
 
     const reply = await adminChat(messages, language);
     await sendWhatsApp(from, reply);
