@@ -8,17 +8,24 @@ const { sendWhatsApp } = require('../services/whatsappService');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
 
+// GET archived jobs (must be before /:id route)
+router.get('/archived/list', requireAuth, (req, res) => {
+  const db = getDb();
+  const jobs = db.prepare('SELECT * FROM jobs WHERE archived = 1 ORDER BY archived_at DESC').all();
+  res.json({ jobs });
+});
+
 // GET all jobs
 router.get('/', requireAuth, (req, res) => {
   const db = getDb();
   const { status, limit = 50, offset = 0 } = req.query;
-  let query = 'SELECT * FROM jobs';
+  let query = 'SELECT * FROM jobs WHERE archived = 0';
   const params = [];
-  if (status) { query += ' WHERE status = ?'; params.push(status); }
+  if (status) { query += ' AND status = ?'; params.push(status); }
   query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
   params.push(parseInt(limit), parseInt(offset));
   const jobs = db.prepare(query).all(...params);
-  const total = db.prepare('SELECT COUNT(*) as count FROM jobs' + (status ? ' WHERE status = ?' : '')).get(...(status ? [status] : []));
+  const total = db.prepare('SELECT COUNT(*) as count FROM jobs WHERE archived = 0' + (status ? ' AND status = ?' : '')).get(...(status ? [status] : []));
   res.json({ jobs, total: total.count });
 });
 
@@ -205,24 +212,47 @@ router.patch('/:id/notes', requireAuth, (req, res) => {
 // GET job stats for dashboard
 router.get('/stats/summary', requireAuth, (req, res) => {
   const db = getDb();
-  const total = db.prepare('SELECT COUNT(*) as count FROM jobs').get();
-  const byStatus = db.prepare('SELECT status, COUNT(*) as count FROM jobs GROUP BY status').all();
-  const totalValue = db.prepare("SELECT SUM(total_value) as total FROM jobs WHERE status NOT IN ('received')").get();
-  const thisMonth = db.prepare(`SELECT COUNT(*) as count, SUM(total_value) as value FROM jobs WHERE created_at >= date('now','start of month')`).get();
+  const total = db.prepare('SELECT COUNT(*) as count FROM jobs WHERE archived = 0').get();
+  const byStatus = db.prepare('SELECT status, COUNT(*) as count FROM jobs WHERE archived = 0 GROUP BY status').all();
+  const totalValue = db.prepare("SELECT SUM(total_value) as total FROM jobs WHERE archived = 0 AND status NOT IN ('received')").get();
+  const thisMonth = db.prepare(`SELECT COUNT(*) as count, SUM(total_value) as value FROM jobs WHERE archived = 0 AND created_at >= date('now','start of month')`).get();
   res.json({ total: total.count, byStatus, totalValue: totalValue.total || 0, thisMonth });
 });
 
-// DELETE a job
+// ARCHIVE a job (soft delete)
 router.delete('/:id', requireAuth, (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT id FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
-  db.prepare('DELETE FROM clarifications WHERE job_id = ?').run(req.params.id);
-  db.prepare('DELETE FROM conversations WHERE job_id = ?').run(req.params.id);
-  db.prepare('DELETE FROM audit_log WHERE job_id = ?').run(req.params.id);
-  db.prepare('DELETE FROM jobs WHERE id = ?').run(req.params.id);
+  db.prepare('UPDATE jobs SET archived = 1, archived_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.params.id);
+  logAudit(req.params.id, 'archived', 'Job archived', 'admin');
+  res.json({ success: true, message: 'Job archived' });
+});
+
+// RESTORE an archived job
+router.post('/:id/restore', requireAuth, (req, res) => {
+  const db = getDb();
+  db.prepare('UPDATE jobs SET archived = 0, archived_at = NULL WHERE id = ?').run(req.params.id);
+  logAudit(req.params.id, 'restored', 'Job restored from archive', 'admin');
   res.json({ success: true });
 });
+
+// Auto-purge: permanently delete jobs archived more than 90 days ago
+function purgeOldArchived() {
+  try {
+    const db = getDb();
+    const old = db.prepare("SELECT id FROM jobs WHERE archived = 1 AND archived_at < datetime('now', '-90 days')").all();
+    for (const job of old) {
+      db.prepare('DELETE FROM clarifications WHERE job_id = ?').run(job.id);
+      db.prepare('DELETE FROM conversations WHERE job_id = ?').run(job.id);
+      db.prepare('DELETE FROM audit_log WHERE job_id = ?').run(job.id);
+      db.prepare('DELETE FROM jobs WHERE id = ?').run(job.id);
+    }
+    if (old.length > 0) console.log(`[Auto-purge] Permanently deleted ${old.length} archived job(s) older than 90 days`);
+  } catch (e) {}
+}
+setInterval(purgeOldArchived, 24 * 60 * 60 * 1000);
+setTimeout(purgeOldArchived, 5000);
 
 module.exports = router;

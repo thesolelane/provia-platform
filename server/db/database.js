@@ -43,6 +43,8 @@ async function initDatabase() {
       flagged_items TEXT,
       submitted_by TEXT,
       notes TEXT,
+      archived INTEGER DEFAULT 0,
+      archived_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -110,6 +112,14 @@ async function initDatabase() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Migration: add archived columns if missing
+  try {
+    db.prepare("SELECT archived FROM jobs LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN archived INTEGER DEFAULT 0");
+    db.exec("ALTER TABLE jobs ADD COLUMN archived_at DATETIME");
+  }
 
   seedDefaultSettings();
   seedDefaultSenders();
