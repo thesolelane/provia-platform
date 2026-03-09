@@ -131,8 +131,8 @@ async function initDatabase() {
 function seedDefaultSettings() {
   const defaults = [
     // Markup
-    { key: 'markup.subOP',       value: '0.25',  category: 'markup',     label: 'Sub Overhead & Profit %' },
-    { key: 'markup.gcOP',        value: '0.20',  category: 'markup',     label: 'GC Overhead & Profit %' },
+    { key: 'markup.subOandP',    value: '0.15',  category: 'markup',     label: 'Sub Overhead & Profit %' },
+    { key: 'markup.gcOandP',     value: '0.25',  category: 'markup',     label: 'GC Overhead & Profit %' },
     { key: 'markup.contingency', value: '0.10',  category: 'markup',     label: 'Contingency %' },
     { key: 'markup.deposit',     value: '0.33',  category: 'markup',     label: 'Deposit %' },
     // Labor rates

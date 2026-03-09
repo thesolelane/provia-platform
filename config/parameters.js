@@ -31,17 +31,16 @@ module.exports = {
     }
   },
 
-  // Approved senders — only these can trigger the bot
   approvedSenders: [
     "jackson.deaquino@preferredbuildersusa.com",
     "owner@preferredbuildersusa.com"
   ],
 
   markup: {
-    subContractorOP: 0.25,   // 25% sub overhead & profit
-    gcOP: 0.20,              // 20% GC overhead & profit
-    contingency: 0.10,       // 10% contingency
-    depositPercent: 0.33     // 33% deposit
+    subOandP: 0.15,        // 15% sub overhead & profit on base cost
+    gcOandP: 0.25,         // 25% GC overhead & profit on (base + sub O&P)
+    contingency: 0.10,     // 10% contingency on subtotal
+    deposit: 0.33          // 33% deposit on contract total
   },
 
   laborRates: {
@@ -134,10 +133,10 @@ module.exports = {
     autoApplyStretchCode: true,
     flagVariancePercent: 15,
     requireReviewBeforeCustomer: true,
-    defaultRatePoint: "mid",       // low | mid | high
+    defaultRatePoint: "mid",
     alwaysIncludeExhibitA: true,
     ccOwnerOnAll: true,
-    proposalFirst: true,           // Proposal → approve → Contract
+    proposalFirst: true,
     maxProcessingMinutes: 5
   }
 };

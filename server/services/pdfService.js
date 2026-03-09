@@ -467,33 +467,39 @@ function renderCostSummary(section, data) {
 
   let rows = items.map(item => {
     const label = item.label || item.trade || item.description || String(item);
-    const amount = item.amount || item.cost || item.finalPrice || item.basePrice || 0;
+    const amount = item.baseCost || item.amount || item.cost || item.finalPrice || item.basePrice || 0;
     return `
-    <tr ${item.isTotal ? 'class="total"' : item.isDeposit ? 'class="deposit"' : ''}>
+    <tr>
       <td>${label}</td>
       <td style="text-align:right;">${fmt(amount)}</td>
     </tr>`;
   }).join('');
 
-  const subtotal = content.subtotal || content.subtotalAfterSubOH || items.reduce((s, i) => s + (i.amount || i.cost || i.finalPrice || i.basePrice || 0), 0);
+  const baseCostTotal = content.baseCostTotal || items.reduce((s, i) => s + (i.baseCost || i.amount || i.cost || i.finalPrice || i.basePrice || 0), 0);
 
   rows += `
-    <tr><td><strong>Subtotal</strong></td><td style="text-align:right;"><strong>${fmt(subtotal)}</strong></td></tr>`;
-  if (content.subOPAmount || content.subOHAmount) {
+    <tr><td><strong>Base Cost Subtotal</strong></td><td style="text-align:right;"><strong>${fmt(baseCostTotal)}</strong></td></tr>`;
+
+  const subOPAmt = content.subOandPAmount || content.subOPAmount || content.subOHAmount;
+  const subOPPct = content.subOandPPercent || content.subOPPercent || content.subOHPercent;
+  if (subOPAmt) {
     rows += `
-    <tr><td>Sub Overhead & Profit (${content.subOPPercent || content.subOHPercent || 25}%)</td><td style="text-align:right;">${fmt(content.subOPAmount || content.subOHAmount)}</td></tr>`;
+    <tr><td>Sub Overhead & Profit (${subOPPct || 15}%)</td><td style="text-align:right;">${fmt(subOPAmt)}</td></tr>`;
   }
-  if (content.gcOPAmount || content.gcOHAmount) {
+
+  const gcOPAmt = content.gcOandPAmount || content.gcOPAmount || content.gcOHAmount;
+  const gcOPPct = content.gcOandPPercent || content.gcOPPercent || content.gcOHPercent;
+  if (gcOPAmt) {
     rows += `
-    <tr><td>GC Overhead & Profit (${content.gcOPPercent || content.gcOHPercent || 20}%)</td><td style="text-align:right;">${fmt(content.gcOPAmount || content.gcOHAmount)}</td></tr>`;
+    <tr><td>GC Overhead & Profit (${gcOPPct || 25}%)</td><td style="text-align:right;">${fmt(gcOPAmt)}</td></tr>`;
   }
+
   if (content.contingencyAmount) {
     rows += `
     <tr><td>Contingency (${content.contingencyPercent || 10}%)</td><td style="text-align:right;">${fmt(content.contingencyAmount)}</td></tr>`;
   }
 
-  if (!items.some(i => i.isTotal)) {
-    rows += `
+  rows += `
     <tr class="total">
       <td>TOTAL CONTRACT VALUE</td>
       <td style="text-align:right;">${fmt(content.totalContractPrice || data.totalValue)}</td>
@@ -502,11 +508,10 @@ function renderCostSummary(section, data) {
       <td>DEPOSIT REQUIRED (${content.depositPercent || 33}%)</td>
       <td style="text-align:right;">${fmt(content.depositAmount || data.depositAmount)}</td>
     </tr>`;
-  }
 
   return `
   <table>
-    <tr><th>Trade / Phase</th><th style="text-align:right;">Amount</th></tr>
+    <tr><th>Trade / Phase</th><th style="text-align:right;">Base Cost</th></tr>
     ${rows}
   </table>`;
 }

@@ -21,6 +21,18 @@ AI-powered construction estimation, contract generation, and team communication 
 - `client/src/App.jsx` — React app root with auto-logout on 401
 - `client/src/pages/` — Dashboard, JobDetail, Settings, KnowledgeBase, AdminChat, Whitelist, FieldGuide
 
+## Pricing Model (Option A)
+Jackson submits BASE COSTS (what we pay subs/materials). Claude applies markup to calculate customer-facing price:
+1. Sub O&P: 15% on base cost
+2. GC O&P: 25% on (base + Sub O&P)
+3. Contingency: 10% on subtotal
+4. Deposit: 33% of contract total
+Config: `config/parameters.js` (defaults) + `settings` table in DB (runtime overrides)
+Claude also grades each trade against Central MA market rates and flags items >15% above/below typical range.
+
+## Archive System
+Jobs are soft-deleted (archived) not hard-deleted. Archived jobs are automatically purged after 90 days. Users can restore archived jobs from the Dashboard.
+
 ## Important Notes
 - PORT=5000 is set as Replit env var to override Replit's default PORT=3001
 - `.env` file provides non-secret defaults only; Replit secrets take precedence

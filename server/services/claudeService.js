@@ -25,9 +25,20 @@ function loadKnowledgeBase() {
   return docs.map(d => `## ${d.title} [${d.category}]\n${d.content}`).join('\n\n---\n\n');
 }
 
+// ── GET MARKUP RATES ─────────────────────────────────────────────────
+function getMarkupRates(settings) {
+  return {
+    subOandP:     Number(settings['markup.subOandP'])    || Number(settings['markup.subOP'])  || 0.15,
+    gcOandP:      Number(settings['markup.gcOandP'])     || Number(settings['markup.gcOP'])   || 0.25,
+    contingency:  Number(settings['markup.contingency']) || 0.10,
+    deposit:      Number(settings['markup.deposit'])     || 0.33
+  };
+}
+
 // ── BUILD SYSTEM PROMPT ──────────────────────────────────────────────
 function buildSystemPrompt(settings, knowledgeBase, language = 'en') {
   const isPortuguese = language === 'pt-BR';
+  const rates = getMarkupRates(settings);
 
   return `You are the Preferred Builders AI Contract Engine — an expert construction estimating and contract generation assistant for Preferred Builders General Services Inc., a licensed Massachusetts general contractor (HIC-197400) based in Fitchburg, MA.
 
@@ -42,12 +53,35 @@ License: HIC-197400
 Address: 37 Duck Mill Road, Fitchburg, MA 01420
 Phone: 978-377-1784
 
-## YOUR PRICING PARAMETERS (always use these)
-Sub O&P: ${Math.round((settings['markup.subOP'] || 0.25) * 100)}%
-GC O&P: ${Math.round((settings['markup.gcOP'] || 0.20) * 100)}%
-Contingency: ${Math.round((settings['markup.contingency'] || 0.10) * 100)}%
-Deposit: ${Math.round((settings['markup.deposit'] || 0.33) * 100)}%
-Default rate point: ${settings['bot.defaultRatePoint'] || 'mid'}
+## OPTION A PRICING MODEL — HOW MARKUP WORKS
+Jackson submits BASE COSTS (what we pay subs/materials). You apply markup to calculate the customer-facing contract price.
+
+Markup is applied in this EXACT order:
+1. Sub O&P: ${Math.round(rates.subOandP * 100)}% added to each line item's base cost
+2. GC O&P: ${Math.round(rates.gcOandP * 100)}% added to the subtotal (base + Sub O&P)
+3. Contingency: ${Math.round(rates.contingency * 100)}% added to the subtotal (after GC O&P)
+4. The result is the CONTRACT TOTAL
+5. Deposit: ${Math.round(rates.deposit * 100)}% of the contract total
+
+EXAMPLE: If a line item is $10,000 base:
+- After Sub O&P (${Math.round(rates.subOandP * 100)}%): $10,000 × 1.${Math.round(rates.subOandP * 100)} = $${(10000 * (1 + rates.subOandP)).toLocaleString()}
+- Sum all line items after Sub O&P = subtotal
+- After GC O&P (${Math.round(rates.gcOandP * 100)}%): subtotal × 1.${Math.round(rates.gcOandP * 100)}
+- After Contingency (${Math.round(rates.contingency * 100)}%): × 1.${Math.round(rates.contingency * 100)}
+- = CONTRACT TOTAL
+
+CRITICAL RULES FOR PRICING:
+- NEVER treat submitted prices as already-marked-up. They are ALWAYS base costs.
+- NEVER add markup to a total that already includes markup.
+- If the estimate includes a "total" line, verify it equals the sum of line items. If they differ, flag the variance but use the line item sum.
+- Stretch Code items (ERV, blower door, HERS rater, EV outlet, solar conduit) should ONLY be added if NOT already present in the line items.
+
+## MARKET RATE GRADING
+For each trade line item, compare the base cost against typical Central MA market rates.
+If any line item is more than 15% above or below the expected range, add it to "flaggedItems" with a note like:
+  "Foundation ($28,000) — 18% above typical range ($20,000–$25,000 for slab-on-grade)"
+  "Electrical ($15,000) — 22% below typical range ($18,000–$22,000 for new construction)"
+This helps Jackson catch pricing errors before sending to the customer.
 
 ## KEY ALLOWANCES (contractor-grade pricing)
 Kitchen Cabinets: $${(settings['allowance.cabinets'] || {amount:12000}).amount?.toLocaleString()}
@@ -82,14 +116,14 @@ Section 9: Signature Block
 Exhibit A: Allowance Schedule (ALWAYS included)
 
 ## RULES
-1. Always apply markup percentages from settings
+1. Always apply the Option A markup formula described above
 2. Always flag Stretch Code requirements if project town is in the list
 3. If a line item is unclear, mark it [NEEDS REVIEW] — never fabricate numbers
 4. Write scope descriptions in plain, friendly language homeowners understand
 5. Always include Exhibit A with every proposal
 6. Never include well, septic, underground electric, appliances, or driveway unless explicitly in the estimate
 7. If any required field is missing, list the specific questions needed — be concise
-8. For MA Stretch Code towns: always add HERS rater ($1,200), ERV ($3,500), EV outlet ($350), solar conduit ($300)
+8. For MA Stretch Code towns: add HERS rater ($1,200), ERV ($3,500), EV outlet ($350), solar conduit ($300) — ONLY if not already in the line items
 9. Metal roof at 3:12 or lower pitch requires 2x12 rafters at 16" O.C. and structural ridge beam
 10. 2x6 framing is required in MA Stretch Code towns to achieve R-20
 
@@ -126,6 +160,7 @@ async function processEstimate(rawEstimateText, jobId, language = 'en') {
   const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
   const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language);
+  const rates = getMarkupRates(settings);
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
@@ -142,26 +177,42 @@ ESTIMATE DATA:
 ${rawEstimateText}
 
 INSTRUCTIONS:
-- Generate the complete proposal JSON using the numbers provided.
-- Apply all markup percentages (Sub O&P, GC O&P, Contingency) to the line items given.
-- Calculate the deposit based on the final total.
-- If line item prices are provided, USE THEM — do not ask for clarification on pricing.
+- All submitted line item prices are BASE COSTS (what we pay subs/materials).
+- Apply the Option A markup formula:
+  1. Add Sub O&P (${Math.round(rates.subOandP * 100)}%) to each line item base cost
+  2. Sum all line items after Sub O&P = subtotal
+  3. Add GC O&P (${Math.round(rates.gcOandP * 100)}%) to the subtotal
+  4. Add Contingency (${Math.round(rates.contingency * 100)}%) to get CONTRACT TOTAL
+  5. Deposit = ${Math.round(rates.deposit * 100)}% of contract total
+- If the estimate includes a total, verify it matches the sum of line items. Flag any variance.
+- Grade each trade against Central MA market rates. Flag items >15% above or below typical range.
+- If line item prices are provided, USE THEM as base costs — do not ask for clarification on pricing.
 - Only set readyToGenerate to false if CRITICAL construction details are missing (like foundation type for a new build). NEVER ask for customer name, email, phone, or address — those are always provided above the estimate data.
 - For any details not specified (like sqft, foundation type, etc.), make reasonable assumptions based on the scope and note them in the proposal.
+- For Stretch Code towns: add HERS rater, ERV, EV outlet, solar conduit ONLY if they are NOT already in the line items.
 - Set readyToGenerate to true and generate the full proposal.
 
-IMPORTANT — Cost Summary lineItems format:
-Each item in sections[type="cost_summary"].content.lineItems MUST use this exact shape:
-  { "label": "Trade Name", "amount": 28000 }
-where "amount" is the BASE PRICE from the estimate (before any markups).
-Show markups as separate summary fields in the content object:
-  "subtotal": (sum of all base amounts),
-  "subOPPercent": 25, "subOPAmount": ...,
-  "gcOPPercent": 20, "gcOPAmount": ...,
-  "contingencyPercent": 10, "contingencyAmount": ...,
-  "totalContractPrice": ...,
-  "depositPercent": 33, "depositAmount": ...
-Do NOT inflate individual line item amounts with markups. Keep them at the original estimate values.`
+IMPORTANT — Cost Summary (sections[type="cost_summary"].content) format:
+{
+  "lineItems": [
+    { "label": "Foundation", "baseCost": 28000 },
+    { "label": "Framing", "baseCost": 130000 }
+  ],
+  "baseCostTotal": (sum of all baseCost values),
+  "subOandPPercent": ${Math.round(rates.subOandP * 100)},
+  "subOandPAmount": (baseCostTotal × ${rates.subOandP}),
+  "subtotalAfterSubOP": (baseCostTotal + subOandPAmount),
+  "gcOandPPercent": ${Math.round(rates.gcOandP * 100)},
+  "gcOandPAmount": (subtotalAfterSubOP × ${rates.gcOandP}),
+  "subtotalAfterGCOP": (subtotalAfterSubOP + gcOandPAmount),
+  "contingencyPercent": ${Math.round(rates.contingency * 100)},
+  "contingencyAmount": (subtotalAfterGCOP × ${rates.contingency}),
+  "totalContractPrice": (subtotalAfterGCOP + contingencyAmount),
+  "depositPercent": ${Math.round(rates.deposit * 100)},
+  "depositAmount": (totalContractPrice × ${rates.deposit})
+}
+Use "baseCost" (not "amount") for each line item. This is the base cost before any markup.
+The "totalValue" and "depositAmount" at the top level of the JSON should match totalContractPrice and depositAmount from the cost summary.`
       }
     ]
   });
@@ -196,7 +247,7 @@ Approved Proposal Data:
 ${JSON.stringify(proposalData, null, 2)}
 
 Generate the complete contract JSON including:
-- All proposal sections (same content, same numbers)
+- All proposal sections (same content, same numbers — do NOT recalculate pricing)
 - Section 8: Full MA-compliant legal terms and conditions including:
   * Payment schedule and terms
   * Change order policy  
@@ -212,7 +263,8 @@ Generate the complete contract JSON including:
 - Section 9: Signature block with date lines
 - Exhibit A: Full allowance schedule
 
-Document type should be "contract".`
+Document type should be "contract".
+IMPORTANT: Keep all pricing numbers exactly the same as the approved proposal. Do not recalculate.`
       }
     ]
   });
