@@ -36,6 +36,18 @@ export default function Dashboard({ token }) {
     });
   }, []);
 
+  const deleteJob = async (jobId, customerName) => {
+    if (!window.confirm(`Delete job for ${customerName || 'this customer'}? This cannot be undone.`)) return;
+    const res = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE', headers });
+    if (res.ok) {
+      setJobs(jobs.filter(j => j.id !== jobId));
+      setStats(prev => prev ? { ...prev, total: (prev.total || 1) - 1 } : prev);
+    } else {
+      const data = await res.json();
+      alert(data.error || 'Failed to delete');
+    }
+  };
+
   const submitManual = async () => {
     const res = await fetch('/api/jobs/manual', {
       method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
@@ -115,8 +127,13 @@ export default function Dashboard({ token }) {
                 <td style={{ padding: '12px 16px', fontSize: 11, color: '#888' }}>
                   {new Date(job.created_at).toLocaleDateString()}
                 </td>
-                <td style={{ padding: '12px 16px' }}>
+                <td style={{ padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'center' }}>
                   <Link to={`/jobs/${job.id}`} style={{ color: '#1B3A6B', fontSize: 12, fontWeight: 'bold', textDecoration: 'none' }}>View →</Link>
+                  <button
+                    onClick={() => deleteJob(job.id, job.customer_name)}
+                    style={{ background: 'none', border: 'none', color: '#C62828', cursor: 'pointer', fontSize: 13, padding: '2px 6px', borderRadius: 4 }}
+                    title="Delete job"
+                  >✕</button>
                 </td>
               </tr>
             ))}

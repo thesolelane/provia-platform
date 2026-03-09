@@ -212,4 +212,17 @@ router.get('/stats/summary', requireAuth, (req, res) => {
   res.json({ total: total.count, byStatus, totalValue: totalValue.total || 0, thisMonth });
 });
 
+// DELETE a job
+router.delete('/:id', requireAuth, (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT id FROM jobs WHERE id = ?').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  db.prepare('DELETE FROM clarifications WHERE job_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM conversations WHERE job_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM audit_log WHERE job_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM jobs WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 module.exports = router;
