@@ -24,6 +24,19 @@ function App() {
     setToken(null);
   };
 
+  useEffect(() => {
+    if (!token) return;
+    const origFetch = window.fetch;
+    window.fetch = async (...args) => {
+      const res = await origFetch(...args);
+      if (res.status === 401) {
+        handleLogout();
+      }
+      return res;
+    };
+    return () => { window.fetch = origFetch; };
+  }, [token]);
+
   if (!token) return <Login onLogin={handleLogin} />;
 
   return (
