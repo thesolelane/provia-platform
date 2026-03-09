@@ -119,7 +119,18 @@ router.post('/manual', requireAuth, async (req, res) => {
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', jobId);
+        const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
+        for (const q of proposalData.clarificationsNeeded) {
+          insertQ.run(jobId, q);
+        }
         console.log(`[Manual Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`);
+
+        const ownerWhatsApp = process.env.COOPER_WHATSAPP_NUMBER;
+        if (ownerWhatsApp) {
+          const to = ownerWhatsApp.startsWith('whatsapp:') ? ownerWhatsApp : `whatsapp:${ownerWhatsApp}`;
+          const firstQ = proposalData.clarificationsNeeded[0];
+          await sendWhatsApp(to, `📋 *New estimate needs info*\n\nCustomer: ${customerName}\nAddress: ${projectAddress}\n\n❓ Question 1 of ${proposalData.clarificationsNeeded.length}:\n${firstQ}`);
+        }
       } else {
         const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
         db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')

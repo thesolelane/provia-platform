@@ -220,9 +220,15 @@ async function handleClarificationReply(job, answer, from, db, language) {
 
     await sendWhatsApp(from, msg, pdfPath);
   } else {
+    const nextQ = db.prepare(
+      'SELECT * FROM clarifications WHERE job_id = ? AND answer IS NULL ORDER BY asked_at ASC LIMIT 1'
+    ).get(job.id);
+    const totalQ = db.prepare('SELECT COUNT(*) as count FROM clarifications WHERE job_id = ?').get(job.id);
+    const answeredQ = totalQ.count - remaining.count;
+
     await sendWhatsApp(from, isPortuguese
-      ? `✅ Anotado. Mais ${remaining.count} pergunta(s) restante(s)...`
-      : `✅ Got it. ${remaining.count} more question(s) remaining...`
+      ? `✅ Anotado.\n\n❓ Pergunta ${answeredQ + 1} de ${totalQ.count}:\n${nextQ.question}`
+      : `✅ Got it.\n\n❓ Question ${answeredQ + 1} of ${totalQ.count}:\n${nextQ.question}`
     );
   }
 }
