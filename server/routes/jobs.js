@@ -137,7 +137,7 @@ router.get('/stats/summary', requireAuth, (req, res) => {
   const db = getDb();
   const total = db.prepare('SELECT COUNT(*) as count FROM jobs').get();
   const byStatus = db.prepare('SELECT status, COUNT(*) as count FROM jobs GROUP BY status').all();
-  const totalValue = db.prepare('SELECT SUM(total_value) as total FROM jobs WHERE status NOT IN ("received")').get();
+  const totalValue = db.prepare("SELECT SUM(total_value) as total FROM jobs WHERE status NOT IN ('received')").get();
   const thisMonth = db.prepare(`SELECT COUNT(*) as count, SUM(total_value) as value FROM jobs WHERE created_at >= date('now','start of month')`).get();
   res.json({ total: total.count, byStatus, totalValue: totalValue.total || 0, thisMonth });
 });
