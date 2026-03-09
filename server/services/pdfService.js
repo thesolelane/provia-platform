@@ -478,7 +478,7 @@ function renderCostSummary(section, data) {
   const baseCostTotal = content.baseCostTotal || items.reduce((s, i) => s + (i.baseCost || i.amount || i.cost || i.finalPrice || i.basePrice || 0), 0);
 
   rows += `
-    <tr><td><strong>Base Cost Subtotal</strong></td><td style="text-align:right;"><strong>${fmt(baseCostTotal)}</strong></td></tr>`;
+    <tr><td><strong>Subtotal</strong></td><td style="text-align:right;"><strong>${fmt(baseCostTotal)}</strong></td></tr>`;
 
   const subOPAmt = content.subOandPAmount || content.subOPAmount || content.subOHAmount;
   const subOPPct = content.subOandPPercent || content.subOPPercent || content.subOHPercent;
@@ -511,7 +511,7 @@ function renderCostSummary(section, data) {
 
   return `
   <table>
-    <tr><th>Trade / Phase</th><th style="text-align:right;">Base Cost</th></tr>
+    <tr><th>Trade / Phase</th><th style="text-align:right;">Price</th></tr>
     ${rows}
   </table>`;
 }
