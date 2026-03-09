@@ -148,7 +148,20 @@ INSTRUCTIONS:
 - If line item prices are provided, USE THEM — do not ask for clarification on pricing.
 - Only set readyToGenerate to false if the customer name or project address is completely missing.
 - For any details not specified (like sqft, foundation type, etc.), make reasonable assumptions based on the scope and note them in the proposal.
-- Set readyToGenerate to true and generate the full proposal.`
+- Set readyToGenerate to true and generate the full proposal.
+
+IMPORTANT — Cost Summary lineItems format:
+Each item in sections[type="cost_summary"].content.lineItems MUST use this exact shape:
+  { "label": "Trade Name", "amount": 28000 }
+where "amount" is the BASE PRICE from the estimate (before any markups).
+Show markups as separate summary fields in the content object:
+  "subtotal": (sum of all base amounts),
+  "subOPPercent": 25, "subOPAmount": ...,
+  "gcOPPercent": 20, "gcOPAmount": ...,
+  "contingencyPercent": 10, "contingencyAmount": ...,
+  "totalContractPrice": ...,
+  "depositPercent": 33, "depositAmount": ...
+Do NOT inflate individual line item amounts with markups. Keep them at the original estimate values.`
       }
     ]
   });

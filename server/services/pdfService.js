@@ -462,25 +462,52 @@ function renderPermitChecklist(section) {
 
 function renderCostSummary(section, data) {
   const fmt = (n) => n ? `$${Number(n).toLocaleString()}` : '—';
-  const items = section.content?.lineItems || [];
+  const content = section.content || {};
+  const items = content.lineItems || [];
+
+  let rows = items.map(item => {
+    const label = item.label || item.trade || item.description || String(item);
+    const amount = item.amount || item.cost || item.finalPrice || item.basePrice || 0;
+    return `
+    <tr ${item.isTotal ? 'class="total"' : item.isDeposit ? 'class="deposit"' : ''}>
+      <td>${label}</td>
+      <td style="text-align:right;">${fmt(amount)}</td>
+    </tr>`;
+  }).join('');
+
+  const subtotal = content.subtotal || content.subtotalAfterSubOH || items.reduce((s, i) => s + (i.amount || i.cost || i.finalPrice || i.basePrice || 0), 0);
+
+  rows += `
+    <tr><td><strong>Subtotal</strong></td><td style="text-align:right;"><strong>${fmt(subtotal)}</strong></td></tr>`;
+  if (content.subOPAmount || content.subOHAmount) {
+    rows += `
+    <tr><td>Sub Overhead & Profit (${content.subOPPercent || content.subOHPercent || 25}%)</td><td style="text-align:right;">${fmt(content.subOPAmount || content.subOHAmount)}</td></tr>`;
+  }
+  if (content.gcOPAmount || content.gcOHAmount) {
+    rows += `
+    <tr><td>GC Overhead & Profit (${content.gcOPPercent || content.gcOHPercent || 20}%)</td><td style="text-align:right;">${fmt(content.gcOPAmount || content.gcOHAmount)}</td></tr>`;
+  }
+  if (content.contingencyAmount) {
+    rows += `
+    <tr><td>Contingency (${content.contingencyPercent || 10}%)</td><td style="text-align:right;">${fmt(content.contingencyAmount)}</td></tr>`;
+  }
+
+  if (!items.some(i => i.isTotal)) {
+    rows += `
+    <tr class="total">
+      <td>TOTAL CONTRACT VALUE</td>
+      <td style="text-align:right;">${fmt(content.totalContractPrice || data.totalValue)}</td>
+    </tr>
+    <tr class="deposit">
+      <td>DEPOSIT REQUIRED (${content.depositPercent || 33}%)</td>
+      <td style="text-align:right;">${fmt(content.depositAmount || data.depositAmount)}</td>
+    </tr>`;
+  }
 
   return `
   <table>
     <tr><th>Trade / Phase</th><th style="text-align:right;">Amount</th></tr>
-    ${items.map(item => `
-    <tr ${item.isTotal ? 'class="total"' : item.isDeposit ? 'class="deposit"' : ''}>
-      <td>${item.label || item.trade || item}</td>
-      <td style="text-align:right;">${fmt(item.amount || item.cost)}</td>
-    </tr>`).join('')}
-    ${!items.some(i => i.isTotal) ? `
-    <tr class="total">
-      <td>TOTAL CONTRACT VALUE</td>
-      <td style="text-align:right;">${fmt(data.totalValue)}</td>
-    </tr>
-    <tr class="deposit">
-      <td>DEPOSIT REQUIRED (33%)</td>
-      <td style="text-align:right;">${fmt(data.depositAmount)}</td>
-    </tr>` : ''}
+    ${rows}
   </table>`;
 }
 
