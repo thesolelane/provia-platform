@@ -3,7 +3,24 @@
 ## Overview
 AI-powered construction estimation, contract generation, and team communication system for Preferred Builders General Services Inc. (HIC-197400).
 
-## Architecture
+## Architecture — Data Flow
+1. Jackson submits estimate text (base costs + scope notes)
+2. **Claude** reads the estimate and returns **flat structured JSON** — just data, no formatting
+3. **System** (`recalculatePricing` in `claudeService.js`) applies markup math to each line item
+4. **PDF template** (`pdfService.js`) reads the flat JSON and renders the document — all template logic lives here, never in Claude
+
+Claude's JSON output:
+```json
+{
+  "lineItems": [{ "trade": "Foundation", "baseCost": 28000, "scopeIncluded": [...], "scopeExcluded": [...] }],
+  "exclusions": [{ "name": "...", "reason": "...", "budget": "..." }],
+  "customer": {...}, "project": {...},
+  "flaggedItems": [...], "stretchCodeItems": [...]
+}
+```
+System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil`
+
+## Stack
 - **Backend:** Express.js on port 5000
 - **Frontend:** React (Create React App), served as static build from `client/build`
 - **Database:** SQLite via better-sqlite3 (`data/preferred_builders.db`)
@@ -16,8 +33,10 @@ AI-powered construction estimation, contract generation, and team communication 
 - `server/index.js` — Main server entry
 - `server/db/database.js` — SQLite schema & init (7 tables + seed data)
 - `server/routes/` — API routes (auth, jobs, settings, knowledge, conversations, whitelist, webhooks)
+- `server/routes/jobs.js` — Job CRUD + `/reprocess` endpoint to re-run Claude + regenerate PDF
 - `server/middleware/auth.js` — Session-based auth (in-memory Map)
-- `server/services/` — Claude AI, WhatsApp, email, PDF, audit services
+- `server/services/claudeService.js` — Claude data extraction + `applyPricing()` math
+- `server/services/pdfService.js` — Complete PDF template (proposal + contract + Exhibit A)
 - `client/src/App.jsx` — React app root with auto-logout on 401
 - `client/src/pages/` — Dashboard, JobDetail, Settings, KnowledgeBase, AdminChat, Whitelist, FieldGuide
 
@@ -28,10 +47,10 @@ Jackson submits BASE COSTS (what we pay subs/materials). The SYSTEM applies mark
 - Stretch code items (isStretchCode: true) are passed through at flat cost — no markup
 - Customer sees final prices per trade — no separate markup breakdown shown
 - Deposit: 33% of contract total
-- Valid-until: 15 days from proposal date
+- Valid-until: uses date from estimate if provided, otherwise 15 days from proposal date
 - If estimate already includes stretch code compliance (e.g. in Permits line), system does NOT add duplicate items
 Config: `config/parameters.js` (defaults) + `settings` table in DB (runtime overrides)
-Claude also grades each trade against Central MA market rates and flags items >15% above/below typical range.
+Claude grades each trade against Central MA market rates and flags items >15% above/below typical range.
 
 ## Archive System
 Jobs are soft-deleted (archived) not hard-deleted. Archived jobs are automatically purged after 90 days. Users can restore archived jobs from the Dashboard.
@@ -45,6 +64,7 @@ Jobs are soft-deleted (archived) not hard-deleted. Archived jobs are automatical
 - WhatsApp uses polling (every 5s) because Twilio sandbox webhooks don't reliably forward to Replit proxy URLs
 - Twilio credentials: TWILIO_API_KEY + TWILIO_API_SECRET + TWILIO_LIVE_ACCOUNT_SID for API auth
 - Approved senders whitelist uses `whatsapp:+1XXXXXXXXXX` format
+- Puppeteer needs Chrome — run `npx puppeteer browsers install chrome` if Chrome missing
 
 ## Production TODO
 - [ ] **Move sessions to SQLite** — Currently sessions are stored in-memory (`server/middleware/auth.js`). They are lost on every server restart. For production, store sessions in the SQLite database so they survive restarts.

@@ -1,6 +1,6 @@
 // server/services/pdfService.js
 // Generates Proposal and Contract PDFs using Puppeteer
-// Portable — works on any server with Chrome/Chromium
+// Template lives HERE — Claude only provides data, never formatting.
 
 const puppeteer = require('puppeteer');
 const path = require('path');
@@ -14,10 +14,10 @@ const BRAND_ORANGE = '#E07B2A';
 const LIGHT_BLUE   = '#EEF3FB';
 const LIGHT_GRAY   = '#F8F8F8';
 
-async function generatePDF(documentData, type, jobId) {
+async function generatePDF(data, type, jobId) {
   const html = type === 'proposal'
-    ? buildProposalHTML(documentData)
-    : buildContractHTML(documentData);
+    ? buildProposalHTML(data)
+    : buildContractHTML(data);
 
   const filename = `PB_${type === 'proposal' ? 'Proposal' : 'Contract'}_${jobId.slice(0,8)}_${Date.now()}.pdf`;
   const outputPath = path.join(OUTPUT_DIR, filename);
@@ -132,37 +132,23 @@ function baseCSS() {
     .overview-grid .label-cell { font-weight: bold; font-size: 9.5pt; color: ${BRAND_BLUE}; }
     .overview-grid .value-cell { font-size: 10pt; }
 
-    .total-highlight { background: ${BRAND_BLUE}; color: white; padding: 14px 16px; margin: 16px 0; display: flex; justify-content: space-between; }
-    .total-highlight .label { font-size: 12pt; font-weight: bold; }
-    .total-highlight .amount { font-size: 14pt; font-weight: bold; }
-    .deposit-highlight { background: ${BRAND_ORANGE}; color: white; padding: 10px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; }
-
     .page-break { page-break-before: always; }
   `;
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// PROPOSAL HTML — built entirely from flat JSON data
+// ══════════════════════════════════════════════════════════════════════
 function buildProposalHTML(data) {
   const customer = data.customer || {};
   const project = data.project || {};
-  const sections = data.sections || [];
-
+  const lineItems = data.lineItems || [];
+  const exclusions = data.exclusions || [];
+  const pricing = data.pricing || {};
   const fmt = (n) => n ? `$${Number(n).toLocaleString()}` : '$0';
   const quoteNum = data.quoteNumber || '—';
   const validUntil = data.validUntil || '—';
-
-  // Build scope sections — handle both formats: multiple scope sections or single scope with trades array
-  let scopeSections = sections.filter(s => s.type === 'scope');
-  if (scopeSections.length === 1 && scopeSections[0].content?.trades) {
-    scopeSections = scopeSections[0].content.trades.map(t => ({
-      title: t.trade,
-      content: { included: t.included || [], excluded: t.excluded || [], note: t.note }
-    }));
-  }
-  const exclusions = sections.find(s => s.type === 'exclusions');
-  const costSummary = sections.find(s => s.type === 'cost_summary');
-  const permitChecklist = sections.find(s => s.type === 'permit_checklist');
-  const responsibilities = sections.find(s => s.type === 'responsibilities');
-  const exhibitA = sections.find(s => s.type === 'exhibit_a');
+  const isStretchCode = project.stretchCodeTown || data.isStretchCodeTown || false;
 
   return `<!DOCTYPE html>
 <html>
@@ -194,13 +180,13 @@ function buildProposalHTML(data) {
     <div class="item label-cell">Phone</div>
     <div class="item value-cell">${customer.phone || ''}</div>
     <div class="item label-cell">Project Address</div>
-    <div class="item value-cell">${project.address || ''}, ${project.city || ''}, MA</div>
+    <div class="item value-cell">${project.address || ''}</div>
     <div class="item label-cell">Description</div>
     <div class="item value-cell">${project.description || ''}</div>
     <div class="item label-cell">Square Footage</div>
-    <div class="item value-cell">${project.sqft ? project.sqft.toLocaleString() + ' sq ft' : '—'}</div>
+    <div class="item value-cell">${project.sqft ? Number(project.sqft).toLocaleString() + ' sq ft' : '—'}</div>
     <div class="item label-cell">Stretch Code Town</div>
-    <div class="item value-cell">${data.isStretchCodeTown ? '⚠️ Yes — additional requirements apply' : 'No'}</div>
+    <div class="item value-cell">${isStretchCode ? '⚠️ Yes — additional requirements apply' : 'No'}</div>
     <div class="item label-cell">Quote Number</div>
     <div class="item value-cell">${quoteNum}</div>
     <div class="item label-cell">Offer Valid Until</div>
@@ -215,37 +201,26 @@ function buildProposalHTML(data) {
 
   <!-- SCOPE OF WORK -->
   <div class="section-header">SCOPE OF WORK</div>
-  ${scopeSections.map(s => renderScopeSection(s)).join('')}
+  ${buildScopeHTML(lineItems)}
 
   <!-- EXCLUSIONS -->
-  ${exclusions ? `
+  ${exclusions.length ? `
   <div class="section-header">WHAT IS NOT INCLUDED</div>
   <p style="margin-bottom:10px;font-size:10pt;">The following are excluded from this proposal:</p>
-  ${renderExclusions(exclusions)}` : ''}
+  ${buildExclusionsHTML(exclusions)}` : ''}
 
   <!-- PERMIT CHECKLIST -->
-  ${permitChecklist ? `
   <div class="section-header">PERMIT &amp; CERTIFICATE OF OCCUPANCY CHECKLIST</div>
   <p style="margin-bottom:10px;font-size:10pt;">All items below are included in this proposal and required to close permits:</p>
-  ${renderPermitChecklist(permitChecklist)}` : ''}
+  ${buildPermitChecklistHTML(isStretchCode)}
 
   <!-- COST SUMMARY -->
-  ${costSummary ? `
   <div class="section-header">COMPLETE COST SUMMARY</div>
-  ${renderCostSummary(costSummary, data)}` : `
-  <div class="total-highlight">
-    <span class="label">TOTAL PROPOSAL VALUE</span>
-    <span class="amount">${fmt(data.totalValue)}</span>
-  </div>
-  <div class="deposit-highlight">
-    <span class="label">DEPOSIT REQUIRED (33%)</span>
-    <span class="amount">${fmt(data.depositAmount)}</span>
-  </div>`}
+  ${buildCostSummaryHTML(lineItems, pricing, data, fmt)}
 
   <!-- CUSTOMER RESPONSIBILITIES -->
-  ${responsibilities ? `
   <div class="section-header">CUSTOMER RESPONSIBILITIES</div>
-  ${renderResponsibilities(responsibilities)}` : ''}
+  ${buildResponsibilitiesHTML()}
 
   <!-- MASSSAVE NOTE -->
   <div class="rebate-box">
@@ -257,7 +232,7 @@ function buildProposalHTML(data) {
 </div>
 
 <!-- EXHIBIT A -->
-${exhibitA ? renderExhibitA(exhibitA, data, fmt) : renderDefaultExhibitA(data, fmt)}
+${buildExhibitAHTML(data, fmt)}
 
 <!-- SIGNATURE -->
 <div class="content">
@@ -267,6 +242,136 @@ ${exhibitA ? renderExhibitA(exhibitA, data, fmt) : renderDefaultExhibitA(data, f
     Preferred Builders General Services Inc. to proceed upon receipt of the deposit. 
     This proposal is not a contract. A formal contract will be issued upon acceptance.
   </p>
+  ${buildSignatureHTML()}
+  <p style="font-size:8.5pt;color:#888;margin-top:16px;">
+    Preferred Builders General Services Inc. | LIC# HIC-197400 | 
+    37 Duck Mill Road, Fitchburg, MA 01420 | 978-377-1784 | 
+    jackson.deaquino@preferredbuildersusa.com
+  </p>
+</div>
+
+</body>
+</html>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CONTRACT HTML — proposal + legal terms
+// ══════════════════════════════════════════════════════════════════════
+function buildContractHTML(data) {
+  const proposalHTML = buildProposalHTML(data);
+  const legalSection = buildLegalSection(data);
+
+  return proposalHTML.replace(
+    '<!-- SIGNATURE -->',
+    legalSection + '\n<!-- SIGNATURE -->'
+  ).replace(
+    'PROPOSAL — NOT A CONTRACT',
+    'CONSTRUCTION CONTRACT'
+  ).replace(
+    'This proposal is not a contract. A formal contract will be issued upon acceptance.',
+    'By signing below, both parties agree to be bound by all terms and conditions set forth in this contract including Exhibit A.'
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SECTION BUILDERS — all template logic lives here
+// ══════════════════════════════════════════════════════════════════════
+
+function buildScopeHTML(lineItems) {
+  return lineItems.map(item => {
+    const included = item.scopeIncluded || [];
+    const excluded = item.scopeExcluded || [];
+    return `
+    <div class="sub-header">${item.trade}</div>
+    <ul class="check-list">
+      ${included.map(i => `<li class="yes"><span class="label">${i}</span></li>`).join('')}
+      ${excluded.map(i => `<li class="no"><span class="label">${i}</span></li>`).join('')}
+    </ul>`;
+  }).join('');
+}
+
+function buildExclusionsHTML(exclusions) {
+  return `
+  <table>
+    <tr><th>Excluded Item</th><th>Why Excluded</th><th>Customer Budget Estimate</th></tr>
+    ${exclusions.map(item => `
+    <tr>
+      <td><strong>${item.name || ''}</strong></td>
+      <td>${item.reason || '—'}</td>
+      <td>${item.budget || '—'}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+function buildPermitChecklistHTML(isStretchCode) {
+  const inspections = [
+    'Foundation inspection',
+    'Framing inspection',
+    'Rough electrical inspection',
+    'Rough plumbing inspection',
+    'Insulation inspection',
+    'Final electrical inspection',
+    'Final plumbing inspection',
+    'Final building inspection'
+  ];
+  if (isStretchCode) {
+    inspections.push('HERS rating and blower door test (Stretch Code)');
+  }
+  inspections.push('Certificate of Occupancy');
+
+  return `
+  <table>
+    <tr><th>Inspection</th><th>Status</th></tr>
+    ${inspections.map(item => `
+    <tr>
+      <td>${item}</td>
+      <td style="color:#2E7D32;font-weight:bold;">✓ Included</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+function buildCostSummaryHTML(lineItems, pricing, data, fmt) {
+  let rows = lineItems.map(item => `
+    <tr>
+      <td>${item.trade}</td>
+      <td style="text-align:right;">${fmt(item.finalPrice)}</td>
+    </tr>`).join('');
+
+  rows += `
+    <tr class="total">
+      <td>TOTAL CONTRACT VALUE</td>
+      <td style="text-align:right;">${fmt(pricing.totalContractPrice || data.totalValue)}</td>
+    </tr>
+    <tr class="deposit">
+      <td>DEPOSIT REQUIRED (${pricing.depositPercent || 33}%)</td>
+      <td style="text-align:right;">${fmt(pricing.depositAmount || data.depositAmount)}</td>
+    </tr>`;
+
+  return `
+  <table>
+    <tr><th>Trade / Phase</th><th style="text-align:right;">Price</th></tr>
+    ${rows}
+  </table>`;
+}
+
+function buildResponsibilitiesHTML() {
+  const items = [
+    'Provide clear site access for construction vehicles and material deliveries',
+    'Maintain homeowner\'s insurance during construction period',
+    'Make timely progress payments per contract schedule',
+    'Submit all material selections no later than framing completion',
+    'Provide written approval for any change orders before work begins',
+    'Obtain any required easements or property line clearances',
+    'Be available for walkthroughs and milestone inspections when scheduled'
+  ];
+  return `
+  <ul class="check-list">
+    ${items.map(item => `<li class="bullet">${item}</li>`).join('')}
+  </ul>`;
+}
+
+function buildSignatureHTML() {
+  return `
   <div class="sig-block">
     <div class="sig-row">
       <div class="sig-field">
@@ -298,37 +403,152 @@ ${exhibitA ? renderExhibitA(exhibitA, data, fmt) : renderDefaultExhibitA(data, f
         <div class="sig-label">Date</div>
       </div>
     </div>
-  </div>
-  <p style="font-size:8.5pt;color:#888;margin-top:16px;">
-    Preferred Builders General Services Inc. | LIC# HIC-197400 | 
-    37 Duck Mill Road, Fitchburg, MA 01420 | 978-377-1784 | 
-    jackson.deaquino@preferredbuildersusa.com
-  </p>
-</div>
-
-</body>
-</html>`;
+  </div>`;
 }
 
-function buildContractHTML(data) {
-  // Contract is same as proposal + legal terms section
-  const proposalHTML = buildProposalHTML(data);
-  const legalSection = buildLegalSection(data);
+function buildExhibitAHTML(data, fmt) {
+  const { getDb } = require('../db/database');
+  let settings = {};
+  try {
+    const db = getDb();
+    const rows = db.prepare('SELECT key, value FROM settings WHERE category = ?').all('allowance');
+    for (const row of rows) {
+      try { settings[row.key] = JSON.parse(row.value); }
+      catch { settings[row.key] = row.value; }
+    }
+  } catch (e) {}
 
-  // Insert legal section before signature
-  return proposalHTML.replace(
-    '<!-- SIGNATURE -->',
-    legalSection + '\n<!-- SIGNATURE -->'
-  ).replace(
-    'PROPOSAL — NOT A CONTRACT',
-    'CONSTRUCTION CONTRACT'
-  ).replace(
-    'This proposal is not a contract. A formal contract will be issued upon acceptance.',
-    'By signing below, both parties agree to be bound by all terms and conditions set forth in this contract including Exhibit A.'
-  );
+  const customer = data.customer || {};
+  const project = data.project || {};
+  const quoteNum = data.quoteNumber || '';
+
+  const get = (key, fallback) => {
+    const v = settings[key];
+    return v && typeof v === 'object' ? v : { amount: fallback, spec: '' };
+  };
+
+  const flooring = get('allowance.lvp', 6.50);
+  const bathTile = get('allowance.tileBath', 4.50);
+  const carpet = get('allowance.carpet', 3.50);
+  const cabinets = get('allowance.cabinets', 12000);
+  const quartz = get('allowance.quartz', 4250);
+  const kitFaucet = get('allowance.kitFaucet', 250);
+  const kitSink = get('allowance.kitSink', 350);
+  const disposal = get('allowance.disposal', 150);
+  const vanityFull = get('allowance.vanity', 650);
+  const vanityHalf = get('allowance.vanitySmall', 350);
+  const vanityTop = get('allowance.vanityTop', 350);
+  const bathFaucet = get('allowance.bathFaucet', 180);
+  const toilet = get('allowance.toilet', 280);
+  const tub = get('allowance.tub', 850);
+  const showerValve = get('allowance.showerValve', 350);
+  const showerDoor = get('allowance.showerDoor', 250);
+  const bathAccessories = get('allowance.bathAcc', 150);
+  const exhaustFan = get('allowance.exhaustFan', 85);
+  const intDoor = get('allowance.intDoor', 180);
+  const passage = get('allowance.passage', 45);
+  const privacy = get('allowance.privacy', 55);
+  const bifold = get('allowance.bifold', 175);
+  const baseMold = get('allowance.baseMold', 1.85);
+  const casing = get('allowance.casing', 1.65);
+  const windowStool = get('allowance.windowStool', 85);
+
+  const fmtAmt = (v) => {
+    if (typeof v === 'object' && v.amount !== undefined) return v.amount;
+    return v;
+  };
+
+  return `
+<div class="exhibit-header">
+  <span class="exhibit-label">EXHIBIT A</span>
+  <span class="exhibit-name">CONTRACTOR-GRADE ALLOWANCE SCHEDULE</span>
+  <div class="exhibit-sub">${customer.name || ''} | ${project.address || ''} | Quote #${quoteNum}</div>
+</div>
+
+<div class="content">
+  <p style="font-size:10pt;margin-bottom:12px;">
+    The following allowances are included in the contract price. Allowances represent contractor-grade pricing. 
+    If customer selections exceed the allowance, the difference is billed as a change order. If under, customer receives a credit.
+  </p>
+  <div class="note-box">
+    📌 All selections must be submitted to Preferred Builders no later than framing completion. 
+    Late selections may cause delays and additional costs.
+  </div>
+
+  <div class="sub-header">FLOORING</div>
+  <table>
+    <tr><th>Item</th><th>Location</th><th>Allowance</th><th>Spec</th></tr>
+    <tr><td>LVP / Engineered Hardwood</td><td>All living areas</td><td>$${fmtAmt(flooring)}/sq ft</td><td>Supply only — Shaw, Armstrong or equiv</td></tr>
+    <tr><td>Bath Floor Tile</td><td>All bathrooms</td><td>$${fmtAmt(bathTile)}/sq ft</td><td>12×12 ceramic or porcelain, supply only</td></tr>
+    <tr><td>Carpet</td><td>Bedrooms (if selected)</td><td>$${fmtAmt(carpet)}/sq ft</td><td>Contractor grade, supply only</td></tr>
+  </table>
+
+  <div class="sub-header">KITCHEN</div>
+  <table>
+    <tr><th>Item</th><th>Allowance</th><th>Contractor-Grade Spec</th></tr>
+    <tr><td>Cabinets — Base & Upper</td><td>$${Number(fmtAmt(cabinets)).toLocaleString()}</td><td>Stock/semi-stock — Kraftmaid, Yorktowne or equiv</td></tr>
+    <tr><td>Countertop — Quartz</td><td>$${Number(fmtAmt(quartz)).toLocaleString()}</td><td>3cm slab — Cambria, MSI or equiv, up to 30 LF</td></tr>
+    <tr><td>Kitchen Faucet</td><td>$${fmtAmt(kitFaucet)} each</td><td>Moen, Delta or Kohler — pull-down single handle</td></tr>
+    <tr><td>Kitchen Sink</td><td>$${fmtAmt(kitSink)} each</td><td>Stainless undermount 60/40 double bowl</td></tr>
+    <tr><td>Garbage Disposal</td><td>$${fmtAmt(disposal)} each</td><td>InSinkErator 1/2 HP contractor grade</td></tr>
+  </table>
+
+  <div class="sub-header">BATHROOMS</div>
+  <table>
+    <tr><th>Item</th><th>Allowance</th><th>Contractor-Grade Spec</th></tr>
+    <tr><td>Vanity (full bath)</td><td>$${fmtAmt(vanityFull)} each</td><td>48"–60" stock — Kraftmaid, RSI or equiv</td></tr>
+    <tr><td>Vanity (half bath)</td><td>$${fmtAmt(vanityHalf)} each</td><td>24"–30" stock</td></tr>
+    <tr><td>Vanity Top / Sink</td><td>$${fmtAmt(vanityTop)} each</td><td>Cultured marble integrated</td></tr>
+    <tr><td>Bath Faucet</td><td>$${fmtAmt(bathFaucet)} each</td><td>Moen Adler or Delta Foundations</td></tr>
+    <tr><td>Toilet</td><td>$${fmtAmt(toilet)} each</td><td>Kohler Cimarron or Am Std — elongated 1.28 GPF</td></tr>
+    <tr><td>Bathtub</td><td>$${fmtAmt(tub)} each</td><td>Alcove 60" — American Standard or Kohler</td></tr>
+    <tr><td>Shower Valve & Trim</td><td>$${fmtAmt(showerValve)} each</td><td>Moen Posi-Temp or Delta Monitor</td></tr>
+    <tr><td>Shower Door</td><td>$${fmtAmt(showerDoor)} each</td><td>Frameless bypass or curtain rod</td></tr>
+    <tr><td>Bath Accessories</td><td>$${fmtAmt(bathAccessories)} per set</td><td>TP holder, towel bar, robe hook — matching set</td></tr>
+    <tr><td>Exhaust Fan</td><td>$${fmtAmt(exhaustFan)} each</td><td>Broan or Panasonic — 80 CFM min (Stretch Code)</td></tr>
+  </table>
+
+  <div class="sub-header">DOORS & HARDWARE</div>
+  <table>
+    <tr><th>Item</th><th>Allowance</th><th>Spec</th></tr>
+    <tr><td>Interior Door</td><td>$${fmtAmt(intDoor)} each</td><td>Hollow/solid core — 6-panel primed — Masonite or equiv</td></tr>
+    <tr><td>Passage Set (doorknob)</td><td>$${fmtAmt(passage)} each</td><td>Kwikset or Schlage — satin nickel</td></tr>
+    <tr><td>Privacy Set (bath/bed)</td><td>$${fmtAmt(privacy)} each</td><td>Kwikset or Schlage lockset</td></tr>
+    <tr><td>Bifold Door</td><td>$${fmtAmt(bifold)} each</td><td>6-panel primed white</td></tr>
+    <tr><td>Base Molding</td><td>$${fmtAmt(baseMold)}/LF</td><td>3-1/4" colonial or craftsman primed MDF</td></tr>
+    <tr><td>Door/Window Casing</td><td>$${fmtAmt(casing)}/LF</td><td>2-1/4" colonial primed MDF</td></tr>
+    <tr><td>Window Stool & Apron</td><td>$${fmtAmt(windowStool)} each</td><td>Primed MDF</td></tr>
+  </table>
+
+  <div class="note-box">
+    All allowances are contractor-grade pricing through Preferred Builders' trade accounts. 
+    Retail equivalents typically run 20–40% higher. Preferred Builders can assist in sourcing all items — 
+    customers are not required to source independently.
+  </div>
+
+  <p style="font-size:9pt;margin-top:16px;">
+    <strong>Allowance Terms:</strong> Selections exceeding the allowance are billed as change orders prior to ordering. 
+    Credits for under-allowance selections are applied to the final invoice. All selections must be in writing. 
+    This schedule is incorporated into and part of the contract.
+  </p>
+
+  <div class="sig-block" style="margin-top:32px;">
+    <div class="sig-row">
+      <div class="sig-field">
+        <div class="sig-line"></div>
+        <div class="sig-label">Customer Initials — Exhibit A Acknowledged</div>
+      </div>
+      <div class="sig-field">
+        <div class="sig-line"></div>
+        <div class="sig-label">Date</div>
+      </div>
+    </div>
+  </div>
+</div>`;
 }
 
 function buildLegalSection(data) {
+  const project = data.project || {};
   return `
 <div class="content page-break">
   <div class="section-header">TERMS AND CONDITIONS</div>
@@ -383,7 +603,7 @@ function buildLegalSection(data) {
     <p>Substantial Completion means the stage in the progress of the Work when the Work is sufficiently 
     complete in accordance with the Contract Documents so that the Owner can occupy or utilize the Work 
     for its intended use, as evidenced by issuance of a Certificate of Occupancy by the Town of 
-    ${data.project?.city || 'the applicable municipality'}. Punch list items remaining at Substantial 
+    ${project.city || 'the applicable municipality'}. Punch list items remaining at Substantial 
     Completion shall be completed within thirty (30) days thereof.</p>
 
     <h3>9. DISPUTE RESOLUTION</h3>
@@ -412,218 +632,6 @@ function buildLegalSection(data) {
     the parties and supersedes all prior negotiations, representations, and agreements. This contract 
     may only be modified by a written Change Order signed by both parties.</p>
 
-  </div>
-</div>`;
-}
-
-function renderScopeSection(section) {
-  const content = section.content || {};
-  const included = content.included || [];
-  const excluded = content.excluded || [];
-
-  return `
-  <div class="sub-header">${section.title || ''} ${content.cost ? `— ${content.cost}` : ''}</div>
-  ${content.description ? `<p style="margin-bottom:8px;font-size:10pt;">${content.description}</p>` : ''}
-  <ul class="check-list">
-    ${included.map(item => `
-      <li class="yes">
-        <span class="label">${item.label || item}</span>
-        ${item.detail ? `<span class="detail"> — ${item.detail}</span>` : ''}
-      </li>`).join('')}
-    ${excluded.map(item => `
-      <li class="no">
-        <span class="label">${item.label || item}</span>
-        ${item.detail ? `<span class="detail"> — ${item.detail}</span>` : ''}
-      </li>`).join('')}
-  </ul>
-  ${content.note ? `<div class="note-box">📌 ${content.note}</div>` : ''}`;
-}
-
-function renderExclusions(section) {
-  const content = section.content || {};
-  const items = content.items || content.exclusions || [];
-  return `
-  <table>
-    <tr><th>Excluded Item</th><th>Why Excluded</th><th>Customer Budget Estimate</th></tr>
-    ${items.map((item, i) => `
-    <tr>
-      <td><strong>${item.name || item.item || item}</strong></td>
-      <td>${item.reason || item.why || '—'}</td>
-      <td>${item.budget || item.budgetRange || item.budgetEstimate || '—'}</td>
-    </tr>`).join('')}
-  </table>`;
-}
-
-function renderPermitChecklist(section) {
-  const content = section.content || {};
-  const items = content.items || content.inspections || [];
-  return `
-  <table>
-    <tr><th>Inspection</th><th>Status</th></tr>
-    ${items.map(item => `
-    <tr>
-      <td>${item.name || item}</td>
-      <td style="color:#2E7D32;font-weight:bold;">✓ Included</td>
-    </tr>`).join('')}
-  </table>`;
-}
-
-function renderCostSummary(section, data) {
-  const fmt = (n) => n ? `$${Number(n).toLocaleString()}` : '—';
-  const content = section.content || {};
-  const items = content.lineItems || [];
-
-  let rows = items.map(item => {
-    const label = item.label || item.trade || item.description || String(item);
-    const price = item.finalPrice || item.baseCost || item.amount || item.cost || 0;
-    return `
-    <tr>
-      <td>${label}</td>
-      <td style="text-align:right;">${fmt(price)}</td>
-    </tr>`;
-  }).join('');
-
-  rows += `
-    <tr class="total">
-      <td>TOTAL CONTRACT VALUE</td>
-      <td style="text-align:right;">${fmt(content.totalContractPrice || data.totalValue)}</td>
-    </tr>
-    <tr class="deposit">
-      <td>DEPOSIT REQUIRED (${content.depositPercent || 33}%)</td>
-      <td style="text-align:right;">${fmt(content.depositAmount || data.depositAmount)}</td>
-    </tr>`;
-
-  return `
-  <table>
-    <tr><th>Trade / Phase</th><th style="text-align:right;">Price</th></tr>
-    ${rows}
-  </table>`;
-}
-
-function renderResponsibilities(section) {
-  const content = section.content || {};
-  const items = content.items || content.responsibilities || [];
-  return `
-  <ul class="check-list">
-    ${items.map(item => `<li class="bullet">${item}</li>`).join('')}
-  </ul>`;
-}
-
-function renderExhibitA(section, data, fmt) {
-  const content = section.content || {};
-  return buildExhibitAHTML(content.allowances || {}, data, fmt);
-}
-
-function renderDefaultExhibitA(data, fmt) {
-  return buildExhibitAHTML({}, data, fmt);
-}
-
-function buildExhibitAHTML(allowances, data, fmt) {
-  const { getDb } = require('../db/database');
-  let settings = {};
-  try {
-    const db = getDb();
-    const rows = db.prepare('SELECT key, value FROM settings WHERE category = ?').all('allowance');
-    for (const row of rows) {
-      try { settings[row.key] = JSON.parse(row.value); }
-      catch { settings[row.key] = { amount: row.value }; }
-    }
-  } catch(e) {}
-
-  const a = (key, fallback) => {
-    const s = settings[`allowance.${key}`];
-    return s ? fmt(s.amount) : fmt(fallback);
-  };
-
-  return `
-<div class="content exhibit-header">
-  <span class="exhibit-label">EXHIBIT A</span>
-  <span class="exhibit-name">CONTRACTOR-GRADE ALLOWANCE SCHEDULE</span>
-  <div class="exhibit-sub">
-    ${data.customer?.name || ''} | ${data.project?.address || ''} | Quote #${data.quoteNumber || ''}
-  </div>
-</div>
-
-<div class="content">
-  <p style="margin-bottom:14px;font-size:10pt;">
-    The following allowances are included in the contract price. Allowances represent 
-    contractor-grade pricing. If customer selections exceed the allowance, the difference 
-    is billed as a change order. If under, customer receives a credit.
-  </p>
-
-  <div class="note-box">
-    📌 All selections must be submitted to Preferred Builders no later than framing completion. 
-    Late selections may cause delays and additional costs.
-  </div>
-
-  <div class="section-header">FLOORING</div>
-  <table>
-    <tr><th>Item</th><th>Location</th><th>Allowance</th><th>Spec</th></tr>
-    <tr><td><strong>LVP / Engineered Hardwood</strong></td><td>All living areas</td><td>${a('lvp',6.50)}/sq ft</td><td>Supply only — Shaw, Armstrong or equiv</td></tr>
-    <tr><td><strong>Bath Floor Tile</strong></td><td>All bathrooms</td><td>${a('tileBath',4.50)}/sq ft</td><td>12×12 ceramic or porcelain, supply only</td></tr>
-    <tr><td><strong>Carpet</strong></td><td>Bedrooms (if selected)</td><td>${a('carpet',3.50)}/sq ft</td><td>Contractor grade, supply only</td></tr>
-  </table>
-
-  <div class="section-header">KITCHEN</div>
-  <table>
-    <tr><th>Item</th><th>Allowance</th><th>Contractor-Grade Spec</th></tr>
-    <tr><td><strong>Cabinets — Base &amp; Upper</strong></td><td>${a('cabinets',12000)}</td><td>Stock/semi-stock — Kraftmaid, Yorktowne or equiv</td></tr>
-    <tr><td><strong>Countertop — Quartz</strong></td><td>${a('quartz',4250)}</td><td>3cm slab — Cambria, MSI or equiv, up to 30 LF</td></tr>
-    <tr><td><strong>Kitchen Faucet</strong></td><td>${a('kitFaucet',250)} each</td><td>Moen, Delta or Kohler — pull-down single handle</td></tr>
-    <tr><td><strong>Kitchen Sink</strong></td><td>${a('kitSink',350)} each</td><td>Stainless undermount 60/40 double bowl</td></tr>
-    <tr><td><strong>Garbage Disposal</strong></td><td>${a('disposal',150)} each</td><td>InSinkErator 1/2 HP contractor grade</td></tr>
-  </table>
-
-  <div class="section-header">BATHROOMS</div>
-  <table>
-    <tr><th>Item</th><th>Allowance</th><th>Contractor-Grade Spec</th></tr>
-    <tr><td><strong>Vanity (full bath)</strong></td><td>${a('vanity',650)} each</td><td>48"–60" stock — Kraftmaid, RSI or equiv</td></tr>
-    <tr><td><strong>Vanity (half bath)</strong></td><td>${a('vanitySmall',350)} each</td><td>24"–30" stock</td></tr>
-    <tr><td><strong>Vanity Top / Sink</strong></td><td>${a('vanityTop',350)} each</td><td>Cultured marble integrated</td></tr>
-    <tr><td><strong>Bath Faucet</strong></td><td>${a('bathFaucet',180)} each</td><td>Moen Adler or Delta Foundations</td></tr>
-    <tr><td><strong>Toilet</strong></td><td>${a('toilet',280)} each</td><td>Kohler Cimarron or Am Std — elongated 1.28 GPF</td></tr>
-    <tr><td><strong>Bathtub</strong></td><td>${a('tub',850)} each</td><td>Alcove 60" — American Standard or Kohler</td></tr>
-    <tr><td><strong>Shower Valve &amp; Trim</strong></td><td>${a('showerValve',350)} each</td><td>Moen Posi-Temp or Delta Monitor</td></tr>
-    <tr><td><strong>Shower Door</strong></td><td>${a('showerDoor',250)} each</td><td>Frameless bypass or curtain rod</td></tr>
-    <tr><td><strong>Bath Accessories</strong></td><td>${a('bathAcc',150)} per set</td><td>TP holder, towel bar, robe hook — matching set</td></tr>
-    <tr><td><strong>Exhaust Fan</strong></td><td>${a('exhaustFan',85)} each</td><td>Broan or Panasonic — 80 CFM min (Stretch Code)</td></tr>
-  </table>
-
-  <div class="section-header">DOORS &amp; HARDWARE</div>
-  <table>
-    <tr><th>Item</th><th>Allowance</th><th>Spec</th></tr>
-    <tr><td><strong>Interior Door</strong></td><td>${a('intDoor',180)} each</td><td>Hollow/solid core — 6-panel primed — Masonite or equiv</td></tr>
-    <tr><td><strong>Passage Set (doorknob)</strong></td><td>${a('passage',45)} each</td><td>Kwikset or Schlage — satin nickel</td></tr>
-    <tr><td><strong>Privacy Set (bath/bed)</strong></td><td>${a('privacy',55)} each</td><td>Kwikset or Schlage lockset</td></tr>
-    <tr><td><strong>Bifold Door</strong></td><td>${a('bifold',175)} each</td><td>6-panel primed white</td></tr>
-    <tr><td><strong>Base Molding</strong></td><td>${a('baseMold',1.85)}/LF</td><td>3-1/4" colonial or craftsman primed MDF</td></tr>
-    <tr><td><strong>Door/Window Casing</strong></td><td>${a('casing',1.65)}/LF</td><td>2-1/4" colonial primed MDF</td></tr>
-    <tr><td><strong>Window Stool &amp; Apron</strong></td><td>${a('windowStool',85)} each</td><td>Primed MDF</td></tr>
-  </table>
-
-  <div class="note-box">
-    All allowances are contractor-grade pricing through Preferred Builders' trade accounts. 
-    Retail equivalents typically run 20–40% higher. Preferred Builders can assist in sourcing 
-    all items — customers are not required to source independently.
-  </div>
-
-  <p style="margin-top:16px;font-size:9.5pt;color:#555;">
-    <strong>Allowance Terms:</strong> Selections exceeding the allowance are billed as change orders 
-    prior to ordering. Credits for under-allowance selections are applied to the final invoice. 
-    All selections must be in writing. This schedule is incorporated into and part of the contract.
-  </p>
-
-  <div class="sig-block" style="margin-top:32px;">
-    <div class="sig-row">
-      <div class="sig-field">
-        <div class="sig-line"></div>
-        <div class="sig-label">Customer Initials — Exhibit A Acknowledged</div>
-      </div>
-      <div class="sig-field">
-        <div class="sig-line"></div>
-        <div class="sig-label">Date</div>
-      </div>
-    </div>
   </div>
 </div>`;
 }

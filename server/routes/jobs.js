@@ -210,6 +210,40 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
   }
 });
 
+// POST reprocess a job (re-run Claude + regenerate PDF)
+router.post('/:id/reprocess', requireAuth, async (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  res.json({ success: true, message: 'Reprocessing started' });
+
+  try {
+    db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', job.id);
+
+    const fullEstimate = `CUSTOMER INFORMATION (already collected — do NOT ask for this):
+Customer Name: ${job.customer_name || 'N/A'}
+Customer Email: ${job.customer_email || 'N/A'}
+Customer Phone: ${job.customer_phone || 'N/A'}
+Project Address: ${job.project_address || 'N/A'}
+
+ESTIMATE DETAILS:
+${job.raw_estimate_data}`;
+
+    const { processEstimate } = require('../services/claudeService');
+    const proposalData = await processEstimate(fullEstimate, job.id, 'en');
+    if (proposalData.readyToGenerate) {
+      const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
+      db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
+        .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', job.id);
+      console.log(`[Reprocess ${job.id}] Done. Total: $${proposalData.totalValue}`);
+    }
+  } catch (err) {
+    console.error(`[Reprocess ${job.id}] Error:`, err.message);
+    db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('error', job.id);
+  }
+});
+
 // PATCH update job notes
 router.patch('/:id/notes', requireAuth, (req, res) => {
   const db = getDb();
