@@ -150,8 +150,14 @@ function buildProposalHTML(data) {
   const quoteNum = data.quoteNumber || '—';
   const validUntil = data.validUntil || '—';
 
-  // Build scope sections
-  const scopeSections = sections.filter(s => s.type === 'scope');
+  // Build scope sections — handle both formats: multiple scope sections or single scope with trades array
+  let scopeSections = sections.filter(s => s.type === 'scope');
+  if (scopeSections.length === 1 && scopeSections[0].content?.trades) {
+    scopeSections = scopeSections[0].content.trades.map(t => ({
+      title: t.trade,
+      content: { included: t.included || [], excluded: t.excluded || [], note: t.note }
+    }));
+  }
   const exclusions = sections.find(s => s.type === 'exclusions');
   const costSummary = sections.find(s => s.type === 'cost_summary');
   const permitChecklist = sections.find(s => s.type === 'permit_checklist');
@@ -434,21 +440,23 @@ function renderScopeSection(section) {
 }
 
 function renderExclusions(section) {
-  const items = section.content?.items || [];
+  const content = section.content || {};
+  const items = content.items || content.exclusions || [];
   return `
   <table>
     <tr><th>Excluded Item</th><th>Why Excluded</th><th>Customer Budget Estimate</th></tr>
     ${items.map((item, i) => `
     <tr>
-      <td><strong>${item.name || item}</strong></td>
-      <td>${item.reason || '—'}</td>
-      <td>${item.budget || '—'}</td>
+      <td><strong>${item.name || item.item || item}</strong></td>
+      <td>${item.reason || item.why || '—'}</td>
+      <td>${item.budget || item.budgetRange || item.budgetEstimate || '—'}</td>
     </tr>`).join('')}
   </table>`;
 }
 
 function renderPermitChecklist(section) {
-  const items = section.content?.items || [];
+  const content = section.content || {};
+  const items = content.items || content.inspections || [];
   return `
   <table>
     <tr><th>Inspection</th><th>Status</th></tr>
@@ -493,7 +501,8 @@ function renderCostSummary(section, data) {
 }
 
 function renderResponsibilities(section) {
-  const items = section.content?.items || [];
+  const content = section.content || {};
+  const items = content.items || content.responsibilities || [];
   return `
   <ul class="check-list">
     ${items.map(item => `<li class="bullet">${item}</li>`).join('')}
