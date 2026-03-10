@@ -190,19 +190,57 @@ INSTRUCTIONS:
 - If the estimate specifies a "Valid Until" date, use it for "validUntil" (format: "Month Day, Year"). Otherwise leave it empty — the system defaults to 15 days.
 - Leave "totalValue" and "depositAmount" empty — the system fills them.
 
-IMPORTANT — Cost Summary (sections[type="cost_summary"].content) format:
-{
-  "lineItems": [
-    { "label": "Foundation", "baseCost": 28000 },
-    { "label": "Framing", "baseCost": 130000 },
-    { "label": "HERS Rater", "baseCost": 1200, "isStretchCode": true },
-    { "label": "ERV System", "baseCost": 3500, "isStretchCode": true }
-  ]
-}
-ONLY provide lineItems with "label", "baseCost", and optionally "isStretchCode": true for stretch code compliance items.
+EXACT content format for EACH section type — follow these EXACTLY:
+
+sections[type="cover"].content:
+{ "companyName": "Preferred Builders General Services Inc.", "license": "HIC-197400", "address": "37 Duck Mill Road, Fitchburg, MA 01420", "phone": "978-377-1784", "documentTitle": "PROPOSAL & SCOPE OF WORK", "projectDescription": "..." }
+
+sections[type="overview_table"].content:
+{ "projectType": "...", "structure": "...", "footprint": "...", "livingSpace": "...", "bedrooms": "...", "bathrooms": "...", "features": "...", "stretchCode": "Yes/No — ..." }
+
+sections[type="scope"].content:
+{ "trades": [
+  { "trade": "Foundation", "included": ["30\\" footings", "4000PSI slab", ...], "excluded": ["Excavation", ...] },
+  { "trade": "Framing", "included": [...], "excluded": [...] }
+]}
+Each trade from the estimate gets its own entry. "included" = what this contract covers for that trade. "excluded" = what is NOT covered. Use the scope notes from the estimate to populate included items in detail.
+
+sections[type="exclusions"].content:
+{ "items": [
+  { "name": "Well drilling and pump", "reason": "Not in scope of this project", "budget": "$8,000 - $15,000" }
+]}
+Use "items" array. Each has "name", "reason", and "budget" (customer budget estimate). List EVERY exclusion from the estimate.
+
+sections[type="permit_checklist"].content:
+{ "items": ["Foundation inspection", "Framing inspection", "Rough electrical", "Rough plumbing", "Insulation inspection", "Final electrical", "Final plumbing", "Final building inspection", "HERS rating / blower door (Stretch Code)", "Certificate of Occupancy"] }
+Use "items" as a flat string array.
+
+sections[type="cost_summary"].content:
+{ "lineItems": [
+  { "label": "Foundation", "baseCost": 28000 },
+  { "label": "Framing", "baseCost": 130000 },
+  { "label": "HERS Rater", "baseCost": 1200, "isStretchCode": true }
+]}
+ONLY provide lineItems with "label", "baseCost", and optionally "isStretchCode": true.
 Stretch code items (HERS rater, ERV, EV outlet, solar conduit) MUST have "isStretchCode": true.
-The system will calculate all markup, totals, and deposit automatically.
-Stretch code items are added at flat cost — NO markup is applied to them.`
+The system calculates all markup, totals, and deposit automatically.
+
+sections[type="responsibilities"].content:
+{ "items": ["Provide clear site access", "Maintain homeowner's insurance", "Make timely progress payments", "Submit material selections by framing completion", ...] }
+Use "items" as a flat string array.
+
+sections[type="legal"].content:
+{ "paymentTerms": "...", "changeOrders": "...", "warranty": "...", "startDate": "...", "timeline": "...", "cancellation": "..." }
+
+sections[type="signature"].content:
+{ "contractorName": "Preferred Builders General Services Inc.", "projectManager": "Jackson Deaquino" }
+
+sections[type="exhibit_a"].content:
+{ "allowances": [
+  { "item": "Kitchen Cabinets", "allowance": "$12,000", "description": "Stock/semi-stock — Kraftmaid or equiv" },
+  { "item": "Quartz Countertop", "allowance": "$4,250", "description": "3cm slab, up to 30 LF" }
+]}
+Include flooring, kitchen, bathroom, doors, and hardware allowances using contractor-grade specs from knowledge base.`
       }
     ]
   });
