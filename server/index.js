@@ -115,6 +115,9 @@ async function start() {
     const { handleIncomingWhatsApp } = require('./routes/webhookWhatsapp');
     startPolling(handleIncomingWhatsApp, 5000);
 
+    const { startEmailPolling } = require('./services/emailPoller');
+    startEmailPolling(15 * 60 * 1000);
+
   } catch (err) {
     console.error('Failed to start:', err);
     process.exit(1);

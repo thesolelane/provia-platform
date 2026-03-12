@@ -124,12 +124,12 @@ async function handleIncomingWhatsApp(data) {
     const isPortuguese = language === 'pt-BR';
     const upperBody = body.toUpperCase().trim();
 
-    // ── IMAGE ATTACHMENT — use Claude vision to read photo of estimate ─
+    // ── IMAGE ATTACHMENT — Claude vision reads photo, then asks YES/NO ─
     if (mediaUrl && mediaContentType.startsWith('image/')) {
       try {
         await sendWhatsApp(from, isPortuguese
-          ? `📸 Recebi a foto, ${senderName}! Lendo o orçamento com IA... aguarde.`
-          : `📸 Got the photo, ${senderName}! Reading the estimate with AI... give me a moment.`
+          ? `📸 Recebi a foto, ${senderName}! Lendo com IA... aguarde.`
+          : `📸 Got the photo, ${senderName}! Reading with AI — one moment.`
         );
         const { buffer } = await downloadTwilioMedia(mediaUrl);
         const base64 = buffer.toString('base64');
@@ -155,7 +155,14 @@ async function handleIncomingWhatsApp(data) {
           );
           return;
         }
-        await handleNewEstimateSubmission(rawText, from, db, sender, senderName, language);
+        const tempId = uuidv4();
+        const shortId = tempId.slice(0, 8).toUpperCase();
+        db.prepare(`INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'awaiting_start', ?)`
+        ).run(tempId, rawText, from);
+        await sendWhatsApp(from, isPortuguese
+          ? `✅ Li a imagem! Pré-orçamento *#${shortId}* pronto.\n\nQuer que eu processe e gere uma proposta?\nResponda *SIM* para processar ou *NÃO* para cancelar.`
+          : `✅ Read the image! Pre-quote *#${shortId}* is ready.\n\nWant me to process it and generate a proposal?\nReply *YES* to process or *NO* to cancel.`
+        );
       } catch (err) {
         console.error('Image vision error:', err);
         await sendWhatsApp(from, isPortuguese
@@ -166,24 +173,31 @@ async function handleIncomingWhatsApp(data) {
       return;
     }
 
-    // ── PDF ATTACHMENT — treat as new estimate submission ─────────────
+    // ── PDF ATTACHMENT — extract text, then ask YES/NO ────────────────
     if (mediaUrl && (mediaContentType.includes('pdf') || mediaContentType.includes('application'))) {
       try {
         await sendWhatsApp(from, isPortuguese
-          ? `📎 Recebi o PDF, ${senderName}! Extraindo o orçamento... aguarde um momento.`
-          : `📎 Got the PDF, ${senderName}! Extracting the estimate... give me a moment.`
+          ? `📎 Recebi o PDF, ${senderName}! Extraindo o texto... aguarde.`
+          : `📎 Got the PDF, ${senderName}! Extracting text — one moment.`
         );
         const { buffer } = await downloadTwilioMedia(mediaUrl);
         const parsed = await pdfParse(buffer);
         const rawText = parsed.text.trim();
         if (rawText.length < 50) {
           await sendWhatsApp(from, isPortuguese
-            ? `⚠️ Não consegui extrair texto do PDF. Tente enviar como texto ou use um PDF com texto pesquisável.`
-            : `⚠️ Couldn't extract text from that PDF. Try sending it as text or use a searchable PDF.`
+            ? `⚠️ Não consegui extrair texto do PDF. Use um PDF pesquisável ou envie uma foto.`
+            : `⚠️ Couldn't extract text from that PDF. Use a searchable PDF or send a photo instead.`
           );
           return;
         }
-        await handleNewEstimateSubmission(rawText, from, db, sender, senderName, language);
+        const tempId = uuidv4();
+        const shortId = tempId.slice(0, 8).toUpperCase();
+        db.prepare(`INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'awaiting_start', ?)`
+        ).run(tempId, rawText, from);
+        await sendWhatsApp(from, isPortuguese
+          ? `✅ PDF lido! Pré-orçamento *#${shortId}* pronto.\n\nQuer que eu processe e gere uma proposta?\nResponda *SIM* para processar ou *NÃO* para cancelar.`
+          : `✅ PDF read! Pre-quote *#${shortId}* is ready.\n\nWant me to process it and generate a proposal?\nReply *YES* to process or *NO* to cancel.`
+        );
       } catch (err) {
         console.error('PDF attachment error:', err);
         await sendWhatsApp(from, isPortuguese

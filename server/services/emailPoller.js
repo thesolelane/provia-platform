@@ -1,0 +1,228 @@
+// server/services/emailPoller.js
+// Polls a dedicated IMAP inbox for new estimate emails
+// Set env vars: IMAP_USER, IMAP_PASSWORD, IMAP_HOST (default: imap.gmail.com), IMAP_PORT (default: 993)
+
+const { ImapFlow } = require('imapflow');
+const { simpleParser } = require('mailparser');
+const pdfParse = require('pdf-parse');
+const { v4: uuidv4 } = require('uuid');
+const { getDb } = require('../db/database');
+const { logAudit } = require('./auditService');
+const { sendEmail } = require('./emailService');
+
+let polling = false;
+
+async function pollOnce(processEstimateFn, generatePDFFn) {
+  if (!process.env.IMAP_USER || !process.env.IMAP_PASSWORD) return;
+
+  const client = new ImapFlow({
+    host: process.env.IMAP_HOST || 'imap.gmail.com',
+    port: parseInt(process.env.IMAP_PORT || '993'),
+    secure: true,
+    auth: { user: process.env.IMAP_USER, pass: process.env.IMAP_PASSWORD },
+    logger: false
+  });
+
+  try {
+    await client.connect();
+    await client.mailboxOpen('INBOX');
+
+    // Search for unread emails
+    const messages = await client.search({ seen: false });
+    if (!messages.length) {
+      await client.logout();
+      return;
+    }
+
+    console.log(`[Email Poller] Found ${messages.length} unread email(s)`);
+
+    for (const uid of messages) {
+      try {
+        const msg = await client.fetchOne(uid, { source: true });
+        const parsed = await simpleParser(msg.source);
+
+        const from = parsed.from?.value?.[0]?.address?.toLowerCase() || '';
+        const subject = parsed.subject || '';
+        const bodyText = parsed.text || '';
+        const language = detectLanguage(bodyText + subject);
+        const fromName = parsed.from?.value?.[0]?.name || from.split('@')[0];
+        const firstName = fromName.split(' ')[0];
+
+        console.log(`[Email Poller] Processing: "${subject}" from ${from}`);
+
+        // Extract text from PDF attachments
+        let estimateText = bodyText.trim();
+        let hasPdf = false;
+
+        if (parsed.attachments?.length) {
+          for (const att of parsed.attachments) {
+            const isImage = att.contentType?.startsWith('image/');
+            const isPdf = att.contentType === 'application/pdf' || att.filename?.endsWith('.pdf');
+
+            if (isPdf) {
+              try {
+                const parsed2 = await pdfParse(att.content);
+                const pdfText = parsed2.text?.trim();
+                if (pdfText && pdfText.length > 50) {
+                  estimateText = pdfText + (estimateText ? '\n\n' + estimateText : '');
+                  hasPdf = true;
+                  console.log(`[Email Poller] PDF extracted: ${pdfText.length} chars`);
+                }
+              } catch (e) {
+                console.error('[Email Poller] PDF parse error:', e.message);
+              }
+            } else if (isImage) {
+              // Use Claude vision for image attachments
+              try {
+                const Anthropic = require('@anthropic-ai/sdk');
+                const visionClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+                const base64 = att.content.toString('base64');
+                const visionRes = await visionClient.messages.create({
+                  model: 'claude-sonnet-4-20250514',
+                  max_tokens: 3000,
+                  messages: [{
+                    role: 'user',
+                    content: [
+                      { type: 'image', source: { type: 'base64', media_type: att.contentType, data: base64 } },
+                      { type: 'text', text: 'This is a construction estimate or invoice image. Extract ALL text, line items, dollar amounts, trade names, and addresses exactly as they appear. Return plain text.' }
+                    ]
+                  }]
+                });
+                const imageText = visionRes.content[0].text?.trim();
+                if (imageText) {
+                  estimateText = imageText + (estimateText ? '\n\n' + estimateText : '');
+                  hasPdf = true;
+                }
+              } catch (e) {
+                console.error('[Email Poller] Image vision error:', e.message);
+              }
+            }
+          }
+        }
+
+        if (!estimateText || estimateText.length < 30) {
+          console.log(`[Email Poller] Email ${uid} has no usable content, skipping`);
+          await client.messageFlagsAdd(uid, ['\\Seen']);
+          continue;
+        }
+
+        // Create job and process immediately
+        const db = getDb();
+        const jobId = uuidv4();
+        const shortId = jobId.slice(0, 8).toUpperCase();
+
+        const fullEstimate = `EMAIL FROM: ${from}\nSUBJECT: ${subject}\n\n${estimateText}`;
+
+        db.prepare(`INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'received', ?)`
+        ).run(jobId, fullEstimate, `email:${from}`);
+
+        logAudit(jobId, 'estimate_received_email', `Email from ${from} | Subject: ${subject}`, 'email-poller');
+
+        // Mark email as read
+        await client.messageFlagsAdd(uid, ['\\Seen']);
+
+        // Acknowledge receipt
+        try {
+          await sendEmail({
+            to: from,
+            subject: `Received — Quote #${shortId}`,
+            html: language === 'pt-BR'
+              ? `<p>Oi ${firstName}! Recebi o orçamento e já estou processando. Ref: <strong>#${shortId}</strong></p><p>Você receberá a proposta em breve.</p>`
+              : `<p>Hey ${firstName}! Got your estimate — processing it now. Ref: <strong>#${shortId}</strong></p><p>You'll receive the proposal shortly.</p>`
+          });
+        } catch (e) {
+          console.error('[Email Poller] Could not send receipt email:', e.message);
+        }
+
+        // Process estimate immediately (no confirmation needed)
+        db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', jobId);
+
+        const proposalData = await processEstimateFn(fullEstimate, jobId, language);
+
+        if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+          db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', jobId);
+          const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
+          for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
+
+          const questions = proposalData.clarificationsNeeded.map((q, i) => `${i + 1}. ${q}`).join('\n');
+          await sendEmail({
+            to: from,
+            subject: `A few questions — Quote #${shortId}`,
+            html: language === 'pt-BR'
+              ? `<p>Preciso de mais informações sobre o orçamento:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Por favor responda este email com as respostas.</p>`
+              : `<p>I need a few more details about the estimate:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Please reply to this email with your answers.</p>`
+          });
+          console.log(`[Email Poller] Job ${shortId} needs ${proposalData.clarificationsNeeded.length} clarifications — emailed ${from}`);
+
+        } else {
+          const pdfPath = await generatePDFFn(proposalData, 'proposal', jobId);
+          db.prepare(`UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?`)
+            .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
+
+          logAudit(jobId, 'proposal_ready_email', `Proposal ready. Total: $${proposalData.totalValue}`, 'email-poller');
+
+          const recipients = [from];
+          if (process.env.OWNER_EMAIL && !recipients.includes(process.env.OWNER_EMAIL.toLowerCase())) {
+            recipients.push(process.env.OWNER_EMAIL);
+          }
+
+          await sendEmail({
+            to: recipients,
+            subject: `Proposal Ready — ${proposalData.customer?.name || 'New Job'} | $${(proposalData.totalValue || 0).toLocaleString()} | Ref #${shortId}`,
+            html: `
+              <div style="font-family:sans-serif;max-width:600px">
+                <h2 style="color:#1B3A6B">Proposal Ready — Ref #${shortId}</h2>
+                <table style="width:100%;border-collapse:collapse">
+                  <tr><td style="padding:8px;color:#555">Customer</td><td style="padding:8px;font-weight:bold">${proposalData.customer?.name || '—'}</td></tr>
+                  <tr style="background:#f9f9f9"><td style="padding:8px;color:#555">Address</td><td style="padding:8px">${proposalData.project?.address || '—'}</td></tr>
+                  <tr><td style="padding:8px;color:#555">Total</td><td style="padding:8px;font-weight:bold;color:#1B3A6B">$${(proposalData.totalValue || 0).toLocaleString()}</td></tr>
+                  <tr style="background:#f9f9f9"><td style="padding:8px;color:#555">Deposit (33%)</td><td style="padding:8px">$${(proposalData.depositAmount || 0).toLocaleString()}</td></tr>
+                </table>
+                ${proposalData.flaggedItems?.length ? `<p style="color:#E07B2A">⚠️ ${proposalData.flaggedItems.length} item(s) flagged for review in the dashboard.</p>` : ''}
+                <p>PDF proposal attached. Log in to the admin panel to approve and generate the contract.</p>
+              </div>`,
+            attachmentPath: pdfPath,
+            attachmentName: `Proposal_${shortId}.pdf`
+          });
+
+          console.log(`[Email Poller] Job ${shortId} — proposal ready. Total: $${proposalData.totalValue}`);
+        }
+
+      } catch (err) {
+        console.error(`[Email Poller] Error processing email ${uid}:`, err.message);
+        // Still mark as read so we don't retry indefinitely
+        try { await client.messageFlagsAdd(uid, ['\\Seen']); } catch {}
+      }
+    }
+
+    await client.logout();
+  } catch (err) {
+    console.error('[Email Poller] Connection error:', err.message);
+    try { await client.logout(); } catch {}
+  }
+}
+
+function detectLanguage(text) {
+  const ptWords = /\b(obrigado|orçamento|proposta|serviço|construção|acabamento|banheiro|quarto|sala)\b/i;
+  return ptWords.test(text) ? 'pt-BR' : 'en';
+}
+
+function startEmailPolling(intervalMs = 60000) {
+  if (!process.env.IMAP_USER || !process.env.IMAP_PASSWORD) {
+    console.log('[Email Poller] IMAP_USER / IMAP_PASSWORD not set — email polling disabled');
+    return;
+  }
+
+  const { processEstimate } = require('./claudeService');
+  const { generatePDF } = require('./pdfService');
+
+  console.log(`[Email Poller] Started — watching ${process.env.IMAP_USER} every ${intervalMs / 1000}s`);
+
+  // Poll immediately on start, then on interval
+  pollOnce(processEstimate, generatePDF).catch(e => console.error('[Email Poller] Initial poll error:', e.message));
+  setInterval(() => {
+    pollOnce(processEstimate, generatePDF).catch(e => console.error('[Email Poller] Poll error:', e.message));
+  }, intervalMs);
+}
+
+module.exports = { startEmailPolling };
