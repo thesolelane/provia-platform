@@ -129,6 +129,21 @@ async function initDatabase() {
     );
   `);
 
+  // contact_documents — files permanently attached to a contact
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS contact_documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id INTEGER NOT NULL,
+      filename TEXT NOT NULL,
+      original_name TEXT,
+      mime_type TEXT,
+      file_path TEXT NOT NULL,
+      source TEXT DEFAULT 'bulk_import',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE
+    )
+  `);
+
   // Migration: add archived columns if missing
   try {
     db.prepare("SELECT archived FROM jobs LIMIT 1").get();

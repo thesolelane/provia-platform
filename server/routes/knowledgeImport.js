@@ -248,7 +248,32 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
         }
       }
 
-      // Delete temp file — data is extracted, no need to keep it
+      // Save a permanent copy of the file under the contact's folder
+      if (contactId) {
+        try {
+          const contactDir = path.join(__dirname, '../../uploads/contact_docs', String(contactId));
+          if (!fs.existsSync(contactDir)) fs.mkdirSync(contactDir, { recursive: true });
+
+          // Sanitize filename and make it unique
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const unique = `${Date.now()}_${safeName}`;
+          const destPath = path.join(contactDir, unique);
+
+          // Copy from temp (don't move — still need to delete temp below)
+          fs.copyFileSync(file.tempFilePath || file.data, destPath);
+
+          db.prepare(
+            `INSERT INTO contact_documents (contact_id, filename, original_name, mime_type, file_path, source)
+             VALUES (?, ?, ?, ?, ?, 'bulk_import')`
+          ).run(contactId, unique, file.name, file.mimetype, destPath);
+
+          console.log(`[Bulk Import] Saved ${file.name} → contact #${contactId}`);
+        } catch (docErr) {
+          console.warn('[Bulk Import] Failed to save contact doc:', docErr.message);
+        }
+      }
+
+      // Delete temp file — data extracted and file copied where needed
       if (file.tempFilePath && fs.existsSync(file.tempFilePath)) {
         try { fs.unlinkSync(file.tempFilePath); } catch {}
       }

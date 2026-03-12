@@ -23,6 +23,9 @@ app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 }, useTempFiles: true 
 // Serve generated PDFs
 app.use('/outputs', express.static(path.join(__dirname, '../outputs')));
 
+// Serve contact-attached documents (estimates, invoices saved under a contact)
+app.use('/contact-docs', express.static(path.join(__dirname, '../uploads/contact_docs')));
+
 // ── REQUEST LOGGER (catch all incoming) ─────────────────────
 app.use((req, res, next) => {
   if (req.path.startsWith('/webhook') || req.path === '/health') {

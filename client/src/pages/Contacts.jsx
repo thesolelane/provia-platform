@@ -22,6 +22,7 @@ export default function Contacts({ token }) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [selectedJobs, setSelectedJobs] = useState([]);
+  const [selectedDocs, setSelectedDocs] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name:'', email:'', phone:'', address:'', city:'', state:'MA', zip:'', customer_type:'residential', notes:'' });
@@ -42,10 +43,18 @@ export default function Contacts({ token }) {
   const openContact = async (c) => {
     setSelected(c);
     setEditing(false);
+    setSelectedDocs([]);
     setForm({ name: c.name||'', email: c.email||'', phone: c.phone||'', address: c.address||'', city: c.city||'', state: c.state||'MA', zip: c.zip||'', customer_type: c.customer_type||'residential', notes: c.notes||'' });
     const res = await fetch(`/api/contacts/${c.id}`, { headers });
     const data = await res.json();
     setSelectedJobs(data.jobs || []);
+    setSelectedDocs(data.documents || []);
+  };
+
+  const deleteDoc = async (docId) => {
+    if (!window.confirm('Remove this document from the contact?')) return;
+    await fetch(`/api/contacts/${selected.id}/documents/${docId}`, { method: 'DELETE', headers });
+    setSelectedDocs(prev => prev.filter(d => d.id !== docId));
   };
 
   const saveEdit = async () => {
@@ -241,6 +250,34 @@ export default function Contacts({ token }) {
                     </div>
                   )}
                 </div>
+
+                {/* Documents */}
+                {selectedDocs.length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <h3 style={{ fontSize: 14, color: '#1B3A6B', marginBottom: 10 }}>Documents ({selectedDocs.length})</h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {selectedDocs.map(doc => {
+                        const icon = doc.mime_type === 'application/pdf' ? '📄' : doc.mime_type?.startsWith('image/') ? '🖼️' : '📎';
+                        const url = `/contact-docs/${selected.id}/${doc.filename}`;
+                        return (
+                          <div key={doc.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f8f9ff', borderRadius: 7, padding: '8px 12px' }}>
+                            <span style={{ fontSize: 18 }}>{icon}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: 12, fontWeight: '600', color: '#1B3A6B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.original_name || doc.filename}</div>
+                              <div style={{ fontSize: 10, color: '#aaa' }}>{new Date(doc.created_at).toLocaleDateString()} · {doc.source === 'bulk_import' ? 'Invoice Import' : doc.source}</div>
+                            </div>
+                            <a href={url} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: '#1B3A6B', fontWeight: 'bold', textDecoration: 'none', background: '#e8eeff', padding: '4px 10px', borderRadius: 5 }}>
+                              View
+                            </a>
+                            <button onClick={() => deleteDoc(doc.id)} style={{ fontSize: 11, color: '#C62828', background: '#fff0f0', border: 'none', padding: '4px 8px', borderRadius: 5, cursor: 'pointer' }}>
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Job history */}
                 <h3 style={{ fontSize: 14, color: '#1B3A6B', marginBottom: 10 }}>Job History ({selectedJobs.length})</h3>

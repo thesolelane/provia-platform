@@ -1,6 +1,8 @@
 // server/routes/contacts.js
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
 
@@ -26,12 +28,12 @@ router.get('/', requireAuth, (req, res) => {
   res.json({ contacts, total: total.c });
 });
 
-// GET single contact with their job history
+// GET single contact with their job history and documents
 router.get('/:id', requireAuth, (req, res) => {
   const db = getDb();
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id);
   if (!contact) return res.status(404).json({ error: 'Contact not found' });
-  // Find matching jobs by email, phone, or name
+
   const jobs = db.prepare(`
     SELECT id, customer_name, project_address, total_value, status, created_at
     FROM jobs WHERE archived = 0 AND (
@@ -40,7 +42,24 @@ router.get('/:id', requireAuth, (req, res) => {
       (customer_name IS NOT NULL AND customer_name = ?)
     ) ORDER BY created_at DESC
   `).all(contact.email || '', contact.phone || '', contact.name || '');
-  res.json({ contact, jobs });
+
+  const documents = db.prepare(
+    'SELECT id, filename, original_name, mime_type, source, created_at FROM contact_documents WHERE contact_id = ? ORDER BY created_at DESC'
+  ).all(req.params.id);
+
+  res.json({ contact, jobs, documents });
+});
+
+// DELETE a contact document
+router.delete('/:id/documents/:docId', requireAuth, (req, res) => {
+  const db = getDb();
+  const doc = db.prepare('SELECT * FROM contact_documents WHERE id = ? AND contact_id = ?').get(req.params.docId, req.params.id);
+  if (!doc) return res.status(404).json({ error: 'Document not found' });
+  if (doc.file_path && fs.existsSync(doc.file_path)) {
+    try { fs.unlinkSync(doc.file_path); } catch {}
+  }
+  db.prepare('DELETE FROM contact_documents WHERE id = ?').run(doc.id);
+  res.json({ success: true });
 });
 
 // POST create contact manually
