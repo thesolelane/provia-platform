@@ -1752,4 +1752,51 @@ function buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, 
 </div>`;
 }
 
-module.exports = { generatePDF };
+// ══════════════════════════════════════════════════════════════════════
+// BLANK CONTRACT DOCX — downloadable Word template with fillable blanks
+// ══════════════════════════════════════════════════════════════════════
+async function generateBlankContractDocx() {
+  const HTMLtoDOCX = require('html-to-docx');
+
+  const blankData = {
+    customer: {
+      name:  '___________________________________',
+      email: '___________________________________',
+      phone: '_____________________'
+    },
+    project: {
+      address: '___________________________________',
+      city:    '___________________________________',
+      state:   'MA'
+    },
+    quoteNumber:   '____________',
+    totalValue:    0,
+    depositAmount: 0,
+    lineItems:     [],
+    pricing: {
+      totalContractPrice: 0,
+      depositAmount:      0,
+      depositPercent:     33
+    }
+  };
+
+  const rawHtml = buildContractHTML(blankData);
+
+  // Strip <style> and <script> blocks — html-to-docx cannot handle CSS @-rules
+  // and produces a cleaner, more editable Word document without embedded styles.
+  const html = rawHtml
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/\s*style="[^"]*"/gi, '');   // strip inline styles too for clean docx
+
+  const buffer = await HTMLtoDOCX(html, null, {
+    table:      { row: { cantSplit: true } },
+    footer:     true,
+    pageNumber: true,
+    margins:    { top: 1080, right: 1080, bottom: 1080, left: 1080 }
+  });
+
+  return buffer;
+}
+
+module.exports = { generatePDF, generateBlankContractDocx };

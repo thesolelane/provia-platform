@@ -34,6 +34,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── BLANK CONTRACT DOWNLOAD ───────────────────────────────────
+app.get('/api/blank-contract', async (req, res) => {
+  try {
+    const { generateBlankContractDocx } = require('./services/pdfService');
+    const buffer = await generateBlankContractDocx();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', 'attachment; filename="PB_Contract_Template_BLANK.docx"');
+    res.send(buffer);
+  } catch (err) {
+    console.error('Blank contract error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── HEALTH CHECK ─────────────────────────────────────────────
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
