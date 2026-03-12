@@ -106,7 +106,13 @@ Return this EXACT JSON structure:
     "stretchCodeTown": true/false
   },
   "lineItems": [
-    { "trade": "Foundation", "baseCost": 28000, "scopeIncluded": ["30\\" footings", "4000PSI slab"], "scopeExcluded": ["Excavation"] }
+    {
+      "trade": "Foundation",
+      "baseCost": 28000,
+      "description": "Install 30-inch concrete footings and 4,000 PSI slab on grade. Includes all forming, rebar, and concrete placement specific to this project.",
+      "scopeIncluded": ["30\" continuous footings at frost depth", "4,000 PSI fiber-reinforced slab on grade", "Rebar per engineer specs", "Concrete forming and stripping"],
+      "scopeExcluded": ["Excavation and site grading"]
+    }
   ],
   "exclusions": [
     { "name": "Well drilling", "reason": "Not in scope", "budget": "$8,000 - $15,000" }
@@ -122,7 +128,7 @@ RULES:
 3. Extract sqft exactly as written. If not specified, estimate from the scope and note in "notes".
 4. Use submitted line item prices as baseCost — these are what we pay subs/materials.
 5. DO NOT calculate any markup, totals, or deposit. The system does all math.
-6. For each trade, populate scopeIncluded (what this contract covers) and scopeExcluded (what is NOT covered for that trade) using the scope notes from the estimate.
+6. For each trade, write a "description" — 1 to 3 sentences describing the SPECIFIC work being done on THIS project (not generic boilerplate). Then populate scopeIncluded with specific, detailed work items directly from the estimate, and scopeExcluded with what is NOT covered for that trade. Never use generic filler — every item must be traceable to the actual estimate text.
 7. List EVERY exclusion mentioned in the estimate in the exclusions array with a budget estimate for the customer.
 8. Only set readyToGenerate to false if CRITICAL construction details are missing. NEVER ask for customer name/email/phone/address — those are always provided above.
 9. If the estimate has a "total" line, IGNORE it — the system calculates its own total from line items.

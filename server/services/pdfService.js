@@ -172,25 +172,35 @@ function buildProposalHTML(data) {
 
   <!-- PROJECT OVERVIEW -->
   <div class="section-header">PROJECT OVERVIEW</div>
+
+  <!-- Customer info card -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 16px;">
+    <div style="background:${LIGHT_BLUE};border-left:4px solid ${BRAND_BLUE};padding:12px 16px;border-radius:2px;">
+      <div style="font-size:9pt;font-weight:bold;color:${BRAND_BLUE};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Customer</div>
+      <div style="font-size:13pt;font-weight:bold;color:#1a1a1a;margin-bottom:4px;">${customer.name || '—'}</div>
+      ${customer.phone ? `<div style="font-size:10pt;color:#333;">📞 ${customer.phone}</div>` : ''}
+      ${customer.email ? `<div style="font-size:10pt;color:#333;">✉️ ${customer.email}</div>` : ''}
+    </div>
+    <div style="background:${LIGHT_GRAY};border-left:4px solid ${BRAND_ORANGE};padding:12px 16px;border-radius:2px;">
+      <div style="font-size:9pt;font-weight:bold;color:${BRAND_ORANGE};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Project Location</div>
+      <div style="font-size:12pt;font-weight:bold;color:#1a1a1a;margin-bottom:4px;">${project.address || '—'}</div>
+      <div style="font-size:10pt;color:#333;">${[project.city, project.state].filter(Boolean).join(', ') || ''}</div>
+      ${project.sqft ? `<div style="font-size:10pt;color:#555;margin-top:4px;">${Number(project.sqft).toLocaleString()} sq ft</div>` : ''}
+    </div>
+  </div>
+
+  <!-- Project details grid -->
   <div class="overview-grid">
-    <div class="item label-cell">Customer</div>
-    <div class="item value-cell">${customer.name || ''}</div>
-    <div class="item label-cell">Email</div>
-    <div class="item value-cell">${customer.email || ''}</div>
-    <div class="item label-cell">Phone</div>
-    <div class="item value-cell">${customer.phone || ''}</div>
-    <div class="item label-cell">Project Address</div>
-    <div class="item value-cell">${project.address || ''}</div>
-    <div class="item label-cell">Description</div>
-    <div class="item value-cell">${project.description || ''}</div>
-    <div class="item label-cell">Square Footage</div>
-    <div class="item value-cell">${project.sqft ? Number(project.sqft).toLocaleString() + ' sq ft' : '—'}</div>
+    <div class="item label-cell">Project Description</div>
+    <div class="item value-cell">${project.description || '—'}</div>
+    <div class="item label-cell">Quote Number</div>
+    <div class="item value-cell">${quoteNum || '—'}</div>
+    <div class="item label-cell">Date Prepared</div>
+    <div class="item value-cell">${new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'})}</div>
+    <div class="item label-cell">Valid Until</div>
+    <div class="item value-cell">${validUntil || '—'}</div>
     <div class="item label-cell">Stretch Code Town</div>
     <div class="item value-cell">${isStretchCode ? '⚠️ Yes — additional requirements apply' : 'No'}</div>
-    <div class="item label-cell">Quote Number</div>
-    <div class="item value-cell">${quoteNum}</div>
-    <div class="item label-cell">Offer Valid Until</div>
-    <div class="item value-cell">${validUntil}</div>
   </div>
 
   ${data.flaggedItems?.length ? `
@@ -283,10 +293,17 @@ function buildScopeHTML(lineItems) {
     const excluded = item.scopeExcluded || [];
     return `
     <div class="sub-header">${item.trade}</div>
+    ${item.description ? `<p style="font-size:10.5pt;color:#333;margin-bottom:10px;line-height:1.6;">${item.description}</p>` : ''}
+    ${included.length ? `
+    <p style="font-size:9.5pt;font-weight:bold;color:${BRAND_BLUE};margin:6px 0 4px;">Included in this scope:</p>
     <ul class="check-list">
       ${included.map(i => `<li class="yes"><span class="label">${i}</span></li>`).join('')}
+    </ul>` : ''}
+    ${excluded.length ? `
+    <p style="font-size:9.5pt;font-weight:bold;color:#C62828;margin:6px 0 4px;">Not included in this trade:</p>
+    <ul class="check-list">
       ${excluded.map(i => `<li class="no"><span class="label">${i}</span></li>`).join('')}
-    </ul>`;
+    </ul>` : ''}`;
   }).join('');
 }
 
