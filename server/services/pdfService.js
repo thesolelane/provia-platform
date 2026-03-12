@@ -266,8 +266,8 @@ ${buildExhibitAHTML(data, fmt)}
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// CONTRACT HTML — standalone legal agreement (does NOT copy the proposal)
-// References the Proposal/Scope of Work document by Quote # instead.
+// CONTRACT HTML — formal legal construction agreement
+// Structured as numbered Articles, incorporating the Proposal by reference.
 // ══════════════════════════════════════════════════════════════════════
 function buildContractHTML(data) {
   const customer = data.customer || {};
@@ -281,6 +281,7 @@ function buildContractHTML(data) {
   const total      = pricing.totalContractPrice || data.totalValue || 0;
   const deposit    = pricing.depositAmount || data.depositAmount || 0;
   const depositPct = pricing.depositPercent || 33;
+  const city       = project.city || 'the applicable municipality';
 
   // Payment milestones (deposit = first payment, already in pricing.depositAmount)
   const m2 = Math.round(total * 0.33);
@@ -352,197 +353,700 @@ function buildContractHTML(data) {
     .initials-line { border-bottom: 1px solid #555; height: 30px; margin-bottom: 4px; width: 80px; }
   `;
 
+  const articleCSS = `
+    .article { margin: 0 0 6px; page-break-inside: avoid; }
+    .article-header {
+      background: ${BRAND_BLUE}; color: white;
+      padding: 7px 16px; font-size: 10.5pt; font-weight: bold;
+      letter-spacing: 0.4px; margin: 22px 0 0; page-break-after: avoid;
+    }
+    .article-header.orange-hdr { background: ${BRAND_ORANGE}; }
+    .article-body { padding: 10px 16px 4px; border-left: 3px solid #E0E8F5; margin-left: 0; }
+    .clause { display: flex; gap: 12px; margin: 6px 0; font-size: 9.5pt; line-height: 1.65; color: #222; }
+    .clause-num { font-weight: bold; color: ${BRAND_BLUE}; flex-shrink: 0; min-width: 28px; }
+    .clause-text { flex: 1; }
+    .witnesseth { font-size: 9.5pt; line-height: 1.8; color: #222; margin: 14px 0; padding: 14px 20px;
+      border: 1px solid #dde4f0; border-left: 4px solid ${BRAND_BLUE}; background: #F7F9FD; }
+    .whereas { margin: 6px 0; }
+    .whereas strong { color: ${BRAND_BLUE}; }
+    .now-therefore { font-weight: bold; color: ${BRAND_BLUE}; margin-top: 10px; font-size: 9.5pt; }
+  `;
+
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><style>${contractCSS}</style></head>
+<head><meta charset="UTF-8"><style>${contractCSS}${articleCSS}</style></head>
 <body>
 
 <!-- ═══════════════════ COVER ═══════════════════ -->
 <div class="contract-cover">
   <div class="contract-cover-label">Preferred Builders General Services Inc. &nbsp;|&nbsp; LIC# HIC-197400</div>
-  <div class="contract-cover-title">CONSTRUCTION<br><span>CONTRACT</span></div>
+  <div class="contract-cover-title">HOME IMPROVEMENT<br><span>CONSTRUCTION CONTRACT</span></div>
   <hr class="contract-cover-divider">
   <div class="contract-cover-meta">
-    Project Address: &nbsp;<strong>${project.address || '—'}, ${project.city || ''}, ${project.state || 'MA'}</strong><br>
+    Property Address: &nbsp;<strong>${project.address || '—'}, ${project.city || ''}, ${project.state || 'MA'}</strong><br>
     Owner: &nbsp;<strong>${customer.name || '—'}</strong><br>
-    Quote / Contract #: &nbsp;<strong>${quoteNum}</strong><br>
-    Contract Date: &nbsp;<strong>${today}</strong><br>
-    Total Contract Value: &nbsp;<strong>${fmt(total)}</strong>
+    Contract No.: &nbsp;<strong>${quoteNum}</strong><br>
+    Date of Agreement: &nbsp;<strong>${today}</strong><br>
+    Total Contract Price: &nbsp;<strong>${fmt(total)}</strong>
   </div>
 </div>
 
 <div class="content">
 
-  <!-- ═══ PARTIES ═══ -->
-  <div class="contract-section">
-    <div class="contract-section-title">AGREEMENT BETWEEN THE PARTIES</div>
-
-    <p class="preamble">
-      This Construction Contract ("<strong>Contract</strong>") is entered into as of <strong>${today}</strong>,
-      by and between the Contractor and Owner identified below. In consideration of the mutual covenants
-      set forth herein, and for other good and valuable consideration, the parties agree as follows:
-    </p>
-
-    <div class="party-grid">
-      <div class="party-box">
-        <div class="party-box-header">Contractor</div>
-        <div class="party-box-body">
-          <strong>Preferred Builders General Services Inc.</strong><br>
-          LIC# HIC-197400<br>
-          37 Duck Mill Road, Fitchburg, MA 01420<br>
-          📞 978-377-1784<br>
-          ✉️ jackson.deaquino@preferredbuildersusa.com
-        </div>
-      </div>
-      <div class="party-box">
-        <div class="party-box-header orange">Owner (Client)</div>
-        <div class="party-box-body">
-          <strong>${customer.name || '—'}</strong><br>
-          ${project.address || ''}, ${project.city || ''}, ${project.state || 'MA'}<br>
-          ${customer.phone ? `📞 ${customer.phone}<br>` : ''}
-          ${customer.email ? `✉️ ${customer.email}` : ''}
-        </div>
-      </div>
+<!-- ─── PARTIES ─── -->
+<div class="party-grid" style="margin-top:20px;">
+  <div class="party-box">
+    <div class="party-box-header">Contractor</div>
+    <div class="party-box-body">
+      <strong>Preferred Builders General Services Inc.</strong><br>
+      Massachusetts HIC License No. HIC-197400<br>
+      37 Duck Mill Road, Fitchburg, MA 01420<br>
+      Tel: 978-377-1784<br>
+      jackson.deaquino@preferredbuildersusa.com
     </div>
   </div>
-
-  <!-- ═══ SCOPE OF WORK — REFERENCE ═══ -->
-  <div class="contract-section">
-    <div class="contract-section-title">SECTION 1 — SCOPE OF WORK</div>
-
-    <div class="ref-box">
-      📄 &nbsp;The work to be performed under this Contract is described in full detail in the
-      <strong>Project Proposal &amp; Scope of Work, Quote #${quoteNum}</strong>, dated <strong>${today}</strong>
-      (the "<strong>Proposal</strong>"), which is incorporated herein by reference as though fully set forth.
-      The Proposal constitutes the complete scope document and specifies all inclusions, exclusions,
-      materials, and trade-by-trade descriptions. In the event of any conflict between this Contract and
-      the Proposal, this Contract shall govern.
-    </div>
-
-    <p style="font-size:10pt;margin-bottom:10px;color:#333;">
-      The following is a summary of work phases included in this Contract:
-    </p>
-
-    <table class="payment-table">
-      <tr>
-        <th>Trade / Phase</th>
-        <th>Description</th>
-        <th style="text-align:right;">Contract Value</th>
-      </tr>
-      ${lineItems.map(item => `
-      <tr>
-        <td><strong>${item.trade}</strong></td>
-        <td style="font-size:9.5pt;color:#444;">${item.description ? item.description.substring(0, 120) + (item.description.length > 120 ? '…' : '') : 'See Proposal for full scope details'}</td>
-        <td style="text-align:right;">${fmt(item.finalPrice)}</td>
-      </tr>`).join('')}
-      <tr class="total-row">
-        <td colspan="2"><strong>TOTAL CONTRACT VALUE</strong></td>
-        <td style="text-align:right;"><strong>${fmt(total)}</strong></td>
-      </tr>
-    </table>
-
-    <p style="font-size:9pt;color:#666;margin-top:4px;">
-      * For full scope details, included items, and exclusions by trade, refer to the Proposal document (Quote #${quoteNum}).
-    </p>
-  </div>
-
-  <!-- ═══ PAYMENT SCHEDULE ═══ -->
-  <div class="contract-section">
-    <div class="contract-section-title orange">SECTION 2 — CONTRACT PRICE &amp; PAYMENT SCHEDULE</div>
-
-    <p style="font-size:10pt;margin-bottom:12px;color:#333;">
-      The total price for all work described herein is <strong>${fmt(total)}</strong>. 
-      Payment shall be made in accordance with the following milestone schedule. 
-      All payments are due within <strong>five (5) business days</strong> of milestone completion.
-      A late charge of <strong>1.5% per month</strong> applies to overdue balances.
-    </p>
-
-    <table class="payment-table" style="width:100%;border-collapse:collapse;">
-      <tr>
-        <th style="width:40px;">#</th>
-        <th>Payment Milestone</th>
-        <th style="text-align:center;width:80px;">%</th>
-        <th style="text-align:right;width:110px;">Amount Due</th>
-        <th style="width:100px;">Due Date</th>
-      </tr>
-      <tr class="due-at-signing">
-        <td><span class="milestone-num">1</span></td>
-        <td><strong>Deposit</strong> — Due upon execution of this Contract</td>
-        <td style="text-align:center;">${depositPct}%</td>
-        <td style="text-align:right;"><strong>${fmt(deposit)}</strong></td>
-        <td style="font-size:9pt;color:#666;">At signing</td>
-      </tr>
-      <tr>
-        <td><span class="milestone-num">2</span></td>
-        <td>Foundation completion &amp; inspection</td>
-        <td style="text-align:center;">33%</td>
-        <td style="text-align:right;">${fmt(m2)}</td>
-        <td style="font-size:9pt;color:#666;">Upon milestone</td>
-      </tr>
-      <tr>
-        <td><span class="milestone-num">3</span></td>
-        <td>Framing inspection approval</td>
-        <td style="text-align:center;">33%</td>
-        <td style="text-align:right;">${fmt(m3)}</td>
-        <td style="font-size:9pt;color:#666;">Upon milestone</td>
-      </tr>
-      <tr class="final-pay">
-        <td><span class="milestone-num">4</span></td>
-        <td>Substantial completion &amp; Certificate of Occupancy</td>
-        <td style="text-align:center;">1%</td>
-        <td style="text-align:right;">${fmt(m4)}</td>
-        <td style="font-size:9pt;color:#666;">Upon CO issued</td>
-      </tr>
-      <tr class="total-row">
-        <td colspan="2"><strong>TOTAL</strong></td>
-        <td style="text-align:center;"><strong>100%</strong></td>
-        <td style="text-align:right;"><strong>${fmt(total)}</strong></td>
-        <td></td>
-      </tr>
-    </table>
-
-    <div class="note-box" style="margin-top:12px;">
-      ⚠️ <strong>Allowances:</strong> This contract price includes contractor-grade material allowances as detailed 
-      in <strong>Exhibit A</strong>. If Owner selections exceed allowance amounts, the difference will be billed 
-      as a Change Order prior to ordering. Credits for under-allowance selections are applied at final invoice.
+  <div class="party-box">
+    <div class="party-box-header orange">Owner</div>
+    <div class="party-box-body">
+      <strong>${customer.name || '—'}</strong><br>
+      ${project.address || ''}<br>
+      ${[project.city, project.state].filter(Boolean).join(', ')}<br>
+      ${customer.phone ? `Tel: ${customer.phone}<br>` : ''}
+      ${customer.email || ''}
     </div>
   </div>
-
-  <!-- ═══ OWNER RESPONSIBILITIES ═══ -->
-  <div class="contract-section">
-    <div class="contract-section-title">SECTION 3 — OWNER RESPONSIBILITIES</div>
-    <p style="font-size:10pt;margin-bottom:10px;color:#333;">
-      Owner agrees to fulfill the following responsibilities throughout the duration of this Contract:
-    </p>
-    <ul class="check-list">
-      <li class="bullet">Provide clear site access for construction vehicles and material deliveries</li>
-      <li class="bullet">Maintain homeowner's insurance for the property during the construction period</li>
-      <li class="bullet">Make all progress payments on time per the schedule in Section 2</li>
-      <li class="bullet">Submit all material selections no later than framing completion (see Exhibit A)</li>
-      <li class="bullet">Provide written approval for any Change Orders before additional work begins</li>
-      <li class="bullet">Obtain any required easements or property line clearances</li>
-      <li class="bullet">Be available for scheduled walkthroughs and milestone inspections</li>
-    </ul>
-  </div>
-
 </div>
+
+<!-- ─── WITNESSETH ─── -->
+<div class="witnesseth">
+  <p style="margin-bottom:8px;">
+    This Home Improvement Construction Agreement ("<strong>Agreement</strong>" or "<strong>Contract</strong>") is
+    made and entered into as of <strong>${today}</strong>, by and between
+    <strong>Preferred Builders General Services Inc.</strong>, a Massachusetts corporation, Massachusetts HIC
+    License No. HIC-197400 (hereinafter "<strong>Contractor</strong>"), and
+    <strong>${customer.name || '—'}</strong>, owner of the property located at
+    <strong>${project.address || '—'}, ${project.city || ''}, ${project.state || 'MA'}</strong>
+    (hereinafter "<strong>Owner</strong>").
+  </p>
+  <div class="whereas"><strong>WITNESSETH:</strong></div>
+  <div class="whereas">
+    <strong>WHEREAS</strong>, Owner desires to engage Contractor to perform certain home improvement and
+    construction work at the above-referenced Property; and
+  </div>
+  <div class="whereas">
+    <strong>WHEREAS</strong>, Contractor is duly licensed under the laws of the Commonwealth of Massachusetts
+    and has agreed to perform such work on the terms and conditions set forth herein;
+  </div>
+  <div class="now-therefore">
+    NOW, THEREFORE, in consideration of the mutual covenants and agreements herein contained, and for other
+    good and valuable consideration, the receipt and sufficiency of which are hereby acknowledged, the parties
+    hereby agree as follows:
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE I — THE WORK -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header">ARTICLE I — THE WORK</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">1.1</span>
+      <span class="clause-text">
+        Contractor shall furnish all labor, materials, equipment, tools, supervision, and services necessary to
+        complete the work (the "<strong>Work</strong>") at the Property in a good and workmanlike manner, in
+        accordance with this Contract and all applicable laws, codes, and regulations.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">1.2</span>
+      <span class="clause-text">
+        The scope, inclusions, and exclusions of the Work are described in full in the
+        <strong>Project Proposal &amp; Scope of Work, Quote No. ${quoteNum}</strong>, dated <strong>${today}</strong>
+        (the "<strong>Proposal</strong>"), which is incorporated herein by reference and made a part of this Contract
+        as though fully set forth. In the event of any conflict between this Contract and the Proposal, the terms
+        of this Contract shall govern.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">1.3</span>
+      <span class="clause-text">
+        The following table summarizes the phases and trade values included under this Contract. For trade-by-trade
+        inclusions, exclusions, and material specifications, Owner shall refer to the Proposal.
+      </span>
+    </div>
+  </div>
+
+  <table class="payment-table" style="margin:0 0 8px;font-size:9.5pt;">
+    <tr>
+      <th style="width:30%;">Trade / Phase</th>
+      <th>Description</th>
+      <th style="text-align:right;width:120px;">Contract Value</th>
+    </tr>
+    ${lineItems.map(item => `
+    <tr>
+      <td><strong>${item.trade}</strong></td>
+      <td style="color:#444;">${item.description ? item.description.substring(0, 130) + (item.description.length > 130 ? '…' : '') : 'Per Proposal — Quote No. ' + quoteNum}</td>
+      <td style="text-align:right;">${fmt(item.finalPrice)}</td>
+    </tr>`).join('')}
+    <tr class="total-row">
+      <td colspan="2"><strong>TOTAL CONTRACT PRICE</strong></td>
+      <td style="text-align:right;"><strong>${fmt(total)}</strong></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE II — CONTRACT PRICE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header orange-hdr">ARTICLE II — CONTRACT PRICE</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">2.1</span>
+      <span class="clause-text">
+        Owner agrees to pay Contractor the total sum of <strong>${fmt(total)}</strong>
+        (the "<strong>Contract Price</strong>") for the full and satisfactory completion of the Work, subject
+        to additions and deductions for Change Orders as provided in Article IV.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">2.2</span>
+      <span class="clause-text">
+        The Contract Price includes contractor-grade material allowances as set forth in
+        <strong>Exhibit A — Contractor-Grade Allowance Schedule</strong>, attached hereto and incorporated herein.
+        Owner selections that exceed an allowance amount shall be billed as a Change Order prior to ordering.
+        Credits for selections that fall below an allowance amount shall be applied to the final invoice.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">2.3</span>
+      <span class="clause-text">
+        All allowance selections shall be submitted by Owner in writing no later than framing completion.
+        Late submissions may result in project delays and additional costs for which Contractor shall not be liable.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE III — PAYMENT SCHEDULE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header">ARTICLE III — PAYMENT SCHEDULE</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">3.1</span>
+      <span class="clause-text">
+        The Contract Price shall be paid in installments upon completion of the milestones set forth below.
+        All payments are due within <strong>five (5) business days</strong> of the applicable milestone.
+      </span>
+    </div>
+  </div>
+
+  <table class="payment-table" style="margin:4px 0 8px;font-size:9.5pt;">
+    <tr>
+      <th style="width:36px;">#</th>
+      <th>Milestone / Trigger Event</th>
+      <th style="text-align:center;width:60px;">Share</th>
+      <th style="text-align:right;width:120px;">Amount Due</th>
+    </tr>
+    <tr class="due-at-signing">
+      <td style="text-align:center;"><strong>1</strong></td>
+      <td><strong>Deposit</strong> — Due upon execution of this Agreement and before Work commences</td>
+      <td style="text-align:center;">${depositPct}%</td>
+      <td style="text-align:right;"><strong>${fmt(deposit)}</strong></td>
+    </tr>
+    <tr>
+      <td style="text-align:center;"><strong>2</strong></td>
+      <td>Foundation completion and passing of foundation inspection</td>
+      <td style="text-align:center;">33%</td>
+      <td style="text-align:right;">${fmt(m2)}</td>
+    </tr>
+    <tr>
+      <td style="text-align:center;"><strong>3</strong></td>
+      <td>Framing inspection approval by the applicable building department</td>
+      <td style="text-align:center;">33%</td>
+      <td style="text-align:right;">${fmt(m3)}</td>
+    </tr>
+    <tr class="final-pay">
+      <td style="text-align:center;"><strong>4</strong></td>
+      <td>Substantial Completion and issuance of Certificate of Occupancy</td>
+      <td style="text-align:center;">1%</td>
+      <td style="text-align:right;">${fmt(m4)}</td>
+    </tr>
+    <tr class="total-row">
+      <td colspan="2"><strong>TOTAL CONTRACT PRICE</strong></td>
+      <td style="text-align:center;"><strong>100%</strong></td>
+      <td style="text-align:right;"><strong>${fmt(total)}</strong></td>
+    </tr>
+  </table>
+
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">3.2</span>
+      <span class="clause-text">
+        Any payment not received within five (5) business days of its due date shall bear a late charge of
+        <strong>one and one-half percent (1.5%) per month</strong> on the unpaid balance from the due date until
+        paid in full.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">3.3</span>
+      <span class="clause-text">
+        Contractor shall not be required to commence or continue work if any payment is more than ten (10)
+        days past due. Contractor may suspend work upon written notice to Owner, and such suspension shall
+        not constitute a breach of this Agreement.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE IV — CHANGE ORDERS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header orange-hdr">ARTICLE IV — CHANGE ORDERS</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">4.1</span>
+      <span class="clause-text">
+        No changes, additions, deletions, or modifications to the scope of the Work shall be made or
+        binding upon either party unless set forth in a written Change Order signed by both Owner and
+        Contractor prior to commencement of any additional or modified work.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">4.2</span>
+      <span class="clause-text">
+        Each Change Order shall specify: (a) the description of work to be added, deleted, or modified;
+        (b) the adjustment to the Contract Price; and (c) the adjustment, if any, to the project schedule.
+        Verbal authorizations shall not be binding on either party.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">4.3</span>
+      <span class="clause-text">
+        Owner-requested changes that result in project delays shall extend the completion date by the period
+        of such delay, and Contractor shall not be liable for any damages arising from such extensions.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE V — CONTRACTOR'S WARRANTY -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header">ARTICLE V — CONTRACTOR'S WARRANTY</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">5.1</span>
+      <span class="clause-text">
+        Contractor warrants all workmanship performed under this Agreement for a period of
+        <strong>one (1) year</strong> from the date of Substantial Completion. This warranty covers defects
+        in workmanship and materials supplied by Contractor that arise under normal use and are reported in
+        writing to Contractor within the warranty period.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">5.2</span>
+      <span class="clause-text">
+        Manufacturer warranties on products and materials installed by Contractor are passed through directly
+        to Owner. Contractor will reasonably cooperate in the assertion of manufacturer warranty claims upon
+        Owner's written request.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">5.3</span>
+      <span class="clause-text">
+        This warranty shall be void and of no force or effect if the structure or any component thereof is
+        modified, altered, or misused by any party other than Contractor or Contractor's authorized agents.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE VI — OWNER'S OBLIGATIONS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header orange-hdr">ARTICLE VI — OWNER'S OBLIGATIONS</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">6.1</span>
+      <span class="clause-text">
+        Owner shall provide Contractor with unobstructed access to the Property and all areas of work
+        during normal working hours and as reasonably required to complete the Work.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">6.2</span>
+      <span class="clause-text">
+        Owner shall maintain homeowner's property insurance on the Property in an amount not less than
+        the replacement cost thereof throughout the duration of this Agreement.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">6.3</span>
+      <span class="clause-text">
+        Owner shall make all progress payments in a timely manner in accordance with Article III.
+        Owner shall not withhold payment for any reason other than a bona fide written dispute as to
+        work completed.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">6.4</span>
+      <span class="clause-text">
+        Owner shall submit all material selections, finish choices, and decisions required by Exhibit A
+        no later than completion of framing. Owner acknowledges that late or incomplete submissions may
+        cause delays and additional costs.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">6.5</span>
+      <span class="clause-text">
+        Owner shall obtain, at Owner's sole expense, any required easements, rights-of-way, or property
+        line clearances necessary for completion of the Work.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">6.6</span>
+      <span class="clause-text">
+        Owner shall be available for scheduled walkthroughs, milestone inspections, and decision points
+        with reasonable notice. Owner's failure to be available shall not delay payment obligations.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE VII — PERMITS & INSPECTIONS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header">ARTICLE VII — PERMITS &amp; INSPECTIONS</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">7.1</span>
+      <span class="clause-text">
+        Contractor shall apply for and obtain all building permits required by the Town of ${city}
+        for the Work described herein. Permit fees are included in the Contract Price unless otherwise
+        noted in the Proposal.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">7.2</span>
+      <span class="clause-text">
+        Contractor shall schedule and manage all required inspections, including but not limited to
+        foundation, framing, rough electrical, rough plumbing, insulation, final electrical, final
+        plumbing, and final building inspections. All inspections are included in the Contract Price.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">7.3</span>
+      <span class="clause-text">
+        Contractor shall obtain a Certificate of Occupancy upon Substantial Completion, provided that
+        Owner has fulfilled all obligations under this Agreement, including timely payment.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE VIII — INSURANCE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header orange-hdr">ARTICLE VIII — INSURANCE</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">8.1</span>
+      <span class="clause-text">
+        Contractor shall maintain throughout the term of this Agreement:
+        (a) Commercial General Liability insurance with limits of not less than <strong>$1,000,000 per
+        occurrence</strong> and $2,000,000 in the aggregate; and
+        (b) Workers' Compensation insurance as required by Massachusetts law (M.G.L. c. 152).
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">8.2</span>
+      <span class="clause-text">
+        Certificates of insurance evidencing the coverages required hereunder shall be provided to
+        Owner upon written request. Owner shall be named as an additional insured on the Commercial
+        General Liability policy.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE IX — SUBSTANTIAL COMPLETION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header">ARTICLE IX — SUBSTANTIAL COMPLETION</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">9.1</span>
+      <span class="clause-text">
+        "<strong>Substantial Completion</strong>" means the stage in the progress of the Work when the Work
+        is sufficiently complete, as evidenced by issuance of a Certificate of Occupancy by the Town of
+        ${city}, such that Owner can occupy or utilize the Property for its intended use.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">9.2</span>
+      <span class="clause-text">
+        Punch list items remaining at Substantial Completion shall be completed within
+        <strong>thirty (30) days</strong> of Substantial Completion, provided Owner cooperates in
+        scheduling access. The existence of punch list items shall not constitute grounds to withhold
+        the final payment installment.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE X — MECHANIC'S LIEN NOTICE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header orange-hdr">ARTICLE X — MECHANIC'S LIEN NOTICE (M.G.L. c. 254)</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">10.1</span>
+      <span class="clause-text">
+        NOTICE: Under Massachusetts law (M.G.L. c. 254), any contractor, subcontractor, laborer, or
+        materialman who provides labor or materials for improvements to real property may file a lien
+        against that property if they are not paid. Such lien may be filed even if the Owner has paid
+        the general contractor in full.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">10.2</span>
+      <span class="clause-text">
+        To protect Owner's interests, Contractor shall provide lien waivers from all subcontractors and
+        material suppliers upon Owner's written request at each payment milestone. Owner may also record
+        a Notice of Contract in the applicable Registry of Deeds.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE XI — MA HIC LICENSE DISCLOSURE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header">ARTICLE XI — MASSACHUSETTS HIC LICENSE DISCLOSURE</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">11.1</span>
+      <span class="clause-text">
+        Preferred Builders General Services Inc. holds Massachusetts Home Improvement Contractor
+        License No. <strong>HIC-197400</strong>, as required by M.G.L. c. 142A. All home improvement
+        contractors performing residential contracting in Massachusetts must be registered with the
+        Commonwealth. The Arbitration &amp; Guaranty Fund (M.G.L. c. 142A, §17) provides homeowners
+        with recourse in the event a registered contractor fails to perform or causes damage.
+        For information, visit <em>www.mass.gov/hic</em> or call (617) 973-8700.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE XII — THREE-DAY RIGHT OF RESCISSION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header orange-hdr">ARTICLE XII — THREE-DAY RIGHT OF RESCISSION</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">12.1</span>
+      <span class="clause-text">
+        If this Agreement was signed at a location other than Contractor's principal place of business,
+        Owner has the right to cancel this Agreement, without penalty or obligation, within
+        <strong>three (3) business days</strong> of the date this Agreement was signed. Notice of
+        cancellation must be made in writing and delivered or mailed to:
+      </span>
+    </div>
+    <div style="padding:8px 16px 8px 44px;font-size:9.5pt;color:#333;">
+      Preferred Builders General Services Inc.<br>
+      37 Duck Mill Road, Fitchburg, MA 01420<br>
+      Attn: Jackson Deaquino, Project Manager
+    </div>
+    <div class="clause">
+      <span class="clause-num">12.2</span>
+      <span class="clause-text">
+        If Owner cancels within the rescission period, any deposit paid shall be returned within
+        ten (10) business days of receipt of written notice of cancellation.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE XIII — DISPUTE RESOLUTION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header">ARTICLE XIII — DISPUTE RESOLUTION</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">13.1</span>
+      <span class="clause-text">
+        The parties agree to make a good-faith effort to resolve any dispute arising out of or relating
+        to this Agreement, including its validity, breach, or performance, through direct negotiation
+        before resorting to formal proceedings.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">13.2</span>
+      <span class="clause-text">
+        If direct negotiation fails, the dispute shall be submitted to non-binding mediation before a
+        mutually agreed-upon mediator. The cost of mediation shall be shared equally by the parties.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">13.3</span>
+      <span class="clause-text">
+        If mediation is unsuccessful, any unresolved dispute shall be submitted to binding arbitration
+        pursuant to the Construction Industry Arbitration Rules of the American Arbitration Association
+        then in effect. The award of the arbitrator shall be final and binding. Judgment upon the award
+        may be entered in any court of competent jurisdiction. The prevailing party shall be entitled
+        to recover reasonable attorneys' fees and costs.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">13.4</span>
+      <span class="clause-text">
+        This Agreement shall be governed by and construed in accordance with the laws of the
+        <strong>Commonwealth of Massachusetts</strong>, without regard to conflict-of-law principles.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE XIV — FORCE MAJEURE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header orange-hdr">ARTICLE XIV — FORCE MAJEURE</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">14.1</span>
+      <span class="clause-text">
+        Neither party shall be in default or liable to the other for delays caused by circumstances
+        beyond its reasonable control, including but not limited to: acts of God, severe weather events,
+        fire, strikes, labor disputes, material or equipment shortages, government-ordered shutdowns,
+        pandemic, or failure of public utilities ("<strong>Force Majeure Event</strong>").
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">14.2</span>
+      <span class="clause-text">
+        The party experiencing a Force Majeure Event shall provide written notice to the other party
+        within five (5) business days of the event's occurrence. The completion schedule and any
+        affected milestone dates shall be extended by the period of the Force Majeure Event.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE XV — TERMINATION -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header">ARTICLE XV — TERMINATION</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">15.1</span>
+      <span class="clause-text">
+        <em>Termination by Owner for Cause:</em> Owner may terminate this Agreement for cause if
+        Contractor materially breaches this Agreement and fails to cure such breach within
+        <strong>fourteen (14) calendar days</strong> after receipt of written notice specifying the
+        nature of the breach.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">15.2</span>
+      <span class="clause-text">
+        <em>Termination by Contractor for Cause:</em> Contractor may terminate this Agreement if
+        Owner fails to make any payment when due under Article III and fails to cure such non-payment
+        within <strong>seven (7) calendar days</strong> after receipt of written notice.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">15.3</span>
+      <span class="clause-text">
+        Upon termination for any reason, Owner shall pay Contractor for all Work completed and
+        materials ordered, fabricated, or delivered as of the termination date, plus reasonable
+        overhead and profit on completed Work. Contractor shall have no obligation to return
+        any materials incorporated into the Work.
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ARTICLE XVI — GENERAL PROVISIONS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="article">
+  <div class="article-header orange-hdr">ARTICLE XVI — GENERAL PROVISIONS</div>
+  <div class="article-body">
+    <div class="clause">
+      <span class="clause-num">16.1</span>
+      <span class="clause-text">
+        <em>Entire Agreement:</em> This Agreement, together with the Proposal (Quote No. ${quoteNum})
+        and Exhibit A incorporated herein, constitutes the entire agreement between the parties
+        with respect to the subject matter hereof and supersedes all prior negotiations,
+        representations, warranties, and agreements, whether oral or written.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">16.2</span>
+      <span class="clause-text">
+        <em>Modifications:</em> This Agreement may not be amended or modified except by a written
+        instrument signed by both parties. No waiver of any provision shall be effective unless in writing.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">16.3</span>
+      <span class="clause-text">
+        <em>Severability:</em> If any provision of this Agreement is held to be invalid, illegal, or
+        unenforceable under applicable law, the remaining provisions shall continue in full force and effect.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">16.4</span>
+      <span class="clause-text">
+        <em>Notices:</em> All notices required or permitted under this Agreement shall be in writing
+        and delivered by hand, certified mail, or email with read receipt to the addresses set forth
+        on the cover page of this Agreement.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">16.5</span>
+      <span class="clause-text">
+        <em>Counterparts:</em> This Agreement may be executed in counterparts, each of which shall
+        be deemed an original, and all of which together shall constitute one and the same instrument.
+        Electronic or digital signatures shall be deemed valid and binding.
+      </span>
+    </div>
+  </div>
+</div>
+
+</div><!-- end .content -->
 
 <!-- ═══ EXHIBIT A ═══ -->
 ${buildExhibitAHTML(data, fmt)}
 
-<!-- ═══ TERMS &amp; CONDITIONS ═══ -->
-${buildLegalSection(data)}
-
-<!-- ═══ SIGNATURE PAGE ═══ -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SIGNATURE / EXECUTION PAGE -->
+<!-- ═══════════════════════════════════════════════════════════ -->
 <div class="content page-break">
-  <div class="contract-section-title" style="font-size:13pt;text-align:center;padding:12px;">
-    CONTRACT EXECUTION — SIGNATURE PAGE
+  <div style="text-align:center;margin-bottom:20px;">
+    <div style="font-size:14pt;font-weight:bold;color:${BRAND_BLUE};letter-spacing:0.5px;">IN WITNESS WHEREOF</div>
+    <p style="font-size:10pt;color:#333;margin-top:8px;line-height:1.7;">
+      the parties have executed this Home Improvement Construction Agreement as of the date first written above.
+      Each party represents that it has read this Agreement in its entirety, understands its terms, and is
+      authorized to execute it.
+    </p>
   </div>
-
-  <p style="font-size:10pt;color:#333;margin:16px 0 24px;line-height:1.7;text-align:center;">
-    By signing below, both parties confirm they have read, understand, and agree to all terms of this
-    Construction Contract including all exhibits. This Contract is binding upon execution and receipt of deposit.
-  </p>
 
   <div class="sig-box">
     <div class="sig-box-title">Owner / Client</div>
@@ -566,14 +1070,17 @@ ${buildLegalSection(data)}
         <div class="sig-label2">Phone / Email</div>
       </div>
     </div>
+    <div style="font-size:9pt;color:#555;margin-top:6px;">
+      Property Address: ${project.address || ''}, ${project.city || ''}, ${project.state || 'MA'}
+    </div>
   </div>
 
   <div class="sig-box" style="border-color:${BRAND_BLUE};">
-    <div class="sig-box-title" style="color:${BRAND_BLUE};">Contractor — Preferred Builders General Services Inc.</div>
+    <div class="sig-box-title">Contractor — Preferred Builders General Services Inc.</div>
     <div class="sig-trio">
       <div class="sig-field2">
         <div class="sig-line2" style="border-color:${BRAND_BLUE};"></div>
-        <div class="sig-label2">Authorized Signature — Jackson Deaquino, Project Manager</div>
+        <div class="sig-label2">Authorized Signature</div>
       </div>
       <div class="sig-field2">
         <div class="sig-line2"></div>
@@ -583,17 +1090,20 @@ ${buildLegalSection(data)}
     <div class="sig-trio">
       <div class="sig-field2">
         <div class="sig-line2"></div>
-        <div class="sig-label2">Printed Name &amp; Title</div>
+        <div class="sig-label2">Printed Name &amp; Title — Jackson Deaquino, Project Manager</div>
       </div>
       <div class="sig-field2">
         <div class="sig-line2"></div>
-        <div class="sig-label2">License # HIC-197400</div>
+        <div class="sig-label2">MA HIC License No. HIC-197400</div>
       </div>
+    </div>
+    <div style="font-size:9pt;color:#555;margin-top:6px;">
+      37 Duck Mill Road, Fitchburg, MA 01420 &nbsp;|&nbsp; 978-377-1784
     </div>
   </div>
 
-  <div class="initials-row">
-    <span style="font-size:9pt;color:#555;font-weight:bold;">INITIALS:</span>
+  <div class="initials-row" style="margin-top:16px;">
+    <span style="font-size:9pt;color:#555;font-weight:bold;white-space:nowrap;">INITIALS — BOTH PARTIES:</span>
     <div class="initials-block">
       <div class="initials-line"></div>
       <div style="font-size:8pt;color:#666;">Owner</div>
@@ -602,12 +1112,12 @@ ${buildLegalSection(data)}
       <div class="initials-line"></div>
       <div style="font-size:8pt;color:#666;">Contractor</div>
     </div>
-    <span style="font-size:9pt;color:#666;flex:1;">
-      Initialing confirms receipt of: (1) this Contract, (2) Project Proposal &amp; Scope of Work — Quote #${quoteNum}, (3) Exhibit A Allowance Schedule.
+    <span style="font-size:9pt;color:#666;flex:1;line-height:1.5;">
+      Initialing confirms receipt and review of: (1) this Agreement, (2) Project Proposal &amp; Scope of Work — Quote No. ${quoteNum}, and (3) Exhibit A — Allowance Schedule.
     </span>
   </div>
 
-  <p style="font-size:8.5pt;color:#888;margin-top:28px;text-align:center;">
+  <p style="font-size:8pt;color:#aaa;margin-top:28px;text-align:center;border-top:1px solid #eee;padding-top:10px;">
     Preferred Builders General Services Inc. | LIC# HIC-197400 | 
     37 Duck Mill Road, Fitchburg, MA 01420 | 978-377-1784 | 
     jackson.deaquino@preferredbuildersusa.com
@@ -895,95 +1405,6 @@ function buildExhibitAHTML(data, fmt) {
         <div class="sig-label">Date</div>
       </div>
     </div>
-  </div>
-</div>`;
-}
-
-function buildLegalSection(data) {
-  const project = data.project || {};
-  return `
-<div class="content page-break">
-  <div class="section-header">TERMS AND CONDITIONS</div>
-  <div class="legal-text">
-
-    <h3>1. PAYMENT TERMS</h3>
-    <p>A deposit of thirty-three percent (33%) of the total contract price is due upon execution of this contract. 
-    Progress payments shall be made at the following milestones: (a) 33% upon foundation completion; 
-    (b) 33% upon framing inspection approval; (c) final 1% upon substantial completion and issuance of 
-    Certificate of Occupancy. All payments are due within five (5) business days of milestone completion. 
-    A late charge of 1.5% per month shall apply to overdue balances.</p>
-
-    <h3>2. CHANGE ORDERS</h3>
-    <p>No changes to the scope of work shall be made without a written Change Order signed by both parties 
-    prior to commencement of the additional work. Change Orders shall specify the work to be added or deleted, 
-    the adjustment to the contract price, and the adjustment to the completion schedule. Verbal authorizations 
-    shall not be binding. Owner-requested changes that result in delays shall extend the completion date accordingly.</p>
-
-    <h3>3. CONTRACTOR WARRANTY</h3>
-    <p>Preferred Builders General Services Inc. warrants all workmanship for a period of one (1) year from 
-    the date of substantial completion. This warranty covers defects in workmanship and materials supplied 
-    by Contractor. Manufacturer warranties on products and materials are passed through to the Owner. 
-    This warranty is void if the structure is modified or misused by parties other than Contractor.</p>
-
-    <h3>4. MASSACHUSETTS HIC LICENSE DISCLOSURE</h3>
-    <p>Preferred Builders General Services Inc. holds Massachusetts Home Improvement Contractor (HIC) 
-    License #HIC-197400. As required by Massachusetts law (M.G.L. c. 142A), all home improvement 
-    contractors must be registered with the Commonwealth. The Guaranty Fund (M.G.L. c. 142A) 
-    provides homeowners with recourse if a registered contractor fails to complete work or causes damage. 
-    For information: www.mass.gov/hic or call (617) 973-8700.</p>
-
-    <h3>5. HOMEOWNER RIGHTS — THREE-DAY RIGHT OF RESCISSION</h3>
-    <p>If this contract was signed at a location other than the contractor's principal place of business, 
-    the Owner has the right to cancel this contract within three (3) business days of signing without 
-    penalty. Notice of cancellation must be in writing and delivered to: Preferred Builders General 
-    Services Inc., 37 Duck Mill Road, Fitchburg, MA 01420.</p>
-
-    <h3>6. MECHANIC'S LIEN NOTICE (M.G.L. c. 254)</h3>
-    <p>Under Massachusetts law, any contractor, subcontractor, or supplier who provides labor or 
-    materials for improvements to your property may file a lien against your property if they are 
-    not paid. This lien may be filed even if you have paid your contractor in full. To protect yourself, 
-    obtain a lien waiver from each subcontractor and supplier upon payment. Preferred Builders will 
-    provide lien waivers from all subcontractors upon request at each payment milestone.</p>
-
-    <h3>7. INSURANCE</h3>
-    <p>Contractor shall maintain throughout the duration of this contract: (a) Commercial General 
-    Liability insurance with limits of not less than $1,000,000 per occurrence; (b) Workers' 
-    Compensation insurance as required by Massachusetts law. Certificates of insurance shall be 
-    provided to Owner upon request.</p>
-
-    <h3>8. SUBSTANTIAL COMPLETION</h3>
-    <p>Substantial Completion means the stage in the progress of the Work when the Work is sufficiently 
-    complete in accordance with the Contract Documents so that the Owner can occupy or utilize the Work 
-    for its intended use, as evidenced by issuance of a Certificate of Occupancy by the Town of 
-    ${project.city || 'the applicable municipality'}. Punch list items remaining at Substantial 
-    Completion shall be completed within thirty (30) days thereof.</p>
-
-    <h3>9. DISPUTE RESOLUTION</h3>
-    <p>Any dispute arising from this contract shall first be submitted to non-binding mediation before 
-    a mutually agreed-upon mediator. If mediation is unsuccessful, disputes shall be resolved by 
-    binding arbitration under the rules of the American Arbitration Association. The prevailing party 
-    shall be entitled to recover reasonable attorney's fees. This contract shall be governed by 
-    the laws of the Commonwealth of Massachusetts.</p>
-
-    <h3>10. FORCE MAJEURE</h3>
-    <p>Neither party shall be liable for delays caused by circumstances beyond their reasonable control, 
-    including but not limited to: acts of God, severe weather, strikes, material shortages, pandemic, 
-    government-ordered shutdowns, or utility failures. Contractor shall notify Owner in writing within 
-    five (5) business days of any such delay. The completion date shall be extended by the period 
-    of the delay.</p>
-
-    <h3>11. TERMINATION</h3>
-    <p>Owner may terminate this contract for cause if Contractor materially breaches the contract and 
-    fails to cure such breach within fourteen (14) days of written notice. Contractor may terminate 
-    if Owner fails to make payment when due and fails to cure within seven (7) days of written notice. 
-    Upon termination, Owner shall pay Contractor for all work completed and materials ordered to date, 
-    plus reasonable overhead and profit on completed work.</p>
-
-    <h3>12. ENTIRE AGREEMENT</h3>
-    <p>This contract, including all exhibits and attachments, constitutes the entire agreement between 
-    the parties and supersedes all prior negotiations, representations, and agreements. This contract 
-    may only be modified by a written Change Order signed by both parties.</p>
-
   </div>
 </div>`;
 }
