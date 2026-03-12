@@ -80,6 +80,13 @@ async function start() {
 ╚═══════════════════════════════════════════╝
       `);
 
+      // Also listen on port 3001 for Replit webview (external port 80 → local 3001)
+      if (String(PORT) !== '3001') {
+        app.listen(3001, () => {
+          console.log('📡 Also listening on port 3001 (Replit webview proxy)');
+        }).on('error', () => {});
+      }
+
       const { startPolling } = require('./services/whatsappPoller');
       const { handleIncomingWhatsApp } = require('./routes/webhookWhatsapp');
       startPolling(handleIncomingWhatsApp, 5000);
