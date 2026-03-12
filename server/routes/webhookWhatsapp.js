@@ -1,12 +1,91 @@
 // server/routes/webhookWhatsapp.js
 const express = require('express');
 const router = express.Router();
+const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../db/database');
 const { handleClarification, generateContract } = require('../services/claudeService');
 const { sendWhatsApp } = require('../services/whatsappService');
 const { generatePDF } = require('../services/pdfService');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
+const pdfParse = require('pdf-parse');
+const https = require('https');
+const http = require('http');
+
+// Download media from Twilio (requires basic auth)
+function downloadTwilioMedia(url) {
+  return new Promise((resolve, reject) => {
+    const accountSid = process.env.TWILIO_LIVE_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_LIVE_AUTH_TOKEN || process.env.TWILIO_AUTH_TOKEN;
+    const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+
+    const lib = url.startsWith('https') ? https : http;
+    const req = lib.get(url, { headers: { Authorization: `Basic ${auth}` } }, (res) => {
+      if (res.statusCode === 302 || res.statusCode === 301) {
+        return downloadTwilioMedia(res.headers.location).then(resolve).catch(reject);
+      }
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => resolve({ buffer: Buffer.concat(chunks), contentType: res.headers['content-type'] || '' }));
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+// Submit a new estimate from WhatsApp (PDF or text)
+async function handleNewEstimateSubmission(rawText, from, db, sender, senderName, language) {
+  const isPortuguese = language === 'pt-BR';
+  const jobId = uuidv4();
+  const shortId = jobId.slice(0, 8).toUpperCase();
+
+  db.prepare(`
+    INSERT INTO jobs (id, raw_estimate_data, status, submitted_by)
+    VALUES (?, ?, 'received', ?)
+  `).run(jobId, rawText, from);
+
+  logAudit(jobId, 'estimate_received', `WhatsApp submission from ${senderName}`, from);
+
+  await sendWhatsApp(from, isPortuguese
+    ? `👍 Recebi, ${senderName}! Analisando o orçamento agora... (Ref #${shortId})`
+    : `👍 Got it, ${senderName}! Analyzing the estimate now... (Ref #${shortId})`
+  );
+
+  db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', jobId);
+
+  const { processEstimate } = require('../services/claudeService');
+  const proposalData = await processEstimate(rawText, jobId, language);
+
+  if (!proposalData.readyToGenerate && proposalData.clarificationsNeeded?.length > 0) {
+    const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
+    for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
+
+    db.prepare('UPDATE jobs SET status = ?, proposal_data = ? WHERE id = ?')
+      .run('awaiting_start', jobId, JSON.stringify(proposalData));
+
+    const questionCount = proposalData.clarificationsNeeded.length;
+    const customerName = proposalData.customer?.name;
+    const customerLabel = customerName ? ` para *${customerName}*` : '';
+
+    await sendWhatsApp(from, isPortuguese
+      ? `📋 Orçamento #${shortId}${customerLabel} recebido!\n\nTenho ${questionCount} pergunta${questionCount !== 1 ? 's' : ''} antes de gerar a proposta. Responda *SIM* para começarmos!`
+      : `📋 Estimate #${shortId}${customerName ? ` for *${customerName}*` : ''} received!\n\nI have ${questionCount} question${questionCount !== 1 ? 's' : ''} before I can generate the proposal. Reply *YES* and let's get started!`
+    );
+  } else {
+    // Ready — generate straight away
+    const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
+    db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
+      .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_sent', jobId);
+
+    await sendWhatsApp(from,
+      isPortuguese
+        ? `✅ Proposta pronta, ${senderName}!\n\nCliente: ${proposalData.customer?.name || 'N/A'}\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDepósito: $${proposalData.depositAmount?.toLocaleString()}\n\nResponda *APROVAR* para gerar o contrato.`
+        : `✅ Proposal ready, ${senderName}!\n\nCustomer: ${proposalData.customer?.name || 'N/A'}\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n\nReply *APPROVE* to generate the contract.`,
+      pdfPath
+    );
+  }
+}
 
 // Extract first name from full name
 function firstName(fullName) {
@@ -28,8 +107,10 @@ async function handleIncomingWhatsApp(data) {
   try {
     const from = data.From;
     const body = (data.Body || '').trim();
+    const mediaUrl = data.MediaUrl0;
+    const mediaContentType = data.MediaContentType0 || '';
 
-    console.log('WhatsApp processing:', { From: from, Body: body?.substring(0, 50) });
+    console.log('WhatsApp processing:', { From: from, Body: body?.substring(0, 50), hasMedia: !!mediaUrl });
 
     const db = getDb();
     const sender = db.prepare('SELECT * FROM approved_senders WHERE identifier = ? AND active = 1').get(from);
@@ -42,6 +123,48 @@ async function handleIncomingWhatsApp(data) {
     const language = sender.language || 'en';
     const isPortuguese = language === 'pt-BR';
     const upperBody = body.toUpperCase().trim();
+
+    // ── PDF ATTACHMENT — treat as new estimate submission ─────────────
+    if (mediaUrl && (mediaContentType.includes('pdf') || mediaContentType.includes('application'))) {
+      try {
+        await sendWhatsApp(from, isPortuguese
+          ? `📎 Recebi o PDF, ${senderName}! Extraindo o orçamento... aguarde um momento.`
+          : `📎 Got the PDF, ${senderName}! Extracting the estimate... give me a moment.`
+        );
+        const { buffer } = await downloadTwilioMedia(mediaUrl);
+        const parsed = await pdfParse(buffer);
+        const rawText = parsed.text.trim();
+        if (rawText.length < 50) {
+          await sendWhatsApp(from, isPortuguese
+            ? `⚠️ Não consegui extrair texto do PDF. Tente enviar como texto ou use um PDF com texto pesquisável.`
+            : `⚠️ Couldn't extract text from that PDF. Try sending it as text or use a searchable PDF.`
+          );
+          return;
+        }
+        await handleNewEstimateSubmission(rawText, from, db, sender, senderName, language);
+      } catch (err) {
+        console.error('PDF attachment error:', err);
+        await sendWhatsApp(from, isPortuguese
+          ? `❌ Erro ao processar o PDF. Tente novamente ou envie o texto do orçamento.`
+          : `❌ Error processing the PDF. Try again or paste the estimate text directly.`
+        );
+      }
+      return;
+    }
+
+    // ── NEW: command — submit estimate as text ────────────────────────
+    if (upperBody.startsWith('NEW:') || upperBody.startsWith('NOVO:') || upperBody.startsWith('ESTIMATE:')) {
+      const rawText = body.substring(body.indexOf(':') + 1).trim();
+      if (rawText.length < 20) {
+        await sendWhatsApp(from, isPortuguese
+          ? `⚠️ Por favor inclua os detalhes do orçamento após NOVO: — ex: *NOVO: Cliente João, banheiro completo, 150 sqft, azulejo, vanity...*`
+          : `⚠️ Please include the estimate details after NEW: — e.g. *NEW: Client John Smith, full bathroom remodel, 150 sqft, tile, vanity...*`
+        );
+        return;
+      }
+      await handleNewEstimateSubmission(rawText, from, db, sender, senderName, language);
+      return;
+    }
 
     // Find any active job for this sender (includes awaiting_start now)
     const activeJob = db.prepare(`
@@ -103,8 +226,8 @@ async function handleIncomingWhatsApp(data) {
     // ── HELP ─────────────────────────────────────────────────────────
     if (upperBody === 'HELP' || upperBody === 'AJUDA') {
       await sendWhatsApp(from, isPortuguese
-        ? `🤖 *Olá ${senderName}! Comandos disponíveis:*\n\nSIM — Começar perguntas de clarificação\nAPROVAR — Aprovar proposta atual\nREVISAR — Revisar proposta\nREVISAR: [mudanças] — Revisar com detalhes\nSTATUS — Ver jobs recentes\nAJUDA — Este menu\n\nOu simplesmente escreva sua pergunta!`
-        : `🤖 *Hey ${senderName}! Available commands:*\n\nYES — Start clarification questions\nAPPROVE — Approve current proposal\nREVISE — Revise proposal\nREVISE: [changes] — Revise with details\nSTATUS — View recent jobs\nHELP — This menu\n\nOr just type your question!`
+        ? `🤖 *Olá ${senderName}! Comandos disponíveis:*\n\n📎 *Envie um PDF* — Enviar orçamento como PDF diretamente\nNOVO: [detalhes] — Enviar orçamento como texto\nSIM — Iniciar perguntas de clarificação\nAPROVAR — Aprovar proposta atual\nREVISAR — Revisar proposta\nREVISAR: [mudanças] — Revisar com detalhes\nSTATUS — Ver jobs recentes\nAJUDA — Este menu\n\nOu simplesmente escreva sua pergunta!`
+        : `🤖 *Hey ${senderName}! Available commands:*\n\n📎 *Send a PDF* — Attach estimate PDF directly\nNEW: [details] — Submit estimate as text\nYES — Start clarification questions\nAPPROVE — Approve current proposal\nREVISE — Revise proposal\nREVISE: [changes] — Revise with details\nSTATUS — View recent jobs\nHELP — This menu\n\nOr just type your question!`
       );
       return;
     }
