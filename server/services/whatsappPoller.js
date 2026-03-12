@@ -20,6 +20,26 @@ function getPollerClient() {
   return pollerClient;
 }
 
+// Fetch media URL and content type for a message that has attachments
+async function fetchMediaForMessage(client, messageSid) {
+  try {
+    const mediaList = await client.messages(messageSid).media.list({ limit: 5 });
+    if (!mediaList || mediaList.length === 0) return {};
+
+    const first = mediaList[0];
+    const accountSid = process.env.TWILIO_LIVE_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID;
+    const mediaUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages/${messageSid}/Media/${first.sid}`;
+
+    return {
+      MediaUrl0: mediaUrl,
+      MediaContentType0: first.contentType || 'application/octet-stream'
+    };
+  } catch (err) {
+    console.error('Error fetching media:', err.message);
+    return {};
+  }
+}
+
 function startPolling(handleIncoming, intervalMs = 5000) {
   if (pollingInterval) return;
 
@@ -45,16 +65,24 @@ function startPolling(handleIncoming, intervalMs = 5000) {
 
       for (const msg of inbound) {
         processedMessages.add(msg.sid);
-        console.log(`📥 Polled message: ${msg.from} -> "${msg.body?.substring(0, 50)}"`);
+        console.log(`📥 Polled message: ${msg.from} -> "${msg.body?.substring(0, 50)}" numMedia=${msg.numMedia}`);
 
+        // Build the data object that mirrors a Twilio webhook POST body
         const fakeBody = {
           From: msg.from,
           Body: msg.body || '',
           To: msg.to,
           MessageSid: msg.sid,
-          NumMedia: msg.numMedia,
-          MediaUrl0: msg.media && msg.media().list ? undefined : undefined
+          NumMedia: msg.numMedia || 0
         };
+
+        // Fetch actual media URLs if this message has attachments
+        if (Number(msg.numMedia) > 0) {
+          console.log(`📎 Message ${msg.sid} has ${msg.numMedia} attachment(s), fetching media...`);
+          const media = await fetchMediaForMessage(client, msg.sid);
+          Object.assign(fakeBody, media);
+          console.log(`📎 Media content type: ${fakeBody.MediaContentType0}`);
+        }
 
         try {
           await handleIncoming(fakeBody);

@@ -67,31 +67,54 @@ app.use((err, req, res, next) => {
 });
 
 // ── START ─────────────────────────────────────────────────────
+function listenWithRetry(port, maxRetries = 5, delayMs = 2000) {
+  return new Promise((resolve, reject) => {
+    let attempts = 0;
+
+    function attempt() {
+      const server = app.listen(port, () => resolve(server));
+      server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE' && attempts < maxRetries) {
+          attempts++;
+          console.log(`Port ${port} in use, retrying in ${delayMs}ms (attempt ${attempts}/${maxRetries})...`);
+          setTimeout(attempt, delayMs);
+        } else {
+          reject(err);
+        }
+      });
+    }
+    attempt();
+  });
+}
+
 async function start() {
   try {
     await initDatabase();
     console.log('✅ Database initialized');
 
-    app.listen(PORT, () => {
-      console.log(`
+    await listenWithRetry(PORT);
+
+    console.log(`
 ╔═══════════════════════════════════════════╗
 ║   PREFERRED BUILDERS AI SYSTEM            ║
 ║   Running on port ${PORT}                    ║
 ║   Admin panel: http://localhost:${PORT}      ║
 ╚═══════════════════════════════════════════╝
-      `);
+    `);
 
-      // Also listen on port 3001 for Replit webview (external port 80 → local 3001)
-      if (String(PORT) !== '3001') {
-        app.listen(3001, () => {
-          console.log('📡 Also listening on port 3001 (Replit webview proxy)');
-        }).on('error', () => {});
-      }
+    // Also listen on port 3001 for Replit webview (external port 80 → local 3001)
+    if (String(PORT) !== '3001') {
+      app.listen(3001, () => {
+        console.log('📡 Also listening on port 3001 (Replit webview proxy)');
+      }).on('error', (e) => {
+        if (e.code !== 'EADDRINUSE') console.warn('Port 3001 listen error:', e.message);
+      });
+    }
 
-      const { startPolling } = require('./services/whatsappPoller');
-      const { handleIncomingWhatsApp } = require('./routes/webhookWhatsapp');
-      startPolling(handleIncomingWhatsApp, 5000);
-    });
+    const { startPolling } = require('./services/whatsappPoller');
+    const { handleIncomingWhatsApp } = require('./routes/webhookWhatsapp');
+    startPolling(handleIncomingWhatsApp, 5000);
+
   } catch (err) {
     console.error('Failed to start:', err);
     process.exit(1);
