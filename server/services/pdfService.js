@@ -37,12 +37,13 @@ async function generatePDF(data, type, jobId) {
       margin: { top: '0.8in', right: '1in', bottom: '0.8in', left: '1in' },
       printBackground: true,
       displayHeaderFooter: true,
-      headerTemplate: `<div style="font-size:8px;color:#999;width:100%;text-align:center;padding-top:4px;">
-        Preferred Builders General Services Inc. | LIC# HIC-197400 | 978-377-1784
+      headerTemplate: `<div style="font-size:7.5px;color:#aaa;width:100%;text-align:center;font-family:Arial,sans-serif;padding-top:6px;letter-spacing:0.3px;">
+        Preferred Builders General Services Inc. &nbsp;|&nbsp; LIC# HIC-197400 &nbsp;|&nbsp; 978-377-1784
       </div>`,
-      footerTemplate: `<div style="font-size:8px;color:#999;width:100%;text-align:center;padding-bottom:4px;">
-        Page <span class="pageNumber"></span> of <span class="totalPages"></span> &nbsp;|&nbsp; 
-        ${type === 'proposal' ? 'PROPOSAL' : 'CONTRACT'} — Confidential
+      footerTemplate: `<div style="width:100%;font-family:Arial,sans-serif;font-size:8px;color:#555;display:flex;justify-content:space-between;align-items:center;padding:0 72px;box-sizing:border-box;">
+        <span style="color:#888;">Preferred Builders General Services Inc.</span>
+        <span style="font-weight:bold;color:#1B3A6B;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+        <span style="color:#888;">${type === 'proposal' ? 'PROPOSAL' : 'CONTRACT'} — Confidential</span>
       </div>`
     });
   } finally {
@@ -1113,7 +1114,7 @@ ${buildExhibitAHTML(data, fmt)}
       <div style="font-size:8pt;color:#666;">Contractor</div>
     </div>
     <span style="font-size:9pt;color:#666;flex:1;line-height:1.5;">
-      Initialing confirms receipt and review of: (1) this Agreement, (2) Project Proposal &amp; Scope of Work — Quote No. ${quoteNum}, and (3) Exhibit A — Allowance Schedule.
+      Initialing confirms receipt and review of: (1) this Agreement, (2) Project Proposal &amp; Scope of Work — Quote No. ${quoteNum}, (3) Exhibit A — Allowance Schedule, and (4) Addendum 1 — Notice of Contract.
     </span>
   </div>
 
@@ -1123,6 +1124,11 @@ ${buildExhibitAHTML(data, fmt)}
     jackson.deaquino@preferredbuildersusa.com
   </p>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ADDENDUM 1 — NOTICE OF CONTRACT (M.G.L. c. 254, §4)      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+${buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, lineItems, fmt })}
 
 </body>
 </html>`;
@@ -1406,6 +1412,315 @@ function buildExhibitAHTML(data, fmt) {
       </div>
     </div>
   </div>
+</div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// ADDENDUM 1 — NOTICE OF CONTRACT (M.G.L. Chapter 254, Section 4)
+// A standalone, notarizable document for filing at the Registry of Deeds
+// to establish and protect the Contractor's mechanic's lien rights.
+// ══════════════════════════════════════════════════════════════════════
+function buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, lineItems, fmt }) {
+  const workDescription = lineItems.map(i => i.trade).join('; ') || 'General construction and home improvement work';
+  const county = 'Worcester'; // default; Townsend MA is Worcester County
+
+  const noticeCSS = `
+    .notice-page { page-break-before: always; font-family: Arial, sans-serif; }
+    .recording-box {
+      border: 2px solid #1B3A6B; padding: 14px 18px; margin-bottom: 20px;
+      font-size: 9pt; color: #333; line-height: 1.8;
+    }
+    .recording-box-title {
+      font-size: 8pt; font-weight: bold; text-transform: uppercase;
+      color: #1B3A6B; letter-spacing: 0.5px; margin-bottom: 6px;
+    }
+    .notice-title {
+      text-align: center; margin: 16px 0 4px;
+    }
+    .notice-title-main {
+      font-size: 18pt; font-weight: bold; color: #1B3A6B; letter-spacing: 1px;
+    }
+    .notice-title-sub {
+      font-size: 10pt; color: #555; margin-top: 4px;
+    }
+    .notice-divider {
+      border: none; border-top: 2px solid #E07B2A; margin: 12px 0;
+    }
+    .notice-field { display: flex; margin: 10px 0; font-size: 10pt; align-items: flex-start; }
+    .notice-label { font-weight: bold; color: #1B3A6B; min-width: 200px; flex-shrink: 0; font-size: 9.5pt; padding-top: 2px; }
+    .notice-value { flex: 1; border-bottom: 1px solid #999; padding-bottom: 3px; min-height: 22px; line-height: 1.5; }
+    .notice-section-title {
+      font-size: 10pt; font-weight: bold; background: #1B3A6B; color: white;
+      padding: 6px 14px; margin: 18px 0 8px;
+    }
+    .notary-box {
+      border: 1px solid #ccc; padding: 16px 18px; margin-top: 12px;
+      font-size: 9pt; color: #333; line-height: 2;
+    }
+    .notary-box-title {
+      font-weight: bold; font-size: 10pt; color: #1B3A6B;
+      border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 10px;
+    }
+    .notary-field-row { display: flex; gap: 24px; margin-top: 14px; }
+    .notary-field { flex: 1; }
+    .notary-line { border-bottom: 1px solid #555; height: 28px; margin-bottom: 3px; }
+    .notary-label { font-size: 8pt; color: #666; }
+    .stamp-area {
+      border: 1px dashed #ccc; height: 80px; margin-top: 14px;
+      display: flex; align-items: center; justify-content: center;
+      color: #aaa; font-size: 9pt; font-style: italic;
+    }
+    .notice-sig-row { display: flex; gap: 32px; margin: 12px 0; }
+    .notice-sig-field { flex: 1; }
+    .notice-sig-line { border-bottom: 1.5px solid #555; height: 36px; margin-bottom: 4px; }
+    .notice-sig-label { font-size: 8.5pt; color: #555; }
+    .statutory-note {
+      font-size: 8.5pt; color: #555; font-style: italic;
+      border-left: 3px solid #E07B2A; padding: 8px 12px;
+      margin: 12px 0; background: #FFFAF5; line-height: 1.65;
+    }
+  `;
+
+  return `
+<div class="notice-page" style="padding: 0 56px;">
+<style>${noticeCSS}</style>
+
+<!-- RECORDING INFORMATION BOX -->
+<div class="recording-box">
+  <div class="recording-box-title">For Recording at the ${county} County Registry of Deeds</div>
+  <div style="display:flex;gap:40px;font-size:9pt;">
+    <div style="flex:1;">
+      <div>Book: &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:80px;">&nbsp;</span></div>
+      <div style="margin-top:6px;">Page: &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:80px;">&nbsp;</span></div>
+    </div>
+    <div style="flex:1;">
+      <div>Document No.: &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:100px;">&nbsp;</span></div>
+      <div style="margin-top:6px;">Date Recorded: &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:100px;">&nbsp;</span></div>
+    </div>
+    <div style="flex:1;text-align:right;font-style:italic;color:#888;">
+      Registry use only.<br>Do not write below this line.
+    </div>
+  </div>
+</div>
+
+<!-- TITLE -->
+<div class="notice-title">
+  <div style="font-size:8pt;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Addendum 1 to Construction Contract No. ${quoteNum}</div>
+  <div class="notice-title-main">NOTICE OF CONTRACT</div>
+  <div class="notice-title-sub">Pursuant to Massachusetts General Laws Chapter 254, Section 4</div>
+</div>
+
+<hr class="notice-divider">
+
+<div class="statutory-note">
+  This Notice of Contract is filed pursuant to M.G.L. c. 254, §4 to give notice to all persons that the
+  Contractor named below has entered into a contract for the improvement of the real property described herein,
+  and to preserve the Contractor's right to file a Notice of Contract and assert a mechanic's lien against
+  said property in accordance with M.G.L. c. 254. This document should be recorded at the
+  ${county} County Registry of Deeds prior to commencement of work.
+</div>
+
+<!-- OWNER -->
+<div class="notice-section-title">I. OWNER OF THE PROPERTY</div>
+<div class="notice-field">
+  <span class="notice-label">Full Legal Name:</span>
+  <span class="notice-value">${customer.name || ''}</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Address:</span>
+  <span class="notice-value">${project.address || ''}, ${project.city || ''}, ${project.state || 'MA'}</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Phone:</span>
+  <span class="notice-value">${customer.phone || ''}</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Email:</span>
+  <span class="notice-value">${customer.email || ''}</span>
+</div>
+
+<!-- CONTRACTOR -->
+<div class="notice-section-title">II. CONTRACTOR</div>
+<div class="notice-field">
+  <span class="notice-label">Full Legal Name:</span>
+  <span class="notice-value">Preferred Builders General Services Inc.</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Address:</span>
+  <span class="notice-value">37 Duck Mill Road, Fitchburg, MA 01420</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">HIC License No.:</span>
+  <span class="notice-value">HIC-197400</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Phone:</span>
+  <span class="notice-value">978-377-1784</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Authorized Representative:</span>
+  <span class="notice-value">Jackson Deaquino, Project Manager</span>
+</div>
+
+<!-- PROPERTY -->
+<div class="notice-section-title">III. PROPERTY SUBJECT TO LIEN</div>
+<div class="notice-field">
+  <span class="notice-label">Property Address:</span>
+  <span class="notice-value">${project.address || ''}, ${project.city || ''}, ${project.state || 'MA'}</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">County:</span>
+  <span class="notice-value">${county} County, Commonwealth of Massachusetts</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Assessor's Parcel No.:</span>
+  <span class="notice-value">&nbsp;</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Title Reference:</span>
+  <span class="notice-value">Book &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;, Page &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;, ${county} County Registry of Deeds</span>
+</div>
+
+<!-- CONTRACT DETAILS -->
+<div class="notice-section-title">IV. CONTRACT DETAILS</div>
+<div class="notice-field">
+  <span class="notice-label">Contract / Quote No.:</span>
+  <span class="notice-value">${quoteNum}</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Date of Contract:</span>
+  <span class="notice-value">${today}</span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">Original Contract Price:</span>
+  <span class="notice-value"><strong>${fmt(total)}</strong></span>
+</div>
+<div class="notice-field">
+  <span class="notice-label">General Description of Work:</span>
+  <span class="notice-value">${workDescription}. Work to be performed at the property described in Section III above, as more particularly described in the Project Proposal &amp; Scope of Work, Quote No. ${quoteNum}, incorporated herein by reference.</span>
+</div>
+
+<!-- SIGNATURES -->
+<div class="notice-section-title">V. SIGNATURES</div>
+<p style="font-size:9.5pt;color:#333;margin-bottom:14px;line-height:1.6;">
+  The undersigned parties hereby certify that the above information is true and accurate and that a Construction
+  Contract for the work described herein has been duly executed.
+</p>
+
+<div class="notice-sig-row">
+  <div class="notice-sig-field">
+    <div class="notice-sig-line"></div>
+    <div class="notice-sig-label">Owner Signature</div>
+  </div>
+  <div class="notice-sig-field">
+    <div class="notice-sig-line"></div>
+    <div class="notice-sig-label">Date</div>
+  </div>
+</div>
+<div class="notice-sig-row" style="margin-bottom:20px;">
+  <div class="notice-sig-field">
+    <div class="notice-sig-line"></div>
+    <div class="notice-sig-label">Owner Printed Name: &nbsp;${customer.name || ''}</div>
+  </div>
+  <div class="notice-sig-field">
+    <div class="notice-sig-line"></div>
+    <div class="notice-sig-label">Phone / Email</div>
+  </div>
+</div>
+
+<div class="notice-sig-row">
+  <div class="notice-sig-field">
+    <div class="notice-sig-line" style="border-color:#1B3A6B;"></div>
+    <div class="notice-sig-label">Contractor Authorized Signature</div>
+  </div>
+  <div class="notice-sig-field">
+    <div class="notice-sig-line"></div>
+    <div class="notice-sig-label">Date</div>
+  </div>
+</div>
+<div class="notice-sig-row" style="margin-bottom:24px;">
+  <div class="notice-sig-field">
+    <div class="notice-sig-line"></div>
+    <div class="notice-sig-label">Printed Name &amp; Title: &nbsp;Jackson Deaquino, Project Manager — Preferred Builders General Services Inc.</div>
+  </div>
+  <div class="notice-sig-field">
+    <div class="notice-sig-line"></div>
+    <div class="notice-sig-label">MA HIC License No. HIC-197400</div>
+  </div>
+</div>
+
+<!-- NOTARY — OWNER -->
+<div class="notary-box">
+  <div class="notary-box-title">Acknowledgment of Owner — Commonwealth of Massachusetts</div>
+  <div style="font-size:9pt;line-height:1.9;">
+    Commonwealth of Massachusetts<br>
+    County of &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:120px;">&nbsp;</span>
+    &nbsp;&nbsp;ss.<br><br>
+    On this &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:40px;">&nbsp;</span>&nbsp; day of
+    &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:100px;">&nbsp;</span>,
+    &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:60px;">&nbsp;</span>,
+    before me, the undersigned notary public, personally appeared
+    &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:180px;">&nbsp;</span>,
+    proved to me through satisfactory evidence of identification, which was
+    &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:180px;">&nbsp;</span>,
+    to be the person whose name is signed on this document, and acknowledged to me that
+    he/she signed it voluntarily for its stated purpose.
+  </div>
+  <div class="notary-field-row">
+    <div class="notary-field">
+      <div class="notary-line"></div>
+      <div class="notary-label">Notary Public Signature</div>
+    </div>
+    <div class="notary-field">
+      <div class="notary-line"></div>
+      <div class="notary-label">My Commission Expires</div>
+    </div>
+    <div class="notary-field">
+      <div class="stamp-area">[ Notary Seal ]</div>
+    </div>
+  </div>
+</div>
+
+<!-- NOTARY — CONTRACTOR -->
+<div class="notary-box" style="margin-top:16px;">
+  <div class="notary-box-title">Acknowledgment of Contractor — Commonwealth of Massachusetts</div>
+  <div style="font-size:9pt;line-height:1.9;">
+    Commonwealth of Massachusetts<br>
+    County of &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:120px;">&nbsp;</span>
+    &nbsp;&nbsp;ss.<br><br>
+    On this &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:40px;">&nbsp;</span>&nbsp; day of
+    &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:100px;">&nbsp;</span>,
+    &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:60px;">&nbsp;</span>,
+    before me, the undersigned notary public, personally appeared Jackson Deaquino,
+    Project Manager of Preferred Builders General Services Inc., proved to me through satisfactory
+    evidence of identification, which was
+    &nbsp;<span style="display:inline-block;border-bottom:1px solid #999;min-width:180px;">&nbsp;</span>,
+    to be the person whose name is signed on this document, and acknowledged to me that
+    he signed it voluntarily for its stated purpose as authorized representative of Preferred Builders
+    General Services Inc.
+  </div>
+  <div class="notary-field-row">
+    <div class="notary-field">
+      <div class="notary-line"></div>
+      <div class="notary-label">Notary Public Signature</div>
+    </div>
+    <div class="notary-field">
+      <div class="notary-line"></div>
+      <div class="notary-label">My Commission Expires</div>
+    </div>
+    <div class="notary-field">
+      <div class="stamp-area">[ Notary Seal ]</div>
+    </div>
+  </div>
+</div>
+
+<p style="font-size:7.5pt;color:#aaa;text-align:center;margin-top:20px;border-top:1px solid #eee;padding-top:8px;">
+  This Notice of Contract is prepared in connection with Construction Contract No. ${quoteNum} between 
+  Preferred Builders General Services Inc. (HIC-197400) and ${customer.name || ''}.
+  After execution and notarization, file the original at the ${county} County Registry of Deeds.
+  Retain a copy in your project records.
+</p>
+
 </div>`;
 }
 
