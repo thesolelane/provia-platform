@@ -16,4 +16,8 @@ npm run build
 
 cd ..
 
+# Ensure Puppeteer Chrome is available for PDF generation
+echo "Installing Puppeteer Chrome..."
+npx puppeteer browsers install chrome --quiet 2>/dev/null || true
+
 echo "=== Post-merge setup complete ==="
