@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "WmmI_i7QWXQrygl9e7_C2"
+uri = "file://outputs/PB_BlankContract_NewTemplate.pdf"
+type = "pdf"
+title = "PB Blank Contract — New Template"
