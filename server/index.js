@@ -41,6 +41,7 @@ app.use('/api/auth',          require('./routes/auth'));
 app.use('/api/jobs',          require('./routes/jobs'));
 app.use('/api/settings',      require('./routes/settings'));
 app.use('/api/knowledge',     require('./routes/knowledge'));
+app.use('/api/knowledge',     require('./routes/knowledgeImport'));
 app.use('/api/conversations', require('./routes/conversations'));
 app.use('/api/chat',          require('./routes/adminChat'));
 app.use('/api/whitelist',     require('./routes/whitelist'));
