@@ -8,6 +8,7 @@ const { sendWhatsApp } = require('../services/whatsappService');
 const { generatePDF } = require('../services/pdfService');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
+const { tickQuoteCounter } = require('../services/assessmentService');
 const pdfParse = require('pdf-parse');
 const https = require('https');
 const http = require('http');
@@ -77,6 +78,7 @@ async function handleNewEstimateSubmission(rawText, from, db, sender, senderName
     const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
     db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
       .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_sent', jobId);
+    tickQuoteCounter(db);
 
     await sendWhatsApp(from,
       isPortuguese
@@ -512,6 +514,7 @@ async function finishClarifications(job, from, db, language, senderName) {
 
     db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
       .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_sent', job.id);
+    tickQuoteCounter(db);
 
     const shortId = job.id.slice(0, 8).toUpperCase();
 

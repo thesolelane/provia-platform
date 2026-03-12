@@ -7,6 +7,7 @@ const { generatePDF } = require('../services/pdfService');
 const { sendWhatsApp } = require('../services/whatsappService');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
+const { tickQuoteCounter } = require('../services/assessmentService');
 
 // GET archived jobs (must be before /:id route)
 router.get('/archived/list', requireAuth, (req, res) => {
@@ -175,6 +176,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
         db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
           .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
         logAudit(jobId, 'upload_estimate_processed', `Proposal ready. Total: $${proposalData.totalValue}`, 'admin');
+        tickQuoteCounter(db);
       }
     } catch (err) {
       console.error(`[Upload Job ${jobId}] ERROR:`, err.message);
@@ -251,6 +253,7 @@ ${estimateText}`;
           .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
         logAudit(jobId, 'manual_estimate_processed', `Manual entry by admin`, 'admin');
         console.log(`[Manual Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
+        tickQuoteCounter(db);
       }
     } catch (err) {
       console.error(`[Manual Job ${jobId}] ERROR:`, err.message, err.stack);
@@ -297,6 +300,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
             .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', job.id);
           logAudit(job.id, 'proposal_generated', `Proposal generated after clarification`, 'admin');
           console.log(`[Job ${job.id}] Proposal ready. Total: $${proposalData.totalValue}`);
+          tickQuoteCounter(db);
         } catch (err) {
           console.error(`[Job ${job.id}] Proposal generation error:`, err.message);
           db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('error', job.id);
@@ -335,6 +339,7 @@ ${job.raw_estimate_data}`;
       db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
         .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', job.id);
       console.log(`[Reprocess ${job.id}] Done. Total: $${proposalData.totalValue}`);
+      tickQuoteCounter(db);
     }
   } catch (err) {
     console.error(`[Reprocess ${job.id}] Error:`, err.message);
