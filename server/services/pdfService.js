@@ -6,6 +6,8 @@ const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
 
+const { buildContractHTML: buildContractHTMLNew, adaptToContractSchema, blankContractSchema } = require('./contractTemplate');
+
 const OUTPUT_DIR = path.join(__dirname, '../../outputs');
 if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
@@ -17,7 +19,7 @@ const LIGHT_GRAY   = '#F8F8F8';
 async function generatePDF(data, type, jobId) {
   const html = type === 'proposal'
     ? buildProposalHTML(data)
-    : buildContractHTML(data);
+    : buildContractHTMLNew(adaptToContractSchema(data));
 
   const filename = `PB_${type === 'proposal' ? 'Proposal' : 'Contract'}_${jobId.slice(0,8)}_${Date.now()}.pdf`;
   const outputPath = path.join(OUTPUT_DIR, filename);
@@ -1758,29 +1760,7 @@ function buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, 
 async function generateBlankContractDocx() {
   const HTMLtoDOCX = require('html-to-docx');
 
-  const blankData = {
-    customer: {
-      name:  '___________________________________',
-      email: '___________________________________',
-      phone: '_____________________'
-    },
-    project: {
-      address: '___________________________________',
-      city:    '___________________________________',
-      state:   'MA'
-    },
-    quoteNumber:   '____________',
-    totalValue:    0,
-    depositAmount: 0,
-    lineItems:     [],
-    pricing: {
-      totalContractPrice: 0,
-      depositAmount:      0,
-      depositPercent:     33
-    }
-  };
-
-  const rawHtml = buildContractHTML(blankData);
+  const rawHtml = buildContractHTMLNew(blankContractSchema());
 
   // Strip <style> and <script> blocks — html-to-docx cannot handle CSS @-rules
   // and produces a cleaner, more editable Word document without embedded styles.
