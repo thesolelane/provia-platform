@@ -134,17 +134,50 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
       }
 
       let rawText = '';
+      const fileBuffer = file.tempFilePath ? fs.readFileSync(file.tempFilePath) : file.data;
+
       if (file.mimetype === 'application/pdf') {
-        const fileBuffer = file.tempFilePath ? fs.readFileSync(file.tempFilePath) : file.data;
-        const data = await pdfParse(fileBuffer);
-        rawText = data.text;
+        // Try text extraction first (fast, works for digital PDFs)
+        try {
+          const parsed = await pdfParse(fileBuffer);
+          rawText = parsed.text?.trim() || '';
+        } catch {}
+
+        // If text is too short (scanned/image PDF), send to Claude natively
+        if (rawText.length < 100) {
+          console.log(`[Bulk Import] ${file.name} — scanned PDF detected, using Claude vision`);
+          try {
+            const base64Pdf = fileBuffer.toString('base64');
+            const visionRes = await client.messages.create({
+              model: 'claude-sonnet-4-20250514',
+              max_tokens: 4000,
+              messages: [{
+                role: 'user',
+                content: [
+                  {
+                    type: 'document',
+                    source: { type: 'base64', media_type: 'application/pdf', data: base64Pdf }
+                  },
+                  {
+                    type: 'text',
+                    text: 'This is a scanned construction estimate or invoice. Extract ALL visible text, line items, dollar amounts, customer info, trade names, and addresses exactly as they appear. Return plain text.'
+                  }
+                ]
+              }]
+            });
+            rawText = visionRes.content[0].text?.trim() || '';
+          } catch (visionErr) {
+            console.error(`[Bulk Import] Claude vision failed for ${file.name}:`, visionErr.message);
+          }
+        }
       } else {
-        rawText = file.tempFilePath ? fs.readFileSync(file.tempFilePath, 'utf8') : file.data.toString('utf8');
+        rawText = fileBuffer.toString('utf8');
       }
 
-      if (rawText.trim().length < 100) {
-        result.error = 'File appears empty or unreadable';
+      if (!rawText || rawText.trim().length < 50) {
+        result.error = 'Could not extract readable text. Try a clearer scan or a digital PDF.';
         results.push(result);
+        if (file.tempFilePath && fs.existsSync(file.tempFilePath)) try { fs.unlinkSync(file.tempFilePath); } catch {}
         continue;
       }
 

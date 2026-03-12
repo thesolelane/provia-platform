@@ -54,10 +54,11 @@ router.post('/upload', requireAuth, async (req, res) => {
     let content = '';
 
     if (file.mimetype === 'application/pdf') {
-      const data = await pdfParse(file.data);
+      const fileBuffer = file.tempFilePath ? fs.readFileSync(file.tempFilePath) : file.data;
+      const data = await pdfParse(fileBuffer);
       content = data.text;
     } else if (file.mimetype.startsWith('text/')) {
-      content = file.data.toString('utf8');
+      content = file.tempFilePath ? fs.readFileSync(file.tempFilePath, 'utf8') : file.data.toString('utf8');
     } else {
       return res.status(400).json({ error: 'Only PDF and text files supported' });
     }
