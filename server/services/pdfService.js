@@ -248,9 +248,10 @@ ${buildExhibitAHTML(data, fmt)}
 <div class="content">
   <div class="section-header">ACCEPTANCE</div>
   <p style="margin-bottom:20px;font-size:10pt;">
-    By signing below, the customer acknowledges receipt of this proposal and authorizes 
-    Preferred Builders General Services Inc. to proceed upon receipt of the deposit. 
-    This proposal is not a contract. A formal contract will be issued upon acceptance.
+    By signing below, the customer acknowledges receipt of this Proposal (Quote #${quoteNum}) and 
+    authorizes Preferred Builders General Services Inc. to proceed upon receipt of the deposit.
+    <strong>This Proposal is not a contract.</strong> A formal Construction Contract will be issued upon acceptance,
+    and this Proposal &amp; Scope of Work will be incorporated into that Contract by reference.
   </p>
   ${buildSignatureHTML()}
   <p style="font-size:8.5pt;color:#888;margin-top:16px;">
@@ -265,22 +266,356 @@ ${buildExhibitAHTML(data, fmt)}
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// CONTRACT HTML — proposal + legal terms
+// CONTRACT HTML — standalone legal agreement (does NOT copy the proposal)
+// References the Proposal/Scope of Work document by Quote # instead.
 // ══════════════════════════════════════════════════════════════════════
 function buildContractHTML(data) {
-  const proposalHTML = buildProposalHTML(data);
-  const legalSection = buildLegalSection(data);
+  const customer = data.customer || {};
+  const project  = data.project  || {};
+  const lineItems = data.lineItems || [];
+  const pricing  = data.pricing  || {};
+  const fmt = (n) => n ? `$${Number(n).toLocaleString()}` : '$0';
 
-  return proposalHTML.replace(
-    '<!-- SIGNATURE -->',
-    legalSection + '\n<!-- SIGNATURE -->'
-  ).replace(
-    'PROPOSAL — NOT A CONTRACT',
-    'CONSTRUCTION CONTRACT'
-  ).replace(
-    'This proposal is not a contract. A formal contract will be issued upon acceptance.',
-    'By signing below, both parties agree to be bound by all terms and conditions set forth in this contract including Exhibit A.'
-  );
+  const quoteNum   = data.quoteNumber || '—';
+  const today      = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const total      = pricing.totalContractPrice || data.totalValue || 0;
+  const deposit    = pricing.depositAmount || data.depositAmount || 0;
+  const depositPct = pricing.depositPercent || 33;
+
+  // Payment milestones (deposit = first payment, already in pricing.depositAmount)
+  const m2 = Math.round(total * 0.33);
+  const m3 = Math.round(total * 0.33);
+  const m4 = Math.round(total * 0.01);
+
+  const contractCSS = baseCSS() + `
+    .contract-cover {
+      background: ${BRAND_BLUE}; color: white;
+      padding: 60px 56px 40px; min-height: 260px;
+    }
+    .contract-cover-label {
+      font-size: 9pt; letter-spacing: 3px; text-transform: uppercase;
+      opacity: 0.7; margin-bottom: 8px;
+    }
+    .contract-cover-title {
+      font-size: 30pt; font-weight: bold; letter-spacing: 1px; line-height: 1.15;
+    }
+    .contract-cover-title span { color: ${BRAND_ORANGE}; }
+    .contract-cover-divider {
+      border: none; border-top: 2px solid ${BRAND_ORANGE};
+      margin: 20px 0; opacity: 0.6;
+    }
+    .contract-cover-meta { font-size: 10.5pt; opacity: 0.85; line-height: 2.1; }
+    .party-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0 24px; }
+    .party-box { border: 1px solid #ddd; border-radius: 4px; overflow: hidden; }
+    .party-box-header { background: ${BRAND_BLUE}; color: white; font-size: 9pt; font-weight: bold;
+      letter-spacing: 1px; text-transform: uppercase; padding: 7px 14px; }
+    .party-box-header.orange { background: ${BRAND_ORANGE}; }
+    .party-box-body { padding: 12px 14px; font-size: 10pt; line-height: 1.8; background: #FAFAFA; }
+    .preamble { font-size: 10pt; line-height: 1.75; color: #222; margin: 16px 0 20px;
+      border-left: 3px solid ${BRAND_BLUE}; padding-left: 16px; }
+    .contract-section { margin-top: 28px; page-break-inside: avoid; }
+    .contract-section-title {
+      font-size: 11pt; font-weight: bold; color: white;
+      background: ${BRAND_BLUE}; padding: 8px 14px;
+      margin-bottom: 12px; letter-spacing: 0.3px;
+    }
+    .contract-section-title.orange { background: ${BRAND_ORANGE}; }
+    .ref-box {
+      background: #EEF3FB; border: 1px solid #B3C7E8; border-left: 4px solid ${BRAND_BLUE};
+      padding: 12px 16px; border-radius: 3px; margin: 0 0 16px;
+      font-size: 10pt; color: #1a2a45; line-height: 1.7;
+    }
+    .payment-table th { background: ${BRAND_BLUE}; color: white; }
+    .payment-table td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+    .payment-table tr.due-at-signing td { background: #FFF8F0; font-weight: bold; }
+    .payment-table tr.final-pay td { background: #F0F4FF; }
+    .payment-table tr.total-row td { background: ${LIGHT_BLUE}; font-weight: bold; border-top: 2px solid ${BRAND_BLUE}; }
+    .milestone-num {
+      display: inline-block; width: 22px; height: 22px; border-radius: 50%;
+      background: ${BRAND_BLUE}; color: white; font-size: 8.5pt; font-weight: bold;
+      text-align: center; line-height: 22px; margin-right: 6px;
+    }
+    .contract-footer-bar {
+      background: ${BRAND_BLUE}; color: white; padding: 10px 56px;
+      font-size: 8.5pt; text-align: center; margin-top: 32px;
+    }
+    .sig-box { border: 1px solid #ccc; border-radius: 4px; padding: 20px 24px; margin-bottom: 20px; }
+    .sig-box-title { font-size: 9pt; font-weight: bold; color: ${BRAND_BLUE};
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 14px;
+      padding-bottom: 6px; border-bottom: 1px solid #eee; }
+    .sig-trio { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 14px; }
+    .sig-field2 { }
+    .sig-line2 { border-bottom: 1.5px solid #555; height: 38px; margin-bottom: 4px; }
+    .sig-label2 { font-size: 8.5pt; color: #666; }
+    .initials-row { display: flex; gap: 16px; margin-top: 24px; align-items: center; }
+    .initials-block { border: 1px solid #ccc; padding: 8px 16px; border-radius: 3px; text-align: center; min-width: 90px; }
+    .initials-line { border-bottom: 1px solid #555; height: 30px; margin-bottom: 4px; width: 80px; }
+  `;
+
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><style>${contractCSS}</style></head>
+<body>
+
+<!-- ═══════════════════ COVER ═══════════════════ -->
+<div class="contract-cover">
+  <div class="contract-cover-label">Preferred Builders General Services Inc. &nbsp;|&nbsp; LIC# HIC-197400</div>
+  <div class="contract-cover-title">CONSTRUCTION<br><span>CONTRACT</span></div>
+  <hr class="contract-cover-divider">
+  <div class="contract-cover-meta">
+    Project Address: &nbsp;<strong>${project.address || '—'}, ${project.city || ''}, ${project.state || 'MA'}</strong><br>
+    Owner: &nbsp;<strong>${customer.name || '—'}</strong><br>
+    Quote / Contract #: &nbsp;<strong>${quoteNum}</strong><br>
+    Contract Date: &nbsp;<strong>${today}</strong><br>
+    Total Contract Value: &nbsp;<strong>${fmt(total)}</strong>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- ═══ PARTIES ═══ -->
+  <div class="contract-section">
+    <div class="contract-section-title">AGREEMENT BETWEEN THE PARTIES</div>
+
+    <p class="preamble">
+      This Construction Contract ("<strong>Contract</strong>") is entered into as of <strong>${today}</strong>,
+      by and between the Contractor and Owner identified below. In consideration of the mutual covenants
+      set forth herein, and for other good and valuable consideration, the parties agree as follows:
+    </p>
+
+    <div class="party-grid">
+      <div class="party-box">
+        <div class="party-box-header">Contractor</div>
+        <div class="party-box-body">
+          <strong>Preferred Builders General Services Inc.</strong><br>
+          LIC# HIC-197400<br>
+          37 Duck Mill Road, Fitchburg, MA 01420<br>
+          📞 978-377-1784<br>
+          ✉️ jackson.deaquino@preferredbuildersusa.com
+        </div>
+      </div>
+      <div class="party-box">
+        <div class="party-box-header orange">Owner (Client)</div>
+        <div class="party-box-body">
+          <strong>${customer.name || '—'}</strong><br>
+          ${project.address || ''}, ${project.city || ''}, ${project.state || 'MA'}<br>
+          ${customer.phone ? `📞 ${customer.phone}<br>` : ''}
+          ${customer.email ? `✉️ ${customer.email}` : ''}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SCOPE OF WORK — REFERENCE ═══ -->
+  <div class="contract-section">
+    <div class="contract-section-title">SECTION 1 — SCOPE OF WORK</div>
+
+    <div class="ref-box">
+      📄 &nbsp;The work to be performed under this Contract is described in full detail in the
+      <strong>Project Proposal &amp; Scope of Work, Quote #${quoteNum}</strong>, dated <strong>${today}</strong>
+      (the "<strong>Proposal</strong>"), which is incorporated herein by reference as though fully set forth.
+      The Proposal constitutes the complete scope document and specifies all inclusions, exclusions,
+      materials, and trade-by-trade descriptions. In the event of any conflict between this Contract and
+      the Proposal, this Contract shall govern.
+    </div>
+
+    <p style="font-size:10pt;margin-bottom:10px;color:#333;">
+      The following is a summary of work phases included in this Contract:
+    </p>
+
+    <table class="payment-table">
+      <tr>
+        <th>Trade / Phase</th>
+        <th>Description</th>
+        <th style="text-align:right;">Contract Value</th>
+      </tr>
+      ${lineItems.map(item => `
+      <tr>
+        <td><strong>${item.trade}</strong></td>
+        <td style="font-size:9.5pt;color:#444;">${item.description ? item.description.substring(0, 120) + (item.description.length > 120 ? '…' : '') : 'See Proposal for full scope details'}</td>
+        <td style="text-align:right;">${fmt(item.finalPrice)}</td>
+      </tr>`).join('')}
+      <tr class="total-row">
+        <td colspan="2"><strong>TOTAL CONTRACT VALUE</strong></td>
+        <td style="text-align:right;"><strong>${fmt(total)}</strong></td>
+      </tr>
+    </table>
+
+    <p style="font-size:9pt;color:#666;margin-top:4px;">
+      * For full scope details, included items, and exclusions by trade, refer to the Proposal document (Quote #${quoteNum}).
+    </p>
+  </div>
+
+  <!-- ═══ PAYMENT SCHEDULE ═══ -->
+  <div class="contract-section">
+    <div class="contract-section-title orange">SECTION 2 — CONTRACT PRICE &amp; PAYMENT SCHEDULE</div>
+
+    <p style="font-size:10pt;margin-bottom:12px;color:#333;">
+      The total price for all work described herein is <strong>${fmt(total)}</strong>. 
+      Payment shall be made in accordance with the following milestone schedule. 
+      All payments are due within <strong>five (5) business days</strong> of milestone completion.
+      A late charge of <strong>1.5% per month</strong> applies to overdue balances.
+    </p>
+
+    <table class="payment-table" style="width:100%;border-collapse:collapse;">
+      <tr>
+        <th style="width:40px;">#</th>
+        <th>Payment Milestone</th>
+        <th style="text-align:center;width:80px;">%</th>
+        <th style="text-align:right;width:110px;">Amount Due</th>
+        <th style="width:100px;">Due Date</th>
+      </tr>
+      <tr class="due-at-signing">
+        <td><span class="milestone-num">1</span></td>
+        <td><strong>Deposit</strong> — Due upon execution of this Contract</td>
+        <td style="text-align:center;">${depositPct}%</td>
+        <td style="text-align:right;"><strong>${fmt(deposit)}</strong></td>
+        <td style="font-size:9pt;color:#666;">At signing</td>
+      </tr>
+      <tr>
+        <td><span class="milestone-num">2</span></td>
+        <td>Foundation completion &amp; inspection</td>
+        <td style="text-align:center;">33%</td>
+        <td style="text-align:right;">${fmt(m2)}</td>
+        <td style="font-size:9pt;color:#666;">Upon milestone</td>
+      </tr>
+      <tr>
+        <td><span class="milestone-num">3</span></td>
+        <td>Framing inspection approval</td>
+        <td style="text-align:center;">33%</td>
+        <td style="text-align:right;">${fmt(m3)}</td>
+        <td style="font-size:9pt;color:#666;">Upon milestone</td>
+      </tr>
+      <tr class="final-pay">
+        <td><span class="milestone-num">4</span></td>
+        <td>Substantial completion &amp; Certificate of Occupancy</td>
+        <td style="text-align:center;">1%</td>
+        <td style="text-align:right;">${fmt(m4)}</td>
+        <td style="font-size:9pt;color:#666;">Upon CO issued</td>
+      </tr>
+      <tr class="total-row">
+        <td colspan="2"><strong>TOTAL</strong></td>
+        <td style="text-align:center;"><strong>100%</strong></td>
+        <td style="text-align:right;"><strong>${fmt(total)}</strong></td>
+        <td></td>
+      </tr>
+    </table>
+
+    <div class="note-box" style="margin-top:12px;">
+      ⚠️ <strong>Allowances:</strong> This contract price includes contractor-grade material allowances as detailed 
+      in <strong>Exhibit A</strong>. If Owner selections exceed allowance amounts, the difference will be billed 
+      as a Change Order prior to ordering. Credits for under-allowance selections are applied at final invoice.
+    </div>
+  </div>
+
+  <!-- ═══ OWNER RESPONSIBILITIES ═══ -->
+  <div class="contract-section">
+    <div class="contract-section-title">SECTION 3 — OWNER RESPONSIBILITIES</div>
+    <p style="font-size:10pt;margin-bottom:10px;color:#333;">
+      Owner agrees to fulfill the following responsibilities throughout the duration of this Contract:
+    </p>
+    <ul class="check-list">
+      <li class="bullet">Provide clear site access for construction vehicles and material deliveries</li>
+      <li class="bullet">Maintain homeowner's insurance for the property during the construction period</li>
+      <li class="bullet">Make all progress payments on time per the schedule in Section 2</li>
+      <li class="bullet">Submit all material selections no later than framing completion (see Exhibit A)</li>
+      <li class="bullet">Provide written approval for any Change Orders before additional work begins</li>
+      <li class="bullet">Obtain any required easements or property line clearances</li>
+      <li class="bullet">Be available for scheduled walkthroughs and milestone inspections</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ═══ EXHIBIT A ═══ -->
+${buildExhibitAHTML(data, fmt)}
+
+<!-- ═══ TERMS &amp; CONDITIONS ═══ -->
+${buildLegalSection(data)}
+
+<!-- ═══ SIGNATURE PAGE ═══ -->
+<div class="content page-break">
+  <div class="contract-section-title" style="font-size:13pt;text-align:center;padding:12px;">
+    CONTRACT EXECUTION — SIGNATURE PAGE
+  </div>
+
+  <p style="font-size:10pt;color:#333;margin:16px 0 24px;line-height:1.7;text-align:center;">
+    By signing below, both parties confirm they have read, understand, and agree to all terms of this
+    Construction Contract including all exhibits. This Contract is binding upon execution and receipt of deposit.
+  </p>
+
+  <div class="sig-box">
+    <div class="sig-box-title">Owner / Client</div>
+    <div class="sig-trio">
+      <div class="sig-field2">
+        <div class="sig-line2"></div>
+        <div class="sig-label2">Owner Signature</div>
+      </div>
+      <div class="sig-field2">
+        <div class="sig-line2"></div>
+        <div class="sig-label2">Date</div>
+      </div>
+    </div>
+    <div class="sig-trio">
+      <div class="sig-field2">
+        <div class="sig-line2"></div>
+        <div class="sig-label2">Printed Name</div>
+      </div>
+      <div class="sig-field2">
+        <div class="sig-line2"></div>
+        <div class="sig-label2">Phone / Email</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sig-box" style="border-color:${BRAND_BLUE};">
+    <div class="sig-box-title" style="color:${BRAND_BLUE};">Contractor — Preferred Builders General Services Inc.</div>
+    <div class="sig-trio">
+      <div class="sig-field2">
+        <div class="sig-line2" style="border-color:${BRAND_BLUE};"></div>
+        <div class="sig-label2">Authorized Signature — Jackson Deaquino, Project Manager</div>
+      </div>
+      <div class="sig-field2">
+        <div class="sig-line2"></div>
+        <div class="sig-label2">Date</div>
+      </div>
+    </div>
+    <div class="sig-trio">
+      <div class="sig-field2">
+        <div class="sig-line2"></div>
+        <div class="sig-label2">Printed Name &amp; Title</div>
+      </div>
+      <div class="sig-field2">
+        <div class="sig-line2"></div>
+        <div class="sig-label2">License # HIC-197400</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="initials-row">
+    <span style="font-size:9pt;color:#555;font-weight:bold;">INITIALS:</span>
+    <div class="initials-block">
+      <div class="initials-line"></div>
+      <div style="font-size:8pt;color:#666;">Owner</div>
+    </div>
+    <div class="initials-block">
+      <div class="initials-line"></div>
+      <div style="font-size:8pt;color:#666;">Contractor</div>
+    </div>
+    <span style="font-size:9pt;color:#666;flex:1;">
+      Initialing confirms receipt of: (1) this Contract, (2) Project Proposal &amp; Scope of Work — Quote #${quoteNum}, (3) Exhibit A Allowance Schedule.
+    </span>
+  </div>
+
+  <p style="font-size:8.5pt;color:#888;margin-top:28px;text-align:center;">
+    Preferred Builders General Services Inc. | LIC# HIC-197400 | 
+    37 Duck Mill Road, Fitchburg, MA 01420 | 978-377-1784 | 
+    jackson.deaquino@preferredbuildersusa.com
+  </p>
+</div>
+
+</body>
+</html>`;
 }
 
 // ══════════════════════════════════════════════════════════════════════
