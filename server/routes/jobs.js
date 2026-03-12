@@ -116,13 +116,15 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
 
   try {
     if (file.mimetype === 'application/pdf') {
-      const parsed = await pdfParse(file.data);
+      const fileBuffer = file.tempFilePath ? require('fs').readFileSync(file.tempFilePath) : file.data;
+      const parsed = await pdfParse(fileBuffer);
       rawText = parsed.text.trim();
       if (rawText.length < 50) return res.status(400).json({ error: 'PDF appears empty or unreadable. Please use a text-based PDF.' });
     } else if (file.mimetype.startsWith('image/')) {
       // Use Claude vision to extract text from image
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const base64 = file.data.toString('base64');
+      const fileBuffer = file.tempFilePath ? require('fs').readFileSync(file.tempFilePath) : file.data;
+      const base64 = fileBuffer.toString('base64');
       const response = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 3000,

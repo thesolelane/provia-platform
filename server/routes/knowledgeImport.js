@@ -88,10 +88,11 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
 
       let rawText = '';
       if (file.mimetype === 'application/pdf') {
-        const data = await pdfParse(file.data);
+        const fileBuffer = file.tempFilePath ? fs.readFileSync(file.tempFilePath) : file.data;
+        const data = await pdfParse(fileBuffer);
         rawText = data.text;
       } else {
-        rawText = file.data.toString('utf8');
+        rawText = file.tempFilePath ? fs.readFileSync(file.tempFilePath, 'utf8') : file.data.toString('utf8');
       }
 
       if (rawText.trim().length < 100) {
