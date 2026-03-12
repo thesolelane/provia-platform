@@ -516,12 +516,35 @@ function buildContractHTML(data) {
       <span class="clause-text">
         The Contract Price includes contractor-grade material allowances as set forth in
         <strong>Exhibit A — Contractor-Grade Allowance Schedule</strong>, attached hereto and incorporated herein.
-        Owner selections that exceed an allowance amount shall be billed as a Change Order prior to ordering.
-        Credits for selections that fall below an allowance amount shall be applied to the final invoice.
+        Credits for Owner selections that fall below an allowance amount shall be applied as a credit to the final invoice.
       </span>
     </div>
     <div class="clause">
       <span class="clause-num">2.3</span>
+      <span class="clause-text">
+        <strong>Allowance Overages — Pre-Payment Requirement.</strong>&nbsp;
+        Owner acknowledges and agrees that any material or product selection that exceeds the applicable allowance
+        amount set forth in Exhibit A shall result in an overage charge equal to the difference between the actual
+        cost and the allowance. <em>Such overage amount shall be paid by Owner to Contractor in full prior to
+        Contractor's purchase or procurement of the subject item(s).</em> Contractor is under no obligation to
+        order or install any item for which an approved allowance overage payment has not been received.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">2.4</span>
+      <span class="clause-text">
+        <strong>Contractor-Advanced Overages.</strong>&nbsp;
+        In the event Contractor, at its sole discretion, elects to advance funds in excess of the applicable
+        allowance amount prior to receiving the corresponding overage payment from Owner, the full advanced
+        overage amount shall be collected at the next regularly scheduled invoice issuance. Said amount shall
+        be clearly itemized on the payment invoice under the line item heading
+        "<strong>Reimbursement to Contractor Budget — Allowance Overage</strong>" and shall be due and payable
+        by Owner in accordance with the payment terms set forth in Article III. Contractor's election to advance
+        funds on one occasion shall not obligate Contractor to do so on any future occasion.
+      </span>
+    </div>
+    <div class="clause">
+      <span class="clause-num">2.5</span>
       <span class="clause-text">
         All allowance selections shall be submitted by Owner in writing no later than framing completion.
         Late submissions may result in project delays and additional costs for which Contractor shall not be liable.
@@ -1335,12 +1358,17 @@ function buildExhibitAHTML(data, fmt) {
 
 <div class="content">
   <p style="font-size:10pt;margin-bottom:12px;">
-    The following allowances are included in the contract price. Allowances represent contractor-grade pricing. 
-    If customer selections exceed the allowance, the difference is billed as a change order. If under, customer receives a credit.
+    The following allowances are included in the Contract Price and represent contractor-grade material pricing
+    through Preferred Builders' trade accounts. If Owner selections fall <strong>below</strong> an allowance, the
+    difference is applied as a credit on the final invoice. If Owner selections <strong>exceed</strong> an
+    allowance, the overage is due and payable by Owner to Contractor <em>prior to purchase of the item</em>
+    (see Contract Article II, Clauses 2.3 – 2.4). In the event Contractor elects to advance an overage,
+    the reimbursement will appear on the next payment invoice as
+    "<strong>Reimbursement to Contractor Budget — Allowance Overage</strong>."
   </p>
   <div class="note-box">
-    📌 All selections must be submitted to Preferred Builders no later than framing completion. 
-    Late selections may cause delays and additional costs.
+    📌 All selections must be submitted to Preferred Builders in writing no later than framing completion. 
+    Late selections may cause project delays and additional costs for which Contractor shall not be liable.
   </div>
 
   <div class="sub-header">FLOORING</div>
