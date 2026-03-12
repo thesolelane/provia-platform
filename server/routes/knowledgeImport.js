@@ -32,6 +32,15 @@ ${rawText.substring(0, 8000)}
 
 Return this EXACT JSON structure:
 {
+  "customer": {
+    "name": "full name or null",
+    "email": "email or null",
+    "phone": "phone number or null",
+    "address": "street address or null",
+    "city": "city or null",
+    "state": "2-letter state or null",
+    "zip": "zip code or null"
+  },
   "invoiceDate": "YYYY-MM-DD or approximate year or null",
   "customerType": "residential|commercial|unknown",
   "projectType": "kitchen|bathroom|addition|basement|roofing|siding|windows|full-renovation|new-construction|other",
@@ -57,6 +66,44 @@ Return this EXACT JSON structure:
     return JSON.parse(clean);
   } catch {
     return null;
+  }
+}
+
+// ── UPSERT a contact — match by email or name+address ─────────────────
+function upsertContact(db, customer, customerType, source) {
+  if (!customer) return null;
+  const { name, email, phone, address, city, state, zip } = customer;
+  if (!name && !email) return null; // not enough info
+
+  // Try to find existing by email first, then by name
+  let existing = null;
+  if (email) {
+    existing = db.prepare('SELECT id FROM contacts WHERE email = ? COLLATE NOCASE').get(email);
+  }
+  if (!existing && name) {
+    existing = db.prepare('SELECT id FROM contacts WHERE name = ? COLLATE NOCASE').get(name);
+  }
+
+  if (existing) {
+    // Update only fields that are now more complete
+    db.prepare(`UPDATE contacts SET
+      name = COALESCE(NULLIF(?, ''), name),
+      email = COALESCE(NULLIF(?, ''), email),
+      phone = COALESCE(NULLIF(?, ''), phone),
+      address = COALESCE(NULLIF(?, ''), address),
+      city = COALESCE(NULLIF(?, ''), city),
+      state = COALESCE(NULLIF(?, ''), state),
+      zip = COALESCE(NULLIF(?, ''), zip),
+      updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`
+    ).run(name||'', email||'', phone||'', address||'', city||'', state||'', zip||'', existing.id);
+    return existing.id;
+  } else {
+    const result = db.prepare(
+      `INSERT INTO contacts (name, email, phone, address, city, state, zip, customer_type, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(name||null, email||null, phone||null, address||null, city||null, state||null, zip||null, customerType||'residential', source||'bulk_import');
+    return result.lastInsertRowid;
   }
 }
 
@@ -101,12 +148,7 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
         continue;
       }
 
-      // Save file to disk
-      const savedFilename = `${Date.now()}_${file.name}`;
-      const filePath = path.join(UPLOAD_DIR, savedFilename);
-      await file.mv(filePath);
-
-      // Extract structured data with Claude
+      // Extract structured data with Claude (before saving file)
       const extracted = await extractInvoiceData(rawText, file.name);
 
       // Build a rich knowledge base entry
@@ -158,20 +200,42 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
         ? extracted.projectDescription.substring(0, 80)
         : file.name.replace(/\.[^/.]+$/, '');
 
+      // Save to knowledge base (no file path — we won't keep the file)
       const dbResult = db.prepare(
-        'INSERT INTO knowledge_base (title, category, content, file_path, language) VALUES (?, ?, ?, ?, ?)'
-      ).run(title, 'past_contracts', content, filePath, 'en');
+        'INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)'
+      ).run(title, 'past_contracts', content, 'en');
+
+      // Save customer to CRM contacts if info was found
+      let contactId = null;
+      if (extracted?.customer) {
+        try {
+          contactId = upsertContact(db, extracted.customer, extracted.customerType, 'bulk_import');
+        } catch (e) {
+          console.warn('[Bulk Import] Contact upsert failed:', e.message);
+        }
+      }
+
+      // Delete temp file — data is extracted, no need to keep it
+      if (file.tempFilePath && fs.existsSync(file.tempFilePath)) {
+        try { fs.unlinkSync(file.tempFilePath); } catch {}
+      }
 
       result.success = true;
       result.id = dbResult.lastInsertRowid;
+      result.contactId = contactId;
       result.extracted = extracted ? {
         projectType: extracted.projectType,
         totalContractValue: extracted.totalContractValue,
         tradesCount: extracted.trades?.length || 0,
-        marketPosition: extracted.estimatedMarketPosition
+        marketPosition: extracted.estimatedMarketPosition,
+        customerFound: !!(extracted.customer?.name || extracted.customer?.email)
       } : null;
     } catch (err) {
       result.error = err.message;
+      // Still clean up temp file on error
+      if (file.tempFilePath && fs.existsSync(file.tempFilePath)) {
+        try { fs.unlinkSync(file.tempFilePath); } catch {}
+      }
     }
     results.push(result);
   }

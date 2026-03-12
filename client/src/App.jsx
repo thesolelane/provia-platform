@@ -9,6 +9,7 @@ import KnowledgeBase from './pages/KnowledgeBase';
 import AdminChat from './pages/AdminChat';
 import Whitelist from './pages/Whitelist';
 import FieldGuide from './pages/FieldGuide';
+import Contacts from './pages/Contacts';
 import Layout from './components/Layout';
 
 function App() {
@@ -49,6 +50,7 @@ function App() {
           <Route path="/knowledge" element={<KnowledgeBase token={token} />} />
           <Route path="/chat" element={<AdminChat token={token} />} />
           <Route path="/whitelist" element={<Whitelist token={token} />} />
+          <Route path="/contacts" element={<Contacts token={token} />} />
           <Route path="/guide" element={<FieldGuide />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

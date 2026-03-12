@@ -195,6 +195,22 @@ router.post('/manual', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'received', 'manual')
   `).run(jobId, customerName, customerEmail, customerPhone, projectAddress, estimateText);
 
+  // Save/update contact in CRM
+  if (customerName || customerEmail) {
+    try {
+      let existing = null;
+      if (customerEmail) existing = db.prepare('SELECT id FROM contacts WHERE email = ? COLLATE NOCASE').get(customerEmail);
+      if (!existing && customerName) existing = db.prepare('SELECT id FROM contacts WHERE name = ? COLLATE NOCASE').get(customerName);
+      if (existing) {
+        db.prepare(`UPDATE contacts SET name=COALESCE(NULLIF(?,''),name), email=COALESCE(NULLIF(?,''),email), phone=COALESCE(NULLIF(?,''),phone), address=COALESCE(NULLIF(?,''),address), updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+          .run(customerName||'', customerEmail||'', customerPhone||'', projectAddress||'', existing.id);
+      } else {
+        db.prepare(`INSERT INTO contacts (name, email, phone, address, source) VALUES (?, ?, ?, ?, 'manual')`)
+          .run(customerName||null, customerEmail||null, customerPhone||null, projectAddress||null);
+      }
+    } catch (e) { console.warn('[Manual Job] Contact save failed:', e.message); }
+  }
+
   res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
 
   const { processEstimate } = require('../services/claudeService');
