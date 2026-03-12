@@ -286,14 +286,30 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
 router.post('/assessment', requireAuth, async (req, res) => {
   const db = getDb();
   const contracts = db.prepare(
-    "SELECT title, content FROM knowledge_base WHERE category = 'past_contracts' AND active = 1 ORDER BY created_at DESC LIMIT 30"
+    "SELECT id, title, content FROM knowledge_base WHERE category = 'past_contracts' AND active = 1 ORDER BY created_at DESC LIMIT 50"
   ).all();
 
   if (contracts.length === 0) {
     return res.status(400).json({ error: 'No past contracts in knowledge base yet. Import some invoices first.' });
   }
 
-  // Bundle all contract data for Claude
+  // Build compact reference log from each contract's content
+  const referenceLog = contracts.map((c, i) => {
+    const content = c.content || '';
+    const dateMatch = content.match(/INVOICE DATE:\s*(.+)/i);
+    const valueMatch = content.match(/TOTAL CONTRACT VALUE:\s*\$?([\d,]+)/i);
+    const typeMatch = content.match(/PROJECT TYPE:\s*(.+)/i);
+    const customerMatch = content.match(/Customer Name:\s*(.+)/i) || content.match(/customer.*?:\s*(.+)/i);
+    return {
+      ref: `#${String(i + 1).padStart(3, '0')}`,
+      title: c.title?.substring(0, 60) || '—',
+      date: dateMatch?.[1]?.trim() || '—',
+      value: valueMatch?.[1] ? `$${valueMatch[1]}` : '—',
+      type: typeMatch?.[1]?.trim() || '—',
+    };
+  });
+
+  // Bundle all contract data for Claude analysis
   const contractSummaries = contracts.map((c, i) =>
     `--- CONTRACT ${i + 1} ---\nTitle: ${c.title}\n${c.content.substring(0, 2000)}`
   ).join('\n\n');
@@ -366,7 +382,20 @@ Numbered list of the 5 most impactful changes you should make immediately to win
       }]
     });
 
-    const report = response.content[0].text;
+    const reportBody = response.content[0].text;
+
+    const fullReport = `${reportBody}
+
+---
+
+# SOURCE INVOICE LOG
+> ${contracts.length} invoice(s) were analyzed for this assessment. Full details have been removed from the knowledge base to keep it clean — only this summary is retained.
+
+| Ref  | Date         | Value        | Project Type         | Description |
+|------|-------------|-------------|---------------------|-------------|
+${referenceLog.map(r => `| ${r.ref} | ${r.date.substring(0,12).padEnd(12)} | ${r.value.padEnd(12)} | ${r.type.substring(0,20).padEnd(20)} | ${r.title} |`).join('\n')}
+
+*Assessment generated: ${new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}*`;
 
     // Save assessment to DB as a special knowledge doc
     const existing = db.prepare(
@@ -374,14 +403,21 @@ Numbered list of the 5 most impactful changes you should make immediately to win
     ).get();
 
     if (existing) {
-      db.prepare('UPDATE knowledge_base SET content = ?, active = 1 WHERE id = ?').run(report, existing.id);
+      db.prepare('UPDATE knowledge_base SET content = ?, active = 1 WHERE id = ?').run(fullReport, existing.id);
     } else {
       db.prepare(
         'INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)'
-      ).run('Competitive Assessment Report', 'pricing', report, 'en');
+      ).run('Competitive Assessment Report', 'pricing', fullReport, 'en');
     }
 
-    res.json({ success: true, report, contractsAnalyzed: contracts.length });
+    // Remove full past_contracts entries — bot has learned from them, reference log is now in the report
+    const contractIds = contracts.map(c => c.id);
+    const purgeStmt = db.prepare('DELETE FROM knowledge_base WHERE id = ?');
+    const purgeMany = db.transaction((ids) => { for (const id of ids) purgeStmt.run(id); });
+    purgeMany(contractIds);
+    console.log(`[Assessment] Purged ${contractIds.length} past_contract entries after analysis`);
+
+    res.json({ success: true, report: fullReport, contractsAnalyzed: contracts.length, purged: contractIds.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
