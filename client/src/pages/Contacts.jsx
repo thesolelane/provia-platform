@@ -1,5 +1,7 @@
 // client/src/pages/Contacts.jsx
 import { useState, useEffect } from 'react';
+import { showToast } from '../utils/toast';
+import { showConfirm } from '../utils/confirm';
 
 const SOURCE_LABELS = {
   bulk_import: 'Invoice Import',
@@ -52,7 +54,7 @@ export default function Contacts({ token }) {
   };
 
   const deleteDoc = async (docId) => {
-    if (!window.confirm('Remove this document from the contact?')) return;
+    if (!await showConfirm('Remove this document from the contact?')) return;
     await fetch(`/api/contacts/${selected.id}/documents/${docId}`, { method: 'DELETE', headers });
     setSelectedDocs(prev => prev.filter(d => d.id !== docId));
   };
@@ -66,12 +68,12 @@ export default function Contacts({ token }) {
       load(search);
     } else {
       const d = await res.json();
-      alert(d.error || 'Save failed');
+      showToast(d.error || 'Save failed', 'error');
     }
   };
 
   const deleteContact = async (id) => {
-    if (!window.confirm('Delete this contact?')) return;
+    if (!await showConfirm('Delete this contact? This cannot be undone.')) return;
     await fetch(`/api/contacts/${id}`, { method: 'DELETE', headers });
     setSelected(null);
     load(search);

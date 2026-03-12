@@ -1,5 +1,7 @@
 // client/src/pages/KnowledgeBase.jsx
 import { useState, useEffect, useRef } from 'react';
+import { showToast } from '../utils/toast';
+import { showConfirm } from '../utils/confirm';
 
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -93,7 +95,7 @@ export default function KnowledgeBase({ token }) {
   };
 
   const deleteDoc = async (id) => {
-    if (!window.confirm('Delete this document?')) return;
+    if (!await showConfirm('Delete this document from the knowledge base?')) return;
     await fetch(`/api/knowledge/${id}`, { method: 'DELETE', headers });
     if (selected?.id === id) setSelected(null);
     load();
@@ -143,10 +145,10 @@ export default function KnowledgeBase({ token }) {
         setAssessment(data.report);
         setAssessmentDate(new Date().toISOString());
       } else {
-        alert(data.error || 'Failed to generate report');
+        showToast(data.error || 'Failed to generate report', 'error');
       }
     } catch (err) {
-      alert(err.message);
+      showToast(err.message, 'error');
     }
     setAssessmentLoading(false);
   };

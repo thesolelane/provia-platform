@@ -11,6 +11,8 @@ import Whitelist from './pages/Whitelist';
 import FieldGuide from './pages/FieldGuide';
 import Contacts from './pages/Contacts';
 import Layout from './components/Layout';
+import Toast from './components/Toast';
+import ConfirmDialog from './components/ConfirmDialog';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('pb_token'));
@@ -42,6 +44,8 @@ function App() {
 
   return (
     <BrowserRouter>
+      <Toast />
+      <ConfirmDialog />
       <Layout token={token} onLogout={handleLogout}>
         <Routes>
           <Route path="/" element={<Dashboard token={token} />} />

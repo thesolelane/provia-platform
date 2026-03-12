@@ -1,6 +1,8 @@
 // client/src/pages/Dashboard.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { showToast } from '../utils/toast';
+import { showConfirm } from '../utils/confirm';
 
 const STATUS_COLORS = {
   received: '#888', processing: '#E07B2A', clarification: '#F59E0B',
@@ -44,14 +46,14 @@ export default function Dashboard({ token }) {
   const [archivedJobs, setArchivedJobs] = useState([]);
 
   const archiveJob = async (jobId, customerName) => {
-    if (!window.confirm(`Archive job for ${customerName || 'this customer'}? It will be permanently deleted after 90 days.`)) return;
+    if (!await showConfirm(`Archive job for ${customerName || 'this customer'}? It will be permanently deleted after 90 days.`)) return;
     const res = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE', headers });
     if (res.ok) {
       setJobs(jobs.filter(j => j.id !== jobId));
       setStats(prev => prev ? { ...prev, total: (prev.total || 1) - 1 } : prev);
     } else {
       const data = await res.json();
-      alert(data.error || 'Failed to archive');
+      showToast(data.error || 'Failed to archive', 'error');
     }
   };
 
@@ -78,12 +80,12 @@ export default function Dashboard({ token }) {
     });
     const data = await res.json();
     setSubmitBusy(false);
-    if (res.ok) { setShowManual(false); window.location.reload(); }
-    else { alert(data.error || 'Error submitting estimate'); }
+    if (res.ok) { setShowManual(false); showToast('Estimate submitted — processing now'); window.location.reload(); }
+    else { showToast(data.error || 'Error submitting estimate', 'error'); }
   };
 
   const submitUpload = async () => {
-    if (!uploadFile) return alert('Please select a file first.');
+    if (!uploadFile) return showToast('Please select a file first.', 'warning');
     setSubmitBusy(true);
     const form = new FormData();
     form.append('estimate', uploadFile);
@@ -96,8 +98,8 @@ export default function Dashboard({ token }) {
     });
     const data = await res.json();
     setSubmitBusy(false);
-    if (res.ok) { setShowManual(false); window.location.reload(); }
-    else { alert(data.error || 'Error processing file'); }
+    if (res.ok) { setShowManual(false); showToast('File uploaded — processing now'); window.location.reload(); }
+    else { showToast(data.error || 'Error processing file', 'error'); }
   };
 
   const openNewJob = () => {

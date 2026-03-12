@@ -1,6 +1,8 @@
 // client/src/pages/JobDetail.jsx
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { showToast } from '../utils/toast';
+import { showConfirm } from '../utils/confirm';
 
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -48,18 +50,18 @@ export default function JobDetail({ token }) {
     setActionLoading(true);
     const res = await fetch(`/api/jobs/${id}/approve`, { method: 'POST', headers });
     const data = await res.json();
-    if (res.ok) { load(); alert('✅ Contract generated!'); }
-    else { alert('Error: ' + data.error); }
+    if (res.ok) { load(); showToast('Contract generated successfully'); }
+    else { showToast(data.error || 'Failed to generate contract', 'error'); }
     setActionLoading(false);
   };
 
   const sendToCustomer = async () => {
-    if (!window.confirm(`Send contract to ${job.customer_email}?`)) return;
+    if (!await showConfirm(`Send the contract to ${job.customer_email}? This will email the signed contract to the customer.`)) return;
     setActionLoading(true);
     const res = await fetch(`/api/jobs/${id}/send-to-customer`, { method: 'POST', headers });
     const data = await res.json();
-    if (res.ok) { load(); alert('✅ Contract sent to customer!'); }
-    else { alert('Error: ' + data.error); }
+    if (res.ok) { load(); showToast('Contract sent to customer'); }
+    else { showToast(data.error || 'Failed to send contract', 'error'); }
     setActionLoading(false);
   };
 
@@ -78,7 +80,7 @@ export default function JobDetail({ token }) {
     setActionLoading(false);
     load();
     if (data.allAnswered) {
-      alert('All questions answered! Generating proposal...');
+      showToast('All questions answered — generating proposal now', 'info');
     }
   };
 

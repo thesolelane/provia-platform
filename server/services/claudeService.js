@@ -168,11 +168,10 @@ RULES:
 
 // ── SYSTEM-CONTROLLED PRICING MATH ──────────────────────────────────
 function applyPricing(data, rates) {
-  if (!data.validUntil) {
-    const validDate = new Date();
-    validDate.setDate(validDate.getDate() + 15);
-    data.validUntil = validDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  }
+  // Always set validUntil to today + 15 days — every generated proposal is valid for 15 days from generation
+  const validDate = new Date();
+  validDate.setDate(validDate.getDate() + 15);
+  data.validUntil = validDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const items = data.lineItems || [];
   const markupMultiplier = (1 + rates.subOandP) * (1 + rates.gcOandP) * (1 + rates.contingency);

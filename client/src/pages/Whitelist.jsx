@@ -1,5 +1,6 @@
 // client/src/pages/Whitelist.jsx
 import { useState, useEffect } from 'react';
+import { showConfirm } from '../utils/confirm';
 
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -30,7 +31,7 @@ export default function Whitelist({ token }) {
   };
 
   const remove = async (id) => {
-    if (!window.confirm('Remove this sender?')) return;
+    if (!await showConfirm('Remove this sender from the whitelist?')) return;
     await fetch(`/api/whitelist/${id}`, { method: 'DELETE', headers: { 'x-auth-token': token } });
     load();
   };
