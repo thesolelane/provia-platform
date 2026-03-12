@@ -354,26 +354,141 @@ function buildAllowanceTables(data) {
   ].join('');
 }
 
-// ─── Data adapter: maps legacy job data → new contract schema ─────────────────
+// ─── Milestone distribution calculator ───────────────────────────────────────
+// Distributes contract price across milestones returned by selectMilestones().
+// Returns milestoneShares, milestoneAmounts, and invoiceNumbers keyed by milestone code.
+
+function calculateMilestoneDistribution(job, totalContractPrice, depositAmount, quoteNumber) {
+  const milestones = selectMilestones(job);
+  if (!milestones.length) return {};
+
+  const qn = quoteNumber || '';
+  const fmt = n => `$${Number(Math.round(n)).toLocaleString()}`;
+  const pct = n => `${Math.round(n)}%`;
+
+  // Final SC milestone gets 1% (or $1,000 min)
+  const finalAmt = Math.max(Math.round(totalContractPrice * 0.01), 1000);
+  const finalPct = Math.round((finalAmt / totalContractPrice) * 100);
+
+  // Remaining after deposit and final SC
+  const middleTotal = totalContractPrice - depositAmount - finalAmt;
+  const perMilestone = milestones.length > 0 ? Math.round(middleTotal / milestones.length) : 0;
+
+  const milestoneShares  = {};
+  const milestoneAmounts = {};
+  const invoiceNumbers   = {};
+
+  milestones.forEach((m, idx) => {
+    const invoiceIdx = idx + 2; // Invoice 1 = deposit
+    milestoneShares[m.code]  = pct((perMilestone / totalContractPrice) * 100);
+    milestoneAmounts[m.code] = fmt(perMilestone);
+    invoiceNumbers[m.code]   = qn ? `INV-${qn}-${String(invoiceIdx).padStart(3, '0')}` : `Invoice No. ${invoiceIdx}`;
+  });
+
+  const finalInvoiceIdx = milestones.length + 2;
+
+  return {
+    milestoneShares,
+    milestoneAmounts,
+    invoiceNumbers,
+    final_milestone_share:  pct(finalPct),
+    final_milestone_amount: fmt(finalAmt),
+    final_invoice_number:   qn ? `INV-${qn}-${String(finalInvoiceIdx).padStart(3, '0')}` : `Invoice No. ${finalInvoiceIdx}`,
+  };
+}
+
+// ─── Data adapter: maps extracted proposal data → new contract schema ─────────
 
 function adaptToContractSchema(data) {
   const fmt = n => n ? `$${Number(n).toLocaleString()}` : '';
-  const customer = data.customer || {};
-  const project  = data.project  || {};
-  const pricing  = data.pricing  || {};
+  const customer  = data.customer  || {};
+  const project   = data.project   || {};
+  const pricing   = data.pricing   || {};
   const lineItems = data.lineItems || [];
-  const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const jobRaw    = data.job       || {};
+  const today     = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
+  // Project type — prefer explicit field, fall back to trade-name inference
   const allTrades = lineItems.map(i => (i.trade || '').toLowerCase()).join(' ');
-  let jobType = 'renovation';
-  if (allTrades.includes('new construction') || allTrades.includes('foundation') || allTrades.includes('new build')) jobType = 'new_construction';
-  if (allTrades.includes('adu') || allTrades.includes('accessory dwelling')) jobType = 'adu';
+  let jobType = project.type || 'renovation';
+  if (!project.type) {
+    if (/new.?construct|foundation.*new|new.?build/i.test(allTrades)) jobType = 'new_construction';
+    if (/\badu\b|accessory.?dwelling/i.test(allTrades)) jobType = 'adu';
+  }
 
-  const totalVal  = pricing.totalContractPrice || data.totalValue || 0;
-  const depositVal = pricing.depositAmount || data.depositAmount || 0;
-  const depositPct = pricing.depositPercent || 33;
+  const totalVal   = pricing.totalContractPrice || data.totalValue || 0;
+  const depositVal = pricing.depositAmount      || data.depositAmount || 0;
+  const depositPct = pricing.depositPercent     || 33;
+  const qn         = data.quoteNumber           || '';
 
-  const qn = data.quoteNumber || '';
+  // Jurisdiction: prefer explicit field, fall back to "City/Town of <city>"
+  const jurisdiction = project.jurisdiction ||
+    (project.city ? `City of ${project.city}` : '');
+
+  // Owner address: use explicit if provided, otherwise blank (≠ property address)
+  const ownerAddr1 = customer.address_line1 || '';
+  const ownerCSZ   = customer.city_state_zip ||
+    (ownerAddr1 ? [project.city, project.state || 'MA'].filter(Boolean).join(', ') : '');
+
+  // Job flags: prefer explicit fields from extraction, fall back to trade-name inference
+  const job = {
+    type:             jobType,
+    has_demo:         jobRaw.has_demo      !== undefined ? jobRaw.has_demo      : /demo|demolition/i.test(allTrades),
+    has_framing:      jobRaw.has_framing   !== undefined ? jobRaw.has_framing   : /\bfram/i.test(allTrades),
+    has_insulation:   jobRaw.has_insulation !== undefined ? jobRaw.has_insulation : /insul/i.test(allTrades),
+    has_permit:       jobRaw.has_permit    !== undefined ? jobRaw.has_permit    : /permit/i.test(allTrades),
+    permit_fee:       jobRaw.permit_fee    || '',
+    has_engineer:     jobRaw.has_engineer  || false,
+    engineer_fee:     jobRaw.engineer_fee  || '',
+    has_architect:    jobRaw.has_architect || false,
+    architect_fee:    jobRaw.architect_fee || '',
+    sub_deposits:     jobRaw.sub_deposits  || null,
+    special_order_deposits: jobRaw.special_order_deposits || null,
+    trades: {
+      electrical: jobRaw.trades?.electrical !== undefined ? jobRaw.trades.electrical : /electric/i.test(allTrades),
+      plumbing:   jobRaw.trades?.plumbing   !== undefined ? jobRaw.trades.plumbing   : /plumb/i.test(allTrades),
+      hvac:       jobRaw.trades?.hvac       !== undefined ? jobRaw.trades.hvac       : /hvac|heat|cool|mechanic/i.test(allTrades),
+      sprinkler:  jobRaw.trades?.sprinkler  || false,
+    },
+    adu: jobRaw.adu || { on_septic: false, separate_metering: false, site_plan_required: false, new_sewer_connection: false },
+  };
+
+  // Calculate milestone distribution from actual pricing
+  const dist = totalVal > 0
+    ? calculateMilestoneDistribution(job, totalVal, depositVal, qn)
+    : {};
+
+  Object.assign(job, dist);
+
+  // Allowances: use extracted flags if present, otherwise all false
+  const rawAllow = data.allowances || {};
+  const allowances = {
+    flooring_lvp:      rawAllow.flooring_lvp      || false,
+    flooring_tile:     rawAllow.flooring_tile      || false,
+    flooring_carpet:   rawAllow.flooring_carpet    || false,
+    kitchen_cabinets:  rawAllow.kitchen_cabinets   || false,
+    kitchen_counter:   rawAllow.kitchen_counter    || false,
+    kitchen_faucet:    rawAllow.kitchen_faucet     || false,
+    kitchen_sink:      rawAllow.kitchen_sink       || false,
+    kitchen_disposal:  rawAllow.kitchen_disposal   || false,
+    bath_vanity_full:  rawAllow.bath_vanity_full   || false,
+    bath_vanity_half:  rawAllow.bath_vanity_half   || false,
+    bath_vanity_top:   rawAllow.bath_vanity_top    || false,
+    bath_faucet:       rawAllow.bath_faucet        || false,
+    bath_toilet:       rawAllow.bath_toilet        || false,
+    bath_tub:          rawAllow.bath_tub           || false,
+    bath_shower_valve: rawAllow.bath_shower_valve  || false,
+    bath_shower_door:  rawAllow.bath_shower_door   || false,
+    bath_accessories:  rawAllow.bath_accessories   || false,
+    bath_exhaust_fan:  rawAllow.bath_exhaust_fan   || false,
+    doors_interior:    rawAllow.doors_interior     || false,
+    doors_passage:     rawAllow.doors_passage      || false,
+    doors_privacy:     rawAllow.doors_privacy      || false,
+    doors_bifold:      rawAllow.doors_bifold       || false,
+    doors_base_molding: rawAllow.doors_base_molding || false,
+    doors_casing:      rawAllow.doors_casing       || false,
+    doors_window_stool: rawAllow.doors_window_stool || false,
+  };
 
   return {
     contract: {
@@ -388,52 +503,26 @@ function adaptToContractSchema(data) {
     },
     owner: {
       full_name:      customer.name  || '',
-      address_line1:  project.address || customer.address || '',
-      city_state_zip: [project.city, project.state || 'MA'].filter(Boolean).join(', '),
+      address_line1:  ownerAddr1,
+      city_state_zip: ownerCSZ,
       phone:          customer.phone || '',
       email:          customer.email || '',
     },
     property: {
-      address:      project.address  || '',
-      city:         project.city     || '',
-      jurisdiction: project.city     || '',
-      parcel_number: '',
+      address:       project.address       || '',
+      city:          project.city          || '',
+      jurisdiction:  jurisdiction,
+      parcel_number: project.parcel_number || '',
     },
-    job: {
-      type:             jobType,
-      has_demo:         lineItems.some(i => /demo|demolition/i.test(i.trade || '')),
-      has_framing:      lineItems.some(i => /fram/i.test(i.trade || '')),
-      has_insulation:   lineItems.some(i => /insul/i.test(i.trade || '')),
-      has_permit:       lineItems.some(i => /permit/i.test(i.trade || '')),
-      has_engineer:     false,
-      has_architect:    false,
-      sub_deposits:     null,
-      special_order_deposits: null,
-      trades: {
-        electrical: lineItems.some(i => /electric/i.test(i.trade || '')),
-        plumbing:   lineItems.some(i => /plumb/i.test(i.trade || '')),
-        hvac:       lineItems.some(i => /hvac|heat|cool|mechanical/i.test(i.trade || '')),
-        sprinkler:  false,
-      },
-      adu: { on_septic: false, separate_metering: false, site_plan_required: false, new_sewer_connection: false },
-    },
+    job,
     trades: lineItems.map(item => ({
       phase:       item.trade || '',
       description: item.description || (item.scopeIncluded || []).slice(0, 3).join('; ') || '',
-      value:       item.totalCost ? fmt(item.totalCost) : '',
+      value:       item.finalPrice  ? fmt(item.finalPrice)
+                 : item.totalCost   ? fmt(item.totalCost)
+                 : '',
     })),
-    allowances: {
-      flooring_lvp: true, flooring_tile: true, flooring_carpet: false,
-      kitchen_cabinets: true, kitchen_counter: true, kitchen_faucet: true,
-      kitchen_sink: true, kitchen_disposal: true,
-      bath_vanity_full: true, bath_vanity_half: true, bath_vanity_top: true,
-      bath_faucet: true, bath_toilet: true, bath_tub: true,
-      bath_shower_valve: true, bath_shower_door: true, bath_accessories: true,
-      bath_exhaust_fan: true,
-      doors_interior: true, doors_passage: true, doors_privacy: true,
-      doors_bifold: false, doors_base_molding: true, doors_casing: true,
-      doors_window_stool: true,
-    },
+    allowances,
   };
 }
 

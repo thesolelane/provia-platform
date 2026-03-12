@@ -96,14 +96,75 @@ Return this EXACT JSON structure:
   "clarificationsNeeded": [],
   "quoteNumber": "",
   "validUntil": "",
-  "customer": { "name": "", "email": "", "phone": "" },
+  "customer": {
+    "name": "",
+    "email": "",
+    "phone": "",
+    "address_line1": "",
+    "city_state_zip": ""
+  },
   "project": {
     "address": "",
     "city": "",
     "state": "MA",
+    "jurisdiction": "",
+    "parcel_number": "",
+    "type": "renovation",
     "description": "",
     "sqft": 0,
-    "stretchCodeTown": true/false
+    "stretchCodeTown": false
+  },
+  "job": {
+    "has_demo": false,
+    "has_framing": false,
+    "has_insulation": false,
+    "has_permit": false,
+    "permit_fee": "",
+    "has_engineer": false,
+    "engineer_fee": "",
+    "has_architect": false,
+    "architect_fee": "",
+    "sub_deposits": null,
+    "special_order_deposits": null,
+    "trades": {
+      "electrical": false,
+      "plumbing": false,
+      "hvac": false,
+      "sprinkler": false
+    },
+    "adu": {
+      "on_septic": false,
+      "separate_metering": false,
+      "site_plan_required": false,
+      "new_sewer_connection": false
+    }
+  },
+  "allowances": {
+    "flooring_lvp": false,
+    "flooring_tile": false,
+    "flooring_carpet": false,
+    "kitchen_cabinets": false,
+    "kitchen_counter": false,
+    "kitchen_faucet": false,
+    "kitchen_sink": false,
+    "kitchen_disposal": false,
+    "bath_vanity_full": false,
+    "bath_vanity_half": false,
+    "bath_vanity_top": false,
+    "bath_faucet": false,
+    "bath_toilet": false,
+    "bath_tub": false,
+    "bath_shower_valve": false,
+    "bath_shower_door": false,
+    "bath_accessories": false,
+    "bath_exhaust_fan": false,
+    "doors_interior": false,
+    "doors_passage": false,
+    "doors_privacy": false,
+    "doors_bifold": false,
+    "doors_base_molding": false,
+    "doors_casing": false,
+    "doors_window_stool": false
   },
   "lineItems": [
     {
@@ -133,7 +194,17 @@ RULES:
 8. Only set readyToGenerate to false if CRITICAL construction details are missing. NEVER ask for customer name/email/phone/address — those are always provided above.
 9. If the estimate has a "total" line, IGNORE it — the system calculates its own total from line items.
 10. Customer info is already collected — do NOT include it in clarificationsNeeded.
-11. stretchCodeItems should list any stretch code requirements NOT already covered in the estimate. If permits line says "stretch code compliance", leave this empty.`
+11. stretchCodeItems should list any stretch code requirements NOT already covered in the estimate. If permits line says "stretch code compliance", leave this empty.
+12. project.type: set "new_construction" if building from the ground up (foundation, framing, full build). Set "adu" if the scope is an accessory dwelling unit / in-law suite / carriage house / garage apartment. Set "renovation" for all other projects (remodel, addition, fit-out, repair).
+13. project.jurisdiction: the city or town name in format "City of Worcester" or "Town of Fitchburg". Use project.city if not explicitly stated.
+14. project.parcel_number: extract if present in estimate documents (often labeled Parcel, APN, Map/Lot). Leave empty string if not found.
+15. customer.address_line1 / city_state_zip: owner's own mailing address if it differs from the project address. Leave empty if same as project address.
+16. job section: set all booleans by reading the actual scope — do NOT infer from trade names alone. has_permit=true if permit work is in scope. has_engineer=true if structural/MEP engineering is in scope. has_demo=true if demolition is in scope. has_framing=true if new or modified framing is in scope. has_insulation=true if insulation is in scope. trades.electrical=true if electrical rough-in or finish is in scope. trades.plumbing=true if plumbing rough-in or finish is in scope. trades.hvac=true if HVAC, mechanical, heat, or cooling is in scope.
+17. permit_fee, engineer_fee, architect_fee: extract the dollar amount as a string (e.g. "$1,200") if explicitly stated in the estimate. Leave empty string if not stated.
+18. sub_deposits: dollar amount (string) if the estimate calls for subcontractor mobilization deposits. null if not mentioned.
+19. special_order_deposits: dollar amount (string) if the estimate includes custom, special-order, or long-lead material deposits. null if not mentioned.
+20. allowances: set true for each allowance item that is relevant to this project scope. Example: if bathrooms are in scope, set bath_vanity_full, bath_toilet, bath_faucet, bath_exhaust_fan etc. to true. If flooring is in scope, set flooring_lvp and/or flooring_tile to true. If kitchen is in scope, set kitchen_* items to true. If interior doors and trim are in scope, set doors_* items to true. Only include allowances that make sense for the actual scope — do not set all to true for a simple repair job.
+21. job.adu section: only populate if project.type === "adu". on_septic=true if the property uses a septic system. separate_metering=true if the ADU will have separate electric/gas metering. site_plan_required=true if the municipality requires site plan review. new_sewer_connection=true if a new sewer connection is required.`
       }
     ]
   });
