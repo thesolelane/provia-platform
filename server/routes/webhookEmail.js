@@ -55,13 +55,15 @@ router.post('/', async (req, res) => {
       VALUES (?, ?, 'received', ?)
     `).run(jobId, estimateText, from);
 
+    const senderFirstName = sender.name ? sender.name.split(' ')[0] : 'there';
+
     // Acknowledge receipt
     await sendEmail({
       to: from,
       subject: `Re: ${subject} — Received ✅`,
       html: language === 'pt-BR'
-        ? `<p>Olá Jackson,</p><p>Estimativa recebida! Estou processando agora e você receberá a proposta em breve.</p><p>Job ID: ${jobId}</p>`
-        : `<p>Estimate received! Processing now. You'll receive the proposal shortly.</p><p>Job ID: ${jobId}</p>`
+        ? `<p>Oi ${senderFirstName}! Recebi a estimativa e já estou processando. Você receberá a proposta em breve.</p><p>Ref: ${jobId.slice(0,8).toUpperCase()}</p>`
+        : `<p>Hey ${senderFirstName}! Got your estimate — processing it now. You'll receive the proposal shortly.</p><p>Ref: ${jobId.slice(0,8).toUpperCase()}</p>`
     });
 
     const proposalData = await processEstimate(estimateText, jobId, language);
