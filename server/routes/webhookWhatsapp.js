@@ -34,18 +34,18 @@ function downloadTwilioMedia(url) {
   });
 }
 
-// Submit a new estimate from WhatsApp (PDF or text)
-async function handleNewEstimateSubmission(rawText, from, db, sender, senderName, language) {
+// Submit a new estimate from WhatsApp (PDF, image, or text)
+// existingJobId: pass if a job record was already created (smart-detect flow)
+async function handleNewEstimateSubmission(rawText, from, db, sender, senderName, language, existingJobId = null) {
   const isPortuguese = language === 'pt-BR';
-  const jobId = uuidv4();
+  const jobId = existingJobId || uuidv4();
   const shortId = jobId.slice(0, 8).toUpperCase();
 
-  db.prepare(`
-    INSERT INTO jobs (id, raw_estimate_data, status, submitted_by)
-    VALUES (?, ?, 'received', ?)
-  `).run(jobId, rawText, from);
-
-  logAudit(jobId, 'estimate_received', `WhatsApp submission from ${senderName}`, from);
+  if (!existingJobId) {
+    db.prepare(`INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'received', ?)`
+    ).run(jobId, rawText, from);
+    logAudit(jobId, 'estimate_received', `WhatsApp submission from ${senderName}`, from);
+  }
 
   await sendWhatsApp(from, isPortuguese
     ? `👍 Recebi, ${senderName}! Analisando o orçamento agora... (Ref #${shortId})`
@@ -123,6 +123,48 @@ async function handleIncomingWhatsApp(data) {
     const language = sender.language || 'en';
     const isPortuguese = language === 'pt-BR';
     const upperBody = body.toUpperCase().trim();
+
+    // ── IMAGE ATTACHMENT — use Claude vision to read photo of estimate ─
+    if (mediaUrl && mediaContentType.startsWith('image/')) {
+      try {
+        await sendWhatsApp(from, isPortuguese
+          ? `📸 Recebi a foto, ${senderName}! Lendo o orçamento com IA... aguarde.`
+          : `📸 Got the photo, ${senderName}! Reading the estimate with AI... give me a moment.`
+        );
+        const { buffer } = await downloadTwilioMedia(mediaUrl);
+        const base64 = buffer.toString('base64');
+
+        const Anthropic = require('@anthropic-ai/sdk');
+        const visionClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+        const visionRes = await visionClient.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 3000,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaContentType, data: base64 } },
+              { type: 'text', text: 'This is a construction estimate or invoice photo. Extract ALL visible text, numbers, line items, dollar amounts, trade names, customer info, and addresses exactly as they appear. Return plain text.' }
+            ]
+          }]
+        });
+        const rawText = visionRes.content[0].text.trim();
+        if (rawText.length < 30) {
+          await sendWhatsApp(from, isPortuguese
+            ? `⚠️ Não consegui ler o texto da imagem. Tente uma foto mais nítida ou envie como PDF.`
+            : `⚠️ Couldn't read text from that image. Try a clearer photo or send it as a PDF.`
+          );
+          return;
+        }
+        await handleNewEstimateSubmission(rawText, from, db, sender, senderName, language);
+      } catch (err) {
+        console.error('Image vision error:', err);
+        await sendWhatsApp(from, isPortuguese
+          ? `❌ Erro ao processar a imagem. Tente novamente ou envie como PDF.`
+          : `❌ Error processing the image. Try again or send it as a PDF.`
+        );
+      }
+      return;
+    }
 
     // ── PDF ATTACHMENT — treat as new estimate submission ─────────────
     if (mediaUrl && (mediaContentType.includes('pdf') || mediaContentType.includes('application'))) {
@@ -235,29 +277,29 @@ async function handleIncomingWhatsApp(data) {
     // ── AWAITING START — waiting for yes/no to begin questions ───────
     if (activeJob && activeJob.status === 'awaiting_start') {
       if (isYes(body)) {
-        // Start the first question
-        const firstQ = db.prepare(
-          'SELECT * FROM clarifications WHERE job_id = ? AND answer IS NULL ORDER BY asked_at ASC LIMIT 1'
-        ).get(activeJob.id);
-        const totalQ = db.prepare('SELECT COUNT(*) as count FROM clarifications WHERE job_id = ?').get(activeJob.id);
-
-        db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', activeJob.id);
+        const hasClarifications = db.prepare('SELECT COUNT(*) as count FROM clarifications WHERE job_id = ?').get(activeJob.id);
+        const firstQ = hasClarifications.count > 0
+          ? db.prepare('SELECT * FROM clarifications WHERE job_id = ? AND answer IS NULL ORDER BY asked_at ASC LIMIT 1').get(activeJob.id)
+          : null;
 
         if (firstQ) {
+          // Pre-loaded clarification questions from Hearth/prior processing
+          db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', activeJob.id);
           const shortId = activeJob.id.slice(0, 8).toUpperCase();
           const customerLabel = activeJob.customer_name ? ` for *${activeJob.customer_name}*` : '';
 
           await sendWhatsApp(from, isPortuguese
-            ? `Ótimo, ${senderName}! Vamos começar.\n\n📋 Pré-orçamento #${shortId}${customerLabel}\n\n❓ Pergunta 1 de ${totalQ.count}:\n${firstQ.question}`
-            : `Great, ${senderName}! Let's do it.\n\n📋 Pre-quote #${shortId}${customerLabel}\n\n❓ Question 1 of ${totalQ.count}:\n${firstQ.question}`
+            ? `Ótimo, ${senderName}! Vamos começar.\n\n📋 Pré-orçamento #${shortId}${customerLabel}\n\n❓ Pergunta 1 de ${hasClarifications.count}:\n${firstQ.question}`
+            : `Great, ${senderName}! Let's do it.\n\n📋 Pre-quote #${shortId}${customerLabel}\n\n❓ Question 1 of ${hasClarifications.count}:\n${firstQ.question}`
           );
         } else {
-          // No questions — just process it
+          // No pre-loaded questions — process the raw estimate fresh (smart-detect or clean estimate)
+          db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', activeJob.id);
           await sendWhatsApp(from, isPortuguese
-            ? `Perfeito! Gerando a proposta agora...`
-            : `Perfect! Generating the proposal now...`
+            ? `Ótimo, ${senderName}! Processando o orçamento agora...`
+            : `Great, ${senderName}! Processing the estimate now...`
           );
-          await finishClarifications(activeJob, from, db, language, senderName);
+          await handleNewEstimateSubmission(activeJob.raw_estimate_data, from, db, sender, senderName, language, activeJob.id);
         }
       } else if (isNo(body)) {
         const shortId = activeJob.id.slice(0, 8).toUpperCase();
@@ -280,6 +322,24 @@ async function handleIncomingWhatsApp(data) {
     if (activeJob && activeJob.status === 'clarification') {
       await handleClarificationReply(activeJob, body, from, db, language, senderName);
       return;
+    }
+
+    // ── SMART TEXT DETECTION — long text with no active job ───────────
+    // If no active job, message is long, and looks like construction estimate text
+    if (!activeJob && body.length > 200) {
+      const estimateKeywords = /\$[\d,]+|sq\.?\s*ft|square feet|demo|framing|drywall|plumbing|electrical|roofing|siding|hvac|concrete|foundation|insulation|permit|labor|materials|trade|subcontractor|estimate|proposal|scope/i;
+      if (estimateKeywords.test(body)) {
+        await sendWhatsApp(from, isPortuguese
+          ? `📋 Ei ${senderName}, isso parece um orçamento! Quer que eu processe e gere uma proposta?\n\nResponda *SIM* para processar ou *NÃO* para continuar a conversa.`
+          : `📋 Hey ${senderName}, that looks like it might be an estimate! Want me to process it and generate a proposal?\n\nReply *YES* to process it or *NO* to just chat.`
+        );
+        // Save the text temporarily in DB as a pending job so we can grab it if they say yes
+        const { v4: uuidv4 } = require('uuid');
+        const tempJobId = uuidv4();
+        db.prepare(`INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'awaiting_start', ?)`
+        ).run(tempJobId, body, from);
+        return;
+      }
     }
 
     // ── GENERAL CHAT ─────────────────────────────────────────────────

@@ -21,7 +21,11 @@ export default function Dashboard({ token }) {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showManual, setShowManual] = useState(false);
+  const [submitTab, setSubmitTab] = useState('text'); // 'text' | 'file'
+  const [submitBusy, setSubmitBusy] = useState(false);
   const [manual, setManual] = useState({ customerName:'', customerEmail:'', customerPhone:'', projectAddress:'', estimateText:'' });
+  const [uploadFile, setUploadFile] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const headers = { 'x-auth-token': token };
 
@@ -67,13 +71,40 @@ export default function Dashboard({ token }) {
   };
 
   const submitManual = async () => {
+    setSubmitBusy(true);
     const res = await fetch('/api/jobs/manual', {
       method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify(manual)
     });
     const data = await res.json();
+    setSubmitBusy(false);
     if (res.ok) { setShowManual(false); window.location.reload(); }
-    else { alert(data.error); }
+    else { alert(data.error || 'Error submitting estimate'); }
+  };
+
+  const submitUpload = async () => {
+    if (!uploadFile) return alert('Please select a file first.');
+    setSubmitBusy(true);
+    const form = new FormData();
+    form.append('estimate', uploadFile);
+    form.append('customerName', manual.customerName);
+    form.append('customerEmail', manual.customerEmail);
+    form.append('customerPhone', manual.customerPhone);
+    form.append('projectAddress', manual.projectAddress);
+    const res = await fetch('/api/jobs/upload-estimate', {
+      method: 'POST', headers, body: form
+    });
+    const data = await res.json();
+    setSubmitBusy(false);
+    if (res.ok) { setShowManual(false); window.location.reload(); }
+    else { alert(data.error || 'Error processing file'); }
+  };
+
+  const openNewJob = () => {
+    setSubmitTab('text');
+    setUploadFile(null);
+    setManual({ customerName:'', customerEmail:'', customerPhone:'', projectAddress:'', estimateText:'' });
+    setShowManual(true);
   };
 
   if (loading) return <div style={{ padding: 40, color: '#888' }}>Loading...</div>;
@@ -87,10 +118,10 @@ export default function Dashboard({ token }) {
           <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Preferred Builders AI Contract System</p>
         </div>
         <button
-          onClick={() => setShowManual(true)}
+          onClick={openNewJob}
           style={{ background: '#1B3A6B', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
         >
-          + Manual Estimate
+          + New Job
         </button>
       </div>
 
@@ -209,42 +240,125 @@ export default function Dashboard({ token }) {
         </div>
       )}
 
-      {/* Manual entry modal */}
+      {/* New Job modal */}
       {showManual && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 560, maxHeight: '90vh', overflow: 'auto' }}>
-            <h2 style={{ color: '#1B3A6B', marginBottom: 20 }}>Manual Estimate Entry</h2>
-            {[
-              { label: 'Customer Name', key: 'customerName' },
-              { label: 'Customer Email', key: 'customerEmail' },
-              { label: 'Customer Phone', key: 'customerPhone' },
-              { label: 'Project Address', key: 'projectAddress' },
-            ].map(f => (
-              <div key={f.key} style={{ marginBottom: 12 }}>
-                <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>{f.label}</label>
-                <input
-                  value={manual[f.key]}
-                  onChange={e => setManual({ ...manual, [f.key]: e.target.value })}
-                  style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 6, fontSize: 13, boxSizing: 'border-box' }}
+          <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 580, maxHeight: '92vh', overflow: 'auto' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <h2 style={{ color: '#1B3A6B', margin: 0, fontSize: 20 }}>New Job</h2>
+              <button onClick={() => setShowManual(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888' }}>×</button>
+            </div>
+            <p style={{ color: '#888', fontSize: 12, marginBottom: 20 }}>Submit an estimate any way you have it — Claude will extract the details automatically.</p>
+
+            {/* Customer info (shared across tabs) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+              {[
+                { label: 'Customer Name', key: 'customerName', placeholder: 'John Smith' },
+                { label: 'Customer Phone', key: 'customerPhone', placeholder: '+1 555 000 0000' },
+                { label: 'Customer Email', key: 'customerEmail', placeholder: 'john@email.com' },
+                { label: 'Project Address', key: 'projectAddress', placeholder: '123 Main St, City, FL' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 3 }}>{f.label}</label>
+                  <input
+                    value={manual[f.key]}
+                    onChange={e => setManual({ ...manual, [f.key]: e.target.value })}
+                    placeholder={f.placeholder}
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', borderBottom: '2px solid #f0f0f0', marginBottom: 16 }}>
+              {[
+                { id: 'text', label: '✏️ Paste Text' },
+                { id: 'file', label: '📎 Upload File' },
+              ].map(tab => (
+                <button key={tab.id} onClick={() => setSubmitTab(tab.id)} style={{
+                  padding: '8px 18px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: submitTab === tab.id ? 'bold' : 'normal',
+                  background: 'none', color: submitTab === tab.id ? '#1B3A6B' : '#888',
+                  borderBottom: submitTab === tab.id ? '2px solid #1B3A6B' : '2px solid transparent', marginBottom: -2
+                }}>{tab.label}</button>
+              ))}
+            </div>
+
+            {/* Tab: Paste Text */}
+            {submitTab === 'text' && (
+              <div>
+                <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 4 }}>
+                  Estimate details — paste scope notes, a forwarded email, or type it out
+                </label>
+                <textarea
+                  rows={9}
+                  value={manual.estimateText}
+                  onChange={e => setManual({ ...manual, estimateText: e.target.value })}
+                  style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 6, fontSize: 12, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+                  placeholder={`e.g. New 2-story build — 3-bay garage 1st floor, living space 2nd floor\nMetal roof, board & batten siding, mini splits x3\nPermit included. Start date flexible.\nBudget: $350,000`}
                 />
+                <button
+                  onClick={submitManual}
+                  disabled={submitBusy || !manual.estimateText.trim()}
+                  style={{ marginTop: 12, width: '100%', padding: 12, background: submitBusy ? '#888' : '#1B3A6B', color: 'white', border: 'none', borderRadius: 6, cursor: submitBusy ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: 14 }}
+                >
+                  {submitBusy ? '⏳ Processing with AI...' : '🤖 Generate Proposal'}
+                </button>
               </div>
-            ))}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>Estimate Details (paste Hearth notes or describe scope)</label>
-              <textarea
-                rows={8}
-                value={manual.estimateText}
-                onChange={e => setManual({ ...manual, estimateText: e.target.value })}
-                style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 6, fontSize: 13, boxSizing: 'border-box', resize: 'vertical' }}
-                placeholder="e.g. New 2-story build, 3-bay garage 1st floor, living space 2nd floor, metal roof, board & batten, mini splits..."
-              />
-            </div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setShowManual(false)} style={{ flex: 1, padding: 10, border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', background: 'white' }}>Cancel</button>
-              <button onClick={submitManual} style={{ flex: 2, padding: 10, background: '#1B3A6B', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}>
-                🤖 Generate Proposal
-              </button>
-            </div>
+            )}
+
+            {/* Tab: Upload File */}
+            {submitTab === 'file' && (
+              <div>
+                <div
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setUploadFile(f); }}
+                  style={{
+                    border: `2px dashed ${dragOver ? '#1B3A6B' : '#ddd'}`, borderRadius: 8, padding: 32, textAlign: 'center',
+                    background: dragOver ? '#f0f4ff' : '#fafafa', cursor: 'pointer', marginBottom: 12
+                  }}
+                  onClick={() => document.getElementById('estimate-file-input').click()}
+                >
+                  {uploadFile ? (
+                    <div>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>{uploadFile.type.includes('pdf') ? '📄' : '🖼️'}</div>
+                      <div style={{ fontWeight: 'bold', color: '#1B3A6B', fontSize: 14 }}>{uploadFile.name}</div>
+                      <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>({(uploadFile.size / 1024).toFixed(1)} KB)</div>
+                      <button onClick={e => { e.stopPropagation(); setUploadFile(null); }} style={{ marginTop: 8, background: 'none', border: 'none', color: '#C62828', cursor: 'pointer', fontSize: 12 }}>✕ Remove</button>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: 36, marginBottom: 8 }}>📁</div>
+                      <div style={{ fontWeight: 'bold', color: '#555', fontSize: 14 }}>Drag & drop or click to browse</div>
+                      <div style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
+                        Supports: PDF estimates, JPG/PNG photos of printed estimates, .txt files
+                      </div>
+                    </div>
+                  )}
+                  <input
+                    id="estimate-file-input"
+                    type="file"
+                    accept=".pdf,image/jpeg,image/png,image/webp,.txt"
+                    style={{ display: 'none' }}
+                    onChange={e => { if (e.target.files[0]) setUploadFile(e.target.files[0]); }}
+                  />
+                </div>
+                {uploadFile && uploadFile.type.startsWith('image/') && (
+                  <p style={{ fontSize: 11, color: '#888', marginBottom: 8, marginTop: 0 }}>
+                    AI will read the image and extract all text, line items, and dollar amounts automatically.
+                  </p>
+                )}
+                <button
+                  onClick={submitUpload}
+                  disabled={submitBusy || !uploadFile}
+                  style={{ width: '100%', padding: 12, background: submitBusy ? '#888' : '#1B3A6B', color: 'white', border: 'none', borderRadius: 6, cursor: submitBusy ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: 14 }}
+                >
+                  {submitBusy ? '⏳ Processing with AI...' : '🤖 Upload & Generate Proposal'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

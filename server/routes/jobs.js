@@ -101,6 +101,86 @@ router.post('/:id/send-to-customer', requireAuth, async (req, res) => {
   }
 });
 
+// POST upload PDF/image as a new job estimate
+router.post('/upload-estimate', requireAuth, async (req, res) => {
+  const { v4: uuidv4 } = require('uuid');
+  const pdfParse = require('pdf-parse');
+  const Anthropic = require('@anthropic-ai/sdk');
+  const db = getDb();
+
+  if (!req.files?.estimate) return res.status(400).json({ error: 'No file uploaded' });
+  const file = req.files.estimate;
+  const { customerName = '', customerEmail = '', customerPhone = '', projectAddress = '' } = req.body;
+
+  let rawText = '';
+
+  try {
+    if (file.mimetype === 'application/pdf') {
+      const parsed = await pdfParse(file.data);
+      rawText = parsed.text.trim();
+      if (rawText.length < 50) return res.status(400).json({ error: 'PDF appears empty or unreadable. Please use a text-based PDF.' });
+    } else if (file.mimetype.startsWith('image/')) {
+      // Use Claude vision to extract text from image
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const base64 = file.data.toString('base64');
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 3000,
+        messages: [{
+          role: 'user',
+          content: [{
+            type: 'image',
+            source: { type: 'base64', media_type: file.mimetype, data: base64 }
+          }, {
+            type: 'text',
+            text: 'This is a construction estimate or invoice image. Extract ALL text and numbers exactly as they appear, preserving line items, dollar amounts, trade names, and addresses. Format as plain text.'
+          }]
+        }]
+      });
+      rawText = response.content[0].text.trim();
+    } else if (file.mimetype.startsWith('text/')) {
+      rawText = file.data.toString('utf8').trim();
+    } else {
+      return res.status(400).json({ error: 'Unsupported file type. Use PDF, image (JPG/PNG), or text file.' });
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to read file: ' + err.message });
+  }
+
+  const jobId = uuidv4();
+  const fullEstimate = customerName
+    ? `CUSTOMER INFORMATION (already collected — do NOT ask for this):\nCustomer Name: ${customerName}\nCustomer Email: ${customerEmail}\nCustomer Phone: ${customerPhone}\nProject Address: ${projectAddress}\n\nESTIMATE DETAILS:\n${rawText}`
+    : rawText;
+
+  db.prepare(`INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by)
+    VALUES (?, ?, ?, ?, ?, ?, 'received', 'manual')`
+  ).run(jobId, customerName, customerEmail, customerPhone, projectAddress, fullEstimate);
+
+  res.json({ jobId, status: 'received', message: 'File uploaded. Processing estimate...' });
+
+  const { processEstimate } = require('../services/claudeService');
+  (async () => {
+    try {
+      db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', jobId);
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en');
+      if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', jobId);
+        const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
+        for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
+        logAudit(jobId, 'upload_estimate_clarification', `${proposalData.clarificationsNeeded.length} questions needed`, 'admin');
+      } else {
+        const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
+        db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
+          .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
+        logAudit(jobId, 'upload_estimate_processed', `Proposal ready. Total: $${proposalData.totalValue}`, 'admin');
+      }
+    } catch (err) {
+      console.error(`[Upload Job ${jobId}] ERROR:`, err.message);
+      db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('error', jobId);
+    }
+  })();
+});
+
 // POST manual estimate input (fallback if no Hearth/Wave)
 router.post('/manual', requireAuth, async (req, res) => {
   const { v4: uuidv4 } = require('uuid');
