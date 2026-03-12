@@ -66,6 +66,16 @@ Jobs are soft-deleted (archived) not hard-deleted. Archived jobs are automatical
 - Approved senders whitelist uses `whatsapp:+1XXXXXXXXXX` format
 - Puppeteer needs Chrome — run `npx puppeteer browsers install chrome` if Chrome missing
 
+## Docker Deployment
+- `Dockerfile` — Multi-stage build: Stage 1 builds React frontend, Stage 2 creates production Node.js image with Puppeteer/Chromium
+- `docker/Dockerfile.nginx` — Multi-stage build: builds React frontend and bundles it into nginx image
+- `docker-compose.yml` — Two services: `app` (Node.js API) and `nginx` (reverse proxy + frontend). Nginx depends on app.
+- `docker/nginx.conf` — Routes `/` to static React files, `/api/` and `/webhook/` to app container
+- Persistent data (data/, uploads/, outputs/, knowledge-base/) mounted as host volumes on the app container
+- SSL certs go in `docker/ssl/` (optional, mounted read-only into nginx)
+- `.env.example` contains all environment variables; `scripts/setup.sh` creates `.env` interactively
+- `scripts/backup.sh` creates a tarball of all persistent data
+
 ## Production TODO
 - [ ] **Move sessions to SQLite** — Currently sessions are stored in-memory (`server/middleware/auth.js`). They are lost on every server restart. For production, store sessions in the SQLite database so they survive restarts.
 - [ ] **Switch WhatsApp from poller to webhook** — On a real server with a static domain, configure the Twilio webhook URL directly and remove the polling mechanism.

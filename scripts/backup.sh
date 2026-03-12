@@ -28,7 +28,12 @@ tar -czf "$BACKUP_PATH" \
   uploads/ \
   knowledge-base/ \
   .env \
-  2>/dev/null || true
+  2>/dev/null
+
+if [ $? -ne 0 ]; then
+  echo "❌ Backup failed — check that data directories exist."
+  exit 1
+fi
 
 SIZE=$(du -sh "$BACKUP_PATH" | cut -f1)
 
@@ -39,5 +44,5 @@ echo "   Size: $SIZE"
 echo ""
 echo "To restore on a new server:"
 echo "  tar -xzf $BACKUP_NAME.tar.gz"
-echo "  npm install && npm start"
+echo "  docker-compose up -d"
 echo ""

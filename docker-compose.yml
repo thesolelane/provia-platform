@@ -6,13 +6,13 @@
 #   Start:   docker-compose up -d
 #   Stop:    docker-compose down
 #   Logs:    docker-compose logs -f
-#   Backup:  tar -czf pb-backup.tar.gz ./data
+#   Backup:  bash scripts/backup.sh
 #
 # MOVE TO NEW SERVER:
 #   1. Copy entire project folder to new server
 #   2. Install Docker on new server
-#   3. Run: docker-compose up -d
-#   4. Done — everything works identically
+#   3. Copy .env and fill in your values
+#   4. Run: docker-compose up -d
 # ============================================================
 
 version: '3.9'
@@ -29,7 +29,6 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      # All secrets come from .env file — never hardcoded
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - MAILGUN_API_KEY=${MAILGUN_API_KEY}
       - MAILGUN_DOMAIN=${MAILGUN_DOMAIN}
@@ -44,38 +43,37 @@ services:
       - OWNER_WHATSAPP=${OWNER_WHATSAPP}
       - JACKSON_WHATSAPP=${JACKSON_WHATSAPP}
       - OWNER_EMAIL=${OWNER_EMAIL}
+      - APP_URL=${APP_URL}
+      - PB_FROM_EMAIL=${PB_FROM_EMAIL}
+      - ESTIMATION_PLATFORM=${ESTIMATION_PLATFORM}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - WAVE_ACCESS_TOKEN=${WAVE_ACCESS_TOKEN}
+      - WAVE_BUSINESS_ID=${WAVE_BUSINESS_ID}
     volumes:
-      # These folders live on YOUR machine — survive container restarts
-      - ./data:/app/data               # SQLite database
-      - ./uploads:/app/uploads         # Uploaded invoices & docs
-      - ./outputs:/app/outputs         # Generated PDFs
-      - ./knowledge-base:/app/knowledge-base  # Your knowledge docs
-    depends_on:
-      - nginx
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./outputs:/app/outputs
+      - ./knowledge-base:/app/knowledge-base
     networks:
       - pb_network
 
   # ── NGINX REVERSE PROXY ──────────────────────────────────
-  # Handles HTTPS, serves the React frontend, routes /api to app
   nginx:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nginx
     container_name: pb_nginx
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./client/build:/usr/share/nginx/html:ro   # React frontend
-      - ./docker/ssl:/etc/nginx/ssl:ro             # SSL certs (optional)
+      - ./docker/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
     networks:
       - pb_network
 
 networks:
   pb_network:
     driver: bridge
-
-# ── VOLUMES (persistent data on your machine) ────────────────
-volumes:
-  pb_data:
-    driver: local

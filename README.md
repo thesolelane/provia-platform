@@ -66,33 +66,51 @@ Set these URLs in your service dashboards:
 
 ## MOVING TO YOUR OWN SERVER
 
-This is a Docker application — moving it is simple.
+This is a fully self-contained Docker application. The React frontend is built
+inside the Docker image automatically — no pre-built files are needed on the host.
 
 ### What you need on the new server:
 ```bash
-# Install Docker
+# Install Docker and Docker Compose
 curl -fsSL https://get.docker.com | sh
-
-# Install Docker Compose
 sudo apt install docker-compose
 ```
 
-### Move the system:
+### Fresh install on a new server:
 ```bash
-# On old server — backup your data
-tar -czf pb-backup.tar.gz ./data ./uploads ./outputs ./knowledge-base .env
+# 1. Copy the entire project folder to the new server
+scp -r ./pb-system user@new-server:/home/user/
 
-# Copy backup to new server
-scp pb-backup.tar.gz user@new-server:/home/user/
-
-# On new server
-tar -xzf pb-backup.tar.gz
-git clone [your repo] pb-system  # or copy all files
+# 2. SSH into the new server
+ssh user@new-server
 cd pb-system
+
+# 3. Run the setup wizard (creates .env with your API keys)
+bash scripts/setup.sh
+
+# 4. Start everything
 docker-compose up -d
 ```
 
-**That's it.** Everything works identically on any server with Docker.
+The `docker build` step compiles the React frontend, installs all dependencies,
+and bundles the knowledge-base files into the image. Nginx serves the frontend
+and proxies API requests to the app container.
+
+### Migrating data from an existing server:
+```bash
+# On old server — create a backup
+bash scripts/backup.sh
+
+# Copy backup to new server
+scp pb-backup-*.tar.gz user@new-server:/home/user/pb-system/
+
+# On new server — restore data
+cd pb-system
+tar -xzf pb-backup-*.tar.gz
+
+# Start the system
+docker-compose up -d
+```
 
 ### Recommended VPS providers:
 | Provider | Monthly Cost | Notes |

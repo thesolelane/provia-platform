@@ -4,6 +4,18 @@
 # Works on any machine that has Docker installed
 # ============================================================
 
+# ── Stage 1: Build the React frontend ───────────────────────
+FROM node:20-alpine AS client-build
+
+WORKDIR /build
+
+COPY client/package*.json ./
+RUN npm ci
+
+COPY client/ ./
+RUN npm run build
+
+# ── Stage 2: Production image ───────────────────────────────
 FROM node:20-alpine
 
 # Install Chromium for PDF generation (Puppeteer)
@@ -29,11 +41,14 @@ RUN npm ci --only=production
 # Copy application code
 COPY server/ ./server/
 COPY config/ ./config/
-COPY templates/ ./templates/
 COPY scripts/ ./scripts/
+COPY knowledge-base/ ./knowledge-base/
+
+# Copy the built React frontend from Stage 1
+COPY --from=client-build /build/build ./client/build/
 
 # Create required directories
-RUN mkdir -p data uploads outputs knowledge-base
+RUN mkdir -p data uploads outputs
 
 # Non-root user for security
 RUN addgroup -g 1001 -S pbuser && \

@@ -94,8 +94,8 @@ read -p "  Choice (1 or 2): " platform_choice
 if [ "$platform_choice" = "2" ]; then
   sed -i "s/ESTIMATION_PLATFORM=.*/ESTIMATION_PLATFORM=wave/" .env
   echo -e "${GREEN}  ✓ Wave selected${NC}"
-  read -p "  Wave API Key: " wave_key
-  sed -i "s/WAVE_API_KEY=.*/WAVE_API_KEY=$wave_key/" .env
+  read -p "  Wave Access Token: " wave_key
+  sed -i "s/WAVE_ACCESS_TOKEN=.*/WAVE_ACCESS_TOKEN=$wave_key/" .env
   read -p "  Wave Business ID: " wave_biz
   sed -i "s/WAVE_BUSINESS_ID=.*/WAVE_BUSINESS_ID=$wave_biz/" .env
 else
@@ -125,10 +125,9 @@ sed -i "s/WEBHOOK_SECRET=.*/WEBHOOK_SECRET=$WEBHOOK_SECRET/" .env
 echo -e "${GREEN}✓ Webhook secret generated automatically${NC}"
 echo ""
 
-# ── Install dependencies ─────────────────────────────────────────────────────
-echo -e "${BOLD}Installing dependencies...${NC}"
-npm install
-echo -e "${GREEN}✓ Dependencies installed${NC}"
+# ── Create required directories ───────────────────────────────────────────────
+mkdir -p data uploads outputs knowledge-base docker/ssl
+echo -e "${GREEN}✓ Data directories created${NC}"
 echo ""
 
 # ── Summary ──────────────────────────────────────────────────────────────────
@@ -136,7 +135,7 @@ echo -e "${BLUE}${BOLD}================================================${NC}"
 echo -e "${GREEN}${BOLD}  ✅ SETUP COMPLETE!${NC}"
 echo -e "${BLUE}${BOLD}================================================${NC}"
 echo ""
-echo -e "Start the app:  ${BOLD}npm start${NC}"
+echo -e "Start the app:  ${BOLD}docker-compose up -d${NC}"
 echo -e "Admin panel:    ${BOLD}$app_url/admin${NC}"
 echo ""
 echo -e "${ORANGE}WEBHOOK URLS to configure in your platforms:${NC}"
