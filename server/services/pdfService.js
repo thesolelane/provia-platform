@@ -5,8 +5,21 @@
 const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
+const { execSync } = require('child_process');
 
 const { buildContractHTML: buildContractHTMLNew, adaptToContractSchema, blankContractSchema } = require('./contractTemplate');
+
+// Resolve Chromium: prefer env var, then nix-installed system chromium, then puppeteer bundled
+function resolveChromiumPath() {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
+  try {
+    const p = execSync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null', { timeout: 3000 }).toString().trim();
+    if (p) return p;
+  } catch (_) {}
+  return undefined; // fall back to puppeteer's own bundled chrome
+}
+const CHROMIUM_PATH = resolveChromiumPath();
+if (CHROMIUM_PATH) console.log('[PDF] Using Chromium:', CHROMIUM_PATH);
 
 const OUTPUT_DIR = path.join(__dirname, '../../outputs');
 if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
@@ -26,7 +39,7 @@ async function generatePDF(data, type, jobId) {
 
   const browser = await puppeteer.launch({
     headless: 'new',
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    executablePath: CHROMIUM_PATH,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
   });
 
