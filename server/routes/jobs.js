@@ -358,26 +358,31 @@ router.patch('/:id/notes', requireAuth, (req, res) => {
 router.get('/stats/summary', requireAuth, (req, res) => {
   const db = getDb();
 
-  // Total active jobs (non-archived)
-  const total = db.prepare('SELECT COUNT(*) as count FROM jobs WHERE archived = 0').get();
-
   // Status breakdown (non-archived only)
   const byStatus = db.prepare('SELECT status, COUNT(*) as count FROM jobs WHERE archived = 0 GROUP BY status').all();
 
-  // Pipeline value = active opportunities not yet won (excludes archived + complete)
+  // Total Jobs (YTD) — all quotes submitted this calendar year
+  const total = db.prepare(
+    "SELECT COUNT(*) as count FROM jobs WHERE archived = 0 AND created_at >= date('now','start of year')"
+  ).get();
+
+  // Quotes Done (YTD) — proposals completed this year (reached proposal_ready or beyond)
+  const quotesCompleted = db.prepare(
+    `SELECT COUNT(*) as count FROM jobs WHERE archived = 0
+     AND status IN ('proposal_ready','proposal_sent','customer_approved','contract_ready','contract_sent','complete')
+     AND created_at >= date('now','start of year')`
+  ).get();
+
+  // Pipeline Value — estimates done and actively sent to customer (not yet won)
   const pipelineValue = db.prepare(
-    "SELECT SUM(total_value) as total FROM jobs WHERE archived = 0 AND status != 'complete'"
+    `SELECT SUM(total_value) as total FROM jobs WHERE archived = 0
+     AND status IN ('proposal_sent','customer_approved','contract_ready','contract_sent')`
   ).get();
 
-  // Jobs created this month (count card)
-  const thisMonthCount = db.prepare(
-    "SELECT COUNT(*) as count FROM jobs WHERE archived = 0 AND created_at >= date('now','start of month')"
-  ).get();
-
-  // Month revenue = won contracts (complete) where the job was marked complete this month
-  // Uses updated_at so jobs won this month count even if created in a prior month
-  const monthRevenue = db.prepare(
-    "SELECT SUM(total_value) as value FROM jobs WHERE archived = 0 AND status = 'complete' AND updated_at >= date('now','start of month')"
+  // Won Revenue (YTD) — contracts signed and won this calendar year
+  // Uses updated_at so a job submitted last year but won this year counts correctly
+  const revenueWon = db.prepare(
+    "SELECT SUM(total_value) as value FROM jobs WHERE archived = 0 AND status = 'complete' AND updated_at >= date('now','start of year')"
   ).get();
 
   res.json({
@@ -385,8 +390,8 @@ router.get('/stats/summary', requireAuth, (req, res) => {
     byStatus,
     totalValue: pipelineValue.total || 0,
     thisMonth: {
-      count: thisMonthCount.count,
-      value: monthRevenue.value || 0
+      count: quotesCompleted.count,
+      value: revenueWon.value || 0
     }
   });
 });

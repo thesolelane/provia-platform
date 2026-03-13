@@ -133,10 +133,10 @@ export default function Dashboard({ token }) {
       {stats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
           {[
-            { label: 'Total Jobs', value: stats.total, icon: '📋' },
-            { label: 'This Month', value: stats.thisMonth?.count || 0, icon: '📅' },
+            { label: 'Total Jobs (YTD)', value: stats.total, icon: '📋' },
+            { label: 'Quotes Done (YTD)', value: stats.thisMonth?.count || 0, icon: '📅' },
             { label: 'Pipeline Value', value: `$${(stats.totalValue || 0).toLocaleString()}`, icon: '💰' },
-            { label: 'Month Revenue', value: `$${(stats.thisMonth?.value || 0).toLocaleString()}`, icon: '📈' },
+            { label: 'Won Revenue (YTD)', value: `$${(stats.thisMonth?.value || 0).toLocaleString()}`, icon: '📈' },
           ].map(card => (
             <div key={card.label} style={{ background: 'white', borderRadius: 10, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>{card.icon}</div>
