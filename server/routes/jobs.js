@@ -56,14 +56,14 @@ router.post('/:id/approve', requireAuth, async (req, res) => {
   if (!job.proposal_data) return res.status(400).json({ error: 'No proposal to approve' });
 
   try {
-    db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('customer_approved', job.id);
+    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('customer_approved', job.id);
 
     const { generateContract } = require('../services/claudeService');
     const proposalData = JSON.parse(job.proposal_data);
     const contractData = await generateContract(proposalData, job.id, 'en');
 
     const contractPDF = await generatePDF(contractData, 'contract', job.id);
-    db.prepare('UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = ? WHERE id = ?')
+    db.prepare('UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
       .run(JSON.stringify(contractData), contractPDF, 'contract_ready', job.id);
 
     logAudit(job.id, 'contract_generated', 'Contract approved via admin panel', 'admin');
@@ -94,7 +94,7 @@ router.post('/:id/send-to-customer', requireAuth, async (req, res) => {
       attachmentName: `PB_Contract_${job.customer_name?.replace(/\s/g, '_')}.pdf`
     });
 
-    db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('contract_sent', job.id);
+    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('contract_sent', job.id);
     logAudit(job.id, 'contract_sent_to_customer', `Contract emailed to ${job.customer_email}`, 'admin');
     res.json({ success: true, message: `Contract sent to ${job.customer_email}` });
   } catch (err) {
@@ -164,23 +164,23 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
   const { processEstimate } = require('../services/claudeService');
   (async () => {
     try {
-      db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', jobId);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
       const proposalData = await processEstimate(fullEstimate, jobId, 'en');
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
-        db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', jobId);
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
         logAudit(jobId, 'upload_estimate_clarification', `${proposalData.clarificationsNeeded.length} questions needed`, 'admin');
       } else {
         const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
-        db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
+        db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
           .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
         logAudit(jobId, 'upload_estimate_processed', `Proposal ready. Total: $${proposalData.totalValue}`, 'admin');
         tickQuoteCounter(db);
       }
     } catch (err) {
       console.error(`[Upload Job ${jobId}] ERROR:`, err.message);
-      db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('error', jobId);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', jobId);
     }
   })();
 });
@@ -219,7 +219,7 @@ router.post('/manual', requireAuth, async (req, res) => {
   (async () => {
     try {
       console.log(`[Manual Job ${jobId}] Starting Claude processEstimate...`);
-      db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', jobId);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
 
       const fullEstimate = `CUSTOMER INFORMATION (already collected — do NOT ask for this):
 Customer Name: ${customerName || 'N/A'}
@@ -233,7 +233,7 @@ ${estimateText}`;
       console.log(`[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
-        db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', jobId);
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) {
           insertQ.run(jobId, q);
@@ -249,7 +249,7 @@ ${estimateText}`;
         }
       } else {
         const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
-        db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
+        db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
           .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
         logAudit(jobId, 'manual_estimate_processed', `Manual entry by admin`, 'admin');
         console.log(`[Manual Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
@@ -257,7 +257,7 @@ ${estimateText}`;
       }
     } catch (err) {
       console.error(`[Manual Job ${jobId}] ERROR:`, err.message, err.stack);
-      db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('error', jobId);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', jobId);
     }
   })();
 });
@@ -283,7 +283,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
       (async () => {
         try {
           console.log(`[Job ${job.id}] All clarifications answered. Generating proposal...`);
-          db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', job.id);
+          db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', job.id);
 
           const allAnswers = db.prepare('SELECT question, answer FROM clarifications WHERE job_id = ?').all(job.id);
           const answersText = allAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n');
@@ -296,14 +296,14 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
           );
 
           const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
-          db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
+          db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
             .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', job.id);
           logAudit(job.id, 'proposal_generated', `Proposal generated after clarification`, 'admin');
           console.log(`[Job ${job.id}] Proposal ready. Total: $${proposalData.totalValue}`);
           tickQuoteCounter(db);
         } catch (err) {
           console.error(`[Job ${job.id}] Proposal generation error:`, err.message);
-          db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('error', job.id);
+          db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', job.id);
         }
       })();
     }
@@ -321,7 +321,7 @@ router.post('/:id/reprocess', requireAuth, async (req, res) => {
   res.json({ success: true, message: 'Reprocessing started' });
 
   try {
-    db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', job.id);
+    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', job.id);
 
     const fullEstimate = `CUSTOMER INFORMATION (already collected — do NOT ask for this):
 Customer Name: ${job.customer_name || 'N/A'}
@@ -336,14 +336,14 @@ ${job.raw_estimate_data}`;
     const proposalData = await processEstimate(fullEstimate, job.id, 'en');
     if (proposalData.readyToGenerate) {
       const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
-      db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
+      db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
         .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', job.id);
       console.log(`[Reprocess ${job.id}] Done. Total: $${proposalData.totalValue}`);
       tickQuoteCounter(db);
     }
   } catch (err) {
     console.error(`[Reprocess ${job.id}] Error:`, err.message);
-    db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('error', job.id);
+    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', job.id);
   }
 });
 
@@ -357,11 +357,38 @@ router.patch('/:id/notes', requireAuth, (req, res) => {
 // GET job stats for dashboard
 router.get('/stats/summary', requireAuth, (req, res) => {
   const db = getDb();
+
+  // Total active jobs (non-archived)
   const total = db.prepare('SELECT COUNT(*) as count FROM jobs WHERE archived = 0').get();
+
+  // Status breakdown (non-archived only)
   const byStatus = db.prepare('SELECT status, COUNT(*) as count FROM jobs WHERE archived = 0 GROUP BY status').all();
-  const totalValue = db.prepare("SELECT SUM(total_value) as total FROM jobs WHERE archived = 0 AND status NOT IN ('received')").get();
-  const thisMonth = db.prepare(`SELECT COUNT(*) as count, SUM(total_value) as value FROM jobs WHERE archived = 0 AND created_at >= date('now','start of month')`).get();
-  res.json({ total: total.count, byStatus, totalValue: totalValue.total || 0, thisMonth });
+
+  // Pipeline value = active opportunities not yet won (excludes archived + complete)
+  const pipelineValue = db.prepare(
+    "SELECT SUM(total_value) as total FROM jobs WHERE archived = 0 AND status != 'complete'"
+  ).get();
+
+  // Jobs created this month (count card)
+  const thisMonthCount = db.prepare(
+    "SELECT COUNT(*) as count FROM jobs WHERE archived = 0 AND created_at >= date('now','start of month')"
+  ).get();
+
+  // Month revenue = won contracts (complete) where the job was marked complete this month
+  // Uses updated_at so jobs won this month count even if created in a prior month
+  const monthRevenue = db.prepare(
+    "SELECT SUM(total_value) as value FROM jobs WHERE archived = 0 AND status = 'complete' AND updated_at >= date('now','start of month')"
+  ).get();
+
+  res.json({
+    total: total.count,
+    byStatus,
+    totalValue: pipelineValue.total || 0,
+    thisMonth: {
+      count: thisMonthCount.count,
+      value: monthRevenue.value || 0
+    }
+  });
 });
 
 // ARCHIVE a job (soft delete)
