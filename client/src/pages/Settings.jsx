@@ -210,10 +210,19 @@ export default function Settings({ token }) {
     <div style={{ padding: 32 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 'bold', color: BLUE, margin: 0 }}>⚙️ Settings</h1>
-        <button onClick={save}
-          style={{ background: saved ? '#2E7D32' : BLUE, color: 'white', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-          {saved ? '✅ Saved!' : 'Save Changes'}
-        </button>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <a
+            href="/api/blank-contract"
+            download="PB_Contract_Template_BLANK.docx"
+            style={{ background: 'white', color: BLUE, border: `2px solid ${BLUE}`, padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', textDecoration: 'none', fontSize: 14 }}
+          >
+            ⬇ Blank Contract
+          </a>
+          <button onClick={save}
+            style={{ background: saved ? '#2E7D32' : BLUE, color: 'white', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+            {saved ? '✅ Saved!' : 'Save Changes'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

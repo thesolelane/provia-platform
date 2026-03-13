@@ -120,13 +120,6 @@ export default function Dashboard({ token }) {
           <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Preferred Builders AI Contract System</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <a
-            href="/api/blank-contract"
-            download="PB_Contract_Template_BLANK.docx"
-            style={{ background: 'white', color: '#1B3A6B', border: '2px solid #1B3A6B', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', textDecoration: 'none', fontSize: 14 }}
-          >
-            ⬇ Blank Contract
-          </a>
           <button
             onClick={openNewJob}
             style={{ background: '#1B3A6B', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
