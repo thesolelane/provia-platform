@@ -10,6 +10,8 @@ const fileUpload = require('express-fileupload');
 const fs = require('fs');
 const path = require('path');
 const { initDatabase } = require('./db/database');
+const { requireAuth } = require('./middleware/auth');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,13 +22,31 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 }, useTempFiles: true }));
 
-// Serve generated PDFs
-app.use('/outputs', express.static(path.join(__dirname, '../outputs')));
+// ── AUTH-PROTECTED FILE SERVING ───────────────────────────────
+// PDFs (proposals, contracts) — requires login
+const OUTPUTS_DIR     = path.resolve(__dirname, '../outputs');
+const CONTACT_DOCS_DIR = path.resolve(__dirname, '../uploads/contact_docs');
 
-// Serve contact-attached documents (estimates, invoices saved under a contact)
-app.use('/contact-docs', express.static(path.join(__dirname, '../uploads/contact_docs')));
+app.get('/outputs/:filename', requireAuth, (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(OUTPUTS_DIR, filename);
+  if (!filePath.startsWith(OUTPUTS_DIR) || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  res.sendFile(filePath);
+});
 
-// Job photo uploads are served through authenticated route in jobPhotos.js
+app.get('/contact-docs/:contactId/:filename', requireAuth, (req, res) => {
+  const contactId = path.basename(req.params.contactId);
+  const filename  = path.basename(req.params.filename);
+  const filePath  = path.join(CONTACT_DOCS_DIR, contactId, filename);
+  if (!filePath.startsWith(CONTACT_DOCS_DIR) || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  res.sendFile(filePath);
+});
+
+// Job photo uploads served through authenticated route in jobPhotos.js
 
 // ── REQUEST LOGGER (catch all incoming) ─────────────────────
 app.use((req, res, next) => {
@@ -36,8 +56,18 @@ app.use((req, res, next) => {
   next();
 });
 
+// ── RATE LIMITING ─────────────────────────────────────────────
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/auth/login', loginLimiter);
+
 // ── BLANK CONTRACT DOWNLOAD ───────────────────────────────────
-app.get('/api/blank-contract', async (req, res) => {
+app.get('/api/blank-contract', requireAuth, async (req, res) => {
   try {
     const { generateBlankContractDocx } = require('./services/pdfService');
     const buffer = await generateBlankContractDocx();

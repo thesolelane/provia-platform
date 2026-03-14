@@ -5,14 +5,20 @@ const { getDb } = require('../db/database');
 const path = require('path');
 const fs = require('fs');
 
-const UPLOADS_BASE = path.join(__dirname, '../../uploads/jobs');
+const UPLOADS_BASE = path.resolve(__dirname, '../../uploads/jobs');
 
 const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 router.get('/:id/photos/file/:filename', requireAuth, (req, res) => {
-  const filePath = path.join(UPLOADS_BASE, req.params.id, req.params.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File not found' });
+  if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'Invalid job id' });
+  const safeFilename = path.basename(req.params.filename);
+  const filePath = path.resolve(UPLOADS_BASE, req.params.id, safeFilename);
+  if (!filePath.startsWith(UPLOADS_BASE) || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
   res.sendFile(filePath);
 });
 
