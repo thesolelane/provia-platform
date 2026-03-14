@@ -500,6 +500,7 @@ function adaptToContractSchema(data) {
       total_contract_price: fmt(totalVal),
       deposit_amount:       fmt(depositVal),
       deposit_pct:          `${depositPct}%`,
+      csl_number:           data.csl_number || '',
     },
     owner: {
       full_name:      customer.name  || '',
@@ -531,7 +532,7 @@ function adaptToContractSchema(data) {
 function blankContractSchema() {
   const _ = '___________________________________';
   return {
-    contract: { contract_number: '____________', invoice_number: '____________', quote_number: '____________', proposal_date: _, contract_date: _, total_contract_price: '$__________', deposit_amount: '$__________', deposit_pct: '___%' },
+    contract: { contract_number: '____________', invoice_number: '____________', quote_number: '____________', proposal_date: _, contract_date: _, total_contract_price: '$__________', deposit_amount: '$__________', deposit_pct: '___%', csl_number: '_______________' },
     owner:    { full_name: _, address_line1: _, city_state_zip: _, phone: _, email: _ },
     property: { address: _, city: _, jurisdiction: _, parcel_number: _ },
     job:      { type: 'renovation', has_demo: false, has_framing: true, has_insulation: true, has_permit: false, has_engineer: false, has_architect: false, sub_deposits: null, special_order_deposits: null, trades: { electrical: true, plumbing: true, hvac: false, sprinkler: false }, adu: {} },
@@ -618,7 +619,7 @@ function buildContractHTML(data) {
 <hr class="rule">
 <div class="article-heading">Article I — The Work</div>
 
-${clauseHTML('1.1', `Contractor shall furnish all labor, materials, equipment, tools, supervision, and services necessary to complete the work (the "<strong>Work</strong>") at the Property in a good and workmanlike manner, in accordance with this Contract and all applicable laws, codes, and regulations, including <strong>780 CMR (Massachusetts State Building Code, 9th Edition)</strong>, applicable municipal codes, NFPA 70 (National Electrical Code), and all other applicable federal, state, and local laws, ordinances, rules, and regulations.`)}
+${clauseHTML('1.1', `Contractor shall furnish all labor, materials, equipment, tools, supervision, and services necessary to complete the work (the "<strong>Work</strong>") at the Property in a good and workmanlike manner, in accordance with this Contract and all applicable laws, codes, and regulations, including <strong>780 CMR (Massachusetts State Building Code — 9th Edition and/or 10th Edition, as applicable based on the date of the permit application)</strong>, applicable municipal codes, NFPA 70 (National Electrical Code), and all other applicable federal, state, and local laws, ordinances, rules, and regulations.`)}
 
 ${clauseHTML('1.2', `The scope, inclusions, and exclusions of the Work are described in the <strong>Project Proposal &amp; Scope of Work, Quote No. ${field(c.quote_number)}</strong>, dated <strong>${field(c.proposal_date)}</strong>, and <strong>Invoice No. ${field(c.invoice_number)}</strong> (collectively, the "<strong>Proposal</strong>"), which are incorporated herein by reference. In any conflict between this Contract and the Proposal, the terms of this Contract shall govern.`)}
 
@@ -655,7 +656,7 @@ ${buildPreConTable(data)}
 
 ${clauseHTML('3.4', `Any payment not received within five (5) business days of its due date shall bear a late charge of <strong>one and one-half percent (1.5%) per month</strong> on the unpaid balance from the due date until paid in full.`)}
 ${clauseHTML('3.5', `Contractor shall not be required to commence or continue Work if any payment is more than ten (10) days past due. Contractor may suspend Work upon written notice to Owner, and such suspension shall not constitute a breach of this Agreement.`)}
-${clauseHTML('3.6', `All payments shall reference the applicable Invoice Number, Contract Number, and Quote/Proposal Number. Contractor shall issue invoices for each milestone payment identifying: (a) Invoice No.; (b) Contract No.; (c) Quote/Proposal No.; (d) milestone description; and (e) amount due.`)}
+${clauseHTML('3.6', `All payments shall reference the applicable Invoice Number, Contract Number, and/or Quote/Proposal Number. Contractor shall issue invoices for each milestone payment identifying: (a) Invoice No.; (b) Contract No.; (c) Quote/Proposal No.; (d) milestone description; and (e) amount due.`)}
 
 <!-- ARTICLE IV -->
 <hr class="rule">
@@ -688,7 +689,9 @@ ${clauseHTML('6.4', `Owner shall submit all material selections, finish choices,
 <div class="article-heading">Article VII — Permits &amp; Inspections</div>
 
 ${clauseHTML('7.1', `Contractor shall apply for and obtain all building permits required for the Work from the applicable municipal building department. Contractor shall schedule and pass all required inspections.`)}
-${clauseHTML('7.2', `Permit fees and inspection charges are ${job.has_permit ? 'included in or separately itemized on Invoice 1 as a Pre-Construction Advance' : 'not separately included in this Contract and will be billed as a pass-through cost'}. See Article III, Clause 3.3.`)}
+${clauseHTML('7.2', `Permit fees and inspection charges are ${job.has_permit
+  ? 'included in or separately itemized on Invoice 1 as a Pre-Construction Advance. Contractor shall pay permit and inspection fees directly to the issuing authority and document actual costs. Any overage or underage from the estimated permit fee shall be reflected as a credit or additional charge on the next applicable invoice'
+  : 'not included in the Contract Price and shall be billed as a pass-through cost on the applicable invoice. Pass-through costs are charged at Contractor\'s actual cost, without markup, and shall be clearly identified as a separate line item on the invoice'}. See Article III, Clause 3.3.`)}
 ${clauseHTML('7.3', `Owner shall not contact the building department to modify, expand, or otherwise change any permit application without prior written consent of Contractor.`)}
 
 <!-- ARTICLE VIII -->
@@ -703,7 +706,7 @@ ${clauseHTML('8.2', `Certificates of insurance shall be provided to Owner upon w
 <div class="article-heading">Article IX — Substantial Completion</div>
 
 ${clauseHTML('9.1', `"<strong>Substantial Completion</strong>" means the stage when the Work is sufficiently complete, as evidenced by: (a) issuance of a Certificate of Occupancy by the applicable building department (where required); or (b) written sign-off by Owner confirming all punch list items are complete (where a CO is not required), such that Owner can occupy or utilize the Property for its intended use.`)}
-${clauseHTML('9.2', `Punch list items remaining at Substantial Completion shall be completed within <strong>thirty (30) days</strong>, provided Owner cooperates in scheduling access. Punch list items shall not constitute grounds to withhold the final payment installment.`)}
+${clauseHTML('9.2', `Punch list items remaining at Substantial Completion shall be completed within <strong>thirty (30) days</strong>, provided Owner cooperates in scheduling access. As a general rule, punch list items shall not constitute grounds to withhold the final payment installment. Notwithstanding the foregoing, Owner and Contractor may, upon mutual written agreement executed prior to or at the time of Substantial Completion, negotiate a reasonable holdback amount from the final payment balance due. Any agreed holdback: (a) shall be limited to a reasonable dollar amount proportionate to the actual cost of completing the identified punch list items; (b) shall not be excessive in relation to the remaining scope; (c) shall be documented in a written punch list signed by both parties identifying each item and its estimated cost; and (d) shall be released to Contractor in full within <strong>five (5) business days</strong> of completion of all punch list items.`)}
 
 <!-- ARTICLE X -->
 <hr class="rule">
@@ -720,7 +723,7 @@ ${clauseHTML('10.2', `Contractor shall provide lien waivers from all subcontract
 <hr class="rule">
 <div class="article-heading">Article XI — Massachusetts HIC License Disclosure</div>
 
-${clauseHTML('11.1', `Preferred Builders General Services Inc. holds Massachusetts Home Improvement Contractor License No. <strong>HIC-197400</strong>, as required by M.G.L. c. 142A. All home improvement contractors performing residential contracting in Massachusetts must be registered with the Commonwealth.`)}
+${clauseHTML('11.1', `Preferred Builders General Services Inc. holds Massachusetts Home Improvement Contractor License No. <strong>HIC-197400</strong>, as required by M.G.L. c. 142A. All home improvement contractors performing residential contracting in Massachusetts must be registered with the Commonwealth. In addition, the project supervisor of record is <strong>Jackson Deaquino</strong>, who holds a Massachusetts Construction Supervisor License (<strong>CSL</strong>) No. <strong>${f(c.csl_number, '_______________')}</strong>, as required by 780 CMR 110.R5 (a/k/a CSL). The CSL holder is responsible for supervising the construction, reconstruction, alteration, repair, removal, or demolition of any building or structure in the Commonwealth.`)}
 ${clauseHTML('11.2', `The Arbitration &amp; Guaranty Fund (M.G.L. c. 142A §17) provides homeowners with recourse if a registered contractor fails to perform or causes damage. For information: <strong>www.mass.gov/hic</strong> or <strong>(617) 973-8700</strong>.`)}
 ${clauseHTML('11.3', `Per M.G.L. c. 142A, this Contract is in writing and contains all required disclosures. Owner acknowledges receipt of a fully executed copy of this Contract at or before the time of signing.`)}
 
@@ -792,7 +795,8 @@ ${clauseHTML('16.5', `<strong>Counterparts:</strong> This Agreement may be execu
 <p style="font-size:8.5pt;margin-bottom:10px;text-align:justify">
   Initialing confirms receipt and review of: (1) this Agreement; (2) Project Proposal &amp; Scope of Work —
   Quote No. ${field(c.quote_number)}; (3) Invoice No. ${field(c.invoice_number)};
-  (4) Exhibit A — Allowance Schedule; and (5) Addendum 1 — Notice of Contract.
+  (4) Exhibit A — Allowance Schedule; (5) Addendum 1 — Notice of Contract;
+  (6) Change Order Form CO-1; and (7) Change Order Form CO-2.
 </p>
 <div class="initials-bar">
   <div class="init-cell">Owner Initials: _______&nbsp;&nbsp;&nbsp;Date: ___________</div>
@@ -823,7 +827,7 @@ ${buildAllowanceTables(data)}
 <hr class="rule-light" style="margin-top:16px">
 <p style="font-weight:700;font-size:9pt;color:#1F3864;margin:10px 0 6px">EXHIBIT A — ACKNOWLEDGMENT</p>
 <p style="font-size:8.5pt;margin-bottom:10px">
-  By initialing below, Owner confirms receipt of this Allowance Schedule and agrees to the allowance terms set forth in Articles 2.2–2.5.
+  By initialing below, Owner confirms that the Allowance Schedule contained herein was distributed to and reviewed by Owner as part of the <strong>Project Proposal &amp; Scope of Work Package</strong> delivered prior to execution of this Contract, and that Owner agrees to the allowance terms set forth in Articles 2.2–2.5.
 </p>
 <div class="initials-bar">
   <div class="init-cell">Owner Initials: _______&nbsp;&nbsp;&nbsp;Date: ___________</div>
@@ -934,6 +938,142 @@ ${buildAllowanceTables(data)}
   Preferred Builders General Services Inc. (HIC-197400) and ${field(o.full_name)}.
   After execution and notarization, file the original at the Worcester County Registry of Deeds and retain a copy in project records.
 </p>
+
+<!-- CHANGE ORDER FORM — CO-1 -->
+<div class="page-break"></div>
+
+<div id="page-header">
+  <div>
+    <div class="co-name">Preferred Builders General Services Inc.</div>
+    <div class="co-sub">LIC# HIC-197400  |  37 Duck Mill Road, Fitchburg, MA 01420  |  978-377-1784</div>
+  </div>
+  <div class="doc-type">Change Order Form — CO-1<br>Ref: Contract No. ${field(c.contract_number)}</div>
+</div>
+
+<div class="doc-title">
+  <h1>Change Order</h1>
+  <div class="subtitle">CO-1 of 2  |  Construction Contract No. ${field(c.contract_number)}</div>
+</div>
+
+<hr class="rule">
+
+<table class="cover-table">
+  <tr><td class="label">Contract No.</td>       <td class="value">${field(c.contract_number)}</td>
+      <td class="label">Quote / Invoice No.</td> <td class="value">${field(c.quote_number)} / ${field(c.invoice_number)}</td></tr>
+  <tr><td class="label">Owner</td>              <td class="value">${field(o.full_name)}</td>
+      <td class="label">Property Address</td>    <td class="value">${field(p.address)}, ${field(p.city)}</td></tr>
+  <tr><td class="label">Change Order No.</td>   <td class="value">CO-1</td>
+      <td class="label">Date Submitted</td>      <td class="value">_______________________</td></tr>
+  <tr><td class="label">Requested By</td>       <td class="value">☐ Owner &nbsp;&nbsp; ☐ Contractor</td>
+      <td class="label">Date of Original Contract</td><td class="value">${field(c.contract_date)}</td></tr>
+</table>
+
+<hr class="rule-light">
+<div class="sub-heading" style="margin-bottom:6px">Description of Change</div>
+<p style="font-size:8.5pt;margin-bottom:8px">Describe in detail the addition, deletion, or modification to the scope of Work:</p>
+<div style="border:1.5px solid #C8D4E4;border-radius:4px;min-height:90px;padding:8px;margin-bottom:12px;font-size:9pt;color:#aaa;font-style:italic">
+  &nbsp;(Use additional sheet if needed)
+</div>
+
+<hr class="rule-light">
+<div class="sub-heading" style="margin-bottom:6px">Contract Price &amp; Schedule Adjustment</div>
+<table class="cover-table" style="margin-bottom:10px">
+  <tr><td class="label">Original Contract Price</td>   <td class="value">${field(c.total_contract_price)}</td>
+      <td class="label">Net Change This CO</td>         <td class="value">☐ Add &nbsp;&nbsp; ☐ Deduct &nbsp;&nbsp; $_______________</td></tr>
+  <tr><td class="label">Previous CO Amount (total)</td><td class="value">$_______________</td>
+      <td class="label">Revised Contract Price</td>     <td class="value">$_______________</td></tr>
+  <tr><td class="label">Original Completion Date</td>  <td class="value">_______________________</td>
+      <td class="label">Revised Completion Date</td>    <td class="value">_______________________</td></tr>
+</table>
+
+<p style="font-size:8pt;color:#555;margin-bottom:14px;text-align:justify">
+  <strong>Note:</strong> No work described in this Change Order shall begin until this form is signed by both Owner and Contractor. Per Article IV of the Contract, verbal authorizations are not binding. Payment for any additional work is due on the next scheduled invoice per Article III.
+</p>
+
+<hr class="rule-light">
+<div class="sub-heading" style="margin-bottom:10px">Authorization</div>
+<div style="display:flex;gap:40px">
+  <div style="flex:1">
+    <div class="sig-line"></div>
+    <div class="sig-label">Owner Signature</div>
+    <div class="sig-line" style="margin-top:18px"></div>
+    <div class="sig-label">Printed Name &amp; Date</div>
+  </div>
+  <div style="flex:1">
+    <div class="sig-line"></div>
+    <div class="sig-label">Contractor Signature — Preferred Builders General Services Inc.</div>
+    <div class="sig-line" style="margin-top:18px"></div>
+    <div class="sig-label">Printed Name, Title &amp; Date</div>
+  </div>
+</div>
+
+<!-- CHANGE ORDER FORM — CO-2 -->
+<div class="page-break"></div>
+
+<div id="page-header">
+  <div>
+    <div class="co-name">Preferred Builders General Services Inc.</div>
+    <div class="co-sub">LIC# HIC-197400  |  37 Duck Mill Road, Fitchburg, MA 01420  |  978-377-1784</div>
+  </div>
+  <div class="doc-type">Change Order Form — CO-2<br>Ref: Contract No. ${field(c.contract_number)}</div>
+</div>
+
+<div class="doc-title">
+  <h1>Change Order</h1>
+  <div class="subtitle">CO-2 of 2  |  Construction Contract No. ${field(c.contract_number)}</div>
+</div>
+
+<hr class="rule">
+
+<table class="cover-table">
+  <tr><td class="label">Contract No.</td>       <td class="value">${field(c.contract_number)}</td>
+      <td class="label">Quote / Invoice No.</td> <td class="value">${field(c.quote_number)} / ${field(c.invoice_number)}</td></tr>
+  <tr><td class="label">Owner</td>              <td class="value">${field(o.full_name)}</td>
+      <td class="label">Property Address</td>    <td class="value">${field(p.address)}, ${field(p.city)}</td></tr>
+  <tr><td class="label">Change Order No.</td>   <td class="value">CO-2</td>
+      <td class="label">Date Submitted</td>      <td class="value">_______________________</td></tr>
+  <tr><td class="label">Requested By</td>       <td class="value">☐ Owner &nbsp;&nbsp; ☐ Contractor</td>
+      <td class="label">Date of Original Contract</td><td class="value">${field(c.contract_date)}</td></tr>
+</table>
+
+<hr class="rule-light">
+<div class="sub-heading" style="margin-bottom:6px">Description of Change</div>
+<p style="font-size:8.5pt;margin-bottom:8px">Describe in detail the addition, deletion, or modification to the scope of Work:</p>
+<div style="border:1.5px solid #C8D4E4;border-radius:4px;min-height:90px;padding:8px;margin-bottom:12px;font-size:9pt;color:#aaa;font-style:italic">
+  &nbsp;(Use additional sheet if needed)
+</div>
+
+<hr class="rule-light">
+<div class="sub-heading" style="margin-bottom:6px">Contract Price &amp; Schedule Adjustment</div>
+<table class="cover-table" style="margin-bottom:10px">
+  <tr><td class="label">Original Contract Price</td>   <td class="value">${field(c.total_contract_price)}</td>
+      <td class="label">Net Change This CO</td>         <td class="value">☐ Add &nbsp;&nbsp; ☐ Deduct &nbsp;&nbsp; $_______________</td></tr>
+  <tr><td class="label">Previous CO Amount (total)</td><td class="value">$_______________</td>
+      <td class="label">Revised Contract Price</td>     <td class="value">$_______________</td></tr>
+  <tr><td class="label">Original Completion Date</td>  <td class="value">_______________________</td>
+      <td class="label">Revised Completion Date</td>    <td class="value">_______________________</td></tr>
+</table>
+
+<p style="font-size:8pt;color:#555;margin-bottom:14px;text-align:justify">
+  <strong>Note:</strong> No work described in this Change Order shall begin until this form is signed by both Owner and Contractor. Per Article IV of the Contract, verbal authorizations are not binding. Payment for any additional work is due on the next scheduled invoice per Article III.
+</p>
+
+<hr class="rule-light">
+<div class="sub-heading" style="margin-bottom:10px">Authorization</div>
+<div style="display:flex;gap:40px">
+  <div style="flex:1">
+    <div class="sig-line"></div>
+    <div class="sig-label">Owner Signature</div>
+    <div class="sig-line" style="margin-top:18px"></div>
+    <div class="sig-label">Printed Name &amp; Date</div>
+  </div>
+  <div style="flex:1">
+    <div class="sig-line"></div>
+    <div class="sig-label">Contractor Signature — Preferred Builders General Services Inc.</div>
+    <div class="sig-line" style="margin-top:18px"></div>
+    <div class="sig-label">Printed Name, Title &amp; Date</div>
+  </div>
+</div>
 
 <!-- Footer -->
 <div id="page-footer">
