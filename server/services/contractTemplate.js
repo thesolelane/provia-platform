@@ -500,7 +500,7 @@ function adaptToContractSchema(data) {
       total_contract_price: fmt(totalVal),
       deposit_amount:       fmt(depositVal),
       deposit_pct:          `${depositPct}%`,
-      csl_number:           data.csl_number || '',
+      csl_number:           data.csl_number || 'CS-121662',
     },
     owner: {
       full_name:      customer.name  || '',
@@ -532,7 +532,7 @@ function adaptToContractSchema(data) {
 function blankContractSchema() {
   const _ = '___________________________________';
   return {
-    contract: { contract_number: '____________', invoice_number: '____________', quote_number: '____________', proposal_date: _, contract_date: _, total_contract_price: '$__________', deposit_amount: '$__________', deposit_pct: '___%', csl_number: '_______________' },
+    contract: { contract_number: '____________', invoice_number: '____________', quote_number: '____________', proposal_date: _, contract_date: _, total_contract_price: '$__________', deposit_amount: '$__________', deposit_pct: '___%', csl_number: 'CS-121662' },
     owner:    { full_name: _, address_line1: _, city_state_zip: _, phone: _, email: _ },
     property: { address: _, city: _, jurisdiction: _, parcel_number: _ },
     job:      { type: 'renovation', has_demo: false, has_framing: true, has_insulation: true, has_permit: false, has_engineer: false, has_architect: false, sub_deposits: null, special_order_deposits: null, trades: { electrical: true, plumbing: true, hvac: false, sprinkler: false }, adu: {} },
