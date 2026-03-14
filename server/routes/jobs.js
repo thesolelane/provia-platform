@@ -10,10 +10,12 @@ const { logAudit } = require('../services/auditService');
 const { tickQuoteCounter } = require('../services/assessmentService');
 const { addClient, removeClient, notifyClients } = require('../services/sseManager');
 
-// Helper: save proposal and backfill job columns from extracted data
+// Helper: save proposal, backfill job columns, and upsert contact record
 function saveProposalReady(db, proposalData, pdfPath, jobId) {
   const c = proposalData.customer || {};
   const p = proposalData.project || {};
+
+  // 1. Update the job record
   db.prepare(`
     UPDATE jobs SET
       proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?,
@@ -31,6 +33,37 @@ function saveProposalReady(db, proposalData, pdfPath, jobId) {
     p.address || '', p.city || '',
     jobId
   );
+
+  // 2. Upsert contact — match by email first, then fall back to name to prevent duplicates
+  if (c.name || c.email) {
+    let existing = c.email
+      ? db.prepare('SELECT id FROM contacts WHERE email = ? LIMIT 1').get(c.email)
+      : null;
+    // If not found by email, try by name (same person may have submitted without email before)
+    if (!existing && c.name) {
+      existing = db.prepare("SELECT id FROM contacts WHERE name = ? LIMIT 1").get(c.name);
+    }
+
+    if (existing) {
+      // Update any fields that are now more complete
+      db.prepare(`
+        UPDATE contacts SET
+          name    = COALESCE(NULLIF(?, ''), name),
+          phone   = COALESCE(NULLIF(?, ''), phone),
+          address = COALESCE(NULLIF(?, ''), address),
+          city    = COALESCE(NULLIF(?, ''), city),
+          state   = COALESCE(NULLIF(?, ''), state),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`)
+        .run(c.name || '', c.phone || '', p.address || '', p.city || '', p.state || 'MA', existing.id);
+    } else {
+      // Create a new contact
+      db.prepare(`
+        INSERT INTO contacts (name, email, phone, address, city, state, source)
+        VALUES (?, ?, ?, ?, ?, ?, 'estimate')`)
+        .run(c.name || '', c.email || '', c.phone || '', p.address || '', p.city || '', p.state || 'MA');
+    }
+  }
 }
 
 // GET archived jobs (must be before /:id route)
