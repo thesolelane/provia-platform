@@ -63,6 +63,7 @@ app.use('/api/conversations', require('./routes/conversations'));
 app.use('/api/chat',          require('./routes/adminChat'));
 app.use('/api/whitelist',     require('./routes/whitelist'));
 app.use('/api/contacts',      require('./routes/contacts'));
+app.use('/api/tasks',         require('./routes/tasks').router);
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
 app.use(require('./routes/signing'));

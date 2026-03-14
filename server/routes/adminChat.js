@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { adminChat } = require('../services/claudeService');
+const { getDb } = require('../db/database');
 
 // In-memory chat history per session
 const chatHistories = new Map();
@@ -17,13 +18,15 @@ router.post('/', requireAuth, async (req, res) => {
   history.push({ role: 'user', content: message });
 
   try {
-    const reply = await adminChat(history, language);
+    const db = getDb();
+    const { reply, createdTask } = await adminChat(history, language, db);
+
     history.push({ role: 'assistant', content: reply });
 
     // Keep history to last 20 messages
     if (history.length > 20) history.splice(0, history.length - 20);
 
-    res.json({ reply, history });
+    res.json({ reply, createdTask, history });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

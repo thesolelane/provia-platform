@@ -4,11 +4,12 @@ import { Link, useLocation } from 'react-router-dom';
 
 const NAV = [
   { path: '/',           icon: '📊', label: 'Dashboard' },
+  { path: '/tasks',      icon: '✅', label: 'Tasks' },
   { path: '/chat',       icon: '🤖', label: 'Ask the Bot' },
+  { path: '/contacts',   icon: '👥', label: 'Contacts' },
   { path: '/settings',   icon: '⚙️',  label: 'Settings' },
   { path: '/knowledge',  icon: '📚', label: 'Knowledge Base' },
   { path: '/whitelist',  icon: '🔒', label: 'Whitelist' },
-  { path: '/contacts',   icon: '👥', label: 'Contacts' },
   { path: '/guide',      icon: '📋', label: "Jackson's Guide" },
 ];
 

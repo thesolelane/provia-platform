@@ -10,6 +10,7 @@ import AdminChat from './pages/AdminChat';
 import Whitelist from './pages/Whitelist';
 import FieldGuide from './pages/FieldGuide';
 import Contacts from './pages/Contacts';
+import Tasks from './pages/Tasks';
 import Layout from './components/Layout';
 import Toast from './components/Toast';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -55,6 +56,7 @@ function App() {
           <Route path="/chat" element={<AdminChat token={token} />} />
           <Route path="/whitelist" element={<Whitelist token={token} />} />
           <Route path="/contacts" element={<Contacts token={token} />} />
+          <Route path="/tasks" element={<Tasks token={token} />} />
           <Route path="/guide" element={<FieldGuide />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

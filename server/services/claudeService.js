@@ -310,27 +310,164 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
 }
 
 // ── ADMIN CHAT — Free conversation with the bot ──────────────────────
-async function adminChat(messages, language = 'en') {
-  const settings = loadSettings();
+// ── ADMIN TOOLS (for tool calling) ───────────────────────────────────────────
+const ADMIN_TOOLS = [
+  {
+    name: 'lookup_contacts',
+    description: 'Search for customer/contact information in the database by name, email, or phone number. Use this whenever someone asks about a customer\'s contact info.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Name, email, or phone to search for' }
+      },
+      required: ['query']
+    }
+  },
+  {
+    name: 'lookup_jobs',
+    description: 'Search for jobs/projects by customer name or project address. Returns recent status and value info.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Customer name or project address to search for' }
+      },
+      required: ['query']
+    }
+  },
+  {
+    name: 'create_task',
+    description: 'Create a task, reminder, or to-do item. Use this when someone says "remind me to", "schedule", "make a note", "add a task", or similar.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title:       { type: 'string',  description: 'Short task title (e.g. "Call for inspection at 123 Main St")' },
+        description: { type: 'string',  description: 'Additional details or notes about the task' },
+        due_at:      { type: 'string',  description: 'Due date/time in ISO 8601 format (e.g. "2026-03-15T17:00:00"). Use the current date as reference if the user says "tomorrow" or "next week".' },
+        priority:    { type: 'string',  enum: ['high', 'normal', 'low'], description: 'Priority level' },
+        job_address: { type: 'string',  description: 'Project address if the task relates to a specific job' }
+      },
+      required: ['title']
+    }
+  }
+];
+
+async function runAdminTool(toolName, toolInput, db) {
+  const { makeCalendarURL } = require('../routes/tasks');
+
+  if (toolName === 'lookup_contacts') {
+    const q = `%${toolInput.query}%`;
+    const results = db.prepare(
+      `SELECT name, email, phone, address, city, state, customer_number FROM contacts
+       WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? LIMIT 5`
+    ).all(q, q, q);
+    if (!results.length) return 'No contacts found matching that search.';
+    return results.map(c =>
+      `**${c.name}** (${c.customer_number || 'no ID'})\nEmail: ${c.email || '—'}\nPhone: ${c.phone || '—'}\nAddress: ${[c.address, c.city, c.state].filter(Boolean).join(', ') || '—'}`
+    ).join('\n\n');
+  }
+
+  if (toolName === 'lookup_jobs') {
+    const q = `%${toolInput.query}%`;
+    const results = db.prepare(
+      `SELECT id, customer_name, customer_email, customer_phone, project_address, project_city, status, total_value, created_at
+       FROM jobs WHERE archived = 0 AND (customer_name LIKE ? OR project_address LIKE ?) ORDER BY created_at DESC LIMIT 5`
+    ).all(q, q);
+    if (!results.length) return 'No jobs found matching that search.';
+    return results.map(j =>
+      `**${j.customer_name}** — ${j.project_address}${j.project_city ? ', ' + j.project_city : ''}\nStatus: ${j.status?.replace(/_/g, ' ')}\nValue: ${j.total_value ? '$' + Number(j.total_value).toLocaleString() : '—'}\nEmail: ${j.customer_email || '—'} | Phone: ${j.customer_phone || '—'}`
+    ).join('\n\n');
+  }
+
+  if (toolName === 'create_task') {
+    const { title, description, due_at, priority, job_address } = toolInput;
+    let job_id = null;
+    if (job_address) {
+      const job = db.prepare(`SELECT id FROM jobs WHERE project_address LIKE ? LIMIT 1`).get(`%${job_address}%`);
+      job_id = job?.id || null;
+    }
+    const task = { title, description: description || null, due_at: due_at || null, job_id, contact_id: null, priority: priority || 'normal', calendar_url: null };
+    const info = db.prepare(
+      `INSERT INTO tasks (title, description, due_at, job_id, priority) VALUES (?, ?, ?, ?, ?)`
+    ).run(task.title, task.description, task.due_at, task.job_id, task.priority);
+    const saved = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
+    const calURL = makeCalendarURL(saved);
+    if (calURL) { db.prepare('UPDATE tasks SET calendar_url = ? WHERE id = ?').run(calURL, saved.id); saved.calendar_url = calURL; }
+    return JSON.stringify({ created: true, task_id: saved.id, title: saved.title, due_at: saved.due_at, calendar_url: saved.calendar_url });
+  }
+
+  return 'Unknown tool.';
+}
+
+async function adminChat(messages, language = 'en', db = null) {
+  const settings     = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
+
+  const today = new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
   const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language) + `
-  
-You are in admin chat mode. Answer questions about:
+
+You are in admin chat mode for Jackson Deaquino at Preferred Builders. You have live access to the database.
+Today is: ${today}
+
+You can:
+- Look up any customer contact info (name, email, phone) using lookup_contacts
+- Look up job/project status and info using lookup_jobs
+- Create tasks, reminders, and to-do items using create_task
+
+Answer questions about:
+- Customer and contact information (always use the lookup tool)
+- Job status and project details (always use the lookup tool)
 - Pricing and estimates
 - Massachusetts building codes
 - Contract requirements
-- How to complete Hearth estimates properly
+- Task and reminder creation (use the create_task tool)
 - Construction best practices
-Be helpful, precise, and direct. You can speak Portuguese if needed.`;
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 2000,
-    system: systemPrompt,
-    messages
-  });
+Be helpful, precise, and direct. You can speak Portuguese if needed.
+When you create a task, confirm it was saved and mention if a calendar link is available.`;
 
-  return response.content[0].text;
+  const msgsToSend = [...messages];
+  let createdTask = null;
+
+  // Tool-calling loop
+  for (let turn = 0; turn < 5; turn++) {
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      system: systemPrompt,
+      tools: db ? ADMIN_TOOLS : [],
+      messages: msgsToSend
+    });
+
+    if (response.stop_reason === 'end_turn' || !response.content.some(b => b.type === 'tool_use')) {
+      const text = response.content.find(b => b.type === 'text')?.text || '';
+      return { reply: text, createdTask };
+    }
+
+    // Append assistant message with all content blocks
+    msgsToSend.push({ role: 'assistant', content: response.content });
+
+    // Execute tool calls
+    const toolResults = [];
+    for (const block of response.content) {
+      if (block.type !== 'tool_use') continue;
+      let result;
+      try {
+        result = await runAdminTool(block.name, block.input, db);
+        // Track created tasks for the frontend
+        if (block.name === 'create_task') {
+          try { const parsed = JSON.parse(result); if (parsed.created) createdTask = parsed; } catch {}
+        }
+      } catch (e) {
+        result = `Error: ${e.message}`;
+      }
+      toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
+    }
+
+    msgsToSend.push({ role: 'user', content: toolResults });
+  }
+
+  return { reply: 'I ran into an issue processing your request. Please try again.', createdTask };
 }
 
 module.exports = { processEstimate, generateContract, handleClarification, adminChat };

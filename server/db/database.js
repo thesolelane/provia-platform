@@ -200,6 +200,23 @@ async function initDatabase() {
     }
   }
 
+  // Tasks / to-do list
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      title       TEXT NOT NULL,
+      description TEXT,
+      due_at      DATETIME,
+      job_id      TEXT,
+      contact_id  INTEGER,
+      status      TEXT DEFAULT 'pending',
+      priority    TEXT DEFAULT 'normal',
+      calendar_url TEXT,
+      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Signing sessions for proposal & contract e-signatures
   db.exec(`
     CREATE TABLE IF NOT EXISTS signing_sessions (
