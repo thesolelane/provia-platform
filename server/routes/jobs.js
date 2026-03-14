@@ -34,36 +34,85 @@ function saveProposalReady(db, proposalData, pdfPath, jobId) {
     jobId
   );
 
-  // 2. Upsert contact — match by email first, then fall back to name to prevent duplicates
-  if (c.name || c.email) {
-    let existing = c.email
-      ? db.prepare('SELECT id FROM contacts WHERE email = ? LIMIT 1').get(c.email)
-      : null;
-    // If not found by email, try by name (same person may have submitted without email before)
-    if (!existing && c.name) {
-      existing = db.prepare("SELECT id FROM contacts WHERE name = ? LIMIT 1").get(c.name);
-    }
+  // 2. Upsert contact using the job's stored PII (which never left our server)
+  //    and link the job to the contact via contact_id
+  const job = db.prepare('SELECT customer_name, customer_email, customer_phone, project_address, project_city, contact_id FROM jobs WHERE id = ?').get(jobId);
+  const contactName  = c.name  || job?.customer_name  || '';
+  const contactEmail = c.email || job?.customer_email || '';
+  const contactPhone = c.phone || job?.customer_phone || '';
+  const contactAddr  = p.address || job?.project_address || '';
+  const contactCity  = p.city    || job?.project_city    || '';
 
-    if (existing) {
-      // Update any fields that are now more complete
-      db.prepare(`
-        UPDATE contacts SET
-          name    = COALESCE(NULLIF(?, ''), name),
-          phone   = COALESCE(NULLIF(?, ''), phone),
-          address = COALESCE(NULLIF(?, ''), address),
-          city    = COALESCE(NULLIF(?, ''), city),
-          state   = COALESCE(NULLIF(?, ''), state),
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?`)
-        .run(c.name || '', c.phone || '', p.address || '', p.city || '', p.state || 'MA', existing.id);
-    } else {
-      // Create a new contact
-      db.prepare(`
-        INSERT INTO contacts (name, email, phone, address, city, state, source)
-        VALUES (?, ?, ?, ?, ?, ?, 'estimate')`)
-        .run(c.name || '', c.email || '', c.phone || '', p.address || '', p.city || '', p.state || 'MA');
-    }
+  if (contactName || contactEmail) {
+    try {
+      const contactRef = findOrCreateContact(db, {
+        name: contactName, email: contactEmail, phone: contactPhone,
+        address: contactAddr, city: contactCity, state: p.state || 'MA'
+      });
+      // Set contact_id on job if not already set
+      if (!job?.contact_id) {
+        db.prepare('UPDATE jobs SET contact_id = ? WHERE id = ?').run(contactRef.id, jobId);
+      }
+    } catch (e) { console.warn('[saveProposalReady] Contact upsert failed:', e.message); }
   }
+}
+
+// ── Customer serial number helpers ─────────────────────────────────────────
+
+// Generates next PB-C-YYYY-NNNN serial for a new contact
+function generateCustomerSerial(db) {
+  const year = new Date().getFullYear();
+  const prefix = `PB-C-${year}-`;
+  const last = db.prepare(
+    "SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1"
+  ).get(prefix + '%');
+  const seq = last ? parseInt(last.customer_number.slice(prefix.length)) + 1 : 1;
+  return prefix + String(seq).padStart(4, '0');
+}
+
+// Find or create a contact, always assigning a CSN to new contacts
+function findOrCreateContact(db, { name, email, phone, address, city, state }) {
+  let contact = email
+    ? db.prepare('SELECT * FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1').get(email)
+    : null;
+  if (!contact && name) {
+    contact = db.prepare('SELECT * FROM contacts WHERE name = ? COLLATE NOCASE LIMIT 1').get(name);
+  }
+  if (contact) {
+    // Fill in any missing fields without overwriting existing data
+    db.prepare(`
+      UPDATE contacts SET
+        name    = COALESCE(NULLIF(?, ''), name),
+        email   = COALESCE(NULLIF(?, ''), email),
+        phone   = COALESCE(NULLIF(?, ''), phone),
+        address = COALESCE(NULLIF(?, ''), address),
+        city    = COALESCE(NULLIF(?, ''), city),
+        state   = COALESCE(NULLIF(?, ''), state),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`)
+      .run(name||'', email||'', phone||'', address||'', city||'', state||'MA', contact.id);
+    // Assign CSN if contact doesn't have one yet (existing contacts pre-feature)
+    if (!contact.customer_number) {
+      const csn = generateCustomerSerial(db);
+      db.prepare('UPDATE contacts SET customer_number = ? WHERE id = ?').run(csn, contact.id);
+      contact.customer_number = csn;
+    }
+    return { id: contact.id, csn: contact.customer_number };
+  } else {
+    const csn = generateCustomerSerial(db);
+    const result = db.prepare(`
+      INSERT INTO contacts (name, email, phone, address, city, state, customer_number, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'estimate')`)
+      .run(name||'', email||'', phone||'', address||'', city||'', state||'MA', csn);
+    return { id: result.lastInsertRowid, csn };
+  }
+}
+
+// Strip email addresses and phone numbers from estimate text before sending to Claude
+function stripPII(text) {
+  return text
+    .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[email-redacted]')
+    .replace(/\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[phone-redacted]');
 }
 
 // GET archived jobs (must be before /:id route)
@@ -208,13 +257,27 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
   }
 
   const jobId = uuidv4();
-  const fullEstimate = customerName
-    ? `CUSTOMER INFORMATION (already collected — do NOT ask for this):\nCustomer Name: ${customerName}\nCustomer Email: ${customerEmail}\nCustomer Phone: ${customerPhone}\nProject Address: ${projectAddress}\n\nESTIMATE DETAILS:\n${rawText}`
-    : rawText;
 
-  db.prepare(`INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by)
-    VALUES (?, ?, ?, ?, ?, ?, 'received', 'manual')`
-  ).run(jobId, customerName, customerEmail, customerPhone, projectAddress, fullEstimate);
+  // Create/find contact with CSN before Claude — PII stays on our server
+  let contactRef = null;
+  if (customerName || customerEmail) {
+    try {
+      contactRef = findOrCreateContact(db, {
+        name: customerName, email: customerEmail, phone: customerPhone,
+        address: projectAddress, city: '', state: 'MA'
+      });
+    } catch (e) { console.warn('[Upload] Contact upsert failed:', e.message); }
+  }
+
+  // Strip PII from estimate text; use CSN as the only customer identifier sent to Claude
+  const sanitizedText = stripPII(rawText);
+  const fullEstimate = contactRef
+    ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\n\nESTIMATE DETAILS:\n${sanitizedText}`
+    : `[Job ID: ${jobId}]\n\nESTIMATE DETAILS:\n${sanitizedText}`;
+
+  db.prepare(`INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
+    VALUES (?, ?, ?, ?, ?, ?, 'received', 'manual', ?)`
+  ).run(jobId, customerName, customerEmail, customerPhone, projectAddress, fullEstimate, contactRef?.id || null);
 
   res.json({ jobId, status: 'received', message: 'File uploaded. Processing estimate...' });
 
@@ -249,26 +312,22 @@ router.post('/manual', requireAuth, async (req, res) => {
   const { customerName, customerEmail, customerPhone, projectAddress, estimateText } = req.body;
 
   const jobId = uuidv4();
-  db.prepare(`
-    INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by)
-    VALUES (?, ?, ?, ?, ?, ?, 'received', 'manual')
-  `).run(jobId, customerName, customerEmail, customerPhone, projectAddress, estimateText);
 
-  // Save/update contact in CRM
+  // Create/find contact with CSN before Claude — PII stays on our server
+  let contactRef = null;
   if (customerName || customerEmail) {
     try {
-      let existing = null;
-      if (customerEmail) existing = db.prepare('SELECT id FROM contacts WHERE email = ? COLLATE NOCASE').get(customerEmail);
-      if (!existing && customerName) existing = db.prepare('SELECT id FROM contacts WHERE name = ? COLLATE NOCASE').get(customerName);
-      if (existing) {
-        db.prepare(`UPDATE contacts SET name=COALESCE(NULLIF(?,''),name), email=COALESCE(NULLIF(?,''),email), phone=COALESCE(NULLIF(?,''),phone), address=COALESCE(NULLIF(?,''),address), updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-          .run(customerName||'', customerEmail||'', customerPhone||'', projectAddress||'', existing.id);
-      } else {
-        db.prepare(`INSERT INTO contacts (name, email, phone, address, source) VALUES (?, ?, ?, ?, 'manual')`)
-          .run(customerName||null, customerEmail||null, customerPhone||null, projectAddress||null);
-      }
-    } catch (e) { console.warn('[Manual Job] Contact save failed:', e.message); }
+      contactRef = findOrCreateContact(db, {
+        name: customerName, email: customerEmail, phone: customerPhone,
+        address: projectAddress, city: '', state: 'MA'
+      });
+    } catch (e) { console.warn('[Manual Job] Contact upsert failed:', e.message); }
   }
+
+  db.prepare(`
+    INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
+    VALUES (?, ?, ?, ?, ?, ?, 'received', 'manual', ?)
+  `).run(jobId, customerName, customerEmail, customerPhone, projectAddress, estimateText, contactRef?.id || null);
 
   res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
 
@@ -278,14 +337,11 @@ router.post('/manual', requireAuth, async (req, res) => {
       console.log(`[Manual Job ${jobId}] Starting Claude processEstimate...`);
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
 
-      const fullEstimate = `CUSTOMER INFORMATION (already collected — do NOT ask for this):
-Customer Name: ${customerName || 'N/A'}
-Customer Email: ${customerEmail || 'N/A'}
-Customer Phone: ${customerPhone || 'N/A'}
-Project Address: ${projectAddress || 'N/A'}
-
-ESTIMATE DETAILS:
-${estimateText}`;
+      // Build estimate with CSN instead of real PII — Claude only sees the reference code
+      const sanitizedScope = stripPII(estimateText);
+      const fullEstimate = contactRef
+        ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`
+        : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`;
       const proposalData = await processEstimate(fullEstimate, jobId, 'en');
       console.log(`[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
@@ -380,14 +436,24 @@ router.post('/:id/reprocess', requireAuth, async (req, res) => {
   try {
     db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', job.id);
 
-    const fullEstimate = `CUSTOMER INFORMATION (already collected — do NOT ask for this):
-Customer Name: ${job.customer_name || 'N/A'}
-Customer Email: ${job.customer_email || 'N/A'}
-Customer Phone: ${job.customer_phone || 'N/A'}
-Project Address: ${job.project_address || 'N/A'}
+    // Get or create a CSN for the job's contact before reprocessing
+    let reprocessRef = null;
+    if (job.contact_id) {
+      const existingContact = db.prepare('SELECT id, customer_number FROM contacts WHERE id = ?').get(job.contact_id);
+      if (existingContact) reprocessRef = { id: existingContact.id, csn: existingContact.customer_number };
+    }
+    if (!reprocessRef && (job.customer_name || job.customer_email)) {
+      reprocessRef = findOrCreateContact(db, {
+        name: job.customer_name, email: job.customer_email, phone: job.customer_phone,
+        address: job.project_address, city: job.project_city || '', state: 'MA'
+      });
+      db.prepare('UPDATE jobs SET contact_id = ? WHERE id = ?').run(reprocessRef.id, job.id);
+    }
 
-ESTIMATE DETAILS:
-${job.raw_estimate_data}`;
+    const sanitizedEstimate = stripPII(job.raw_estimate_data);
+    const fullEstimate = reprocessRef
+      ? `[Customer Ref: ${reprocessRef.csn} | Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedEstimate}`
+      : `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedEstimate}`;
 
     const { processEstimate } = require('../services/claudeService');
     const proposalData = await processEstimate(fullEstimate, job.id, 'en');

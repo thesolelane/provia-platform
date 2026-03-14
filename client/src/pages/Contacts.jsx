@@ -128,7 +128,7 @@ export default function Contacts({ token }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#1B3A6B' }}>
-                {['Name', 'Phone', 'Email', 'City / Address', 'Type', 'Source', ''].map(h => (
+                {['Client ID', 'Name', 'Phone', 'Email', 'City / Address', 'Type', 'Source', ''].map(h => (
                   <th key={h} style={{ padding: '11px 14px', color: 'white', textAlign: 'left', fontSize: 11, fontWeight: 'bold' }}>{h}</th>
                 ))}
               </tr>
@@ -142,6 +142,9 @@ export default function Contacts({ token }) {
                     style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa', cursor: 'pointer' }}
                     onClick={() => openContact(c)}
                   >
+                    <td style={{ padding: '11px 14px', fontSize: 11, color: '#1B3A6B', fontWeight: '600', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                      {c.customer_number || <span style={{ color: '#bbb' }}>—</span>}
+                    </td>
                     <td style={{ padding: '11px 14px', fontWeight: '500', fontSize: 13 }}>{c.name || <span style={{ color: '#bbb' }}>—</span>}</td>
                     <td style={{ padding: '11px 14px', fontSize: 12, color: '#555' }}>{c.phone || <span style={{ color: '#bbb' }}>—</span>}</td>
                     <td style={{ padding: '11px 14px', fontSize: 12, color: '#555' }}>{c.email || <span style={{ color: '#bbb' }}>—</span>}</td>
@@ -232,6 +235,12 @@ export default function Contacts({ token }) {
               <div>
                 {/* Contact info display */}
                 <div style={{ background: '#f8f9ff', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+                  {selected?.customer_number && (
+                    <div style={{ display: 'flex', gap: 12, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #e0e8ff' }}>
+                      <span style={{ fontSize: 11, color: '#888', width: 70, flexShrink: 0 }}>Client ID</span>
+                      <span style={{ fontSize: 13, fontWeight: '700', fontFamily: 'monospace', color: '#1B3A6B', letterSpacing: 1 }}>{selected.customer_number}</span>
+                    </div>
+                  )}
                   {[
                     { label: 'Phone', value: selected?.phone },
                     { label: 'Email', value: selected?.email },

@@ -152,6 +152,30 @@ async function initDatabase() {
     db.exec("ALTER TABLE jobs ADD COLUMN archived_at DATETIME");
   }
 
+  // Migration: add customer serial number to contacts
+  try { db.prepare("SELECT customer_number FROM contacts LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE contacts ADD COLUMN customer_number TEXT");
+  }
+
+  // Migration: add contact_id link on jobs
+  try { db.prepare("SELECT contact_id FROM jobs LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN contact_id INTEGER");
+  }
+
+  // Migration: backfill customer_number on any existing contacts that don't have one
+  {
+    const untagged = db.prepare("SELECT id FROM contacts WHERE customer_number IS NULL OR customer_number = '' ORDER BY id ASC").all();
+    const year = new Date().getFullYear();
+    const prefix = `PB-C-${year}-`;
+    const lastRow = db.prepare("SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1").get(prefix + '%');
+    let seq = lastRow ? parseInt(lastRow.customer_number.slice(prefix.length)) + 1 : 1;
+    const setCSN = db.prepare("UPDATE contacts SET customer_number = ? WHERE id = ?");
+    for (const row of untagged) {
+      setCSN.run(prefix + String(seq).padStart(4, '0'), row.id);
+      seq++;
+    }
+  }
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();
