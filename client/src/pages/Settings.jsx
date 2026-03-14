@@ -4,13 +4,16 @@ import { useState, useEffect } from 'react';
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
 
-const TABS = ['Markup', 'Labor Rates', 'Allowances', 'Integrations', 'Bot Behavior'];
+const TABS = ['Markup', 'Labor Rates', 'Allowances', 'Integrations', 'Bot Behavior', 'Calendar'];
 
 export default function Settings({ token }) {
   const [settings, setSettings] = useState({});
   const [activeTab, setActiveTab] = useState('Markup');
   const [saved, setSaved] = useState(false);
   const [integration, setIntegration] = useState({});
+  const [calendars, setCalendars] = useState([]);
+  const [calLoading, setCalLoading] = useState(false);
+  const [calSaved, setCalSaved] = useState(false);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   useEffect(() => {
@@ -36,6 +39,25 @@ export default function Settings({ token }) {
     Object.values(settings).flat().forEach(s => { allSettings[s.key] = s.value; });
     await fetch('/api/settings', { method: 'PUT', headers, body: JSON.stringify(allSettings) });
     setSaved(true); setTimeout(() => setSaved(false), 2000);
+  };
+
+  const loadCalendars = async () => {
+    setCalLoading(true);
+    try {
+      const res  = await fetch('/api/tasks/calendars', { headers: { 'x-auth-token': token } });
+      const data = await res.json();
+      if (res.ok) setCalendars(data.calendars || []);
+      else setCalendars([]);
+    } catch { setCalendars([]); }
+    setCalLoading(false);
+  };
+
+  const saveCal = async (calId, enabled) => {
+    await fetch('/api/settings', {
+      method: 'PUT', headers,
+      body: JSON.stringify({ 'gcal.calendarId': calId, 'gcal.enabled': enabled ? 'true' : 'false' })
+    });
+    setCalSaved(true); setTimeout(() => setCalSaved(false), 2000);
   };
 
   const switchPlatform = async (platform) => {
@@ -178,6 +200,84 @@ export default function Settings({ token }) {
     </div>
   );
 
+  const renderCalendar = () => {
+    const calItems = settings.calendar || [];
+    const calIdSetting  = calItems.find(s => s.key === 'gcal.calendarId');
+    const calEnSetting  = calItems.find(s => s.key === 'gcal.enabled');
+    const currentCalId  = calIdSetting?.value || 'primary';
+    const calEnabled    = calEnSetting?.value !== 'false';
+
+    return (
+      <div>
+        <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+          Your Google account is connected. Choose which calendar to save tasks and reminders to.
+        </p>
+
+        {/* Auto-add toggle */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: '#fafafa', borderRadius: 8, marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: '600', color: '#333' }}>Auto-add tasks to Google Calendar</div>
+            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>When ON, every task with a due date is instantly added to your Google Calendar</div>
+          </div>
+          <button
+            onClick={() => { update('gcal.enabled', calEnabled ? 'false' : 'true'); }}
+            style={{ padding: '6px 18px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: 12,
+              background: calEnabled ? '#2E7D32' : '#ccc', color: 'white' }}>
+            {calEnabled ? 'ON' : 'OFF'}
+          </button>
+        </div>
+
+        {/* Calendar picker */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: '600', color: '#333', marginBottom: 10 }}>Calendar to use</div>
+
+          {calendars.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {calendars.map(cal => (
+                <label key={cal.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                  background: currentCalId === cal.id ? '#E3ECFF' : 'white',
+                  border: `2px solid ${currentCalId === cal.id ? BLUE : '#eee'}`,
+                  borderRadius: 8, cursor: 'pointer' }}>
+                  <input type="radio" name="calId" value={cal.id}
+                    checked={currentCalId === cal.id}
+                    onChange={() => update('gcal.calendarId', cal.id)}
+                    style={{ flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: '600', color: BLUE }}>
+                      {cal.summary} {cal.primary ? '⭐ (Primary)' : ''}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#888' }}>{cal.id}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: '14px 16px', background: '#f8f9ff', border: '1px solid #e0e7ff', borderRadius: 8, fontSize: 13, color: '#555' }}>
+              {calLoading
+                ? '⏳ Loading your calendars...'
+                : <span>Click <strong>Load My Calendars</strong> to see all calendars in your Google account.</span>}
+            </div>
+          )}
+
+          <button onClick={loadCalendars} disabled={calLoading}
+            style={{ marginTop: 12, padding: '8px 18px', background: '#4285F4', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+            {calLoading ? 'Loading...' : '📅 Load My Calendars'}
+          </button>
+        </div>
+
+        {/* Save button */}
+        <button onClick={() => saveCal(currentCalId, calEnabled)}
+          style={{ padding: '10px 24px', background: calSaved ? '#2E7D32' : BLUE, color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>
+          {calSaved ? '✅ Saved!' : 'Save Calendar Settings'}
+        </button>
+
+        <div style={{ marginTop: 20, background: '#f8f9ff', border: '1px solid #e0e7ff', borderRadius: 8, padding: 14, fontSize: 12, color: '#444' }}>
+          <strong>How it works:</strong> When you (or the bot) create a task with a due date, the system automatically adds it directly to the selected Google Calendar — no clicking required. You'll get email and popup reminders 60 and 30 minutes before.
+        </div>
+      </div>
+    );
+  };
+
   const renderBotBehavior = () => {
     const items = settings.behavior || [];
     return (
@@ -245,6 +345,7 @@ export default function Settings({ token }) {
         {activeTab === 'Allowances' && renderAllowances()}
         {activeTab === 'Integrations' && renderIntegrations()}
         {activeTab === 'Bot Behavior' && renderBotBehavior()}
+        {activeTab === 'Calendar' && renderCalendar()}
       </div>
     </div>
   );

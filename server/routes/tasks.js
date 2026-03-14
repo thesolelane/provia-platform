@@ -4,8 +4,9 @@ const router  = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { getDb }       = require('../db/database');
 const { logAudit }    = require('../services/auditService');
+const gcal            = require('../services/googleCalendar');
 
-// ── Google Calendar URL helper ────────────────────────────────────────────────
+// ── Google Calendar "add link" URL (fallback if API push fails) ───────────────
 function calDate(iso) {
   return iso.replace(/[-:]/g, '').replace(/\.\d{3}Z?$/, '').slice(0, 15);
 }
@@ -13,10 +14,10 @@ function calDate(iso) {
 function makeCalendarURL(task) {
   if (!task.due_at) return null;
   try {
-    const start   = calDate(task.due_at);
-    const endDt   = new Date(new Date(task.due_at).getTime() + 60 * 60 * 1000);
-    const end     = calDate(endDt.toISOString());
-    const parts   = [`action=TEMPLATE`, `text=${encodeURIComponent(task.title)}`];
+    const start  = calDate(task.due_at);
+    const endDt  = new Date(new Date(task.due_at).getTime() + 60 * 60 * 1000);
+    const end    = calDate(endDt.toISOString());
+    const parts  = [`action=TEMPLATE`, `text=${encodeURIComponent(task.title)}`];
     parts.push(`dates=${start}/${end}`);
     if (task.description) parts.push(`details=${encodeURIComponent(task.description)}`);
     const job = task.job_id ? getDb().prepare('SELECT project_address FROM jobs WHERE id = ?').get(task.job_id) : null;
@@ -25,7 +26,14 @@ function makeCalendarURL(task) {
   } catch { return null; }
 }
 
-// ── Helper to enrich task with related info ───────────────────────────────────
+// ── Get calendar settings ─────────────────────────────────────────────────────
+function getCalSettings(db) {
+  const calId  = db.prepare("SELECT value FROM settings WHERE key = 'gcal.calendarId'").get()?.value || 'primary';
+  const enabled = db.prepare("SELECT value FROM settings WHERE key = 'gcal.enabled'").get()?.value;
+  return { calendarId: calId, enabled: enabled !== 'false' };
+}
+
+// ── Enrich task with related job/contact info ─────────────────────────────────
 function enrichTask(task) {
   if (!task) return null;
   const db = getDb();
@@ -43,52 +51,59 @@ function enrichTask(task) {
 router.get('/', requireAuth, (req, res) => {
   const db = getDb();
   const { status, job_id, contact_id, range } = req.query;
-
   let sql = 'SELECT * FROM tasks WHERE 1=1';
   const params = [];
-
   if (status)     { sql += ' AND status = ?';     params.push(status); }
   if (job_id)     { sql += ' AND job_id = ?';     params.push(job_id); }
   if (contact_id) { sql += ' AND contact_id = ?'; params.push(contact_id); }
-
   if (range === 'today') {
     sql += " AND date(due_at) = date('now')";
   } else if (range === 'week') {
     sql += " AND due_at <= datetime('now', '+7 days')";
   }
-
   sql += ' ORDER BY CASE WHEN due_at IS NULL THEN 1 ELSE 0 END, due_at ASC, created_at DESC';
-
-  const tasks = db.prepare(sql).all(...params).map(enrichTask);
+  const tasks      = db.prepare(sql).all(...params).map(enrichTask);
   const todayCount = db.prepare("SELECT COUNT(*) as n FROM tasks WHERE status='pending' AND date(due_at)=date('now')").get().n;
   const overdue    = db.prepare("SELECT COUNT(*) as n FROM tasks WHERE status='pending' AND due_at < datetime('now') AND due_at IS NOT NULL").get().n;
-
   res.json({ tasks, todayCount, overdue });
 });
 
+// ── GET /api/tasks/calendars — list user's Google Calendars ──────────────────
+router.get('/calendars', requireAuth, async (req, res) => {
+  try {
+    const cals = await gcal.listCalendars();
+    res.json({ calendars: cals.map(c => ({ id: c.id, summary: c.summary, primary: c.primary })) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/tasks ───────────────────────────────────────────────────────────
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   const db = getDb();
   const { title, description, due_at, job_id, contact_id, priority } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
 
-  const taskData = {
-    title: title.trim(),
-    description: description?.trim() || null,
-    due_at: due_at || null,
-    job_id: job_id || null,
-    contact_id: contact_id || null,
-    priority: priority || 'normal',
-    calendar_url: null,
-  };
-
   const info = db.prepare(`
     INSERT INTO tasks (title, description, due_at, job_id, contact_id, priority, calendar_url)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(taskData.title, taskData.description, taskData.due_at, taskData.job_id, taskData.contact_id, taskData.priority, null);
+  `).run(title.trim(), description?.trim() || null, due_at || null, job_id || null, contact_id || null, priority || 'normal', null);
 
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
-  const calURL = makeCalendarURL(task);
+
+  // Try to push to Google Calendar; fall back to "add link" URL
+  let calURL = makeCalendarURL(task);
+  const { calendarId, enabled } = getCalSettings(db);
+
+  if (enabled && task.due_at) {
+    try {
+      const gcalLink = await gcal.createCalendarEvent(task, calendarId);
+      if (gcalLink) calURL = gcalLink;
+    } catch (e) {
+      console.warn('[GCal] Could not auto-create event:', e.message);
+    }
+  }
+
   if (calURL) {
     db.prepare('UPDATE tasks SET calendar_url = ? WHERE id = ?').run(calURL, task.id);
     task.calendar_url = calURL;

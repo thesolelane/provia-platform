@@ -297,6 +297,9 @@ function seedDefaultSettings() {
     { key: 'bot.defaultRatePoint',   value: 'mid',   category:'behavior', label:'Default Rate Point (low/mid/high)' },
     { key: 'bot.proposalFirst',      value: 'true',  category:'behavior', label:'Generate Proposal Before Contract' },
     { key: 'bot.ccOwner',            value: 'true',  category:'behavior', label:'CC Owner on All Emails' },
+    // Google Calendar
+    { key: 'gcal.calendarId',        value: 'primary', category:'calendar', label:'Google Calendar ID' },
+    { key: 'gcal.enabled',           value: 'true',    category:'calendar', label:'Auto-add tasks to Google Calendar' },
   ];
 
   const insert = db.prepare(`
