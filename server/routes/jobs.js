@@ -59,15 +59,17 @@ function saveProposalReady(db, proposalData, pdfPath, jobId) {
 
 // ── Customer serial number helpers ─────────────────────────────────────────
 
-// Generates next PB-C-YYYY-NNNN serial for a new contact
+// Generates next PB-C-YYYY-NNNN serial using an atomic DB counter (race-safe)
 function generateCustomerSerial(db) {
   const year = new Date().getFullYear();
-  const prefix = `PB-C-${year}-`;
-  const last = db.prepare(
-    "SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1"
-  ).get(prefix + '%');
-  const seq = last ? parseInt(last.customer_number.slice(prefix.length)) + 1 : 1;
-  return prefix + String(seq).padStart(4, '0');
+  const assign = db.transaction(() => {
+    db.prepare('INSERT OR IGNORE INTO customer_serial_counter (year, next_seq) VALUES (?, 1)').run(year);
+    const row = db.prepare('SELECT next_seq FROM customer_serial_counter WHERE year = ?').get(year);
+    const seq = row.next_seq;
+    db.prepare('UPDATE customer_serial_counter SET next_seq = next_seq + 1 WHERE year = ?').run(year);
+    return `PB-C-${year}-${String(seq).padStart(4, '0')}`;
+  });
+  return assign();
 }
 
 // Find or create a contact, always assigning a CSN to new contacts
@@ -242,7 +244,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
             source: { type: 'base64', media_type: file.mimetype, data: base64 }
           }, {
             type: 'text',
-            text: 'This is a construction estimate or invoice image. Extract ALL text and numbers exactly as they appear, preserving line items, dollar amounts, trade names, and addresses. Format as plain text.'
+            text: 'This is a construction estimate or invoice image. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names, and project address (for jurisdiction). Do NOT include or repeat any customer personal information such as names, email addresses, or phone numbers — omit those entirely. Format as plain text.'
           }]
         }]
       });

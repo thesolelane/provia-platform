@@ -162,6 +162,17 @@ async function initDatabase() {
     db.exec("ALTER TABLE jobs ADD COLUMN contact_id INTEGER");
   }
 
+  // Atomic serial counter table for customer numbers
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS customer_serial_counter (
+      year    INTEGER PRIMARY KEY,
+      next_seq INTEGER NOT NULL DEFAULT 1
+    )
+  `);
+
+  // Ensure uniqueness at the DB level (add if not already present)
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_customer_number ON contacts(customer_number)`);
+
   // Migration: backfill customer_number on any existing contacts that don't have one
   {
     const untagged = db.prepare("SELECT id FROM contacts WHERE customer_number IS NULL OR customer_number = '' ORDER BY id ASC").all();
@@ -173,6 +184,19 @@ async function initDatabase() {
     for (const row of untagged) {
       setCSN.run(prefix + String(seq).padStart(4, '0'), row.id);
       seq++;
+    }
+  }
+
+  // Sync counter table: set next_seq to max existing serial + 1 for each year
+  {
+    const years = db.prepare("SELECT DISTINCT CAST(substr(customer_number, 6, 4) AS INTEGER) AS yr FROM contacts WHERE customer_number IS NOT NULL").all();
+    for (const { yr } of years) {
+      const pfx = `PB-C-${yr}-`;
+      const last = db.prepare("SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1").get(pfx + '%');
+      if (last) {
+        const maxSeq = parseInt(last.customer_number.slice(pfx.length)) + 1;
+        db.prepare('INSERT INTO customer_serial_counter (year, next_seq) VALUES (?, ?) ON CONFLICT(year) DO UPDATE SET next_seq = MAX(next_seq, ?)').run(yr, maxSeq, maxSeq);
+      }
     }
   }
 
