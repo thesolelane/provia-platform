@@ -64,6 +64,9 @@ app.use('/api/chat',          require('./routes/adminChat'));
 app.use('/api/whitelist',     require('./routes/whitelist'));
 app.use('/api/contacts',      require('./routes/contacts'));
 
+// ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
+app.use(require('./routes/signing'));
+
 // ── WEBHOOKS (no auth — verified by signature) ────────────────
 app.use('/webhook/hearth',    require('./routes/webhookHearth'));
 app.use('/webhook/email',     require('./routes/webhookEmail'));

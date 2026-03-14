@@ -472,10 +472,16 @@ router.post('/:id/reprocess', requireAuth, async (req, res) => {
   }
 });
 
-// PATCH update job notes
+// PATCH update job notes (and optionally status)
 router.patch('/:id/notes', requireAuth, (req, res) => {
   const db = getDb();
-  db.prepare('UPDATE jobs SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.body.notes, req.params.id);
+  const { notes, status } = req.body;
+  if (status) {
+    db.prepare('UPDATE jobs SET notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(notes, status, req.params.id);
+    logAudit(req.params.id, `status_changed_to_${status}`, `Status set to ${status} by admin`, 'admin');
+  } else {
+    db.prepare('UPDATE jobs SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(notes, req.params.id);
+  }
   res.json({ success: true });
 });
 
@@ -508,14 +514,14 @@ router.get('/stats/summary', requireAuth, (req, res) => {
   // Quotes Done (YTD) — proposals completed this year (reached proposal_ready or beyond)
   const quotesCompleted = db.prepare(
     `SELECT COUNT(*) as count FROM jobs WHERE archived = 0
-     AND status IN ('proposal_ready','proposal_sent','customer_approved','contract_ready','contract_sent','complete')
+     AND status IN ('proposal_ready','proposal_sent','proposal_approved','customer_approved','contract_ready','contract_sent','contract_signed','complete')
      AND created_at >= date('now','start of year')`
   ).get();
 
   // Pipeline Value — estimates done and actively sent to customer (not yet won)
   const pipelineValue = db.prepare(
     `SELECT SUM(total_value) as total FROM jobs WHERE archived = 0
-     AND status IN ('proposal_sent','customer_approved','contract_ready','contract_sent')`
+     AND status IN ('proposal_sent','proposal_approved','customer_approved','contract_ready','contract_sent','contract_signed')`
   ).get();
 
   // Won Revenue (YTD) — contracts signed and won this calendar year

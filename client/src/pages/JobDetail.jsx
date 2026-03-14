@@ -4,30 +4,53 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 
-const BLUE = '#1B3A6B';
+const BLUE   = '#1B3A6B';
 const ORANGE = '#E07B2A';
-const GREEN = '#2E7D32';
-const RED = '#C62828';
+const GREEN  = '#2E7D32';
+const RED    = '#C62828';
+const PURPLE = '#7C3AED';
 
 const STATUS_COLORS = {
-  received: '#888', processing: ORANGE, clarification: '#F59E0B',
-  proposal_ready: '#3B82F6', proposal_sent: '#8B5CF6',
-  customer_approved: GREEN, contract_ready: '#059669',
-  contract_sent: '#047857', complete: BLUE
+  received:          '#888',
+  processing:        ORANGE,
+  clarification:     '#F59E0B',
+  proposal_ready:    '#3B82F6',
+  proposal_sent:     '#8B5CF6',
+  proposal_approved: '#059669',
+  contract_ready:    '#0D9488',
+  contract_sent:     '#047857',
+  contract_signed:   '#1B3A6B',
+  complete:          '#111827',
+  error:             RED,
+};
+
+const STATUS_LABELS = {
+  received:          'Received',
+  processing:        'Processing',
+  clarification:     'Needs Clarification',
+  proposal_ready:    'Proposal Ready',
+  proposal_sent:     'Sent for Approval',
+  proposal_approved: 'Proposal Approved ✓',
+  contract_ready:    'Contract Ready',
+  contract_sent:     'Contract Sent',
+  contract_signed:   'Contract Signed ✓',
+  complete:          'Complete',
+  error:             'Error',
 };
 
 export default function JobDetail({ token }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [job, setJob] = useState(null);
+  const [job, setJob]               = useState(null);
   const [conversations, setConversations] = useState([]);
   const [clarifications, setClarifications] = useState([]);
-  const [auditLog, setAuditLog] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [auditLog, setAuditLog]     = useState([]);
+  const [sigSessions, setSigSessions] = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [note, setNote] = useState('');
+  const [note, setNote]             = useState('');
   const [clarAnswer, setClarAnswer] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab]   = useState('overview');
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
@@ -42,115 +65,244 @@ export default function JobDetail({ token }) {
         setNote(data.job?.notes || '');
         setLoading(false);
       });
+    fetch(`/api/signing/status/${id}`, { headers: { 'x-auth-token': token } })
+      .then(r => r.json())
+      .then(data => setSigSessions(data.sessions || []))
+      .catch(() => {});
   };
 
   useEffect(() => { load(); }, [id]);
 
-  const approveProposal = async () => {
+  // ── Actions ────────────────────────────────────────────────────────────────
+
+  const sendForApproval = async () => {
+    if (!await showConfirm(`Send a proposal signing link to ${job.customer_email}?`)) return;
     setActionLoading(true);
-    const res = await fetch(`/api/jobs/${id}/approve`, { method: 'POST', headers });
+    const res  = await fetch(`/api/signing/send-proposal/${id}`, { method: 'POST', headers });
     const data = await res.json();
-    if (res.ok) { load(); showToast('Contract generated successfully'); }
-    else { showToast(data.error || 'Failed to generate contract', 'error'); }
+    if (res.ok) { load(); showToast('Proposal signing link sent!'); }
+    else        { showToast(data.error || 'Failed to send', 'error'); }
     setActionLoading(false);
   };
 
-  const sendToCustomer = async () => {
-    if (!await showConfirm(`Send the contract to ${job.customer_email}? This will email the signed contract to the customer.`)) return;
+  const generateContract = async () => {
     setActionLoading(true);
-    const res = await fetch(`/api/jobs/${id}/send-to-customer`, { method: 'POST', headers });
+    const res  = await fetch(`/api/jobs/${id}/approve`, { method: 'POST', headers });
     const data = await res.json();
-    if (res.ok) { load(); showToast('Contract sent to customer'); }
-    else { showToast(data.error || 'Failed to send contract', 'error'); }
+    if (res.ok) { load(); showToast('Contract generated'); }
+    else        { showToast(data.error || 'Failed to generate contract', 'error'); }
     setActionLoading(false);
+  };
+
+  const sendContractForSigning = async () => {
+    if (!await showConfirm(`Send contract signing link to ${job.customer_email}?`)) return;
+    setActionLoading(true);
+    const res  = await fetch(`/api/signing/send-contract/${id}`, { method: 'POST', headers });
+    const data = await res.json();
+    if (res.ok) { load(); showToast('Contract signing link sent!'); }
+    else        { showToast(data.error || 'Failed to send', 'error'); }
+    setActionLoading(false);
+  };
+
+  const markComplete = async () => {
+    if (!await showConfirm('Mark this job as complete?')) return;
+    setActionLoading(true);
+    await fetch(`/api/jobs/${id}/notes`, { method: 'PATCH', headers, body: JSON.stringify({ notes: note, status: 'complete' }) });
+    load();
+    setActionLoading(false);
+    showToast('Job marked complete');
   };
 
   const saveNote = async () => {
     await fetch(`/api/jobs/${id}/notes`, { method: 'PATCH', headers, body: JSON.stringify({ notes: note }) });
+    showToast('Note saved');
   };
 
   const submitClarAnswer = async (clarId) => {
     if (!clarAnswer.trim()) return;
     setActionLoading(true);
-    const res = await fetch(`/api/jobs/${id}/clarify/${clarId}`, {
+    const res  = await fetch(`/api/jobs/${id}/clarify/${clarId}`, {
       method: 'POST', headers, body: JSON.stringify({ answer: clarAnswer.trim() })
     });
     const data = await res.json();
     setClarAnswer('');
     setActionLoading(false);
     load();
-    if (data.allAnswered) {
-      showToast('All questions answered — generating proposal now', 'info');
-    }
+    if (data.allAnswered) showToast('All questions answered — generating proposal now', 'info');
   };
 
   if (loading) return <div style={{ padding: 40, color: '#888' }}>Loading job...</div>;
-  if (!job) return <div style={{ padding: 40, color: RED }}>Job not found.</div>;
+  if (!job)    return <div style={{ padding: 40, color: RED }}>Job not found.</div>;
 
   const statusColor = STATUS_COLORS[job.status] || '#888';
+  const statusLabel = STATUS_LABELS[job.status] || job.status?.replace(/_/g, ' ').toUpperCase();
   const proposalData = job.proposal_data;
   const contractData = job.contract_data;
 
-  const TABS = ['overview', 'proposal', 'contract', 'conversation', 'audit'];
+  // Most recent signing sessions
+  const proposalSession = sigSessions.find(s => s.doc_type === 'proposal');
+  const contractSession = sigSessions.find(s => s.doc_type === 'contract');
+
+  const TABS = ['overview', 'signatures', 'proposal', 'contract', 'conversation', 'audit'];
+
+  // ── Read Receipt Badge ────────────────────────────────────────────────────
+  const ReadReceiptBadge = ({ session, label }) => {
+    if (!session) return null;
+    return (
+      <div style={{ background: '#f8f9ff', border: '1px solid #e0e7ff', borderRadius: 8, padding: 14, marginTop: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 'bold', color: '#555', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.5px' }}>
+          📬 {label} — Read Receipts
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ fontSize: 12, display: 'flex', gap: 8 }}>
+            <span style={{ color: '#888', width: 80 }}>Sent:</span>
+            <span style={{ color: '#333' }}>{session.email_sent_at ? new Date(session.email_sent_at).toLocaleString() : '—'}</span>
+          </div>
+          <div style={{ fontSize: 12, display: 'flex', gap: 8 }}>
+            <span style={{ color: '#888', width: 80 }}>Opened:</span>
+            {session.opened_at
+              ? <span style={{ color: GREEN, fontWeight: 'bold' }}>✅ {new Date(session.opened_at).toLocaleString()} (IP: {session.opened_ip})</span>
+              : <span style={{ color: '#aaa' }}>Not yet opened</span>}
+          </div>
+          <div style={{ fontSize: 12, display: 'flex', gap: 8 }}>
+            <span style={{ color: '#888', width: 80 }}>Signed:</span>
+            {session.signed_at
+              ? <span style={{ color: BLUE, fontWeight: 'bold' }}>✍️ {new Date(session.signed_at).toLocaleString()} — {session.signer_name}</span>
+              : <span style={{ color: '#aaa' }}>Not yet signed</span>}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ padding: 32 }}>
       {/* Back */}
-      <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', color: BLUE, cursor: 'pointer', fontSize: 13, marginBottom: 16 }}>
+      <button onClick={() => navigate('/')}
+        style={{ background: 'none', border: 'none', color: BLUE, cursor: 'pointer', fontSize: 13, marginBottom: 16 }}>
         ← Back to Dashboard
       </button>
 
-      {/* Header */}
+      {/* Header card */}
       <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 'bold', color: BLUE, margin: 0 }}>{job.customer_name || 'Unknown Customer'}</h1>
             <div style={{ color: '#666', fontSize: 13, marginTop: 4 }}>{job.project_address}</div>
-            <div style={{ color: '#888', fontSize: 11, marginTop: 2 }}>Job ID: {job.id?.slice(0, 8)}... &nbsp;|&nbsp; {new Date(job.created_at).toLocaleDateString()}</div>
+            <div style={{ color: '#888', fontSize: 11, marginTop: 2 }}>
+              Job ID: {job.id?.slice(0, 8)}... &nbsp;|&nbsp; {new Date(job.created_at).toLocaleDateString()}
+            </div>
           </div>
           <span style={{ background: statusColor + '22', color: statusColor, padding: '6px 16px', borderRadius: 20, fontSize: 12, fontWeight: 'bold' }}>
-            {job.status?.replace(/_/g, ' ').toUpperCase()}
+            {statusLabel}
           </span>
         </div>
 
         {/* Key numbers */}
-        <div style={{ display: 'flex', gap: 24, marginTop: 20, paddingTop: 16, borderTop: '1px solid #eee' }}>
-          <div><div style={{ fontSize: 11, color: '#888' }}>Contract Value</div><div style={{ fontSize: 20, fontWeight: 'bold', color: BLUE }}>{job.total_value ? `$${job.total_value.toLocaleString()}` : '—'}</div></div>
-          <div><div style={{ fontSize: 11, color: '#888' }}>Deposit (33%)</div><div style={{ fontSize: 20, fontWeight: 'bold', color: ORANGE }}>{job.deposit_amount ? `$${job.deposit_amount.toLocaleString()}` : '—'}</div></div>
-          <div><div style={{ fontSize: 11, color: '#888' }}>Email</div><div style={{ fontSize: 13, color: '#333', marginTop: 4 }}>{job.customer_email || '—'}</div></div>
-          <div><div style={{ fontSize: 11, color: '#888' }}>Phone</div><div style={{ fontSize: 13, color: '#333', marginTop: 4 }}>{job.customer_phone || '—'}</div></div>
+        <div style={{ display: 'flex', gap: 24, marginTop: 20, paddingTop: 16, borderTop: '1px solid #eee', flexWrap: 'wrap' }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#888' }}>Contract Value</div>
+            <div style={{ fontSize: 20, fontWeight: 'bold', color: BLUE }}>{job.total_value ? `$${job.total_value.toLocaleString()}` : '—'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#888' }}>Deposit (33%)</div>
+            <div style={{ fontSize: 20, fontWeight: 'bold', color: ORANGE }}>{job.deposit_amount ? `$${job.deposit_amount.toLocaleString()}` : '—'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#888' }}>Email</div>
+            <div style={{ fontSize: 13, color: '#333', marginTop: 4 }}>{job.customer_email || '—'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#888' }}>Phone</div>
+            <div style={{ fontSize: 13, color: '#333', marginTop: 4 }}>{job.customer_phone || '—'}</div>
+          </div>
         </div>
 
-        {/* Action buttons */}
-        <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+        {/* PDF links */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
           {job.proposal_pdf_path && (
             <a href={`/outputs/${job.proposal_pdf_path.split('/').pop()}`} target="_blank" rel="noreferrer"
-              style={{ padding: '8px 16px', background: '#3B82F6', color: 'white', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>
+              style={{ padding: '7px 14px', background: '#3B82F620', color: '#3B82F6', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 'bold', border: '1px solid #3B82F640' }}>
               📄 View Proposal PDF
             </a>
           )}
           {job.contract_pdf_path && (
             <a href={`/outputs/${job.contract_pdf_path.split('/').pop()}`} target="_blank" rel="noreferrer"
-              style={{ padding: '8px 16px', background: '#059669', color: 'white', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 'bold' }}>
+              style={{ padding: '7px 14px', background: '#05966920', color: '#059669', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 'bold', border: '1px solid #05966940' }}>
               📄 View Contract PDF
             </a>
           )}
-          {['proposal_ready', 'proposal_sent'].includes(job.status) && (
-            <button onClick={approveProposal} disabled={actionLoading}
-              style={{ padding: '8px 16px', background: GREEN, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
-              {actionLoading ? '...' : '✅ Approve → Generate Contract'}
+        </div>
+
+        {/* ── ACTION BUTTONS ── */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+
+          {/* Send proposal for approval */}
+          {job.status === 'proposal_ready' && job.customer_email && (
+            <button onClick={sendForApproval} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: '#8B5CF6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? '...' : '📨 Send Proposal for Signature'}
             </button>
           )}
-          {['contract_ready'].includes(job.status) && job.customer_email && (
-            <button onClick={sendToCustomer} disabled={actionLoading}
-              style={{ padding: '8px 16px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
-              {actionLoading ? '...' : '📧 Send Contract to Customer'}
+
+          {/* Resend proposal link */}
+          {job.status === 'proposal_sent' && job.customer_email && (
+            <button onClick={sendForApproval} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: '#8B5CF620', color: '#8B5CF6', border: '1px solid #8B5CF640', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? '...' : '📨 Resend Proposal Link'}
+            </button>
+          )}
+
+          {/* Generate contract (manual — after proposal approved, or if auto-gen failed) */}
+          {['proposal_approved'].includes(job.status) && !job.contract_pdf_path && (
+            <button onClick={generateContract} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: '#059669', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? 'Generating...' : '📋 Generate Contract'}
+            </button>
+          )}
+
+          {/* Auto-gen note when contract_ready comes through */}
+          {job.status === 'proposal_approved' && job.contract_pdf_path && (
+            <span style={{ fontSize: 12, color: '#059669', padding: '9px 0', fontWeight: 'bold' }}>
+              ✅ Contract auto-generated
+            </span>
+          )}
+
+          {/* Send contract for signing */}
+          {job.status === 'contract_ready' && job.customer_email && (
+            <button onClick={sendContractForSigning} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: '#047857', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? '...' : '📧 Send Contract for Signature'}
+            </button>
+          )}
+
+          {/* Resend contract link */}
+          {job.status === 'contract_sent' && job.customer_email && (
+            <button onClick={sendContractForSigning} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: '#04785720', color: '#047857', border: '1px solid #04785740', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? '...' : '📧 Resend Contract Link'}
+            </button>
+          )}
+
+          {/* Mark complete */}
+          {job.status === 'contract_signed' && (
+            <button onClick={markComplete} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? '...' : '🎉 Mark Job Complete'}
             </button>
           )}
         </div>
+
+        {/* Read receipt inline previews */}
+        {proposalSession && ['proposal_sent', 'proposal_approved'].includes(job.status) && (
+          <ReadReceiptBadge session={proposalSession} label="Proposal" />
+        )}
+        {contractSession && ['contract_sent', 'contract_signed'].includes(job.status) && (
+          <ReadReceiptBadge session={contractSession} label="Contract" />
+        )}
       </div>
 
-      {/* Flagged items warning */}
+      {/* Flagged items */}
       {job.flagged_items?.length > 0 && (
         <div style={{ background: '#FFF8F0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 14, marginBottom: 16, fontSize: 13 }}>
           <strong style={{ color: ORANGE }}>⚠️ {job.flagged_items.length} item(s) flagged for review:</strong>
@@ -162,12 +314,11 @@ export default function JobDetail({ token }) {
 
       {/* Clarification questions */}
       {job.status === 'clarification' && clarifications.length > 0 && (() => {
-        const pending = clarifications.find(c => !c.answer);
+        const pending  = clarifications.find(c => !c.answer);
         const answered = clarifications.filter(c => c.answer);
-        const total = clarifications.length;
         return (
           <div style={{ background: '#FFFDE7', border: '1px solid #F59E0B', borderRadius: 8, padding: 20, marginBottom: 16 }}>
-            <strong style={{ color: '#92400E', fontSize: 14 }}>❓ Clarification Needed ({answered.length} of {total} answered)</strong>
+            <strong style={{ color: '#92400E', fontSize: 14 }}>❓ Clarification Needed ({answered.length} of {clarifications.length} answered)</strong>
             {answered.map((c, i) => (
               <div key={c.id} style={{ marginTop: 12, padding: 10, background: '#f0fdf4', borderRadius: 6, borderLeft: `3px solid ${GREEN}` }}>
                 <div style={{ fontSize: 12, color: '#888' }}>Question {i + 1}:</div>
@@ -176,20 +327,15 @@ export default function JobDetail({ token }) {
               </div>
             ))}
             {pending && (
-              <div style={{ marginTop: 12, padding: 10, background: 'white', borderRadius: 6, borderLeft: `3px solid #F59E0B` }}>
-                <div style={{ fontSize: 12, color: '#92400E', fontWeight: 'bold' }}>Question {answered.length + 1} of {total}:</div>
+              <div style={{ marginTop: 12, padding: 10, background: 'white', borderRadius: 6, borderLeft: '3px solid #F59E0B' }}>
+                <div style={{ fontSize: 12, color: '#92400E', fontWeight: 'bold' }}>Question {answered.length + 1} of {clarifications.length}:</div>
                 <div style={{ fontSize: 13, color: '#333', marginTop: 4, marginBottom: 8 }}>{pending.question}</div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    value={clarAnswer}
-                    onChange={e => setClarAnswer(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && clarAnswer.trim()) { submitClarAnswer(pending.id); } }}
+                  <input value={clarAnswer} onChange={e => setClarAnswer(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && clarAnswer.trim()) submitClarAnswer(pending.id); }}
                     placeholder="Type your answer..."
-                    style={{ flex: 1, padding: 8, border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}
-                  />
-                  <button
-                    onClick={() => submitClarAnswer(pending.id)}
-                    disabled={!clarAnswer.trim() || actionLoading}
+                    style={{ flex: 1, padding: 8, border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }} />
+                  <button onClick={() => submitClarAnswer(pending.id)} disabled={!clarAnswer.trim() || actionLoading}
                     style={{ padding: '8px 16px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
                     {actionLoading ? '...' : 'Submit'}
                   </button>
@@ -201,7 +347,7 @@ export default function JobDetail({ token }) {
       })()}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid #eee' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid #eee', flexWrap: 'wrap' }}>
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12,
@@ -209,12 +355,11 @@ export default function JobDetail({ token }) {
               color: activeTab === tab ? BLUE : '#888',
               borderBottom: activeTab === tab ? `2px solid ${BLUE}` : '2px solid transparent',
               marginBottom: -2, textTransform: 'capitalize' }}>
-            {tab}
+            {tab === 'signatures' ? '✍️ Signatures' : tab}
           </button>
         ))}
       </div>
 
-      {/* Tab content */}
       <div style={{ background: 'white', borderRadius: 10, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
 
         {/* OVERVIEW */}
@@ -241,16 +386,72 @@ export default function JobDetail({ token }) {
                 ))}
               </tbody>
             </table>
-
             <div style={{ marginTop: 24 }}>
               <h3 style={{ color: BLUE, marginBottom: 10 }}>Internal Notes</h3>
               <textarea rows={4} value={note} onChange={e => setNote(e.target.value)}
                 style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 6, fontSize: 13, boxSizing: 'border-box', resize: 'vertical' }}
                 placeholder="Add internal notes here..." />
-              <button onClick={saveNote} style={{ marginTop: 8, padding: '8px 16px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+              <button onClick={saveNote}
+                style={{ marginTop: 8, padding: '8px 16px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
                 Save Note
               </button>
             </div>
+          </div>
+        )}
+
+        {/* SIGNATURES tab */}
+        {activeTab === 'signatures' && (
+          <div>
+            <h3 style={{ color: BLUE, marginBottom: 20 }}>Signatures & Read Receipts</h3>
+
+            {sigSessions.length === 0 ? (
+              <div style={{ color: '#888', textAlign: 'center', padding: 40 }}>
+                <div style={{ fontSize: 40, marginBottom: 12 }}>✉️</div>
+                <div>No signing links have been sent yet.</div>
+                <div style={{ fontSize: 12, marginTop: 6, color: '#aaa' }}>
+                  Once the proposal is ready, use "Send Proposal for Signature" to start the flow.
+                </div>
+              </div>
+            ) : (
+              sigSessions.map((s) => (
+                <div key={s.id} style={{ background: '#f8f9ff', border: '1px solid #e0e7ff', borderRadius: 10, padding: 20, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    <div style={{ fontWeight: 'bold', color: BLUE, fontSize: 14 }}>
+                      {s.doc_type === 'proposal' ? '📋 Proposal' : '📄 Contract'}
+                    </div>
+                    <span style={{
+                      padding: '3px 12px', borderRadius: 20, fontSize: 11, fontWeight: 'bold',
+                      background: s.status === 'signed' ? '#05966920' : s.status === 'opened' ? '#F59E0B20' : '#88888820',
+                      color:      s.status === 'signed' ? '#059669'  : s.status === 'opened' ? '#92400E'  : '#888',
+                    }}>
+                      {s.status === 'signed' ? '✍️ Signed' : s.status === 'opened' ? '👁 Opened' : '📨 Sent'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    {[
+                      ['📨 Sent',   s.email_sent_at ? new Date(s.email_sent_at).toLocaleString() : '—', null],
+                      ['👁 Opened', s.opened_at ? new Date(s.opened_at).toLocaleString() : 'Not yet', s.opened_ip ? `IP: ${s.opened_ip}` : null],
+                      ['✍️ Signed', s.signed_at ? new Date(s.signed_at).toLocaleString() : 'Not yet', s.signer_name || null],
+                    ].map(([label, value, sub]) => (
+                      <div key={label} style={{ padding: '10px 14px', background: 'white', borderRadius: 6, border: '1px solid #eee' }}>
+                        <div style={{ fontSize: 10, color: '#888', marginBottom: 4 }}>{label}</div>
+                        <div style={{ fontSize: 13, fontWeight: 'bold', color: value === 'Not yet' ? '#aaa' : '#1B3A6B' }}>{value}</div>
+                        {sub && <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+
+                  {s.signature_data && (
+                    <div style={{ marginTop: 14 }}>
+                      <div style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Captured Signature:</div>
+                      <img src={s.signature_data} alt="signature"
+                        style={{ border: '1px solid #e0e7ff', borderRadius: 6, maxWidth: 300, background: 'white', padding: 4 }} />
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         )}
 
@@ -288,8 +489,10 @@ export default function JobDetail({ token }) {
             {!contractData ? (
               <div style={{ color: '#888', textAlign: 'center', padding: 40 }}>
                 {['proposal_ready', 'proposal_sent'].includes(job.status)
-                  ? 'Approve the proposal above to generate the contract.'
-                  : 'No contract generated yet.'}
+                  ? 'Send the proposal for customer signature first. The contract will auto-generate upon approval.'
+                  : job.status === 'proposal_approved'
+                    ? 'Contract is being generated… refresh in a moment.'
+                    : 'No contract generated yet.'}
               </div>
             ) : (
               <div>
@@ -336,7 +539,7 @@ export default function JobDetail({ token }) {
               : auditLog.map(a => (
                 <div key={a.id} style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: 12 }}>
                   <span style={{ color: '#888', width: 140, flexShrink: 0 }}>{new Date(a.created_at).toLocaleString()}</span>
-                  <span style={{ fontWeight: 'bold', color: BLUE, width: 160, flexShrink: 0 }}>{a.action}</span>
+                  <span style={{ fontWeight: 'bold', color: BLUE, width: 180, flexShrink: 0 }}>{a.action}</span>
                   <span style={{ color: '#555' }}>{a.details}</span>
                   <span style={{ color: '#aaa', marginLeft: 'auto', flexShrink: 0 }}>by {a.performed_by}</span>
                 </div>

@@ -5,17 +5,32 @@ import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 
 const STATUS_COLORS = {
-  received: '#888', processing: '#E07B2A', clarification: '#F59E0B',
-  proposal_ready: '#3B82F6', proposal_sent: '#8B5CF6',
-  customer_approved: '#10B981', contract_ready: '#059669',
-  contract_sent: '#047857', complete: '#1B3A6B', error: '#C62828'
+  received:          '#888',
+  processing:        '#E07B2A',
+  clarification:     '#F59E0B',
+  proposal_ready:    '#3B82F6',
+  proposal_sent:     '#8B5CF6',
+  proposal_approved: '#059669',
+  customer_approved: '#10B981',
+  contract_ready:    '#0D9488',
+  contract_sent:     '#047857',
+  contract_signed:   '#1B3A6B',
+  complete:          '#111827',
+  error:             '#C62828',
 };
 
 const STATUS_LABELS = {
-  received: 'Received', processing: 'Processing', clarification: 'Needs Info',
-  proposal_ready: 'Proposal Ready', proposal_sent: 'Proposal Sent',
-  customer_approved: 'Approved', contract_ready: 'Contract Ready',
-  contract_sent: 'Contract Sent', complete: 'Complete'
+  received:          'Received',
+  processing:        'Processing',
+  clarification:     'Needs Info',
+  proposal_ready:    'Proposal Ready',
+  proposal_sent:     'Sent for Approval',
+  proposal_approved: 'Proposal Approved ✓',
+  customer_approved: 'Approved',
+  contract_ready:    'Contract Ready',
+  contract_sent:     'Contract Sent',
+  contract_signed:   'Contract Signed ✓',
+  complete:          'Complete',
 };
 
 export default function Dashboard({ token }) {

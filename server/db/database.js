@@ -200,6 +200,25 @@ async function initDatabase() {
     }
   }
 
+  // Signing sessions for proposal & contract e-signatures
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS signing_sessions (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id      TEXT    NOT NULL,
+      doc_type    TEXT    NOT NULL,
+      token       TEXT    UNIQUE NOT NULL,
+      email_sent_at DATETIME,
+      opened_at   DATETIME,
+      opened_ip   TEXT,
+      signed_at   DATETIME,
+      signed_ip   TEXT,
+      signature_data TEXT,
+      signer_name TEXT,
+      status      TEXT DEFAULT 'sent',
+      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();
