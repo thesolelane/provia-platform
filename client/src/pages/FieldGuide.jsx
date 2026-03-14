@@ -1,5 +1,5 @@
 // client/src/pages/FieldGuide.jsx
-// Jackson's bilingual estimate checklist — no auth required
+// Help Guide — bilingual estimate checklist — no auth required
 // Can be bookmarked on his phone
 
 import { useState } from 'react';

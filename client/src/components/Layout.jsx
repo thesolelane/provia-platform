@@ -10,7 +10,7 @@ const NAV = [
   { path: '/settings',   icon: '⚙️',  label: 'Settings' },
   { path: '/knowledge',  icon: '📚', label: 'Knowledge Base' },
   { path: '/whitelist',  icon: '🔒', label: 'Whitelist' },
-  { path: '/guide',      icon: '📋', label: "Jackson's Guide" },
+  { path: '/guide',      icon: '📋', label: "Help Guide" },
 ];
 
 export default function Layout({ children, token, onLogout }) {
