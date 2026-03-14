@@ -236,9 +236,7 @@ function buildProposalHTML(data) {
   ${buildExclusionsHTML(exclusions)}` : ''}
 
   <!-- PERMIT CHECKLIST -->
-  <div class="section-header">PERMIT &amp; CERTIFICATE OF OCCUPANCY CHECKLIST</div>
-  <p style="margin-bottom:10px;font-size:10pt;">All items below are included in this proposal and required to close permits:</p>
-  ${buildPermitChecklistHTML(isStretchCode)}
+  ${buildPermitChecklistHTML(data)}
 
   <!-- COST SUMMARY -->
   <div class="section-header">COMPLETE COST SUMMARY</div>
@@ -1209,26 +1207,77 @@ function buildExclusionsHTML(exclusions) {
   </table>`;
 }
 
-function buildPermitChecklistHTML(isStretchCode) {
-  const inspections = [
-    'Foundation inspection',
-    'Framing inspection',
-    'Rough electrical inspection',
-    'Rough plumbing inspection',
-    'Insulation inspection',
-    'Final electrical inspection',
-    'Final plumbing inspection',
-    'Final building inspection'
-  ];
-  if (isStretchCode) {
-    inspections.push('HERS rating and blower door test (Stretch Code)');
+function buildPermitChecklistHTML(data) {
+  const job      = data.job     || {};
+  const project  = data.project || {};
+  const trades   = job.trades   || {};
+
+  const isStretchCode   = project.stretchCodeTown || data.isStretchCodeTown || false;
+  const isNewConstruct  = project.type === 'new_construction';
+  const isADU           = project.type === 'adu';
+  const needsCO         = isNewConstruct || isADU; // Certificate of Occupancy
+  const hasElectrical   = !!trades.electrical;
+  const hasPlumbing     = !!trades.plumbing;
+  const hasHVAC         = !!trades.hvac;
+  const hasSprinkler    = !!trades.sprinkler;
+  const hasAnyTrade     = hasElectrical || hasPlumbing || hasHVAC || hasSprinkler;
+  const needsPermit     = !!job.has_permit;
+  const hasFraming      = !!job.has_framing || isNewConstruct;
+  const hasInsulation   = !!job.has_insulation;
+
+  // No permit and no trade work → no inspections at all
+  if (!needsPermit && !hasAnyTrade && !isNewConstruct) {
+    return `
+  <div class="section-header">PERMIT &amp; INSPECTION STATUS</div>
+  <div class="note-box">
+    No permit or municipal inspections are required for this scope of work.
+  </div>`;
   }
-  inspections.push('Certificate of Occupancy');
+
+  const rows = [];
+
+  // Foundation — new construction only
+  if (isNewConstruct) rows.push('Foundation inspection');
+
+  // Framing — if structural work or new build
+  if (hasFraming) rows.push('Framing inspection');
+
+  // Rough trade inspections
+  if (hasElectrical) rows.push('Rough electrical inspection');
+  if (hasPlumbing)   rows.push('Rough plumbing inspection');
+  if (hasHVAC)       rows.push('Rough mechanical (HVAC) inspection');
+  if (hasSprinkler)  rows.push('Rough sprinkler inspection');
+
+  // Insulation
+  if (hasInsulation) rows.push('Insulation inspection');
+
+  // Final trade inspections
+  if (hasElectrical) rows.push('Final electrical inspection');
+  if (hasPlumbing)   rows.push('Final plumbing inspection');
+  if (hasHVAC)       rows.push('Final mechanical (HVAC) inspection');
+  if (hasSprinkler)  rows.push('Final sprinkler inspection');
+
+  // Final building inspection — any permitted or structural work
+  if (needsPermit || hasFraming || isNewConstruct) rows.push('Final building inspection');
+
+  // Stretch code energy test
+  if (isStretchCode) rows.push('HERS rating and blower door test (Stretch Code)');
+
+  // Closing certificate:
+  // C of O → new construction or ADU (new dwelling unit requiring occupancy approval)
+  // Certificate of Completion → all other permitted renovations
+  if (needsCO) {
+    rows.push('Certificate of Occupancy');
+  } else if (needsPermit || hasAnyTrade) {
+    rows.push('Certificate of Completion');
+  }
 
   return `
+  <div class="section-header">PERMIT &amp; INSPECTION CHECKLIST</div>
+  <p style="margin-bottom:10px;font-size:10pt;">The following inspections are required for this scope of work and are included in this proposal:</p>
   <table>
-    <tr><th>Inspection</th><th>Status</th></tr>
-    ${inspections.map(item => `
+    <tr><th>Inspection / Milestone</th><th>Status</th></tr>
+    ${rows.map(item => `
     <tr>
       <td>${item}</td>
       <td style="color:#2E7D32;font-weight:bold;">✓ Included</td>

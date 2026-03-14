@@ -10,6 +10,29 @@ const { logAudit } = require('../services/auditService');
 const { tickQuoteCounter } = require('../services/assessmentService');
 const { addClient, removeClient, notifyClients } = require('../services/sseManager');
 
+// Helper: save proposal and backfill job columns from extracted data
+function saveProposalReady(db, proposalData, pdfPath, jobId) {
+  const c = proposalData.customer || {};
+  const p = proposalData.project || {};
+  db.prepare(`
+    UPDATE jobs SET
+      proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?,
+      status = ?, updated_at = CURRENT_TIMESTAMP,
+      customer_name  = COALESCE(NULLIF(?, ''), customer_name),
+      customer_email = COALESCE(NULLIF(?, ''), customer_email),
+      customer_phone = COALESCE(NULLIF(?, ''), customer_phone),
+      project_address = COALESCE(NULLIF(?, ''), project_address),
+      project_city    = COALESCE(NULLIF(?, ''), project_city)
+    WHERE id = ?`
+  ).run(
+    JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount,
+    'proposal_ready',
+    c.name || '', c.email || '', c.phone || '',
+    p.address || '', p.city || '',
+    jobId
+  );
+}
+
 // GET archived jobs (must be before /:id route)
 router.get('/archived/list', requireAuth, (req, res) => {
   const db = getDb();
@@ -174,8 +197,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
         logAudit(jobId, 'upload_estimate_clarification', `${proposalData.clarificationsNeeded.length} questions needed`, 'admin');
       } else {
         const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
-        db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-          .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
+        saveProposalReady(db, proposalData, pdfPath, jobId);
         logAudit(jobId, 'upload_estimate_processed', `Proposal ready. Total: $${proposalData.totalValue}`, 'admin');
         tickQuoteCounter(db);
         notifyClients('job_updated', { jobId, status: 'proposal_ready' });
@@ -251,8 +273,7 @@ ${estimateText}`;
         }
       } else {
         const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
-        db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-          .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
+        saveProposalReady(db, proposalData, pdfPath, jobId);
         logAudit(jobId, 'manual_estimate_processed', `Manual entry by admin`, 'admin');
         console.log(`[Manual Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
         tickQuoteCounter(db);
@@ -299,8 +320,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
           );
 
           const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
-          db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-            .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', job.id);
+          saveProposalReady(db, proposalData, pdfPath, job.id);
           logAudit(job.id, 'proposal_generated', `Proposal generated after clarification`, 'admin');
           console.log(`[Job ${job.id}] Proposal ready. Total: $${proposalData.totalValue}`);
           tickQuoteCounter(db);
@@ -340,8 +360,7 @@ ${job.raw_estimate_data}`;
     const proposalData = await processEstimate(fullEstimate, job.id, 'en');
     if (proposalData.readyToGenerate) {
       const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
-      db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', job.id);
+      saveProposalReady(db, proposalData, pdfPath, job.id);
       console.log(`[Reprocess ${job.id}] Done. Total: $${proposalData.totalValue}`);
       tickQuoteCounter(db);
       notifyClients('job_updated', { jobId: job.id, status: 'proposal_ready' });
