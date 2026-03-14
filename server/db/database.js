@@ -248,6 +248,18 @@ async function initDatabase() {
     )
   `);
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS job_photos (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id      TEXT NOT NULL,
+      filename    TEXT NOT NULL,
+      original_name TEXT,
+      caption     TEXT DEFAULT '',
+      uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+    )
+  `);
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();

@@ -26,6 +26,8 @@ app.use('/outputs', express.static(path.join(__dirname, '../outputs')));
 // Serve contact-attached documents (estimates, invoices saved under a contact)
 app.use('/contact-docs', express.static(path.join(__dirname, '../uploads/contact_docs')));
 
+// Job photo uploads are served through authenticated route in jobPhotos.js
+
 // ── REQUEST LOGGER (catch all incoming) ─────────────────────
 app.use((req, res, next) => {
   if (req.path.startsWith('/webhook') || req.path === '/health') {
@@ -64,6 +66,7 @@ app.use('/api/chat',          require('./routes/adminChat'));
 app.use('/api/whitelist',     require('./routes/whitelist'));
 app.use('/api/contacts',      require('./routes/contacts'));
 app.use('/api/tasks',         require('./routes/tasks').router);
+app.use('/api/jobs',          require('./routes/jobPhotos'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
 app.use(require('./routes/signing'));

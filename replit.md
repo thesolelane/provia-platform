@@ -31,14 +31,19 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 
 ## Key Files
 - `server/index.js` — Main server entry
-- `server/db/database.js` — SQLite schema & init (8 tables including `users` + seed data)
-- `server/routes/` — API routes (auth, jobs, settings, knowledge, conversations, whitelist, webhooks)
+- `server/db/database.js` — SQLite schema & init (8 tables including `users` + seed data, includes `job_photos`)
+- `server/routes/` — API routes (auth, jobs, jobPhotos, settings, knowledge, conversations, whitelist, webhooks)
 - `server/routes/jobs.js` — Job CRUD + `/reprocess` endpoint to re-run Claude + regenerate PDF
+- `server/routes/jobPhotos.js` — Job photo upload/list/delete (files stored in `uploads/jobs/{jobId}/`)
 - `server/middleware/auth.js` — Session-based auth (in-memory Map, stores userId/name/email/role per session)
 - `server/services/claudeService.js` — Claude data extraction + `applyPricing()` math
 - `server/services/pdfService.js` — Complete PDF template (proposal + contract + Exhibit A)
 - `client/src/App.jsx` — React app root with auto-logout on 401
 - `client/src/pages/` — Dashboard, JobDetail, Settings, KnowledgeBase, AdminChat, Whitelist, FieldGuide
+- `client/src/components/PhotosTab.jsx` — Photo grid, camera/upload, offline queue badge
+- `client/src/utils/offlinePhotoQueue.js` — IndexedDB-backed offline photo queue with auto-sync
+- `client/public/service-worker.js` — PWA service worker with app shell caching + Background Sync
+- `client/public/manifest.json` — PWA manifest for "Add to Home Screen" install
 
 ## Pricing Model (Option A)
 Jackson submits BASE COSTS (what we pay subs/materials). The SYSTEM applies markup per line item — Claude never does math:

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
+import PhotosTab from '../components/PhotosTab';
 
 const BLUE   = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -143,7 +144,7 @@ export default function JobDetail({ token }) {
   const proposalSession = sigSessions.find(s => s.doc_type === 'proposal');
   const contractSession = sigSessions.find(s => s.doc_type === 'contract');
 
-  const TABS = ['overview', 'signatures', 'proposal', 'contract', 'conversation', 'audit'];
+  const TABS = ['overview', 'photos', 'signatures', 'proposal', 'contract', 'conversation', 'audit'];
 
   // ── Read Receipt Badge ────────────────────────────────────────────────────
   const ReadReceiptBadge = ({ session, label }) => {
@@ -361,6 +362,11 @@ export default function JobDetail({ token }) {
       </div>
 
       <div style={{ background: 'white', borderRadius: 10, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+
+        {/* PHOTOS */}
+        {activeTab === 'photos' && (
+          <PhotosTab jobId={id} token={token} />
+        )}
 
         {/* OVERVIEW */}
         {activeTab === 'overview' && (
