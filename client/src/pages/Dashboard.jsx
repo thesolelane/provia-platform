@@ -31,15 +31,24 @@ export default function Dashboard({ token }) {
 
   const headers = { 'x-auth-token': token };
 
+  const loadDashboard = () => Promise.all([
+    fetch('/api/jobs', { headers }).then(r => r.json()),
+    fetch('/api/jobs/stats/summary', { headers }).then(r => r.json())
+  ]).then(([jobsData, statsData]) => {
+    setJobs(jobsData.jobs || []);
+    setStats(statsData);
+    setLoading(false);
+  });
+
   useEffect(() => {
-    Promise.all([
-      fetch('/api/jobs', { headers }).then(r => r.json()),
-      fetch('/api/jobs/stats/summary', { headers }).then(r => r.json())
-    ]).then(([jobsData, statsData]) => {
-      setJobs(jobsData.jobs || []);
-      setStats(statsData);
-      setLoading(false);
-    });
+    loadDashboard();
+
+    // Open a persistent SSE connection — server pushes an event the instant a job finishes processing
+    const es = new EventSource(`/api/jobs/events?token=${encodeURIComponent(token)}`);
+    es.addEventListener('job_updated', () => loadDashboard());
+    es.onerror = () => {}; // suppress console noise on background reconnects
+
+    return () => es.close();
   }, []);
 
   const [showArchived, setShowArchived] = useState(false);

@@ -8,6 +8,7 @@ const { sendWhatsApp } = require('../services/whatsappService');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
 const { tickQuoteCounter } = require('../services/assessmentService');
+const { addClient, removeClient, notifyClients } = require('../services/sseManager');
 
 // GET archived jobs (must be before /:id route)
 router.get('/archived/list', requireAuth, (req, res) => {
@@ -177,6 +178,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
           .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
         logAudit(jobId, 'upload_estimate_processed', `Proposal ready. Total: $${proposalData.totalValue}`, 'admin');
         tickQuoteCounter(db);
+        notifyClients('job_updated', { jobId, status: 'proposal_ready' });
       }
     } catch (err) {
       console.error(`[Upload Job ${jobId}] ERROR:`, err.message);
@@ -254,6 +256,7 @@ ${estimateText}`;
         logAudit(jobId, 'manual_estimate_processed', `Manual entry by admin`, 'admin');
         console.log(`[Manual Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
         tickQuoteCounter(db);
+        notifyClients('job_updated', { jobId, status: 'proposal_ready' });
       }
     } catch (err) {
       console.error(`[Manual Job ${jobId}] ERROR:`, err.message, err.stack);
@@ -301,6 +304,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
           logAudit(job.id, 'proposal_generated', `Proposal generated after clarification`, 'admin');
           console.log(`[Job ${job.id}] Proposal ready. Total: $${proposalData.totalValue}`);
           tickQuoteCounter(db);
+          notifyClients('job_updated', { jobId: job.id, status: 'proposal_ready' });
         } catch (err) {
           console.error(`[Job ${job.id}] Proposal generation error:`, err.message);
           db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', job.id);
@@ -340,6 +344,7 @@ ${job.raw_estimate_data}`;
         .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', job.id);
       console.log(`[Reprocess ${job.id}] Done. Total: $${proposalData.totalValue}`);
       tickQuoteCounter(db);
+      notifyClients('job_updated', { jobId: job.id, status: 'proposal_ready' });
     }
   } catch (err) {
     console.error(`[Reprocess ${job.id}] Error:`, err.message);
@@ -352,6 +357,20 @@ router.patch('/:id/notes', requireAuth, (req, res) => {
   const db = getDb();
   db.prepare('UPDATE jobs SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.body.notes, req.params.id);
   res.json({ success: true });
+});
+
+// SSE endpoint — dashboard subscribes here to receive instant push notifications when a job status changes
+router.get('/events', requireAuth, (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Send a heartbeat every 30s to keep the connection alive
+  const heartbeat = setInterval(() => { try { res.write(': heartbeat\n\n'); } catch {} }, 30000);
+
+  addClient(res);
+  req.on('close', () => { clearInterval(heartbeat); removeClient(res); });
 });
 
 // GET job stats for dashboard
