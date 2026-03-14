@@ -18,6 +18,15 @@ outputs/*.pdf
 # Uploaded files
 uploads/*
 !uploads/.gitkeep
+!uploads/invoices/
+!uploads/jobs/
+
+# Temporary files
+tmp/*
+!tmp/.gitkeep
+
+# Dev scratch files
+attached_assets/
 
 # Node modules
 node_modules/

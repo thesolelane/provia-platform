@@ -36,12 +36,12 @@ cp .env.example .env
 echo -e "${GREEN}✓ Created .env from template${NC}"
 echo ""
 
-# ── Admin password ───────────────────────────────────────────────────────────
-echo -e "${BOLD}1. ADMIN PANEL${NC}"
-read -sp "  Set admin panel password: " admin_pass
-echo ""
-sed -i "s/ADMIN_PASSWORD=.*/ADMIN_PASSWORD=$admin_pass/" .env
-echo -e "${GREEN}  ✓ Admin password set${NC}"
+# ── User accounts note ───────────────────────────────────────────────────────
+echo -e "${BOLD}1. USER ACCOUNTS${NC}"
+echo -e "  Two user accounts are seeded automatically when the app first starts:"
+echo -e "  • Anthony Cooper  — cooper@preferredbuilders.com"
+echo -e "  • Jackson Deaquino — jackson.deaquino@preferredbuildersusa.com"
+echo -e "  Default temp password: ${BOLD}Preferred2024!${NC} — change after first login."
 echo ""
 
 # ── Anthropic API ────────────────────────────────────────────────────────────
