@@ -1,4 +1,3 @@
-// client/src/App.jsx
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
@@ -17,15 +16,32 @@ import ConfirmDialog from './components/ConfirmDialog';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('pb_token'));
+  const [userName, setUserName] = useState(localStorage.getItem('pb_user_name') || '');
+  const [userRole, setUserRole] = useState(localStorage.getItem('pb_user_role') || '');
 
-  const handleLogin = (newToken) => {
+  const handleLogin = (newToken, name, role) => {
     localStorage.setItem('pb_token', newToken);
+    localStorage.setItem('pb_user_name', name);
+    localStorage.setItem('pb_user_role', role);
     setToken(newToken);
+    setUserName(name);
+    setUserRole(role);
   };
 
   const handleLogout = () => {
+    const currentToken = localStorage.getItem('pb_token');
+    if (currentToken) {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'x-auth-token': currentToken }
+      }).catch(() => {});
+    }
     localStorage.removeItem('pb_token');
+    localStorage.removeItem('pb_user_name');
+    localStorage.removeItem('pb_user_role');
     setToken(null);
+    setUserName('');
+    setUserRole('');
   };
 
   useEffect(() => {
@@ -47,7 +63,7 @@ function App() {
     <BrowserRouter>
       <Toast />
       <ConfirmDialog />
-      <Layout token={token} onLogout={handleLogout}>
+      <Layout token={token} onLogout={handleLogout} userName={userName} userRole={userRole}>
         <Routes>
           <Route path="/" element={<Dashboard token={token} />} />
           <Route path="/jobs/:id" element={<JobDetail token={token} />} />

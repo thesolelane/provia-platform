@@ -1,7 +1,7 @@
-// client/src/pages/Login.jsx
 import { useState } from 'react';
 
 export default function Login({ onLogin }) {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,11 +13,11 @@ export default function Login({ onLogin }) {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
+        body: JSON.stringify({ email, password })
       });
       const data = await res.json();
-      if (res.ok) { onLogin(data.token); }
-      else { setError('Invalid password'); }
+      if (res.ok) { onLogin(data.token, data.name, data.role); }
+      else { setError('Invalid email or password'); }
     } catch { setError('Connection error'); }
     setLoading(false);
   };
@@ -32,8 +32,15 @@ export default function Login({ onLogin }) {
         </div>
         <form onSubmit={handleSubmit}>
           <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }}
+          />
+          <input
             type="password"
-            placeholder="Admin Password"
+            placeholder="Password"
             value={password}
             onChange={e => setPassword(e.target.value)}
             style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: 12, boxSizing: 'border-box' }}

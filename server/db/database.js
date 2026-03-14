@@ -236,9 +236,22 @@ async function initDatabase() {
     )
   `);
 
+  // Users table for per-user login
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();
+  seedUsers();
 
   return db;
 }
@@ -500,6 +513,26 @@ Harvard, Shirley, Lunenburg, Townsend, Pepperell, Groton, Ayer
   });
 
   insertMany(docs);
+}
+
+function seedUsers() {
+  const bcrypt = require('bcryptjs');
+  const tempPassword = 'Preferred2024!';
+  const hash = bcrypt.hashSync(tempPassword, 10);
+
+  const users = [
+    { name: 'Anthony Cooper', email: 'cooper@preferredbuilders.com', role: 'owner' },
+    { name: 'Jackson Deaquino', email: 'jackson.deaquino@preferredbuildersusa.com', role: 'pm' },
+  ];
+
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO users (name, email, password_hash, role)
+    VALUES (@name, @email, @hash, @role)
+  `);
+
+  for (const u of users) {
+    insert.run({ ...u, hash });
+  }
 }
 
 module.exports = { getDb, initDatabase };

@@ -12,12 +12,15 @@ function requireAuth(req, res, next) {
   next();
 }
 
-function createSession(role) {
+function createSession({ userId, name, email, role }) {
   const token = require('crypto').randomBytes(32).toString('hex');
-  sessions.set(token, { role, createdAt: Date.now() });
-  // Expire after 24 hours
+  sessions.set(token, { userId, name, email, role, createdAt: Date.now() });
   setTimeout(() => sessions.delete(token), 24 * 60 * 60 * 1000);
   return token;
 }
 
-module.exports = { requireAuth, createSession };
+function destroySession(token) {
+  sessions.delete(token);
+}
+
+module.exports = { requireAuth, createSession, destroySession };

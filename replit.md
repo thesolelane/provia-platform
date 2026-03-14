@@ -31,10 +31,10 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 
 ## Key Files
 - `server/index.js` — Main server entry
-- `server/db/database.js` — SQLite schema & init (7 tables + seed data)
+- `server/db/database.js` — SQLite schema & init (8 tables including `users` + seed data)
 - `server/routes/` — API routes (auth, jobs, settings, knowledge, conversations, whitelist, webhooks)
 - `server/routes/jobs.js` — Job CRUD + `/reprocess` endpoint to re-run Claude + regenerate PDF
-- `server/middleware/auth.js` — Session-based auth (in-memory Map)
+- `server/middleware/auth.js` — Session-based auth (in-memory Map, stores userId/name/email/role per session)
 - `server/services/claudeService.js` — Claude data extraction + `applyPricing()` math
 - `server/services/pdfService.js` — Complete PDF template (proposal + contract + Exhibit A)
 - `client/src/App.jsx` — React app root with auto-logout on 401

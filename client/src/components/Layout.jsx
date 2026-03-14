@@ -1,4 +1,3 @@
-// client/src/components/Layout.jsx
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -13,7 +12,7 @@ const NAV = [
   { path: '/guide',      icon: '📋', label: "Help Guide" },
 ];
 
-export default function Layout({ children, token, onLogout }) {
+export default function Layout({ children, token, onLogout, userName, userRole }) {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -64,8 +63,15 @@ export default function Layout({ children, token, onLogout }) {
           ))}
         </nav>
 
-        {/* Logout */}
+        {/* User info + Logout */}
         <div style={{ padding: 16, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          {!collapsed && userName && (
+            <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 8, lineHeight: 1.4 }}>
+              Logged in as<br />
+              <span style={{ fontWeight: 'bold', fontSize: 12 }}>{userName}</span>
+              {userRole && <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>({userRole === 'owner' ? 'Owner' : 'PM'})</span>}
+            </div>
+          )}
           <button
             onClick={onLogout}
             style={{
