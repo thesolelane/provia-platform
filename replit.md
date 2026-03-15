@@ -68,7 +68,7 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 - `client/src/utils/offlinePhotoQueue.js` — IndexedDB offline queue + auto-sync + Background Sync API
 - `client/src/pages/AdminChat.jsx` — Bot chat; tool-call results show as cards (tasks show calendar link)
 - `client/src/pages/Tasks.jsx` — To-do list; date groups (Overdue / Today / Tomorrow); Google Calendar links
-- `client/src/pages/Settings.jsx` — Tabs: Markup, Labor Rates, Allowances, Integrations, Bot Behavior, Calendar
+- `client/src/pages/Settings.jsx` — Tabs: Markup, Labor Rates, Allowances, Integrations, Bot Behavior, Calendar, Secrets
 - `client/src/pages/KnowledgeBase.jsx` — Upload + manage knowledge documents for the bot
 - `client/src/pages/Contacts.jsx` — Customer contact list (pseudonymized serial numbers)
 - `client/src/pages/Whitelist.jsx` — Approved WhatsApp/email senders management
@@ -121,7 +121,7 @@ Archived jobs can be restored from Dashboard. Auto-purged after 90 days.
 - **Per-user login:** Email + bcrypt password. Two seeded users:
   - Anthony Cooper — `cooper@preferredbuilders.com` — role: owner
   - Jackson Deaquino — `jackson.deaquino@preferredbuildersusa.com` — role: pm
-  - Temp password: `Preferred2024!` — change after migration
+  - Temp password set in `server/db/database.js` seed — **must be changed before production**
 - Sessions stored in-memory (lost on restart — move to SQLite for production)
 - Auth header: `x-auth-token`
 - Signing pages (`/sign/p/:token`, `/sign/c/:token`) are outside auth — public by design
@@ -140,6 +140,16 @@ Archived jobs can be restored from Dashboard. Auto-purged after 90 days.
 `adminChat()` returns `{ reply, createdTask }` — NOT a plain string.  
 Available tools: `lookup_contacts`, `lookup_jobs`, `create_task`  
 Route must pass `db` to `adminChat()`. History stores only final text replies.
+
+---
+
+## Secrets Tab (Settings → Secrets)
+Owner-only tab for managing a fixed allowlist of environment variables (`MANAGED_KEYS` in `server/routes/secrets.js`). Displays values masked by default, grouped by category (AI, Email, WhatsApp, Contacts, System). Updates write to `.env` file and `process.env`. Backend routes: `GET /api/secrets` (read all) and `PUT /api/secrets` (bulk update). Owner role required; changes take effect immediately for `process.env`, persisted to `.env` for restarts.
+
+---
+
+## PDF Auth Fix
+The `requireAuth` middleware (`server/middleware/auth.js`) accepts auth via either the `x-auth-token` header or a `?token=` query parameter. This applies to all protected routes, including the PDF file route at `GET /outputs/:filename`. The query param fix resolves "Unauthorized" errors when opening PDFs in a new browser tab (which can't send custom headers). Frontend links append `?token=` to `/outputs/` URLs for direct browser access.
 
 ---
 
@@ -178,6 +188,6 @@ Current integration uses Replit connectors (`REPLIT_CONNECTORS_HOSTNAME`, `REPL_
 - [ ] **Move sessions to SQLite** — In-memory sessions are lost on restart. Store in `sessions` table.
 - [ ] **Switch WhatsApp to webhook** — Replace poller with Twilio webhook on static domain.
 - [ ] **Rebuild Google Calendar auth** — Replace Replit connector with standard Google OAuth 2.0.
-- [ ] **Change passwords** — Both users reset from temp password `Preferred2024!`
+- [ ] **Change passwords** — Both users must reset from the development seed password
 - [ ] **Register WhatsApp Business number** — Only if messaging customers directly (sandbox is fine for internal use)
 - [ ] **SSL cert** — Drop `fullchain.pem` + `privkey.pem` in `docker/ssl/` before starting nginx
