@@ -97,6 +97,7 @@ app.use('/api/whitelist',     require('./routes/whitelist'));
 app.use('/api/contacts',      require('./routes/contacts'));
 app.use('/api/tasks',         require('./routes/tasks').router);
 app.use('/api/jobs',          require('./routes/jobPhotos'));
+app.use('/api/secrets',       require('./routes/secrets'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
 app.use(require('./routes/signing'));

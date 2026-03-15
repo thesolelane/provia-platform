@@ -67,7 +67,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard token={token} />} />
           <Route path="/jobs/:id" element={<JobDetail token={token} />} />
-          <Route path="/settings" element={<Settings token={token} />} />
+          <Route path="/settings" element={<Settings token={token} userRole={userRole} />} />
           <Route path="/knowledge" element={<KnowledgeBase token={token} />} />
           <Route path="/chat" element={<AdminChat token={token} />} />
           <Route path="/whitelist" element={<Whitelist token={token} />} />

@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
 
-const TABS = ['Markup', 'Labor Rates', 'Allowances', 'Integrations', 'Bot Behavior', 'Calendar'];
+const BASE_TABS = ['Markup', 'Labor Rates', 'Allowances', 'Integrations', 'Bot Behavior', 'Calendar'];
 
-export default function Settings({ token }) {
+export default function Settings({ token, userRole }) {
+  const TABS = userRole === 'owner' ? [...BASE_TABS, 'Secrets'] : BASE_TABS;
+
   const [settings, setSettings] = useState({});
   const [activeTab, setActiveTab] = useState('Markup');
   const [saved, setSaved] = useState(false);
@@ -14,6 +16,11 @@ export default function Settings({ token }) {
   const [calendars, setCalendars] = useState([]);
   const [calLoading, setCalLoading] = useState(false);
   const [calSaved, setCalSaved] = useState(false);
+  const [secrets, setSecrets] = useState([]);
+  const [secretsEdited, setSecretsEdited] = useState({});
+  const [showValues, setShowValues] = useState({});
+  const [secretsSaved, setSecretsSaved] = useState(false);
+  const [secretsLoading, setSecretsLoading] = useState(false);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   useEffect(() => {
@@ -306,6 +313,110 @@ export default function Settings({ token }) {
     );
   };
 
+  const loadSecrets = async () => {
+    setSecretsLoading(true);
+    try {
+      const res = await fetch('/api/secrets', { headers: { 'x-auth-token': token } });
+      const data = await res.json();
+      if (res.ok) { setSecrets(data); setSecretsEdited({}); }
+    } catch (e) {}
+    setSecretsLoading(false);
+  };
+
+  const saveSecrets = async () => {
+    if (Object.keys(secretsEdited).length === 0) return;
+    const res = await fetch('/api/secrets', { method: 'PUT', headers, body: JSON.stringify(secretsEdited) });
+    if (res.ok) {
+      setSecrets(prev => prev.map(s => secretsEdited[s.key] !== undefined ? { ...s, value: secretsEdited[s.key] } : s));
+      setSecretsEdited({});
+      setSecretsSaved(true);
+      setTimeout(() => setSecretsSaved(false), 3000);
+    }
+  };
+
+  const renderSecrets = () => {
+    if (secretsLoading) return <div style={{ color: '#888', fontSize: 13 }}>Loading...</div>;
+    if (secrets.length === 0) {
+      return (
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>Load your current configuration keys to view or update them.</p>
+          <button onClick={loadSecrets}
+            style={{ padding: '10px 24px', background: BLUE, color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>
+            🔑 Load Configuration Keys
+          </button>
+        </div>
+      );
+    }
+
+    const groups = [...new Set(secrets.map(s => s.group))];
+
+    return (
+      <div>
+        <div style={{ background: '#fff8f0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 12, fontSize: 12, color: '#5D3A00', marginBottom: 20 }}>
+          ⚠️ Changes are saved to your <strong>.env</strong> file and take effect immediately for most settings. API key changes (Claude, Mailgun, Twilio) require a server restart to fully take effect.
+        </div>
+
+        {groups.map(group => (
+          <div key={group} style={{ marginBottom: 28 }}>
+            <div style={{ fontSize: 11, fontWeight: 'bold', color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12, borderBottom: '1px solid #eee', paddingBottom: 6 }}>
+              {group}
+            </div>
+            {secrets.filter(s => s.group === group).map(s => {
+              const currentVal = secretsEdited[s.key] !== undefined ? secretsEdited[s.key] : s.value;
+              const isVisible = showValues[s.key] || s.noMask;
+              const isEdited = secretsEdited[s.key] !== undefined;
+              return (
+                <div key={s.key} style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <label style={{ fontSize: 12, fontWeight: '600', color: '#444' }}>{s.label}</label>
+                    <span style={{ fontSize: 10, color: '#bbb', fontFamily: 'monospace' }}>{s.key}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type={isVisible ? 'text' : 'password'}
+                      value={currentVal}
+                      onChange={e => setSecretsEdited(prev => ({ ...prev, [s.key]: e.target.value }))}
+                      style={{
+                        flex: 1, padding: '8px 10px', border: `1px solid ${isEdited ? ORANGE : '#ddd'}`,
+                        borderRadius: 6, fontSize: 12, fontFamily: 'monospace',
+                        background: isEdited ? '#fff8f0' : 'white'
+                      }}
+                    />
+                    {!s.noMask && (
+                      <button
+                        onClick={() => setShowValues(prev => ({ ...prev, [s.key]: !prev[s.key] }))}
+                        style={{ padding: '8px 10px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+                        title={isVisible ? 'Hide' : 'Show'}>
+                        {isVisible ? '🙈' : '👁'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 8 }}>
+          <button onClick={saveSecrets}
+            disabled={Object.keys(secretsEdited).length === 0}
+            style={{
+              padding: '10px 24px', border: 'none', borderRadius: 8, cursor: Object.keys(secretsEdited).length === 0 ? 'not-allowed' : 'pointer',
+              fontWeight: 'bold', fontSize: 13,
+              background: secretsSaved ? '#2E7D32' : Object.keys(secretsEdited).length === 0 ? '#ccc' : BLUE,
+              color: 'white'
+            }}>
+            {secretsSaved ? '✅ Saved!' : `Save ${Object.keys(secretsEdited).length > 0 ? `(${Object.keys(secretsEdited).length} changed)` : 'Changes'}`}
+          </button>
+          <button onClick={loadSecrets}
+            style={{ padding: '10px 16px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>
+            ↺ Reload
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ padding: 32 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -318,10 +429,12 @@ export default function Settings({ token }) {
           >
             ⬇ Blank Contract
           </a>
-          <button onClick={save}
-            style={{ background: saved ? '#2E7D32' : BLUE, color: 'white', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
-            {saved ? '✅ Saved!' : 'Save Changes'}
-          </button>
+          {activeTab !== 'Secrets' && (
+            <button onClick={save}
+              style={{ background: saved ? '#2E7D32' : BLUE, color: 'white', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
+              {saved ? '✅ Saved!' : 'Save Changes'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -346,6 +459,7 @@ export default function Settings({ token }) {
         {activeTab === 'Integrations' && renderIntegrations()}
         {activeTab === 'Bot Behavior' && renderBotBehavior()}
         {activeTab === 'Calendar' && renderCalendar()}
+        {activeTab === 'Secrets' && renderSecrets()}
       </div>
     </div>
   );
