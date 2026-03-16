@@ -396,6 +396,11 @@ router.post('/', async (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
 
+  if (process.env.DISABLE_WHATSAPP_WEBHOOK === 'true') {
+    console.log('📵 WhatsApp webhook disabled (DISABLE_WHATSAPP_WEBHOOK=true) — ignoring incoming message');
+    return;
+  }
+
   const sid = req.body.MessageSid;
   if (sid && !claimMessage(sid)) {
     console.log(`WhatsApp webhook: skipping already-processed ${sid}`);
