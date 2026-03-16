@@ -260,6 +260,17 @@ async function initDatabase() {
     )
   `);
 
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS whatsapp_processed (
+      message_sid TEXT PRIMARY KEY,
+      processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `).run();
+
+  db.prepare(`
+    DELETE FROM whatsapp_processed WHERE processed_at < datetime('now', '-24 hours')
+  `).run();
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();

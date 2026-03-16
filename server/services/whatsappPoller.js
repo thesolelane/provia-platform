@@ -1,9 +1,9 @@
 const twilio = require('twilio');
+const { getDb } = require('../db/database');
 
 let pollerClient;
 let lastPollTime = new Date();
 let pollingInterval = null;
-const processedMessages = new Set();
 
 function getPollerClient() {
   if (!pollerClient) {
@@ -20,7 +20,21 @@ function getPollerClient() {
   return pollerClient;
 }
 
-// Fetch media URL and content type for a message that has attachments
+function isProcessed(sid) {
+  try {
+    const db  = getDb();
+    const row = db.prepare('SELECT 1 FROM whatsapp_processed WHERE message_sid = ?').get(sid);
+    return !!row;
+  } catch { return false; }
+}
+
+function markProcessed(sid) {
+  try {
+    const db = getDb();
+    db.prepare('INSERT OR IGNORE INTO whatsapp_processed (message_sid) VALUES (?)').run(sid);
+  } catch {}
+}
+
 async function fetchMediaForMessage(client, messageSid) {
   try {
     const mediaList = await client.messages(messageSid).media.list({ limit: 5 });
@@ -61,13 +75,12 @@ function startPolling(handleIncoming, intervalMs = 5000) {
         limit: 10
       });
 
-      const inbound = messages.filter(m => m.direction === 'inbound' && !processedMessages.has(m.sid));
+      const inbound = messages.filter(m => m.direction === 'inbound' && !isProcessed(m.sid));
 
       for (const msg of inbound) {
-        processedMessages.add(msg.sid);
+        markProcessed(msg.sid);
         console.log(`📥 Polled message: ${msg.from} -> "${msg.body?.substring(0, 50)}" numMedia=${msg.numMedia}`);
 
-        // Build the data object that mirrors a Twilio webhook POST body
         const fakeBody = {
           From: msg.from,
           Body: msg.body || '',
@@ -76,7 +89,6 @@ function startPolling(handleIncoming, intervalMs = 5000) {
           NumMedia: msg.numMedia || 0
         };
 
-        // Fetch actual media URLs if this message has attachments
         if (Number(msg.numMedia) > 0) {
           console.log(`📎 Message ${msg.sid} has ${msg.numMedia} attachment(s), fetching media...`);
           const media = await fetchMediaForMessage(client, msg.sid);
@@ -96,13 +108,6 @@ function startPolling(handleIncoming, intervalMs = 5000) {
         if (newest.dateCreated > lastPollTime) {
           lastPollTime = newest.dateCreated;
         }
-      }
-
-      if (processedMessages.size > 500) {
-        const arr = [...processedMessages];
-        arr.splice(0, arr.length - 200);
-        processedMessages.clear();
-        arr.forEach(s => processedMessages.add(s));
       }
 
     } catch (err) {
