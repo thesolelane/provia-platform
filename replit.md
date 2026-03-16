@@ -184,10 +184,20 @@ Current integration uses Replit connectors (`REPLIT_CONNECTORS_HOSTNAME`, `REPL_
 
 ---
 
+## Windows Server (Production)
+- **Location:** `C:\Users\theso\Desktop\preferred-builders-ai`
+- **Local IP:** `192.168.1.210`
+- **Public URL:** `https://preferredbuilders.duckdns.org` (Let's Encrypt cert, auto-renews)
+- **PM2 processes:** `preferred-builders` (Node app) + `caddy` (HTTPS reverse proxy via `run-caddy.js`)
+- **Caddy config:** `Caddyfile` in project root — reverse proxy from HTTPS:443 → localhost:5000
+- **DuckDNS:** Auto-updater batch script on Desktop, runs every 5 min via Task Scheduler
+- **Office computers on same network:** Add `192.168.1.210 preferredbuilders.duckdns.org` to `/etc/hosts` (Mac) or `C:\Windows\System32\drivers\etc\hosts` (Windows) for HTTPS to work locally (hairpin NAT workaround)
+
+---
+
 ## Production TODO (before going live on own server)
 - [ ] **Move sessions to SQLite** — In-memory sessions are lost on restart. Store in `sessions` table.
 - [ ] **Switch WhatsApp to webhook** — Replace poller with Twilio webhook on static domain.
 - [ ] **Rebuild Google Calendar auth** — Replace Replit connector with standard Google OAuth 2.0.
 - [ ] **Change passwords** — Both users must reset from the development seed password
 - [ ] **Register WhatsApp Business number** — Only if messaging customers directly (sandbox is fine for internal use)
-- [ ] **SSL cert** — Drop `fullchain.pem` + `privkey.pem` in `docker/ssl/` before starting nginx
