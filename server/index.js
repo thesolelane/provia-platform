@@ -170,7 +170,11 @@ async function start() {
 
     const { startPolling } = require('./services/whatsappPoller');
     const { handleIncomingWhatsApp } = require('./routes/webhookWhatsapp');
-    startPolling(handleIncomingWhatsApp, 5000);
+    if (process.env.DISABLE_WHATSAPP_POLLER !== 'true') {
+      startPolling(handleIncomingWhatsApp, 5000);
+    } else {
+      console.log('📵 WhatsApp poller disabled (DISABLE_WHATSAPP_POLLER=true)');
+    }
 
     const { startEmailPolling } = require('./services/emailPoller');
     startEmailPolling(15 * 60 * 1000);

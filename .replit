@@ -79,6 +79,7 @@ NODE_ENV = "production"
 MAILGUN_DOMAIN = "mg.preferredbuildersusa.com"
 BOT_EMAIL = "estimates@preferredbuildersusa.com"
 PORT = "5000"
+DISABLE_WHATSAPP_POLLER = "true"
 
 [postMerge]
 path = "scripts/post-merge.sh"
