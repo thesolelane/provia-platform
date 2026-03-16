@@ -394,6 +394,20 @@ async function handleIncomingWhatsApp(data) {
 router.post('/', async (req, res) => {
   res.set('Content-Type', 'text/xml');
   res.send('<Response></Response>');
+
+  const sid = req.body.MessageSid;
+  if (sid) {
+    try {
+      const db = getDb();
+      const already = db.prepare('SELECT 1 FROM whatsapp_processed WHERE message_sid = ?').get(sid);
+      if (already) {
+        console.log(`WhatsApp webhook: skipping already-processed ${sid}`);
+        return;
+      }
+      db.prepare('INSERT OR IGNORE INTO whatsapp_processed (message_sid) VALUES (?)').run(sid);
+    } catch {}
+  }
+
   console.log('WhatsApp webhook received:', { From: req.body.From, Body: req.body.Body?.substring(0, 50) });
   await handleIncomingWhatsApp(req.body);
 });
