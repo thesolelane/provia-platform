@@ -1,5 +1,6 @@
 const twilio = require('twilio');
 const { getDb } = require('../db/database');
+const { isDuplicate, markSeen } = require('./msgDedup');
 
 let pollerClient;
 let lastPollTime = new Date();
@@ -21,6 +22,7 @@ function getPollerClient() {
 }
 
 function isProcessed(sid) {
+  if (isDuplicate(sid)) return true;
   try {
     const db  = getDb();
     const row = db.prepare('SELECT 1 FROM whatsapp_processed WHERE message_sid = ?').get(sid);
@@ -29,6 +31,7 @@ function isProcessed(sid) {
 }
 
 function markProcessed(sid) {
+  markSeen(sid);
   try {
     const db = getDb();
     db.prepare('INSERT OR IGNORE INTO whatsapp_processed (message_sid) VALUES (?)').run(sid);
