@@ -379,12 +379,12 @@ async function handleIncomingWhatsApp(data) {
     }
     messages.push({ role: 'user', content: userMessage });
 
-    const reply = await adminChat(messages, language);
-    await sendWhatsApp(from, reply);
+    const { reply: replyText } = await adminChat(messages, language, null, sender);
+    await sendWhatsApp(from, replyText);
 
     if (activeJob) {
       logConversation(db, activeJob.id, 'inbound', 'whatsapp', from, 'bot', body);
-      logConversation(db, activeJob.id, 'outbound', 'whatsapp', 'bot', from, reply);
+      logConversation(db, activeJob.id, 'outbound', 'whatsapp', 'bot', from, replyText);
     }
 
   } catch (err) {

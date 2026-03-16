@@ -398,15 +398,17 @@ async function runAdminTool(toolName, toolInput, db) {
   return 'Unknown tool.';
 }
 
-async function adminChat(messages, language = 'en', db = null) {
+async function adminChat(messages, language = 'en', db = null, sender = null) {
   const settings     = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
 
   const today = new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+  const senderLabel = sender ? `${sender.name} (${sender.role})` : 'an authorized team member';
+
   const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language) + `
 
-You are in admin chat mode for Jackson Deaquino at Preferred Builders. You have live access to the database.
+You are in admin chat mode for ${senderLabel} at Preferred Builders. You have live access to the database.
 Today is: ${today}
 
 You can:
