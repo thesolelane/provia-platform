@@ -6,7 +6,7 @@ import JobDetail from './pages/JobDetail';
 import Settings from './pages/Settings';
 import KnowledgeBase from './pages/KnowledgeBase';
 import AdminChat from './pages/AdminChat';
-import Whitelist from './pages/Whitelist';
+import Team from './pages/Team';
 import FieldGuide from './pages/FieldGuide';
 import Contacts from './pages/Contacts';
 import Tasks from './pages/Tasks';
@@ -70,7 +70,8 @@ function App() {
           <Route path="/settings" element={<Settings token={token} userRole={userRole} />} />
           <Route path="/knowledge" element={<KnowledgeBase token={token} />} />
           <Route path="/chat" element={<AdminChat token={token} />} />
-          <Route path="/whitelist" element={<Whitelist token={token} />} />
+          <Route path="/team" element={<Team token={token} userRole={userRole} />} />
+          <Route path="/whitelist" element={<Navigate to="/team" />} />
           <Route path="/contacts" element={<Contacts token={token} />} />
           <Route path="/tasks" element={<Tasks token={token} />} />
           <Route path="/guide" element={<FieldGuide />} />

@@ -99,6 +99,7 @@ app.use('/api/tasks',         require('./routes/tasks').router);
 app.use('/api/jobs',          require('./routes/jobPhotos'));
 app.use('/api/secrets',       require('./routes/secrets'));
 app.use('/api/status',        require('./routes/status'));
+app.use('/api/users',         require('./routes/users'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
 app.use(require('./routes/signing'));

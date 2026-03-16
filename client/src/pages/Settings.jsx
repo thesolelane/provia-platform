@@ -7,7 +7,7 @@ const ORANGE = '#E07B2A';
 const BASE_TABS = ['Markup', 'Labor Rates', 'Allowances', 'Integrations', 'Bot Behavior', 'Calendar'];
 
 export default function Settings({ token, userRole }) {
-  const TABS = userRole === 'owner' ? [...BASE_TABS, 'Secrets', 'Status'] : BASE_TABS;
+  const TABS = userRole === 'system_admin' ? [...BASE_TABS, 'Secrets', 'Status'] : BASE_TABS;
 
   const [settings, setSettings] = useState({});
   const [activeTab, setActiveTab] = useState('Markup');

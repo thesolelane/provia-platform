@@ -42,7 +42,7 @@ function serializeEnvValue(val) {
 }
 
 router.get('/', requireAuth, (req, res) => {
-  if (req.session.role !== 'owner') return res.status(403).json({ error: 'Forbidden' });
+  if (req.session.role !== 'system_admin') return res.status(403).json({ error: 'Forbidden' });
   const result = MANAGED_KEYS.map(k => ({
     key: k.key,
     label: k.label,
@@ -54,7 +54,7 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 router.put('/', requireAuth, (req, res) => {
-  if (req.session.role !== 'owner') return res.status(403).json({ error: 'Forbidden' });
+  if (req.session.role !== 'system_admin') return res.status(403).json({ error: 'Forbidden' });
 
   const updates = req.body;
   if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {

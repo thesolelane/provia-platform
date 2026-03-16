@@ -8,7 +8,7 @@ const NAV = [
   { path: '/contacts',   icon: '👥', label: 'Contacts' },
   { path: '/settings',   icon: '⚙️',  label: 'Settings' },
   { path: '/knowledge',  icon: '📚', label: 'Knowledge Base' },
-  { path: '/whitelist',  icon: '🔒', label: 'Whitelist' },
+  { path: '/team',       icon: '👷', label: 'Team' },
   { path: '/guide',      icon: '📋', label: "Help Guide" },
 ];
 
@@ -69,7 +69,9 @@ export default function Layout({ children, token, onLogout, userName, userRole }
             <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 8, lineHeight: 1.4 }}>
               Logged in as<br />
               <span style={{ fontWeight: 'bold', fontSize: 12 }}>{userName}</span>
-              {userRole && <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>({userRole === 'owner' ? 'Owner' : 'PM'})</span>}
+              {userRole && <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 4 }}>({
+                { system_admin: 'Sys Admin', admin: 'Admin', pm: 'PM', staff: 'Staff' }[userRole] || userRole
+              })</span>}
             </div>
           )}
           <button

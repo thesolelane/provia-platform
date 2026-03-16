@@ -248,6 +248,18 @@ async function initDatabase() {
     )
   `);
 
+  // Migration: add profile columns to users
+  try { db.prepare("SELECT phone FROM users LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE users ADD COLUMN phone TEXT");
+    db.exec("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'");
+    db.exec("ALTER TABLE users ADD COLUMN title TEXT DEFAULT 'Team Member'");
+    db.exec("ALTER TABLE users ADD COLUMN active INTEGER DEFAULT 1");
+  }
+
+  // Migration: update roles to new permission system
+  db.prepare("UPDATE users SET role='system_admin', title='Project Manager' WHERE id=1 AND role IN ('owner','system_admin')").run();
+  db.prepare("UPDATE users SET role='admin', title='Project Manager' WHERE id=2 AND role IN ('pm','admin')").run();
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS job_photos (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -544,13 +556,13 @@ function seedUsers() {
   const hash = bcrypt.hashSync(tempPassword, 10);
 
   const users = [
-    { name: 'Anthony Cooper', email: 'cooper@preferredbuilders.com', role: 'owner' },
-    { name: 'Jackson Deaquino', email: 'jackson.deaquino@preferredbuildersusa.com', role: 'pm' },
+    { name: 'Anthony Cooper', email: 'cooper@preferredbuildersusa.com', role: 'system_admin', title: 'Project Manager' },
+    { name: 'Jackson Deaquino', email: 'jackson.deaquino@preferredbuildersusa.com', role: 'admin', title: 'Project Manager' },
   ];
 
   const insert = db.prepare(`
-    INSERT OR IGNORE INTO users (name, email, password_hash, role)
-    VALUES (@name, @email, @hash, @role)
+    INSERT OR IGNORE INTO users (name, email, password_hash, role, title)
+    VALUES (@name, @email, @hash, @role, @title)
   `);
 
   for (const u of users) {

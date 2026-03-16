@@ -119,12 +119,20 @@ Archived jobs can be restored from Dashboard. Auto-purged after 90 days.
 
 ## Auth System
 - **Per-user login:** Email + bcrypt password. Two seeded users:
-  - Anthony Cooper — `cooper@preferredbuilders.com` — role: owner
-  - Jackson Deaquino — `jackson.deaquino@preferredbuildersusa.com` — role: pm
+  - Anthony Cooper — `cooper@preferredbuildersusa.com` — role: `system_admin` (Project Manager + System Admin rights)
+  - Jackson Deaquino — `jackson.deaquino@preferredbuildersusa.com` — role: `admin` (Project Manager + Admin rights)
   - Temp password set in `server/db/database.js` seed — **must be changed before production**
 - Sessions stored in-memory (lost on restart — move to SQLite for production)
 - Auth header: `x-auth-token`
 - Signing pages (`/sign/p/:token`, `/sign/c/:token`) are outside auth — public by design
+
+### Permission Levels
+| Role | Level | Access |
+|------|-------|--------|
+| `system_admin` | 4 | Everything: secrets, user management, all settings |
+| `admin` | 3 | Jobs, tasks, contacts, settings — no secrets/user management |
+| `pm` | 2 | Jobs, tasks, contacts, chat |
+| `staff` | 1 | View only (future) |
 
 ---
 
