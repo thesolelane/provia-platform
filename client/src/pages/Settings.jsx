@@ -7,7 +7,7 @@ const ORANGE = '#E07B2A';
 const BASE_TABS = ['Markup', 'Labor Rates', 'Allowances', 'Integrations', 'Bot Behavior', 'Calendar'];
 
 export default function Settings({ token, userRole }) {
-  const TABS = userRole === 'owner' ? [...BASE_TABS, 'Secrets'] : BASE_TABS;
+  const TABS = userRole === 'owner' ? [...BASE_TABS, 'Secrets', 'Status'] : BASE_TABS;
 
   const [settings, setSettings] = useState({});
   const [activeTab, setActiveTab] = useState('Markup');
@@ -21,6 +21,8 @@ export default function Settings({ token, userRole }) {
   const [showValues, setShowValues] = useState({});
   const [secretsSaved, setSecretsSaved] = useState(false);
   const [secretsLoading, setSecretsLoading] = useState(false);
+  const [statusData, setStatusData]     = useState(null);
+  const [statusLoading, setStatusLoading] = useState(false);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   useEffect(() => {
@@ -417,6 +419,87 @@ export default function Settings({ token, userRole }) {
     );
   };
 
+  const loadStatus = async () => {
+    setStatusLoading(true);
+    try {
+      const res  = await fetch('/api/status', { headers: { 'x-auth-token': token } });
+      const data = await res.json();
+      if (res.ok) setStatusData(data);
+    } catch (e) {}
+    setStatusLoading(false);
+  };
+
+  const renderStatus = () => {
+    const GREEN_C  = '#2E7D32';
+    const RED_C    = '#C62828';
+    const GREY_C   = '#888';
+
+    if (!statusData) {
+      return (
+        <div style={{ textAlign: 'center', padding: 40 }}>
+          <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
+            Run a live check on all connected services.
+          </p>
+          <button onClick={loadStatus} disabled={statusLoading}
+            style={{ padding: '10px 28px', background: BLUE, color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>
+            {statusLoading ? '⏳ Checking...' : '🔍 Run Status Check'}
+          </button>
+        </div>
+      );
+    }
+
+    const services = Object.values(statusData.services);
+    const allOk    = services.every(s => s.ok);
+    const okCount  = services.filter(s => s.ok).length;
+
+    return (
+      <div>
+        {/* Summary bar */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          padding: '12px 16px', borderRadius: 8, marginBottom: 20,
+          background: allOk ? '#f0fdf4' : '#fff8f0',
+          border: `1px solid ${allOk ? '#bbf7d0' : ORANGE}`
+        }}>
+          <span style={{ fontSize: 14, fontWeight: 'bold', color: allOk ? GREEN_C : ORANGE }}>
+            {allOk ? '✅ All systems operational' : `⚠️ ${okCount} of ${services.length} services OK`}
+          </span>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: '#888' }}>
+              Checked: {new Date(statusData.checkedAt).toLocaleTimeString()}
+            </span>
+            <button onClick={loadStatus} disabled={statusLoading}
+              style={{ padding: '5px 14px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 11, fontWeight: 'bold' }}>
+              {statusLoading ? '...' : '↺ Recheck'}
+            </button>
+          </div>
+        </div>
+
+        {/* Service rows */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {services.map((svc, i) => (
+            <div key={i} style={{
+              display: 'flex', alignItems: 'flex-start', gap: 14,
+              padding: '14px 16px', borderRadius: 8,
+              background: svc.ok ? '#f0fdf4' : '#fef2f2',
+              border: `1px solid ${svc.ok ? '#bbf7d0' : '#fecaca'}`
+            }}>
+              <span style={{ fontSize: 20, lineHeight: 1 }}>{svc.ok ? '🟢' : '🔴'}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 'bold', color: svc.ok ? GREEN_C : RED_C, marginBottom: 3 }}>
+                  {svc.label}
+                </div>
+                <div style={{ fontSize: 12, color: svc.ok ? '#555' : RED_C }}>
+                  {svc.detail}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div style={{ padding: 32 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
@@ -429,7 +512,7 @@ export default function Settings({ token, userRole }) {
           >
             ⬇ Blank Contract
           </a>
-          {activeTab !== 'Secrets' && (
+          {activeTab !== 'Secrets' && activeTab !== 'Status' && (
             <button onClick={save}
               style={{ background: saved ? '#2E7D32' : BLUE, color: 'white', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}>
               {saved ? '✅ Saved!' : 'Save Changes'}
@@ -460,6 +543,7 @@ export default function Settings({ token, userRole }) {
         {activeTab === 'Bot Behavior' && renderBotBehavior()}
         {activeTab === 'Calendar' && renderCalendar()}
         {activeTab === 'Secrets' && renderSecrets()}
+        {activeTab === 'Status' && renderStatus()}
       </div>
     </div>
   );
