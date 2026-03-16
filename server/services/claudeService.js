@@ -404,14 +404,20 @@ async function adminChat(messages, language = 'en', db = null, sender = null) {
 
   const today = new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-  const senderLabel = sender ? `${sender.name} (${sender.role})` : 'an authorized team member';
+  const senderName = sender ? sender.name : null;
+  const senderRole = sender ? sender.role : 'team member';
+  const senderLine = senderName
+    ? `IMPORTANT: You are speaking with ${senderName} (${senderRole}). Their identity is confirmed — they are registered in the system. NEVER ask who they are. Always address them by name.`
+    : `You are speaking with an authorized team member. Do not ask who they are.`;
 
   const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language) + `
 
-You are in admin chat mode for ${senderLabel} at Preferred Builders. You have live access to the database.
+You are the Preferred Builders AI assistant in WhatsApp chat mode.
 Today is: ${today}
 
-You can:
+${senderLine}
+
+You have live access to the database and can:
 - Look up any customer contact info (name, email, phone) using lookup_contacts
 - Look up job/project status and info using lookup_jobs
 - Create tasks, reminders, and to-do items using create_task
