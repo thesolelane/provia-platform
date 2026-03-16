@@ -1,6 +1,6 @@
 const twilio = require('twilio');
 const { getDb } = require('../db/database');
-const { isDuplicate, markSeen } = require('./msgDedup');
+const { claimMessage } = require('./msgDedup');
 
 let pollerClient;
 let lastPollTime = new Date();
@@ -19,23 +19,6 @@ function getPollerClient() {
     }
   }
   return pollerClient;
-}
-
-function isProcessed(sid) {
-  if (isDuplicate(sid)) return true;
-  try {
-    const db  = getDb();
-    const row = db.prepare('SELECT 1 FROM whatsapp_processed WHERE message_sid = ?').get(sid);
-    return !!row;
-  } catch { return false; }
-}
-
-function markProcessed(sid) {
-  markSeen(sid);
-  try {
-    const db = getDb();
-    db.prepare('INSERT OR IGNORE INTO whatsapp_processed (message_sid) VALUES (?)').run(sid);
-  } catch {}
 }
 
 async function fetchMediaForMessage(client, messageSid) {
@@ -78,10 +61,10 @@ function startPolling(handleIncoming, intervalMs = 5000) {
         limit: 10
       });
 
-      const inbound = messages.filter(m => m.direction === 'inbound' && !isProcessed(m.sid));
+      const inbound = messages.filter(m => m.direction === 'inbound');
 
       for (const msg of inbound) {
-        markProcessed(msg.sid);
+        if (!claimMessage(msg.sid)) continue;
         console.log(`📥 Polled message: ${msg.from} -> "${msg.body?.substring(0, 50)}" numMedia=${msg.numMedia}`);
 
         const fakeBody = {

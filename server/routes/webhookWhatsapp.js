@@ -8,7 +8,7 @@ const { sendWhatsApp } = require('../services/whatsappService');
 const { generatePDF } = require('../services/pdfService');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
-const { isDuplicate, markSeen } = require('../services/msgDedup');
+const { claimMessage } = require('../services/msgDedup');
 const { tickQuoteCounter } = require('../services/assessmentService');
 const pdfParse = require('pdf-parse');
 const https = require('https');
@@ -397,16 +397,9 @@ router.post('/', async (req, res) => {
   res.send('<Response></Response>');
 
   const sid = req.body.MessageSid;
-  if (sid) {
-    if (isDuplicate(sid)) {
-      console.log(`WhatsApp webhook: skipping already-processed ${sid}`);
-      return;
-    }
-    markSeen(sid);
-    try {
-      const db = getDb();
-      db.prepare('INSERT OR IGNORE INTO whatsapp_processed (message_sid) VALUES (?)').run(sid);
-    } catch {}
+  if (sid && !claimMessage(sid)) {
+    console.log(`WhatsApp webhook: skipping already-processed ${sid}`);
+    return;
   }
 
   console.log('WhatsApp webhook received:', { From: req.body.From, Body: req.body.Body?.substring(0, 50) });
