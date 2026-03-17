@@ -1,4 +1,18 @@
-43FROM node:20-alpine AS client-build
+43theso@Thesolelane-Server MINGW64 ~
+$ cd /c/Users/theso/Desktop/preferred-builders-ai
+git init
+git remote add origin https://github.com/thesolelane/preferredbuildersapp.git
+git fetch
+git reset --hard origin/main
+Reinitialized existing Git repository in C:/Users/theso/Desktop/preferred-builders-ai/.git/
+error: remote origin already exists.
+fatal: ambiguous argument 'origin/main': unknown revision or path not in the working tree.
+Use '--' to separate paths from revisions, like this:
+'git <command> [<revision>...] -- [<file>...]'
+
+theso@Thesolelane-Server MINGW64 ~/Desktop/preferred-builders-ai (main)
+$
+FROM node:20-alpine AS client-build
 
 WORKDIR /build
 
