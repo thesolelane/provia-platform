@@ -62,15 +62,16 @@ export default function JobDetail({ token }) {
 
   const load = () => {
     fetch(`/api/jobs/${id}`, { headers: { 'x-auth-token': token } })
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => {
-        setJob(data.job);
+        setJob(data.job || null);
         setConversations(data.conversations || []);
         setClarifications(data.clarifications || []);
         setAuditLog(data.auditLog || []);
         setNote(data.job?.notes || '');
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
     fetch(`/api/signing/status/${id}`, { headers: { 'x-auth-token': token } })
       .then(r => r.json())
       .then(data => setSigSessions(data.sessions || []))
