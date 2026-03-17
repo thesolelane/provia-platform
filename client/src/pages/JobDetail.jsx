@@ -179,6 +179,16 @@ export default function JobDetail({ token }) {
   };
 
   const saveLineItems = async () => {
+    // Client-side validation before hitting the server
+    for (let i = 0; i < editingLineItems.length; i++) {
+      const li = editingLineItems[i];
+      if (!li.trade?.trim()) {
+        showToast(`Row ${i + 1}: Trade name cannot be empty`, 'error'); return;
+      }
+      if (li.baseCost === '' || li.baseCost === null || Number(li.baseCost) < 0) {
+        showToast(`Row ${i + 1} (${li.trade}): Cost must be 0 or greater`, 'error'); return;
+      }
+    }
     setSavingLineItems(true);
     const res  = await fetch(`/api/jobs/${id}/line-items`, { method: 'PATCH', headers, body: JSON.stringify({ lineItems: editingLineItems }) });
     const data = await res.json();
@@ -499,15 +509,20 @@ export default function JobDetail({ token }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {editingLineItems.map((li, i) => (
+                  {editingLineItems.map((li, i) => {
+                    const tradeErr = !li.trade?.trim();
+                    const costErr  = li.baseCost === '' || li.baseCost === null || Number(li.baseCost) < 0;
+                    return (
                     <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', verticalAlign: 'top' }}>
                       <td style={{ padding: '5px 4px' }}>
                         <input value={li.trade} onChange={e => updateLineItem(i, 'trade', e.target.value)}
-                          style={{ width: '100%', padding: '5px 7px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12, boxSizing: 'border-box' }} />
+                          title={tradeErr ? 'Trade name is required' : ''}
+                          style={{ width: '100%', padding: '5px 7px', border: `1px solid ${tradeErr ? RED : '#ddd'}`, borderRadius: 4, fontSize: 12, boxSizing: 'border-box', background: tradeErr ? '#fff5f5' : 'white' }} />
                       </td>
                       <td style={{ padding: '5px 4px' }}>
                         <input type="number" value={li.baseCost} onChange={e => updateLineItem(i, 'baseCost', e.target.value)}
-                          style={{ width: '100%', padding: '5px 7px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12, textAlign: 'right', boxSizing: 'border-box' }} />
+                          title={costErr ? 'Cost must be 0 or greater' : ''}
+                          style={{ width: '100%', padding: '5px 7px', border: `1px solid ${costErr ? RED : '#ddd'}`, borderRadius: 4, fontSize: 12, textAlign: 'right', boxSizing: 'border-box', background: costErr ? '#fff5f5' : 'white' }} />
                       </td>
                       <td style={{ padding: '5px 4px', textAlign: 'right', fontWeight: 600, color: BLUE, fontSize: 12 }}>
                         ${Math.round((Number(li.baseCost) || 0) * multiplier).toLocaleString()}
@@ -521,7 +536,8 @@ export default function JobDetail({ token }) {
                           style={{ background: '#fee2e2', color: RED, border: 'none', borderRadius: 4, cursor: 'pointer', padding: '4px 8px', fontSize: 12 }}>✕</button>
                       </td>
                     </tr>
-                  ))}
+                  );
+                  })}
                 </tbody>
               </table>
 

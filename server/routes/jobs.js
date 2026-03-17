@@ -181,7 +181,7 @@ router.get('/:id', requireAuth, (req, res) => {
 
 // POST approve proposal → generate contract
 // POST manually mark proposal as approved (in-person/verbal approval)
-router.post('/:id/mark-approved', requireAuth, async (req, res) => {
+router.post('/:id/mark-approved', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -289,7 +289,7 @@ router.post('/:id/generate-proposal', requireAuth, requireRole('admin', 'pm', 's
   }
 });
 
-router.post('/:id/approve', requireAuth, async (req, res) => {
+router.post('/:id/approve', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -314,7 +314,7 @@ router.post('/:id/approve', requireAuth, async (req, res) => {
 });
 
 // POST send contract to customer
-router.post('/:id/send-to-customer', requireAuth, async (req, res) => {
+router.post('/:id/send-to-customer', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -642,6 +642,10 @@ router.patch('/:id/notes', requireAuth, (req, res) => {
   const db = getDb();
   const { notes, status } = req.body;
   if (status) {
+    const allowed = ['admin', 'pm', 'system_admin'];
+    if (!req.session || !allowed.includes(req.session.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions to change job status' });
+    }
     db.prepare('UPDATE jobs SET notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(notes, status, req.params.id);
     logAudit(req.params.id, `status_changed_to_${status}`, `Status set to ${status} by admin`, 'admin');
   } else {
@@ -707,7 +711,7 @@ router.get('/stats/summary', requireAuth, (req, res) => {
 });
 
 // ARCHIVE a job (soft delete)
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requireRole('admin', 'system_admin'), (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT id FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -718,7 +722,7 @@ router.delete('/:id', requireAuth, (req, res) => {
 });
 
 // RESTORE an archived job
-router.post('/:id/restore', requireAuth, (req, res) => {
+router.post('/:id/restore', requireAuth, requireRole('admin', 'system_admin'), (req, res) => {
   const db = getDb();
   db.prepare('UPDATE jobs SET archived = 0, archived_at = NULL WHERE id = ?').run(req.params.id);
   logAudit(req.params.id, 'restored', 'Job restored from archive', 'admin');
