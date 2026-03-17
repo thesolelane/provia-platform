@@ -157,6 +157,17 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 // POST approve proposal → generate contract
+// POST manually mark proposal as approved (in-person/verbal approval)
+router.post('/:id/mark-approved', requireAuth, async (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (!job.proposal_data) return res.status(400).json({ error: 'No proposal to approve' });
+  db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('proposal_approved', job.id);
+  logAudit(job.id, 'proposal_approved', 'Proposal manually approved via admin panel', req.session?.name || 'admin');
+  res.json({ success: true, message: 'Proposal marked as approved' });
+});
+
 router.post('/:id/approve', requireAuth, async (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);

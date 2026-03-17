@@ -86,7 +86,18 @@ export default function JobDetail({ token }) {
     setActionLoading(false);
   };
 
+  const approveProposal = async () => {
+    if (!await showConfirm('Mark this proposal as approved? This will allow you to generate the contract.')) return;
+    setActionLoading(true);
+    const res  = await fetch(`/api/jobs/${id}/mark-approved`, { method: 'POST', headers });
+    const data = await res.json();
+    if (res.ok) { load(); showToast('Proposal marked as approved'); }
+    else        { showToast(data.error || 'Failed to approve proposal', 'error'); }
+    setActionLoading(false);
+  };
+
   const generateContract = async () => {
+    if (!await showConfirm('Generate contract from this approved proposal?')) return;
     setActionLoading(true);
     const res  = await fetch(`/api/jobs/${id}/approve`, { method: 'POST', headers });
     const data = await res.json();
@@ -251,6 +262,14 @@ export default function JobDetail({ token }) {
             <button onClick={sendForApproval} disabled={actionLoading}
               style={{ padding: '9px 18px', background: '#8B5CF620', color: '#8B5CF6', border: '1px solid #8B5CF640', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
               {actionLoading ? '...' : '📨 Resend Proposal Link'}
+            </button>
+          )}
+
+          {/* Manual approve — for in-person or verbal approvals */}
+          {['proposal_ready', 'proposal_sent'].includes(job.status) && (
+            <button onClick={approveProposal} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: '#059669', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? '...' : '✅ Mark Proposal Approved'}
             </button>
           )}
 
