@@ -35,6 +35,77 @@ function getMarkupRates(settings) {
   };
 }
 
+// ── FORMAT LABOR/ALLOWANCE RATES FOR PROMPT ──────────────────────────
+function buildRatesSection(settings) {
+  const laborLines = [];
+  const allowanceLines = [];
+
+  const laborMap = {
+    'labor.framing':     'Framing labor',
+    'labor.roofing':     'Roofing labor',
+    'labor.siding':      'Siding labor',
+    'labor.electrical':  'Electrical labor',
+    'labor.plumbing':    'Plumbing labor',
+    'labor.hvac':        'HVAC labor',
+    'labor.drywall':     'Drywall labor',
+    'labor.insulation':  'Insulation labor',
+    'labor.tile':        'Tile labor',
+    'labor.flooring':    'Flooring (LVP/hardwood) install labor',
+  };
+  const allowanceMap = {
+    'allowance.lvp':         'LVP flooring material allowance',
+    'allowance.hardwood':    'Hardwood flooring material allowance',
+    'allowance.carpet':      'Carpet material allowance',
+    'allowance.tileBath':    'Bath tile material allowance',
+    'allowance.tileShower':  'Shower tile material allowance',
+    'allowance.cabinets':    'Kitchen cabinets allowance (builder grade)',
+    'allowance.quartz':      'Quartz countertop allowance',
+    'allowance.vanity':      'Full bathroom vanity allowance (each)',
+    'allowance.toilet':      'Toilet allowance (each)',
+    'allowance.tub':         'Bathtub allowance (each)',
+    'allowance.intDoor':     'Interior door (slab) allowance (each)',
+  };
+
+  for (const [key, label] of Object.entries(laborMap)) {
+    const val = settings[key];
+    if (val) {
+      const v = typeof val === 'string' ? JSON.parse(val) : val;
+      laborLines.push(`  ${label}: $${v.low}–$${v.high} per ${v.unit}`);
+    }
+  }
+  for (const [key, label] of Object.entries(allowanceMap)) {
+    const val = settings[key];
+    if (val) {
+      const v = typeof val === 'string' ? JSON.parse(val) : val;
+      if (v.unit === 'fixed') {
+        allowanceLines.push(`  ${label}: $${v.amount.toLocaleString()}`);
+      } else {
+        allowanceLines.push(`  ${label}: $${v.amount} per ${v.unit}`);
+      }
+    }
+  }
+
+  const markup = {
+    sub:  Math.round((Number(settings['markup.subOandP']) || 0.15) * 100),
+    gc:   Math.round((Number(settings['markup.gcOandP']) || 0.25) * 100),
+    cont: Math.round((Number(settings['markup.contingency']) || 0.10) * 100),
+    dep:  Math.round((Number(settings['markup.deposit']) || 0.33) * 100),
+  };
+
+  return `## OUR PRICING STRUCTURE
+The system applies markups automatically AFTER extraction — do NOT add markup to baseCost values.
+baseCost = what Preferred Builders pays subs/materials (net cost to us).
+Markup chain applied by system: baseCost × (1 + ${markup.sub}% sub O&P) × (1 + ${markup.gc}% GC O&P) × (1 + ${markup.cont}% contingency) = client price.
+Combined multiplier ≈ ${(((1 + markup.sub/100) * (1 + markup.gc/100) * (1 + markup.cont/100))).toFixed(4)}×.
+Deposit: ${markup.dep}% of total contract price.
+
+## OUR LABOR RATES (Central MA — use these for baseCost estimates)
+${laborLines.join('\n')}
+
+## OUR MATERIAL ALLOWANCES (use these as baseCost for allowance items)
+${allowanceLines.join('\n')}`;
+}
+
 // ── BUILD SYSTEM PROMPT ──────────────────────────────────────────────
 function buildSystemPrompt(settings, knowledgeBase, language = 'en') {
   const isPortuguese = language === 'pt-BR';
@@ -52,13 +123,17 @@ Address: 37 Duck Mill Road, Fitchburg, MA 01420
 Phone: 978-377-1784
 Project Manager: Jackson Deaquino
 
+${buildRatesSection(settings)}
+
 ## MARKET RATE GRADING
-Compare each trade line item against typical Central MA market rates. Flag items >15% above or below typical range in "flaggedItems" with a note like:
-  "Foundation ($28,000) — 18% above typical range ($20,000–$25,000 for slab-on-grade)"
+Compare each trade line item against our labor rates above. Flag items >15% above or below our typical range in "flaggedItems".
 
 ## MA STRETCH CODE
 Stretch Code towns require: HERS rater, ERV system, EV-ready outlet, solar conduit.
 ONLY flag these as missing in stretchCodeItems if they are NOT already covered in the estimate (e.g. if a Permits line says "stretch code compliance", those items are already included).
+
+## BUDGET TARGET CALIBRATION
+If the estimate includes a BUDGET TARGET line, calibrate all line item baseCosts so that after the system applies its standard markup (~1.58×: sub O&P 15% + GC O&P 25% + contingency 10%), the total contract price lands within ±8% of the stated target. Prefer builder-grade or mid-range material specifications where a range of options exists. If you must constrain scope to hit the budget, document the tradeoffs in the "notes" field.
 
 ## CONSTRUCTION KNOWLEDGE
 - Metal roof at 3:12 or lower pitch requires 2x12 rafters at 16" O.C. and structural ridge beam
@@ -189,7 +264,7 @@ RULES:
 3. Extract sqft exactly as written. If not specified, estimate from the scope and note in "notes".
 4. Use submitted line item prices as baseCost — these are what we pay subs/materials.
 5. DO NOT calculate any markup, totals, or deposit. The system does all math.
-6. For each trade, write a "description" — 1 to 3 sentences describing the SPECIFIC work being done on THIS project (not generic boilerplate). Then populate scopeIncluded with specific, detailed work items directly from the estimate, and scopeExcluded with what is NOT covered for that trade. Never use generic filler — every item must be traceable to the actual estimate text.
+6. For each trade, write a "description" — 1 to 3 sentences describing the SPECIFIC work being done on THIS project using professional construction industry language. Use trade terminology: LFT (linear feet), SF (square feet), CY (cubic yards), EA (each), ROU (rough-in opening). Reference material specs, grades, standards (ASTM, AWG, IRC, NFPA) where applicable. Example — instead of "new bathroom", write "Complete bathroom renovation including cement board substrate, 12×24 porcelain tile, plumbing rough-in and trim-out to code." Then populate scopeIncluded with specific, technical work items traceable to the estimate text (quantities, specs, grades). scopeExcluded should list what is NOT covered with equal specificity. Never use generic filler — every item must read like a professional construction document.
 7. List EVERY exclusion mentioned in the estimate in the exclusions array with a budget estimate for the customer.
 8. Only set readyToGenerate to false if CRITICAL construction details are missing. NEVER ask for customer name/email/phone/address — those are always provided above.
 9. If the estimate has a "total" line, IGNORE it — the system calculates its own total from line items.
@@ -505,20 +580,26 @@ IMPORTANT STYLE RULES:
 }
 
 // ── WIZARD QUESTION GENERATION ────────────────────────────────────────
-async function generateWizardQuestions(scopeText, projectAddress = '') {
+async function generateWizardQuestions(scopeText, projectAddress = '', budgetTarget = null) {
+  const budgetContext = budgetTarget ? `\nBudget Target: $${Number(budgetTarget).toLocaleString()} (client-facing total)` : '';
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2000,
-    system: `You are a construction estimating assistant helping a Massachusetts GC build accurate quotes. Your job is to read a scope of work and ask ONLY the most important clarifying questions — focusing especially on install-implies-demo trade pairings and other genuine scope gaps.
+    system: `You are a construction estimating assistant helping a Massachusetts GC build accurate quotes. Your job is to read a scope of work and ask ONLY the most important clarifying questions — focusing especially on install-implies-demo trade pairings and ambiguous trade scopes.
 
 INSTALL-IMPLIES-DEMO RULE: When the scope mentions installing, replacing, or upgrading something (cabinets, flooring, fixtures, doors, windows, drywall, roofing, tiles, vanities, toilets, bathtubs, etc.), always check whether removal/demolition of the existing item is already in the scope. If the scope is ambiguous or silent on demo for that item, ask about it as a "demo_check" question.
+
+TRADE SCOPE AMBIGUITY RULES — these questions are critical for accurate pricing:
+- ELECTRICAL: When electrical work is mentioned without specifying extent, ALWAYS ask as a "trade_clarification" question: Is this a full electrical service upgrade and/or whole-home rewire (new panel, new circuits throughout), OR is it limited to safety inspection, panel check, and fixture/outlet/switch replacement? These differ by $10,000–$30,000.
+- HVAC: When HVAC is mentioned without specifying extent, ask: Does this include full HVAC equipment replacement (new furnace/AC/heat pump), OR is it limited to system inspection, tune-up, filter/component replacement, and duct cleaning?
+- PLUMBING: When plumbing work goes beyond clearly specified fixture swaps, ask: Does this include repiping supply or drain lines, OR is it limited to fixture replacement and hookup only?
 
 Return ONLY valid JSON — no commentary, no markdown.`,
     messages: [{
       role: 'user',
       content: `Read this scope of work and return a JSON array of clarifying questions. Return an empty array [] if the scope is completely clear and no questions are needed.
 
-Project Address: ${projectAddress || 'not specified'}
+Project Address: ${projectAddress || 'not specified'}${budgetContext}
 
 SCOPE OF WORK:
 ${scopeText}
@@ -544,13 +625,14 @@ Return this EXACT JSON structure (array, 0 to 8 questions max):
 ]
 
 RULES:
-1. questionType must be "demo_check" for install-implies-demo questions, "scope_detail" for other scope gaps, or "trade_clarification" for trade-specific questions.
-2. answerType must be "yesno" for Yes/No questions or "text" for open-ended questions. Use "yesno" for demo_check questions.
+1. questionType must be "demo_check" for install-implies-demo questions, "scope_detail" for other scope gaps, or "trade_clarification" for trade-specific ambiguity questions (electrical extent, HVAC extent, plumbing extent).
+2. answerType must be "yesno" for Yes/No questions or "text" for open-ended questions. Use "yesno" for demo_check. Use "text" for trade_clarification so the user can describe the extent.
 3. Only ask questions whose answers would materially change the line items or cost. Do NOT ask for customer info, addresses, or obvious details already in the scope.
 4. For demo_check: if the user says YES (demo is included), the install proceeds as-is. If the user says NO, we add a demo line item and ask for the cost.
 5. Keep questions conversational and specific — mention the exact item from the scope.
-6. If the scope is clear and complete, return an empty array [].
-7. Return ONLY the JSON array. Nothing else.`
+6. Trade clarification questions for electrical/HVAC/plumbing MUST be asked when those trades appear with vague extent — even if the scope seems complete otherwise.
+7. If the scope is clear and complete with no ambiguous trades, return an empty array [].
+8. Return ONLY the JSON array. Nothing else.`
     }]
   });
 

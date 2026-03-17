@@ -53,9 +53,31 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
   };
 
   const canAdvance = () => {
-    if (!localAnswer) return false;
+    if (currentQ.answerType === 'text' && !localAnswer.trim()) return false;
+    if (currentQ.answerType === 'yesno' && !localAnswer) return false;
     if (currentQ.questionType === 'demo_check' && localAnswer === 'no' && !localDemoCost.trim()) return false;
     return true;
+  };
+
+  const skipQuestion = () => {
+    const record = {
+      questionId: currentQ.id,
+      question: currentQ.question,
+      questionType: currentQ.questionType,
+      trade: currentQ.trade,
+      answer: 'skipped',
+      demoCost: null,
+    };
+    const updated = [...answers.filter(a => a.questionId !== currentQ.id), record];
+    onAnswer(updated);
+    if (isLast) {
+      onNext(updated);
+    } else {
+      setCurrentIdx(i => i + 1);
+      setLocalAnswer('');
+      setLocalDemoCost('');
+      setWaitingForDemoCost(false);
+    }
   };
 
   const saveAndAdvance = () => {
@@ -182,25 +204,35 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
         <button onClick={goBack} style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 13, color: '#555' }}>
           ← Back
         </button>
-        <button
-          onClick={saveAndAdvance}
-          disabled={!canAdvance()}
-          style={{
-            padding: '10px 24px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700,
-            background: canAdvance() ? '#1B3A6B' : '#c5ccd8',
-            color: 'white',
-            cursor: canAdvance() ? 'pointer' : 'not-allowed',
-          }}
-        >
-          {isLast ? 'Review Estimate →' : 'Next →'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {currentQ.answerType === 'text' && (
+            <button
+              onClick={skipQuestion}
+              style={{ padding: '10px 16px', borderRadius: 6, border: '1px solid #ddd', background: 'white', fontSize: 12, color: '#888', cursor: 'pointer' }}
+            >
+              Skip
+            </button>
+          )}
+          <button
+            onClick={saveAndAdvance}
+            disabled={!canAdvance()}
+            style={{
+              padding: '10px 24px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700,
+              background: canAdvance() ? '#1B3A6B' : '#c5ccd8',
+              color: 'white',
+              cursor: canAdvance() ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {isLast ? 'Review Estimate →' : 'Next →'}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
 // ── Review step (Phase 2 — includes Q&A summary and demo additions) ─────────
-function ReviewStep({ contact, address, scope, answers, onBack, onSubmit, busy }) {
+function ReviewStep({ contact, address, scope, budgetTarget, answers, onBack, onSubmit, busy }) {
   const demoAdditions = answers.filter(a => a.questionType === 'demo_check' && a.answer === 'no' && a.demoCost);
   const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
 
@@ -219,7 +251,10 @@ function ReviewStep({ contact, address, scope, answers, onBack, onSubmit, busy }
     },
     {
       label: 'Scope of Work',
-      rows: [{ key: '', value: scope }],
+      rows: [
+        { key: '', value: scope },
+        ...(budgetTarget ? [{ key: 'Budget Target', value: '$' + Number(String(budgetTarget).replace(/,/g,'')).toLocaleString() + ' (±8% soft target)' }] : []),
+      ],
     },
   ];
 
@@ -301,6 +336,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   const [contact, setContact] = useState({ name: '', phone: '', email: '' });
   const [address, setAddress] = useState({ street: '', city: '', state: '', zip: '' });
   const [scope, setScope] = useState('');
+  const [budgetTarget, setBudgetTarget] = useState('');
 
   const [wizardQuestions, setWizardQuestions] = useState([]);
   const [wizardAnswers, setWizardAnswers] = useState([]);
@@ -378,7 +414,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
       const res = await fetch('/api/jobs/wizard/questions', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scopeText: scope, projectAddress }),
+        body: JSON.stringify({ scopeText: scope, projectAddress, budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -424,6 +460,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           projectAddress,
           scopeText: scope,
           qaAnswers: wizardAnswers,
+          budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null,
         }),
       });
       const data = await res.json();
@@ -495,6 +532,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
             contact={contact}
             address={address}
             scope={scope}
+            budgetTarget={budgetTarget}
             answers={wizardAnswers}
             onBack={handleBack}
             onSubmit={submit}
@@ -587,12 +625,29 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
                   </p>
                   <textarea
                     autoFocus
-                    rows={9}
+                    rows={8}
                     value={scope}
                     onChange={e => setScope(e.target.value)}
-                    placeholder={`e.g. Kitchen remodel — install new cabinets, countertops, tile backsplash\nNew LVP flooring throughout main level\nBathroom: new vanity, toilet, shower tile\nBudget ~$85,000`}
+                    placeholder={`e.g. Kitchen remodel — install new cabinets, countertops, tile backsplash\nNew LVP flooring throughout main level\nBathroom: new vanity, toilet, shower tile`}
                     style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
                   />
+                  <div style={{ marginTop: 14 }}>
+                    <label style={labelStyle}>Budget Target <span style={{ fontWeight: 400, textTransform: 'none', color: '#999' }}>(optional — soft target, AI can go ±8%)</span></label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#555', fontSize: 13, fontWeight: 600 }}>$</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={budgetTarget}
+                        onChange={e => setBudgetTarget(e.target.value.replace(/[^0-9,]/g, ''))}
+                        placeholder="e.g. 150,000"
+                        style={{ ...inputStyle, paddingLeft: 22 }}
+                      />
+                    </div>
+                    <p style={{ fontSize: 11, color: '#aaa', margin: '4px 0 0' }}>
+                      If set, AI will calibrate line items to reach this client-facing total.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

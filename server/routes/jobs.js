@@ -695,14 +695,14 @@ router.post('/wizard/extract-text', requireAuth, async (req, res) => {
 
 // POST wizard/questions — AI generates clarifying questions from scope text
 router.post('/wizard/questions', requireAuth, async (req, res) => {
-  const { scopeText, customerName, projectAddress } = req.body;
+  const { scopeText, customerName, projectAddress, budgetTarget } = req.body;
   if (!scopeText || scopeText.trim().length < 20) {
     return res.status(400).json({ error: 'Scope text is required (at least 20 characters).' });
   }
 
   const { generateWizardQuestions } = require('../services/claudeService');
   try {
-    const questions = await generateWizardQuestions(scopeText, projectAddress || '');
+    const questions = await generateWizardQuestions(scopeText, projectAddress || '', budgetTarget || null);
     res.json({ questions });
   } catch (err) {
     console.error('[Wizard/Questions] Error:', err.message);
@@ -714,7 +714,7 @@ router.post('/wizard/questions', requireAuth, async (req, res) => {
 router.post('/wizard/submit', requireAuth, async (req, res) => {
   const { v4: uuidv4 } = require('uuid');
   const db = getDb();
-  const { customerName, customerEmail, customerPhone, projectAddress, scopeText, qaAnswers } = req.body;
+  const { customerName, customerEmail, customerPhone, projectAddress, scopeText, qaAnswers, budgetTarget } = req.body;
 
   if (!scopeText || scopeText.trim().length < 10) {
     return res.status(400).json({ error: 'Scope text is required.' });
@@ -745,9 +745,10 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     : '';
 
   const sanitizedScope = stripPII(scopeText);
+  const budgetLine = budgetTarget ? `\nBUDGET TARGET: $${Number(budgetTarget).toLocaleString()} (soft client-facing total — calibrate line item baseCosts so that after standard markup the total lands within ±8% of this figure)` : '';
   const fullEstimate = contactRef
-    ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`
-    : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`;
+    ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}${budgetLine}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`
+    : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}${budgetLine}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`;
 
   // Store Q&A in raw estimate data alongside the scope
   const rawEstimateData = scopeText + answersNarrative;
