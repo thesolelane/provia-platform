@@ -650,6 +650,142 @@ router.post('/:id/restore', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
+// POST wizard/extract-text — extract text from uploaded file for wizard preview
+router.post('/wizard/extract-text', requireAuth, async (req, res) => {
+  const pdfParse = require('pdf-parse');
+  const Anthropic = require('@anthropic-ai/sdk');
+
+  if (!req.files?.estimate) return res.status(400).json({ error: 'No file uploaded' });
+  const file = req.files.estimate;
+
+  let rawText = '';
+  try {
+    if (file.mimetype === 'application/pdf') {
+      const fileBuffer = file.tempFilePath ? require('fs').readFileSync(file.tempFilePath) : file.data;
+      const parsed = await pdfParse(fileBuffer);
+      rawText = parsed.text.trim();
+    } else if (file.mimetype.startsWith('image/')) {
+      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      const fileBuffer = file.tempFilePath ? require('fs').readFileSync(file.tempFilePath) : file.data;
+      const base64 = fileBuffer.toString('base64');
+      const response = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 3000,
+        messages: [{
+          role: 'user',
+          content: [{
+            type: 'image',
+            source: { type: 'base64', media_type: file.mimetype, data: base64 }
+          }, {
+            type: 'text',
+            text: 'This is a construction estimate. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names. Do NOT include customer names, emails, or phone numbers. Format as plain text.'
+          }]
+        }]
+      });
+      rawText = response.content[0].text.trim();
+    } else if (file.mimetype.startsWith('text/')) {
+      rawText = file.data.toString('utf8').trim();
+    }
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to read file: ' + err.message });
+  }
+
+  res.json({ text: rawText });
+});
+
+// POST wizard/questions — AI generates clarifying questions from scope text
+router.post('/wizard/questions', requireAuth, async (req, res) => {
+  const { scopeText, customerName, projectAddress } = req.body;
+  if (!scopeText || scopeText.trim().length < 20) {
+    return res.status(400).json({ error: 'Scope text is required (at least 20 characters).' });
+  }
+
+  const { generateWizardQuestions } = require('../services/claudeService');
+  try {
+    const questions = await generateWizardQuestions(scopeText, projectAddress || '');
+    res.json({ questions });
+  } catch (err) {
+    console.error('[Wizard/Questions] Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate questions: ' + err.message });
+  }
+});
+
+// POST wizard/submit — resolve line items from Q&A, create job, kick off processing
+router.post('/wizard/submit', requireAuth, async (req, res) => {
+  const { v4: uuidv4 } = require('uuid');
+  const db = getDb();
+  const { customerName, customerEmail, customerPhone, projectAddress, scopeText, qaAnswers } = req.body;
+
+  if (!scopeText || scopeText.trim().length < 10) {
+    return res.status(400).json({ error: 'Scope text is required.' });
+  }
+
+  const jobId = uuidv4();
+
+  let contactRef = null;
+  if (customerName || customerEmail) {
+    try {
+      contactRef = findOrCreateContact(db, {
+        name: customerName, email: customerEmail, phone: customerPhone,
+        address: projectAddress, city: '', state: 'MA'
+      });
+    } catch (e) { console.warn('[Wizard] Contact upsert failed:', e.message); }
+  }
+
+  // Build a resolved scope that injects any demo line items the user said were NOT already included
+  const demoAdditions = (qaAnswers || [])
+    .filter(qa => qa.questionType === 'demo_check' && qa.answer === 'no' && qa.demoCost)
+    .map(qa => `ADDITIONAL DEMO WORK (not in original scope): Remove/demo ${qa.trade} — cost $${qa.demoCost}`)
+    .join('\n');
+
+  const answersNarrative = (qaAnswers || []).length > 0
+    ? '\n\nCLARIFICATION Q&A:\n' + (qaAnswers || []).map(qa =>
+        `Q: ${qa.question}\nA: ${qa.answer}${qa.demoCost ? ` ($${qa.demoCost} for demo)` : ''}`
+      ).join('\n\n')
+    : '';
+
+  const sanitizedScope = stripPII(scopeText);
+  const fullEstimate = contactRef
+    ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`
+    : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`;
+
+  // Store Q&A in raw estimate data alongside the scope
+  const rawEstimateData = scopeText + answersNarrative;
+
+  db.prepare(`
+    INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
+    VALUES (?, ?, ?, ?, ?, ?, 'received', 'wizard', ?)
+  `).run(jobId, customerName || '', customerEmail || '', customerPhone || '', projectAddress || '', rawEstimateData, contactRef?.id || null);
+
+  res.json({ jobId, status: 'received', message: 'Wizard submission received. Processing estimate...' });
+
+  const { processEstimate } = require('../services/claudeService');
+  (async () => {
+    try {
+      console.log(`[Wizard Job ${jobId}] Starting Claude processEstimate...`);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en');
+      console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
+
+      if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
+        const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
+        for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
+      } else {
+        const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
+        saveProposalReady(db, proposalData, pdfPath, jobId);
+        logAudit(jobId, 'wizard_estimate_processed', `Wizard submission by admin`, 'admin');
+        console.log(`[Wizard Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
+        tickQuoteCounter(db);
+        notifyClients('job_updated', { jobId, status: 'proposal_ready' });
+      }
+    } catch (err) {
+      console.error(`[Wizard Job ${jobId}] ERROR:`, err.message, err.stack);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', jobId);
+    }
+  })();
+});
+
 // Auto-purge: permanently delete jobs archived more than 90 days ago
 function purgeOldArchived() {
   try {

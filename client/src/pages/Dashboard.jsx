@@ -40,9 +40,9 @@ export default function Dashboard({ token }) {
   const [loading, setLoading] = useState(true);
   const [showWizard, setShowWizard] = useState(false);
   const [showManual, setShowManual] = useState(false);
-  const [submitTab, setSubmitTab] = useState('text'); // 'text' | 'file'
+  const [submitTab, setSubmitTab] = useState('text');
   const [submitBusy, setSubmitBusy] = useState(false);
-  const [manual, setManual] = useState({ customerName:'', customerEmail:'', customerPhone:'', projectAddress:'', estimateText:'' });
+  const [manual, setManual] = useState({ customerName: '', customerEmail: '', customerPhone: '', projectAddress: '', estimateText: '' });
   const [uploadFile, setUploadFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -59,12 +59,9 @@ export default function Dashboard({ token }) {
 
   useEffect(() => {
     loadDashboard();
-
-    // Open a persistent SSE connection — server pushes an event the instant a job finishes processing
     const es = new EventSource(`/api/jobs/events?token=${encodeURIComponent(token)}`);
     es.addEventListener('job_updated', () => loadDashboard());
-    es.onerror = () => {}; // suppress console noise on background reconnects
-
+    es.onerror = () => {};
     return () => es.close();
   }, []);
 
@@ -98,6 +95,13 @@ export default function Dashboard({ token }) {
     }
   };
 
+  const openNewJob = () => {
+    setSubmitTab('text');
+    setUploadFile(null);
+    setManual({ customerName: '', customerEmail: '', customerPhone: '', projectAddress: '', estimateText: '' });
+    setShowManual(true);
+  };
+
   const submitManual = async () => {
     setSubmitBusy(true);
     const res = await fetch('/api/jobs/manual', {
@@ -119,20 +123,11 @@ export default function Dashboard({ token }) {
     form.append('customerEmail', manual.customerEmail);
     form.append('customerPhone', manual.customerPhone);
     form.append('projectAddress', manual.projectAddress);
-    const res = await fetch('/api/jobs/upload-estimate', {
-      method: 'POST', headers, body: form
-    });
+    const res = await fetch('/api/jobs/upload-estimate', { method: 'POST', headers, body: form });
     const data = await res.json();
     setSubmitBusy(false);
     if (res.ok) { setShowManual(false); showToast('File uploaded — processing now'); window.location.reload(); }
     else { showToast(data.error || 'Error processing file', 'error'); }
-  };
-
-  const openNewJob = () => {
-    setSubmitTab('text');
-    setUploadFile(null);
-    setManual({ customerName:'', customerEmail:'', customerPhone:'', projectAddress:'', estimateText:'' });
-    setShowManual(true);
   };
 
   if (loading) return <div style={{ padding: 40, color: '#888' }}>Loading...</div>;
@@ -276,7 +271,7 @@ export default function Dashboard({ token }) {
         </div>
       )}
 
-      {/* Create Quote Wizard */}
+      {/* Create Quote Wizard (guided AI flow) */}
       {showWizard && (
         <CreateQuoteWizard
           token={token}
@@ -285,18 +280,16 @@ export default function Dashboard({ token }) {
         />
       )}
 
-      {/* New Job modal */}
+      {/* New Job modal (quick paste/upload fallback) */}
       {showManual && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 580, maxHeight: '92vh', overflow: 'auto' }}>
-            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <h2 style={{ color: '#1B3A6B', margin: 0, fontSize: 20 }}>New Job</h2>
               <button onClick={() => setShowManual(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888' }}>×</button>
             </div>
             <p style={{ color: '#888', fontSize: 12, marginBottom: 20 }}>Submit an estimate any way you have it — Claude will extract the details automatically.</p>
 
-            {/* Customer info (shared across tabs) */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
               {[
                 { label: 'Customer Name', key: 'customerName', placeholder: 'John Smith' },
@@ -316,7 +309,6 @@ export default function Dashboard({ token }) {
               ))}
             </div>
 
-            {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '2px solid #f0f0f0', marginBottom: 16 }}>
               {[
                 { id: 'text', label: '✏️ Paste Text' },
@@ -330,7 +322,6 @@ export default function Dashboard({ token }) {
               ))}
             </div>
 
-            {/* Tab: Paste Text */}
             {submitTab === 'text' && (
               <div>
                 <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 4 }}>
@@ -353,7 +344,6 @@ export default function Dashboard({ token }) {
               </div>
             )}
 
-            {/* Tab: Upload File */}
             {submitTab === 'file' && (
               <div>
                 <div

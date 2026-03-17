@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { showToast } from '../utils/toast';
 
-const STEPS = ['Contact', 'Job Address', 'Scope of Work', 'Review'];
-
 const inputStyle = {
   width: '100%',
   padding: '9px 11px',
@@ -24,13 +22,289 @@ const labelStyle = {
   letterSpacing: '0.03em',
 };
 
+// ── AI Questions step ──────────────────────────────────────────────────────
+function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [localAnswer, setLocalAnswer] = useState('');
+  const [localDemoCost, setLocalDemoCost] = useState('');
+  const [waitingForDemoCost, setWaitingForDemoCost] = useState(false);
+
+  const currentQ = questions[currentIdx];
+  const totalQ = questions.length;
+  const isLast = currentIdx === totalQ - 1;
+  const existingAnswer = answers.find(a => a.questionId === currentQ?.id);
+
+  useEffect(() => {
+    setLocalAnswer(existingAnswer?.answer || '');
+    setLocalDemoCost(existingAnswer?.demoCost || '');
+    setWaitingForDemoCost(existingAnswer?.answer === 'no' && currentQ?.questionType === 'demo_check');
+  }, [currentIdx]);
+
+  if (!currentQ) return null;
+
+  const handleChip = (val) => {
+    setLocalAnswer(val);
+    if (currentQ.questionType === 'demo_check' && val === 'no') {
+      setWaitingForDemoCost(true);
+    } else {
+      setWaitingForDemoCost(false);
+      setLocalDemoCost('');
+    }
+  };
+
+  const canAdvance = () => {
+    if (!localAnswer) return false;
+    if (currentQ.questionType === 'demo_check' && localAnswer === 'no' && !localDemoCost.trim()) return false;
+    return true;
+  };
+
+  const saveAndAdvance = () => {
+    const record = {
+      questionId: currentQ.id,
+      question: currentQ.question,
+      questionType: currentQ.questionType,
+      trade: currentQ.trade,
+      answer: localAnswer,
+      demoCost: localAnswer === 'no' && currentQ.questionType === 'demo_check'
+        ? localDemoCost.replace(/[$,\s]/g, '') : null,
+    };
+    const updated = [...answers.filter(a => a.questionId !== currentQ.id), record];
+    onAnswer(updated);
+    if (isLast) {
+      onNext(updated);
+    } else {
+      setCurrentIdx(i => i + 1);
+      setLocalAnswer('');
+      setLocalDemoCost('');
+      setWaitingForDemoCost(false);
+    }
+  };
+
+  const goBack = () => {
+    if (currentIdx === 0) {
+      onBack();
+    } else {
+      const prev = questions[currentIdx - 1];
+      const prevAns = answers.find(a => a.questionId === prev?.id);
+      setCurrentIdx(i => i - 1);
+      setLocalAnswer(prevAns?.answer || '');
+      setLocalDemoCost(prevAns?.demoCost || '');
+      setWaitingForDemoCost(prevAns?.answer === 'no' && prev?.questionType === 'demo_check');
+    }
+  };
+
+  return (
+    <div style={{ padding: '24px 28px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>AI Clarifying Questions</h3>
+        <span style={{ fontSize: 12, color: '#888' }}>{currentIdx + 1} of {totalQ}</span>
+      </div>
+      <p style={{ fontSize: 12, color: '#777', margin: '0 0 16px' }}>Answer each question to make sure the estimate is complete.</p>
+
+      {/* Progress dots */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
+        {questions.map((_, i) => (
+          <div key={i} style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: i < currentIdx ? '#059669' : i === currentIdx ? '#1B3A6B' : '#e5e7eb',
+          }} />
+        ))}
+      </div>
+
+      {/* Question Card */}
+      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 18, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+          <span style={{ fontSize: 20 }}>
+            {currentQ.questionType === 'demo_check' ? '🏗️' : currentQ.questionType === 'trade_clarification' ? '🔧' : '📋'}
+          </span>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', lineHeight: 1.5 }}>{currentQ.question}</div>
+            {currentQ.hint && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{currentQ.hint}</div>}
+          </div>
+        </div>
+
+        {currentQ.answerType === 'yesno' && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {[
+              { val: 'yes', label: 'Yes — already included', color: '#059669' },
+              { val: 'no', label: 'No — needs to be added', color: '#C62828' },
+              { val: 'not_sure', label: 'Not sure', color: '#888' },
+            ].map(opt => (
+              <button
+                key={opt.val}
+                onClick={() => handleChip(opt.val)}
+                style={{
+                  padding: '8px 16px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                  border: `2px solid ${localAnswer === opt.val ? opt.color : '#e2e8f0'}`,
+                  background: localAnswer === opt.val ? opt.color + '18' : 'white',
+                  color: localAnswer === opt.val ? opt.color : '#64748b',
+                  fontWeight: localAnswer === opt.val ? 700 : 400,
+                  transition: 'all 0.15s',
+                }}
+              >{opt.label}</button>
+            ))}
+          </div>
+        )}
+
+        {currentQ.answerType === 'text' && (
+          <textarea
+            rows={3}
+            value={localAnswer}
+            onChange={e => setLocalAnswer(e.target.value)}
+            placeholder="Type your answer..."
+            style={{ ...inputStyle, resize: 'vertical' }}
+          />
+        )}
+
+        {waitingForDemoCost && currentQ.questionType === 'demo_check' && (
+          <div style={{ marginTop: 14, padding: 14, background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: '#9a3412', marginBottom: 8 }}>
+              What should we estimate for removing the existing {currentQ.trade}?
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: '#555', fontSize: 14, fontWeight: 'bold' }}>$</span>
+              <input
+                type="number"
+                value={localDemoCost}
+                onChange={e => setLocalDemoCost(e.target.value)}
+                placeholder="e.g. 1500"
+                style={{ flex: 1, padding: '8px 10px', border: '1px solid #fed7aa', borderRadius: 6, fontSize: 13 }}
+              />
+            </div>
+            <div style={{ fontSize: 11, color: '#c2410c', marginTop: 6 }}>
+              This will be added as a Demo line item in the estimate.
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+        <button onClick={goBack} style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 13, color: '#555' }}>
+          ← Back
+        </button>
+        <button
+          onClick={saveAndAdvance}
+          disabled={!canAdvance()}
+          style={{
+            padding: '10px 24px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700,
+            background: canAdvance() ? '#1B3A6B' : '#c5ccd8',
+            color: 'white',
+            cursor: canAdvance() ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {isLast ? 'Review Estimate →' : 'Next →'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Review step (Phase 2 — includes Q&A summary and demo additions) ─────────
+function ReviewStep({ contact, address, scope, answers, onBack, onSubmit, busy }) {
+  const demoAdditions = answers.filter(a => a.questionType === 'demo_check' && a.answer === 'no' && a.demoCost);
+  const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
+
+  const sections = [
+    {
+      label: 'Contact',
+      rows: [
+        { key: 'Name', value: contact.name },
+        { key: 'Phone', value: contact.phone || '—' },
+        { key: 'Email', value: contact.email || '—' },
+      ],
+    },
+    {
+      label: 'Job Address',
+      rows: [{ key: '', value: projectAddress || '—' }],
+    },
+    {
+      label: 'Scope of Work',
+      rows: [{ key: '', value: scope }],
+    },
+  ];
+
+  return (
+    <div style={{ padding: '24px 28px' }}>
+      <p style={{ fontSize: 13, color: '#555', marginTop: 0, marginBottom: 16 }}>
+        Review everything before generating the proposal.
+      </p>
+
+      {sections.map(section => (
+        <div key={section.label} style={{ background: '#f8f9fc', borderRadius: 8, padding: '14px 16px', marginBottom: 12, border: '1px solid #e8eaf0' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{section.label}</div>
+          {section.rows.map((row, i) => (
+            <div key={i} style={{ fontSize: 13, color: '#333', marginBottom: row.key ? 4 : 0, whiteSpace: row.key ? 'normal' : 'pre-wrap' }}>
+              {row.key ? <><span style={{ color: '#888', marginRight: 6 }}>{row.key}:</span>{row.value}</> : row.value}
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {demoAdditions.length > 0 && (
+        <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '14px 16px', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Demo Work Added from Q&A</div>
+          {demoAdditions.map((a, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#9a3412', marginBottom: 4 }}>
+              <span>Demo — Remove {a.trade}</span>
+              <span style={{ fontWeight: 700 }}>${Number(a.demoCost).toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {answers.length > 0 && (
+        <div style={{ background: '#f8f9fc', borderRadius: 8, padding: '14px 16px', marginBottom: 12, border: '1px solid #e8eaf0' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>AI Q&A Answers</div>
+          {answers.map((a, i) => (
+            <div key={i} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: i < answers.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
+              <div style={{ fontSize: 12, color: '#64748b', marginBottom: 3 }}>{a.question}</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>
+                {a.answer === 'yes' ? '✓ Yes — already included'
+                  : a.answer === 'no' ? `✗ No — demo added ($${Number(a.demoCost || 0).toLocaleString()})`
+                  : a.answer === 'not_sure' ? '~ Not sure'
+                  : a.answer}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
+        <button onClick={onBack} style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 13, color: '#555' }}>
+          ← Back
+        </button>
+        <button
+          onClick={onSubmit}
+          disabled={busy}
+          style={{
+            padding: '10px 24px', borderRadius: 6, border: 'none', fontWeight: 700, fontSize: 14,
+            background: busy ? '#888' : '#1B3A6B', color: 'white',
+            cursor: busy ? 'not-allowed' : 'pointer',
+          }}
+        >
+          {busy ? '⏳ Generating...' : '🤖 Generate Proposal'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main wizard component ──────────────────────────────────────────────────
 export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
+  // STEPS: 0=Contact, 1=Job Address, 2=Scope, 3=AI Questions (dynamic), 4=Review
+  const BASE_STEPS = ['Contact', 'Job Address', 'Scope of Work', 'Review'];
+
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
+  const [fetchingQuestions, setFetchingQuestions] = useState(false);
 
   const [contact, setContact] = useState({ name: '', phone: '', email: '' });
   const [address, setAddress] = useState({ street: '', city: '', state: '', zip: '' });
   const [scope, setScope] = useState('');
+
+  const [wizardQuestions, setWizardQuestions] = useState([]);
+  const [wizardAnswers, setWizardAnswers] = useState([]);
+  const [aiStepInserted, setAiStepInserted] = useState(false);
 
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -38,6 +312,13 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   const nameRef = useRef(null);
 
   const headers = { 'x-auth-token': token };
+
+  const STEPS = aiStepInserted
+    ? ['Contact', 'Job Address', 'Scope of Work', 'AI Questions', 'Review']
+    : BASE_STEPS;
+
+  const REVIEW_STEP = STEPS.length - 1;
+  const AI_STEP = aiStepInserted ? 3 : -1;
 
   const fetchSuggestions = (query) => {
     clearTimeout(suggestTimeout.current);
@@ -90,21 +371,59 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
     return true;
   };
 
+  const handleNextFromScope = async () => {
+    setFetchingQuestions(true);
+    try {
+      const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
+      const res = await fetch('/api/jobs/wizard/questions', {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scopeText: scope, projectAddress }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const questions = data.questions || [];
+        if (questions.length > 0) {
+          setWizardQuestions(questions);
+          setWizardAnswers([]);
+          setAiStepInserted(true);
+          setStep(3);
+        } else {
+          setAiStepInserted(false);
+          setStep(3);
+        }
+      } else {
+        showToast('AI questions unavailable — proceeding to review.', 'warning');
+        setAiStepInserted(false);
+        setStep(3);
+      }
+    } catch {
+      showToast('Network error. Proceeding to review.', 'warning');
+      setAiStepInserted(false);
+      setStep(3);
+    }
+    setFetchingQuestions(false);
+  };
+
+  const handleQuestionsComplete = (finalAnswers) => {
+    setWizardAnswers(finalAnswers);
+    setStep(REVIEW_STEP);
+  };
+
   const submit = async () => {
     setBusy(true);
     try {
-      const res = await fetch('/api/jobs/wizard', {
+      const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
+      const res = await fetch('/api/jobs/wizard/submit', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contactName: contact.name,
-          contactPhone: contact.phone,
-          contactEmail: contact.email,
-          street: address.street,
-          city: address.city,
-          state: address.state,
-          zip: address.zip,
+          customerName: contact.name,
+          customerPhone: contact.phone,
+          customerEmail: contact.email,
+          projectAddress,
           scopeText: scope,
+          qaAnswers: wizardAnswers,
         }),
       });
       const data = await res.json();
@@ -122,9 +441,20 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
     }
   };
 
+  const handleBack = () => {
+    if (step === REVIEW_STEP && aiStepInserted) {
+      setStep(AI_STEP);
+    } else if (step > 0) {
+      setStep(s => s - 1);
+    } else {
+      onClose();
+    }
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-      <div style={{ background: 'white', borderRadius: 14, width: 540, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      <div style={{ background: 'white', borderRadius: 14, width: 560, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
 
         {/* Header */}
         <div style={{ padding: '24px 28px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -141,8 +471,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
             {STEPS.map((label, i) => (
               <div key={label} style={{ flex: 1 }}>
                 <div style={{
-                  height: 4,
-                  borderRadius: 2,
+                  height: 4, borderRadius: 2,
                   background: i <= step ? '#1B3A6B' : '#e5e7eb',
                   transition: 'background 0.2s',
                 }} />
@@ -152,188 +481,167 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           </div>
         </div>
 
-        {/* Step content */}
-        <div style={{ padding: '24px 28px' }}>
+        {/* AI Questions step */}
+        {step === AI_STEP && aiStepInserted ? (
+          <AIQuestionsStep
+            questions={wizardQuestions}
+            answers={wizardAnswers}
+            onAnswer={setWizardAnswers}
+            onBack={handleBack}
+            onNext={handleQuestionsComplete}
+          />
+        ) : step === REVIEW_STEP ? (
+          <ReviewStep
+            contact={contact}
+            address={address}
+            scope={scope}
+            answers={wizardAnswers}
+            onBack={handleBack}
+            onSubmit={submit}
+            busy={busy}
+          />
+        ) : (
+          <>
+            {/* Standard step content */}
+            <div style={{ padding: '24px 28px' }}>
 
-          {/* Step 1 — Contact */}
-          {step === 0 && (
-            <div>
-              <div ref={nameRef} style={{ position: 'relative', marginBottom: 14 }}>
-                <label style={labelStyle}>Name *</label>
-                <input
-                  autoFocus
-                  value={contact.name}
-                  onChange={e => handleNameChange(e.target.value)}
-                  onFocus={() => contact.name.length >= 2 && setShowSuggestions(true)}
-                  placeholder="e.g. John Smith"
-                  style={inputStyle}
-                />
-                {showSuggestions && suggestions.length > 0 && (
-                  <div style={{
-                    position: 'absolute', top: '100%', left: 0, right: 0, background: 'white',
-                    border: '1px solid #ddd', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                    zIndex: 10, maxHeight: 200, overflow: 'auto',
-                  }}>
-                    {suggestions.map(c => (
-                      <div
-                        key={c.id}
-                        onMouseDown={() => applySuggestion(c)}
-                        style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
-                        onMouseEnter={e => e.currentTarget.style.background = '#f5f8ff'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                      >
-                        <div style={{ fontWeight: 600, fontSize: 13, color: '#1B3A6B' }}>{c.name}</div>
-                        <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-                          {[c.phone, c.email].filter(Boolean).join(' · ')}
-                        </div>
+              {/* Step 0 — Contact */}
+              {step === 0 && (
+                <div>
+                  <div ref={nameRef} style={{ position: 'relative', marginBottom: 14 }}>
+                    <label style={labelStyle}>Name *</label>
+                    <input
+                      autoFocus
+                      value={contact.name}
+                      onChange={e => handleNameChange(e.target.value)}
+                      onFocus={() => contact.name.length >= 2 && setShowSuggestions(true)}
+                      placeholder="e.g. John Smith"
+                      style={inputStyle}
+                    />
+                    {showSuggestions && suggestions.length > 0 && (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, background: 'white',
+                        border: '1px solid #ddd', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        zIndex: 10, maxHeight: 200, overflow: 'auto',
+                      }}>
+                        {suggestions.map(c => (
+                          <div
+                            key={c.id}
+                            onMouseDown={() => applySuggestion(c)}
+                            style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
+                            onMouseEnter={e => e.currentTarget.style.background = '#f5f8ff'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                          >
+                            <div style={{ fontWeight: 600, fontSize: 13, color: '#1B3A6B' }}>{c.name}</div>
+                            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                              {[c.phone, c.email].filter(Boolean).join(' · ')}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={labelStyle}>Phone</label>
-                  <input value={contact.phone} onChange={e => setContact(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Email</label>
-                  <input value={contact.email} onChange={e => setContact(p => ({ ...p, email: e.target.value }))} placeholder="john@email.com" type="email" style={inputStyle} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 2 — Job Address */}
-          {step === 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={labelStyle}>Street *</label>
-                <input autoFocus value={address.street} onChange={e => setAddress(p => ({ ...p, street: e.target.value }))} placeholder="123 Main St" style={inputStyle} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
-                <div>
-                  <label style={labelStyle}>City *</label>
-                  <input value={address.city} onChange={e => setAddress(p => ({ ...p, city: e.target.value }))} placeholder="Boston" style={inputStyle} />
-                </div>
-                <div>
-                  <label style={labelStyle}>State</label>
-                  <input value={address.state} onChange={e => setAddress(p => ({ ...p, state: e.target.value }))} placeholder="MA" style={{ ...inputStyle }} />
-                </div>
-                <div>
-                  <label style={labelStyle}>Zip</label>
-                  <input value={address.zip} onChange={e => setAddress(p => ({ ...p, zip: e.target.value }))} placeholder="02101" style={inputStyle} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3 — Scope of Work */}
-          {step === 2 && (
-            <div>
-              <label style={labelStyle}>Scope of Work *</label>
-              <p style={{ fontSize: 12, color: '#777', margin: '0 0 8px' }}>
-                Describe the work — trades involved, rough scope, any specific materials?
-              </p>
-              <textarea
-                autoFocus
-                rows={9}
-                value={scope}
-                onChange={e => setScope(e.target.value)}
-                placeholder={`e.g. 2-story addition — framing, insulation, drywall\nNew kitchen: cabinets, countertops, tile backsplash\nElectrical panel upgrade, mini-split x2\nBudget ~$180,000`}
-                style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
-              />
-            </div>
-          )}
-
-          {/* Step 4 — Review */}
-          {step === 3 && (
-            <div>
-              <p style={{ fontSize: 13, color: '#555', marginTop: 0, marginBottom: 16 }}>
-                Review everything before generating the proposal. Click any section to go back and edit.
-              </p>
-
-              {[
-                {
-                  label: 'Contact',
-                  stepIndex: 0,
-                  rows: [
-                    { key: 'Name', value: contact.name },
-                    { key: 'Phone', value: contact.phone || '—' },
-                    { key: 'Email', value: contact.email || '—' },
-                  ],
-                },
-                {
-                  label: 'Job Address',
-                  stepIndex: 1,
-                  rows: [
-                    { key: 'Street', value: address.street },
-                    { key: 'City', value: address.city },
-                    { key: 'State', value: address.state || '—' },
-                    { key: 'Zip', value: address.zip || '—' },
-                  ],
-                },
-                {
-                  label: 'Scope of Work',
-                  stepIndex: 2,
-                  rows: [{ key: '', value: scope }],
-                },
-              ].map(section => (
-                <div key={section.label} style={{ background: '#f8f9fc', borderRadius: 8, padding: '14px 16px', marginBottom: 12, border: '1px solid #e8eaf0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{section.label}</span>
-                    <button
-                      onClick={() => setStep(section.stepIndex)}
-                      style={{ background: 'none', border: 'none', fontSize: 11, color: '#1B3A6B', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
-                    >
-                      Edit
-                    </button>
-                  </div>
-                  {section.rows.map(row => (
-                    <div key={row.key} style={{ fontSize: 13, color: '#333', marginBottom: row.key ? 4 : 0, whiteSpace: row.key ? 'normal' : 'pre-wrap' }}>
-                      {row.key ? <><span style={{ color: '#888', marginRight: 6 }}>{row.key}:</span>{row.value}</> : row.value}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={labelStyle}>Phone</label>
+                      <input value={contact.phone} onChange={e => setContact(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" style={inputStyle} />
                     </div>
-                  ))}
+                    <div>
+                      <label style={labelStyle}>Email</label>
+                      <input value={contact.email} onChange={e => setContact(p => ({ ...p, email: e.target.value }))} placeholder="john@email.com" type="email" style={inputStyle} />
+                    </div>
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* Step 1 — Job Address */}
+              {step === 1 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={labelStyle}>Street *</label>
+                    <input autoFocus value={address.street} onChange={e => setAddress(p => ({ ...p, street: e.target.value }))} placeholder="123 Main St" style={inputStyle} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
+                    <div>
+                      <label style={labelStyle}>City *</label>
+                      <input value={address.city} onChange={e => setAddress(p => ({ ...p, city: e.target.value }))} placeholder="Boston" style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>State</label>
+                      <input value={address.state} onChange={e => setAddress(p => ({ ...p, state: e.target.value }))} placeholder="MA" style={inputStyle} />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Zip</label>
+                      <input value={address.zip} onChange={e => setAddress(p => ({ ...p, zip: e.target.value }))} placeholder="02101" style={inputStyle} />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2 — Scope of Work */}
+              {step === 2 && (
+                <div>
+                  <label style={labelStyle}>Scope of Work *</label>
+                  <p style={{ fontSize: 12, color: '#777', margin: '0 0 8px' }}>
+                    Describe the work — trades involved, rough scope, any specific materials?
+                  </p>
+                  <textarea
+                    autoFocus
+                    rows={9}
+                    value={scope}
+                    onChange={e => setScope(e.target.value)}
+                    placeholder={`e.g. Kitchen remodel — install new cabinets, countertops, tile backsplash\nNew LVP flooring throughout main level\nBathroom: new vanity, toilet, shower tile\nBudget ~$85,000`}
+                    style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
+                  />
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Footer navigation */}
-        <div style={{ padding: '0 28px 24px', display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-          <button
-            onClick={step === 0 ? onClose : () => setStep(s => s - 1)}
-            style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 13, color: '#555' }}
-          >
-            {step === 0 ? 'Cancel' : '← Back'}
-          </button>
+            {/* Footer navigation for standard steps */}
+            <div style={{ padding: '0 28px 24px', display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+              <button
+                onClick={step === 0 ? onClose : () => setStep(s => s - 1)}
+                style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 13, color: '#555' }}
+              >
+                {step === 0 ? 'Cancel' : '← Back'}
+              </button>
 
-          {step < STEPS.length - 1 ? (
-            <button
-              onClick={() => setStep(s => s + 1)}
-              disabled={!canNext()}
-              style={{
-                padding: '10px 24px', borderRadius: 6, border: 'none', cursor: canNext() ? 'pointer' : 'not-allowed',
-                background: canNext() ? '#1B3A6B' : '#c5ccd8', color: 'white', fontWeight: 700, fontSize: 13,
-              }}
-            >
-              Next →
-            </button>
-          ) : (
-            <button
-              onClick={submit}
-              disabled={busy}
-              style={{
-                padding: '10px 24px', borderRadius: 6, border: 'none', cursor: busy ? 'not-allowed' : 'pointer',
-                background: busy ? '#888' : '#1B3A6B', color: 'white', fontWeight: 700, fontSize: 14,
-              }}
-            >
-              {busy ? '⏳ Generating...' : '🤖 Generate Proposal'}
-            </button>
-          )}
-        </div>
+              {step === 2 ? (
+                <button
+                  onClick={handleNextFromScope}
+                  disabled={fetchingQuestions || !canNext()}
+                  style={{
+                    padding: '10px 24px', borderRadius: 6, border: 'none',
+                    background: fetchingQuestions || !canNext() ? '#c5ccd8' : '#1B3A6B',
+                    color: 'white', fontWeight: 700, fontSize: 13,
+                    cursor: fetchingQuestions || !canNext() ? 'not-allowed' : 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}
+                >
+                  {fetchingQuestions ? (
+                    <>
+                      <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 14 }}>⟳</span>
+                      AI is thinking...
+                    </>
+                  ) : 'Next →'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => setStep(s => s + 1)}
+                  disabled={!canNext()}
+                  style={{
+                    padding: '10px 24px', borderRadius: 6, border: 'none',
+                    background: canNext() ? '#1B3A6B' : '#c5ccd8',
+                    color: 'white', fontWeight: 700, fontSize: 13,
+                    cursor: canNext() ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  Next →
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

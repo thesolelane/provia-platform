@@ -504,4 +504,65 @@ IMPORTANT STYLE RULES:
   return { reply: 'I ran into an issue processing your request. Please try again.', createdTask };
 }
 
-module.exports = { processEstimate, generateContract, handleClarification, adminChat };
+// ── WIZARD QUESTION GENERATION ────────────────────────────────────────
+async function generateWizardQuestions(scopeText, projectAddress = '') {
+  const response = await client.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 2000,
+    system: `You are a construction estimating assistant helping a Massachusetts GC build accurate quotes. Your job is to read a scope of work and ask ONLY the most important clarifying questions — focusing especially on install-implies-demo trade pairings and other genuine scope gaps.
+
+INSTALL-IMPLIES-DEMO RULE: When the scope mentions installing, replacing, or upgrading something (cabinets, flooring, fixtures, doors, windows, drywall, roofing, tiles, vanities, toilets, bathtubs, etc.), always check whether removal/demolition of the existing item is already in the scope. If the scope is ambiguous or silent on demo for that item, ask about it as a "demo_check" question.
+
+Return ONLY valid JSON — no commentary, no markdown.`,
+    messages: [{
+      role: 'user',
+      content: `Read this scope of work and return a JSON array of clarifying questions. Return an empty array [] if the scope is completely clear and no questions are needed.
+
+Project Address: ${projectAddress || 'not specified'}
+
+SCOPE OF WORK:
+${scopeText}
+
+Return this EXACT JSON structure (array, 0 to 8 questions max):
+[
+  {
+    "id": "q1",
+    "question": "The scope mentions installing new kitchen cabinets. Does the demo/removal of existing cabinets need to be added to the estimate, or is that already included?",
+    "questionType": "demo_check",
+    "trade": "cabinets",
+    "answerType": "yesno",
+    "hint": "Say Yes if demo is already in scope, No if it needs to be added"
+  },
+  {
+    "id": "q2",
+    "question": "Are there any specific material brands or grades required for the flooring?",
+    "questionType": "scope_detail",
+    "trade": "flooring",
+    "answerType": "text",
+    "hint": ""
+  }
+]
+
+RULES:
+1. questionType must be "demo_check" for install-implies-demo questions, "scope_detail" for other scope gaps, or "trade_clarification" for trade-specific questions.
+2. answerType must be "yesno" for Yes/No questions or "text" for open-ended questions. Use "yesno" for demo_check questions.
+3. Only ask questions whose answers would materially change the line items or cost. Do NOT ask for customer info, addresses, or obvious details already in the scope.
+4. For demo_check: if the user says YES (demo is included), the install proceeds as-is. If the user says NO, we add a demo line item and ask for the cost.
+5. Keep questions conversational and specific — mention the exact item from the scope.
+6. If the scope is clear and complete, return an empty array [].
+7. Return ONLY the JSON array. Nothing else.`
+    }]
+  });
+
+  const text = response.content[0].text.trim();
+  try {
+    const clean = text.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('[generateWizardQuestions] Parse error:', e.message, text.slice(0, 200));
+    return [];
+  }
+}
+
+module.exports = { processEstimate, generateContract, handleClarification, adminChat, generateWizardQuestions };
