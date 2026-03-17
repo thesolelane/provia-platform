@@ -182,7 +182,7 @@ export default function JobDetail({ token }) {
   };
 
   const multiplier = (() => {
-    const pricing = job.proposal_data?.pricing;
+    const pricing = job?.proposal_data?.pricing;
     return pricing?.markupMultiplier || 1.5813;
   })();
 
