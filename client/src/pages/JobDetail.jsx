@@ -222,13 +222,13 @@ export default function JobDetail({ token }) {
         {/* PDF links */}
         <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
           {job.proposal_pdf_path && (
-            <a href={`/outputs/${job.proposal_pdf_path.split('/').pop()}?token=${encodeURIComponent(token)}`} target="_blank" rel="noreferrer"
+            <a href={`/outputs/${job.proposal_pdf_path.split(/[\\/]/).pop()}?token=${encodeURIComponent(token)}`} target="_blank" rel="noreferrer"
               style={{ padding: '7px 14px', background: '#3B82F620', color: '#3B82F6', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 'bold', border: '1px solid #3B82F640' }}>
               📄 View Proposal PDF
             </a>
           )}
           {job.contract_pdf_path && (
-            <a href={`/outputs/${job.contract_pdf_path.split('/').pop()}?token=${encodeURIComponent(token)}`} target="_blank" rel="noreferrer"
+            <a href={`/outputs/${job.contract_pdf_path.split(/[\\/]/).pop()}?token=${encodeURIComponent(token)}`} target="_blank" rel="noreferrer"
               style={{ padding: '7px 14px', background: '#05966920', color: '#059669', borderRadius: 6, textDecoration: 'none', fontSize: 12, fontWeight: 'bold', border: '1px solid #05966940' }}>
               📄 View Contract PDF
             </a>
