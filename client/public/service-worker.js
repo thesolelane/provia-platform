@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pb-app-shell-v1';
+const CACHE_NAME = 'pb-app-shell-v2';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
@@ -27,7 +27,12 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.method !== 'GET') return;
 
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/uploads/')) {
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/uploads/') ||
+    url.pathname.startsWith('/outputs/') ||
+    url.pathname.startsWith('/contact-docs/')
+  ) {
     return;
   }
 
