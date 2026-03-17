@@ -121,6 +121,16 @@ export default function JobDetail({ token }) {
     setActionLoading(false);
   };
 
+  const reprocessJob = async () => {
+    if (!await showConfirm('Retry AI processing on this job? The original scope will be re-submitted to Claude.')) return;
+    setActionLoading(true);
+    const res  = await fetch(`/api/jobs/${id}/reprocess`, { method: 'POST', headers });
+    const data = await res.json();
+    setActionLoading(false);
+    if (res.ok) { load(); showToast('Reprocessing started — refresh in a moment', 'info'); }
+    else        { showToast(data.error || 'Failed to reprocess', 'error'); }
+  };
+
   const markComplete = async () => {
     if (!await showConfirm('Mark this job as complete?')) return;
     setActionLoading(true);
@@ -347,6 +357,14 @@ export default function JobDetail({ token }) {
             <button onClick={sendContractForSigning} disabled={actionLoading}
               style={{ padding: '9px 18px', background: '#04785720', color: '#047857', border: '1px solid #04785740', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
               {actionLoading ? '...' : '📧 Resend Contract Link'}
+            </button>
+          )}
+
+          {/* Retry failed job */}
+          {job.status === 'error' && (
+            <button onClick={reprocessJob} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: ORANGE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? 'Retrying...' : '🔄 Retry AI Processing'}
             </button>
           )}
 

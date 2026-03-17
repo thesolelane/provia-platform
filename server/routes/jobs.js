@@ -875,6 +875,40 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
   })();
 });
 
+// POST /:id/reprocess — retry AI estimation for a job stuck in error status
+router.post('/:id/reprocess', requireAuth, async (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (!job.raw_estimate_data) return res.status(400).json({ error: 'No raw estimate data to reprocess' });
+
+  db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', job.id);
+  res.json({ success: true, message: 'Reprocessing started' });
+
+  const { processEstimate } = require('../services/claudeService');
+  (async () => {
+    try {
+      console.log(`[Reprocess Job ${job.id}] Starting Claude processEstimate...`);
+      const fullEstimate = `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${job.raw_estimate_data}`;
+      const proposalData = await processEstimate(fullEstimate, job.id, 'en');
+      console.log(`[Reprocess Job ${job.id}] Claude returned. readyToGenerate=${proposalData.readyToGenerate}`);
+
+      if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', job.id);
+        const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
+        for (const q of proposalData.clarificationsNeeded) insertQ.run(job.id, q);
+      } else {
+        saveReviewPending(db, proposalData, job.id);
+        logAudit(job.id, 'reprocessed', 'Job reprocessed after error', req.session?.name || 'admin');
+        notifyClients('job_updated', { jobId: job.id, status: 'review_pending' });
+      }
+    } catch (err) {
+      console.error(`[Reprocess Job ${job.id}] ERROR:`, err.message);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', job.id);
+    }
+  })();
+});
+
 // Auto-purge: permanently delete jobs archived more than 90 days ago
 function purgeOldArchived() {
   try {
