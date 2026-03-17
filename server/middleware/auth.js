@@ -1,15 +1,27 @@
 // server/middleware/auth.js
-// Simple password-based admin panel protection
-
-const sessions = new Map(); // In-memory sessions (fine for single-admin tool)
+const sessions = new Map();
 
 function requireAuth(req, res, next) {
-  const token = req.headers['x-auth-token'] || req.query.token;
+  // Accept query token only on safe GET requests (e.g. photo/PDF file links in emails)
+  // All mutating endpoints (POST/PATCH/DELETE) must use the x-auth-token header only
+  const token = req.headers['x-auth-token'] ||
+    (req.method === 'GET' ? req.query.token : undefined);
   if (!token || !sessions.has(token)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   req.session = sessions.get(token);
   next();
+}
+
+// Restrict endpoint to specific roles (call after requireAuth)
+function requireRole(...roles) {
+  const allowed = roles.flat();
+  return (req, res, next) => {
+    if (!req.session || !allowed.includes(req.session.role)) {
+      return res.status(403).json({ error: 'Forbidden — insufficient role' });
+    }
+    next();
+  };
 }
 
 function createSession({ userId, name, email, role }) {
@@ -23,4 +35,4 @@ function destroySession(token) {
   sessions.delete(token);
 }
 
-module.exports = { requireAuth, createSession, destroySession };
+module.exports = { requireAuth, requireRole, createSession, destroySession };

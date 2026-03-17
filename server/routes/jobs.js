@@ -1,7 +1,7 @@
  // server/routes/jobs.js
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requireRole } = require('../middleware/auth');
 const { getDb } = require('../db/database');
 const { generatePDF } = require('../services/pdfService');
 const { sendWhatsApp } = require('../services/whatsappService');
@@ -192,7 +192,7 @@ router.post('/:id/mark-approved', requireAuth, async (req, res) => {
 });
 
 // PATCH /:id/line-items — save edited line items back to proposal_data (stays review_pending)
-router.patch('/:id/line-items', requireAuth, async (req, res) => {
+router.patch('/:id/line-items', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -200,6 +200,18 @@ router.patch('/:id/line-items', requireAuth, async (req, res) => {
 
   const { lineItems } = req.body;
   if (!Array.isArray(lineItems)) return res.status(400).json({ error: 'lineItems must be an array' });
+  if (lineItems.length === 0) return res.status(400).json({ error: 'lineItems cannot be empty' });
+
+  // Validate each line item
+  for (const [i, li] of lineItems.entries()) {
+    if (!li.trade || typeof li.trade !== 'string' || !li.trade.trim()) {
+      return res.status(400).json({ error: `Line item ${i + 1} is missing a trade name` });
+    }
+    const cost = Number(li.baseCost);
+    if (isNaN(cost) || cost < 0) {
+      return res.status(400).json({ error: `Line item "${li.trade}" has an invalid cost (must be 0 or greater)` });
+    }
+  }
 
   const proposalData = JSON.parse(job.proposal_data);
   const settings = (() => {
@@ -216,18 +228,33 @@ router.patch('/:id/line-items', requireAuth, async (req, res) => {
 
   const updatedItems = lineItems.map(li => ({
     ...li,
-    baseCost: Number(li.baseCost) || 0,
-    finalPrice: li.isStretchCode ? Number(li.baseCost) : Math.round((Number(li.baseCost) || 0) * multiplier),
+    trade: li.trade.trim(),
+    baseCost: Math.max(0, Number(li.baseCost) || 0),
+    finalPrice: li.isStretchCode ? Math.max(0, Number(li.baseCost)) : Math.round(Math.max(0, Number(li.baseCost) || 0) * multiplier),
   }));
 
-  let total = updatedItems.reduce((s, i) => s + (i.finalPrice || 0), 0);
+  // Auto-add dumpster as a visible line item if none exists
   const hasDumpster = updatedItems.some(i => /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || ''));
   if (!hasDumpster) {
     const totalBase = updatedItems.reduce((s, i) => s + (i.baseCost || 0), 0);
-    let dumpsterCost = totalBase < 10000 ? 600 : totalBase <= 25000 ? 1200 : 1200 + Math.ceil((totalBase - 25000) / 15000) * 1200;
-    total += Math.round(dumpsterCost * multiplier);
+    const dumpsterBase = totalBase < 10000 ? 600 : totalBase <= 25000 ? 1200 : 1200 + Math.ceil((totalBase - 25000) / 15000) * 1200;
+    updatedItems.push({
+      trade: 'Waste Removal',
+      baseCost: dumpsterBase,
+      finalPrice: Math.round(dumpsterBase * multiplier),
+      description: 'Dumpster rental and debris disposal for project duration.',
+      scopeIncluded: ['Dumpster rental', 'Debris hauling and disposal'],
+      scopeExcluded: ['Hazardous material disposal'],
+      autoAdded: true,
+    });
   }
+
+  const total = updatedItems.reduce((s, i) => s + (i.finalPrice || 0), 0);
   const depositAmount = Math.round(total * deposit);
+
+  // Audit the change
+  const editor = req.session?.name || req.session?.email || 'admin';
+  const prevTotal = proposalData.totalValue || 0;
 
   proposalData.lineItems = updatedItems;
   proposalData.pricing = { markupMultiplier: Math.round(multiplier * 10000) / 10000, totalContractPrice: total, depositPercent: Math.round(deposit * 100), depositAmount };
@@ -237,11 +264,13 @@ router.patch('/:id/line-items', requireAuth, async (req, res) => {
   db.prepare('UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(JSON.stringify(proposalData), total, depositAmount, job.id);
 
+  logAudit(job.id, 'line_items_edited', `Line items edited by ${editor}. Total changed from $${prevTotal.toLocaleString()} → $${total.toLocaleString()}`, editor);
+
   res.json({ success: true, total, depositAmount, lineItems: updatedItems });
 });
 
 // POST /:id/generate-proposal — generate PDF from stored (possibly edited) proposal_data
-router.post('/:id/generate-proposal', requireAuth, async (req, res) => {
+router.post('/:id/generate-proposal', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -607,50 +636,6 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
   }
 });
 
-// POST reprocess a job (re-run Claude + regenerate PDF)
-router.post('/:id/reprocess', requireAuth, async (req, res) => {
-  const db = getDb();
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
-
-  res.json({ success: true, message: 'Reprocessing started' });
-
-  try {
-    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', job.id);
-
-    // Get or create a CSN for the job's contact before reprocessing
-    let reprocessRef = null;
-    if (job.contact_id) {
-      const existingContact = db.prepare('SELECT id, customer_number FROM contacts WHERE id = ?').get(job.contact_id);
-      if (existingContact) reprocessRef = { id: existingContact.id, csn: existingContact.customer_number };
-    }
-    if (!reprocessRef && (job.customer_name || job.customer_email)) {
-      reprocessRef = findOrCreateContact(db, {
-        name: job.customer_name, email: job.customer_email, phone: job.customer_phone,
-        address: job.project_address, city: job.project_city || '', state: 'MA'
-      });
-      db.prepare('UPDATE jobs SET contact_id = ? WHERE id = ?').run(reprocessRef.id, job.id);
-    }
-
-    const sanitizedEstimate = stripPII(job.raw_estimate_data);
-    const fullEstimate = reprocessRef
-      ? `[Customer Ref: ${reprocessRef.csn} | Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedEstimate}`
-      : `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedEstimate}`;
-
-    const { processEstimate } = require('../services/claudeService');
-    const proposalData = await processEstimate(fullEstimate, job.id, 'en');
-    if (proposalData.readyToGenerate) {
-      const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
-      saveProposalReady(db, proposalData, pdfPath, job.id);
-      console.log(`[Reprocess ${job.id}] Done. Total: $${proposalData.totalValue}`);
-      tickQuoteCounter(db);
-      notifyClients('job_updated', { jobId: job.id, status: 'proposal_ready' });
-    }
-  } catch (err) {
-    console.error(`[Reprocess ${job.id}] Error:`, err.message);
-    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', job.id);
-  }
-});
 
 // PATCH update job notes (and optionally status)
 router.patch('/:id/notes', requireAuth, (req, res) => {
@@ -876,7 +861,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
 });
 
 // POST /:id/reprocess — retry AI estimation for a job stuck in error status
-router.post('/:id/reprocess', requireAuth, async (req, res) => {
+router.post('/:id/reprocess', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
