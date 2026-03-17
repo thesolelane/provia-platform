@@ -409,9 +409,10 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\n\nESTIMATE DETAILS:\n${sanitizedText}`
     : `[Job ID: ${jobId}]\n\nESTIMATE DETAILS:\n${sanitizedText}`;
 
+  const uploadedBy = req.session?.name ? `web:${req.session.name}` : 'web:upload';
   db.prepare(`INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
-    VALUES (?, ?, ?, ?, ?, ?, 'received', 'manual', ?)`
-  ).run(jobId, customerName, customerEmail, customerPhone, projectAddress, fullEstimate, contactRef?.id || null);
+    VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)`
+  ).run(jobId, customerName, customerEmail, customerPhone, projectAddress, fullEstimate, uploadedBy, contactRef?.id || null);
 
   res.json({ jobId, status: 'received', message: 'File uploaded. Processing estimate...' });
 
@@ -468,10 +469,11 @@ router.post('/wizard', requireAuth, async (req, res) => {
     } catch (e) { console.warn('[Wizard Job] Contact upsert failed:', e.message); }
   }
 
+  const wizardBy = req.session?.name ? `web:${req.session.name}` : 'web:wizard';
   db.prepare(`
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
-    VALUES (?, ?, ?, ?, ?, ?, 'processing', 'wizard', ?)
-  `).run(jobId, contactName, contactEmail, contactPhone, projectAddress, scopeText, contactRef?.id || null);
+    VALUES (?, ?, ?, ?, ?, ?, 'processing', ?, ?)
+  `).run(jobId, contactName, contactEmail, contactPhone, projectAddress, scopeText, wizardBy, contactRef?.id || null);
 
   notifyClients('job_updated', { jobId, status: 'processing' });
   res.json({ jobId, status: 'processing', message: 'Job created. Processing estimate...' });
@@ -536,10 +538,11 @@ router.post('/manual', requireAuth, async (req, res) => {
     } catch (e) { console.warn('[Manual Job] Contact upsert failed:', e.message); }
   }
 
+  const manualBy = req.session?.name ? `web:${req.session.name}` : 'web:manual';
   db.prepare(`
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
-    VALUES (?, ?, ?, ?, ?, ?, 'received', 'manual', ?)
-  `).run(jobId, customerName, customerEmail, customerPhone, projectAddress, estimateText, contactRef?.id || null);
+    VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
+  `).run(jobId, customerName, customerEmail, customerPhone, projectAddress, estimateText, manualBy, contactRef?.id || null);
 
   res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
 
@@ -832,10 +835,14 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
   // Store Q&A in raw estimate data alongside the scope
   const rawEstimateData = scopeText + answersNarrative;
 
+  const submittedBy = req.session?.name
+    ? `web:${req.session.name}`
+    : (req.session?.email ? `web:${req.session.email}` : 'web:wizard');
+
   db.prepare(`
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
-    VALUES (?, ?, ?, ?, ?, ?, 'received', 'wizard', ?)
-  `).run(jobId, customerName || '', customerEmail || '', customerPhone || '', projectAddress || '', rawEstimateData, contactRef?.id || null);
+    VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
+  `).run(jobId, customerName || '', customerEmail || '', customerPhone || '', projectAddress || '', rawEstimateData, submittedBy, contactRef?.id || null);
 
   res.json({ jobId, status: 'received', message: 'Wizard submission received. Processing estimate...' });
 

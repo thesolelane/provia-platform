@@ -642,7 +642,14 @@ export default function JobDetail({ token }) {
                   ['Project Address', job.project_address],
                   ['City', job.project_city],
                   ['Stretch Code Town', job.stretch_code_town ? '✅ Yes — Stretch Code applies' : '❌ No'],
-                  ['Submitted Via', job.submitted_by],
+                  ['Submitted Via', (() => {
+                    const s = job.submitted_by || '';
+                    if (s.startsWith('web:')) return `🖥️ Web Portal (${s.slice(4)})`;
+                    if (s.startsWith('whatsapp:')) return `📱 WhatsApp (${s.replace('whatsapp:+1','').replace('whatsapp:','')})`;
+                    if (s === 'wizard' || s === 'manual') return '🖥️ Web Portal';
+                    if (s === 'hearth_api') return '🔗 Hearth API';
+                    return s || '—';
+                  })()],
                   ['Total Value', job.total_value ? `$${job.total_value.toLocaleString()}` : '—'],
                   ['Deposit', job.deposit_amount ? `$${job.deposit_amount.toLocaleString()}` : '—'],
                 ].map(([label, value]) => (
