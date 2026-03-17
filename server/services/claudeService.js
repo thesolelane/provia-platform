@@ -153,7 +153,7 @@ async function processEstimate(rawEstimateText, jobId, language = 'en') {
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 6000,
+    max_tokens: 8000,
     system: systemPrompt,
     messages: [
       {
@@ -288,9 +288,42 @@ RULES:
   let extractedData;
   try {
     const clean = text.replace(/```json|```/g, '').trim();
-    extractedData = JSON.parse(clean);
+    // Extract outermost JSON object in case there's leading/trailing text
+    const jsonMatch = clean.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : clean;
+    let parsed = null;
+
+    // First attempt: plain parse
+    try { parsed = JSON.parse(jsonStr); } catch (_) {}
+
+    // Second attempt: strip trailing commas before } or ] (common Claude quirk)
+    if (!parsed) {
+      try {
+        const repaired = jsonStr.replace(/,\s*([}\]])/g, '$1');
+        parsed = JSON.parse(repaired);
+      } catch (_) {}
+    }
+
+    // Third attempt: truncate at last complete top-level property and close
+    if (!parsed) {
+      try {
+        // Find the last valid closing brace position by walking backwards
+        let depth = 0, lastGood = -1;
+        for (let i = 0; i < jsonStr.length; i++) {
+          if (jsonStr[i] === '{' || jsonStr[i] === '[') depth++;
+          else if (jsonStr[i] === '}' || jsonStr[i] === ']') { depth--; if (depth === 0) lastGood = i; }
+        }
+        if (lastGood > 0) parsed = JSON.parse(jsonStr.slice(0, lastGood + 1));
+      } catch (_) {}
+    }
+
+    if (!parsed) {
+      console.error('Failed to parse Claude response after all attempts:', text.slice(0, 500));
+      throw new Error('AI response parsing failed');
+    }
+    extractedData = parsed;
   } catch (e) {
-    console.error('Failed to parse Claude response:', e);
+    console.error('Failed to parse Claude response:', e.message);
     throw new Error('AI response parsing failed');
   }
 
