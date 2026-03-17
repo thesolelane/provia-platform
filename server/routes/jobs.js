@@ -57,6 +57,29 @@ function saveProposalReady(db, proposalData, pdfPath, jobId) {
   }
 }
 
+// Helper: save extracted data with review_pending status (no PDF yet)
+function saveReviewPending(db, proposalData, jobId) {
+  const c = proposalData.customer || {};
+  const p = proposalData.project  || {};
+  db.prepare(`
+    UPDATE jobs SET
+      proposal_data = ?, status = 'review_pending', updated_at = CURRENT_TIMESTAMP,
+      total_value = ?, deposit_amount = ?,
+      customer_name  = COALESCE(NULLIF(?, ''), customer_name),
+      customer_email = COALESCE(NULLIF(?, ''), customer_email),
+      customer_phone = COALESCE(NULLIF(?, ''), customer_phone),
+      project_address = COALESCE(NULLIF(?, ''), project_address),
+      project_city    = COALESCE(NULLIF(?, ''), project_city)
+    WHERE id = ?`
+  ).run(
+    JSON.stringify(proposalData),
+    proposalData.totalValue || 0, proposalData.depositAmount || 0,
+    c.name || '', c.email || '', c.phone || '',
+    p.address || '', p.city || '',
+    jobId
+  );
+}
+
 // ── Customer serial number helpers ─────────────────────────────────────────
 
 // Generates next PB-C-YYYY-NNNN serial using an atomic DB counter (race-safe)
@@ -166,6 +189,75 @@ router.post('/:id/mark-approved', requireAuth, async (req, res) => {
   db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('proposal_approved', job.id);
   logAudit(job.id, 'proposal_approved', 'Proposal manually approved via admin panel', req.session?.name || 'admin');
   res.json({ success: true, message: 'Proposal marked as approved' });
+});
+
+// PATCH /:id/line-items — save edited line items back to proposal_data (stays review_pending)
+router.patch('/:id/line-items', requireAuth, async (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (!job.proposal_data) return res.status(400).json({ error: 'No proposal data found' });
+
+  const { lineItems } = req.body;
+  if (!Array.isArray(lineItems)) return res.status(400).json({ error: 'lineItems must be an array' });
+
+  const proposalData = JSON.parse(job.proposal_data);
+  const settings = (() => {
+    const rows = db.prepare('SELECT key, value FROM settings').all();
+    const s = {};
+    for (const r of rows) { try { s[r.key] = JSON.parse(r.value); } catch { s[r.key] = r.value; } }
+    return s;
+  })();
+  const subOandP    = Number(settings['markup.subOandP'])    || 0.15;
+  const gcOandP     = Number(settings['markup.gcOandP'])     || 0.25;
+  const contingency = Number(settings['markup.contingency']) || 0.10;
+  const deposit     = Number(settings['markup.deposit'])     || 0.33;
+  const multiplier  = (1 + subOandP) * (1 + gcOandP) * (1 + contingency);
+
+  const updatedItems = lineItems.map(li => ({
+    ...li,
+    baseCost: Number(li.baseCost) || 0,
+    finalPrice: li.isStretchCode ? Number(li.baseCost) : Math.round((Number(li.baseCost) || 0) * multiplier),
+  }));
+
+  let total = updatedItems.reduce((s, i) => s + (i.finalPrice || 0), 0);
+  const hasDumpster = updatedItems.some(i => /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || ''));
+  if (!hasDumpster) {
+    const totalBase = updatedItems.reduce((s, i) => s + (i.baseCost || 0), 0);
+    let dumpsterCost = totalBase < 10000 ? 600 : totalBase <= 25000 ? 1200 : 1200 + Math.ceil((totalBase - 25000) / 15000) * 1200;
+    total += Math.round(dumpsterCost * multiplier);
+  }
+  const depositAmount = Math.round(total * deposit);
+
+  proposalData.lineItems = updatedItems;
+  proposalData.pricing = { markupMultiplier: Math.round(multiplier * 10000) / 10000, totalContractPrice: total, depositPercent: Math.round(deposit * 100), depositAmount };
+  proposalData.totalValue = total;
+  proposalData.depositAmount = depositAmount;
+
+  db.prepare('UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(JSON.stringify(proposalData), total, depositAmount, job.id);
+
+  res.json({ success: true, total, depositAmount, lineItems: updatedItems });
+});
+
+// POST /:id/generate-proposal — generate PDF from stored (possibly edited) proposal_data
+router.post('/:id/generate-proposal', requireAuth, async (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (!job.proposal_data) return res.status(400).json({ error: 'No proposal data to generate from' });
+
+  try {
+    const proposalData = JSON.parse(job.proposal_data);
+    const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
+    saveProposalReady(db, proposalData, pdfPath, job.id);
+    logAudit(job.id, 'proposal_generated', 'Proposal PDF generated after line item review', req.session?.name || 'admin');
+    notifyClients('job_updated', { jobId: job.id, status: 'proposal_ready' });
+    res.json({ success: true, pdfPath: `/outputs/${require('path').basename(pdfPath)}` });
+  } catch (err) {
+    console.error('[generate-proposal] Error:', err.message);
+    res.status(500).json({ error: 'Failed to generate proposal: ' + err.message });
+  }
 });
 
 router.post('/:id/approve', requireAuth, async (req, res) => {
@@ -383,12 +475,11 @@ router.post('/wizard', requireAuth, async (req, res) => {
         proposalData.project.city    = proposalData.project.city    || city   || '';
         proposalData.project.state   = proposalData.project.state   || state  || 'MA';
 
-        const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
-        saveProposalReady(db, proposalData, pdfPath, jobId);
-        logAudit(jobId, 'wizard_estimate_processed', `Wizard entry by admin`, 'admin');
-        console.log(`[Wizard Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
+        saveReviewPending(db, proposalData, jobId);
+        logAudit(jobId, 'wizard_estimate_processed', `Wizard entry — pending review`, 'admin');
+        console.log(`[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
         tickQuoteCounter(db);
-        notifyClients('job_updated', { jobId, status: 'proposal_ready' });
+        notifyClients('job_updated', { jobId, status: 'review_pending' });
       }
     } catch (err) {
       console.error(`[Wizard Job ${jobId}] ERROR:`, err.message, err.stack);
@@ -453,12 +544,11 @@ router.post('/manual', requireAuth, async (req, res) => {
           await sendWhatsApp(to, `Hey! 👋 I'm working on the estimate for *${customerName}* at ${projectAddress} but I'm missing a few details.\n\nI'll ask you one question at a time — just reply and I'll move to the next one.\n\n❓ Question 1 of ${total}:\n${firstQ}`);
         }
       } else {
-        const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
-        saveProposalReady(db, proposalData, pdfPath, jobId);
-        logAudit(jobId, 'manual_estimate_processed', `Manual entry by admin`, 'admin');
-        console.log(`[Manual Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
+        saveReviewPending(db, proposalData, jobId);
+        logAudit(jobId, 'manual_estimate_processed', `Manual entry — pending review`, 'admin');
+        console.log(`[Manual Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
         tickQuoteCounter(db);
-        notifyClients('job_updated', { jobId, status: 'proposal_ready' });
+        notifyClients('job_updated', { jobId, status: 'review_pending' });
       }
     } catch (err) {
       console.error(`[Manual Job ${jobId}] ERROR:`, err.message, err.stack);
@@ -773,12 +863,10 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
       } else {
-        const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
-        saveProposalReady(db, proposalData, pdfPath, jobId);
-        logAudit(jobId, 'wizard_estimate_processed', `Wizard submission by admin`, 'admin');
-        console.log(`[Wizard Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
-        tickQuoteCounter(db);
-        notifyClients('job_updated', { jobId, status: 'proposal_ready' });
+        saveReviewPending(db, proposalData, jobId);
+        logAudit(jobId, 'wizard_estimate_processed', `Wizard submission — pending review`, 'admin');
+        console.log(`[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
+        notifyClients('job_updated', { jobId, status: 'review_pending' });
       }
     } catch (err) {
       console.error(`[Wizard Job ${jobId}] ERROR:`, err.message, err.stack);

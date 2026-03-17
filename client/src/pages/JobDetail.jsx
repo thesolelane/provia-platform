@@ -16,6 +16,7 @@ const STATUS_COLORS = {
   received:          '#888',
   processing:        ORANGE,
   clarification:     '#F59E0B',
+  review_pending:    '#E07B2A',
   proposal_ready:    '#3B82F6',
   proposal_sent:     '#8B5CF6',
   proposal_approved: '#059669',
@@ -30,6 +31,7 @@ const STATUS_LABELS = {
   received:          'Received',
   processing:        'Processing',
   clarification:     'Needs Clarification',
+  review_pending:    'Review Line Items',
   proposal_ready:    'Proposal Ready',
   proposal_sent:     'Sent for Approval',
   proposal_approved: 'Proposal Approved ✓',
@@ -53,6 +55,8 @@ export default function JobDetail({ token }) {
   const [note, setNote]             = useState('');
   const [clarAnswer, setClarAnswer] = useState('');
   const [activeTab, setActiveTab]   = useState('overview');
+  const [editingLineItems, setEditingLineItems] = useState(null);
+  const [savingLineItems, setSavingLineItems]   = useState(false);
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
@@ -130,6 +134,47 @@ export default function JobDetail({ token }) {
     await fetch(`/api/jobs/${id}/notes`, { method: 'PATCH', headers, body: JSON.stringify({ notes: note }) });
     showToast('Note saved');
   };
+
+  const startEditingLineItems = () => {
+    const items = (job.proposal_data?.lineItems || []).map(li => ({ ...li }));
+    setEditingLineItems(items);
+  };
+
+  const updateLineItem = (idx, field, value) => {
+    setEditingLineItems(prev => prev.map((li, i) => i === idx ? { ...li, [field]: value } : li));
+  };
+
+  const addLineItem = () => {
+    setEditingLineItems(prev => [...prev, { trade: '', baseCost: 0, description: '', scopeIncluded: [], scopeExcluded: [] }]);
+  };
+
+  const removeLineItem = (idx) => {
+    setEditingLineItems(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const saveLineItems = async () => {
+    setSavingLineItems(true);
+    const res  = await fetch(`/api/jobs/${id}/line-items`, { method: 'PATCH', headers, body: JSON.stringify({ lineItems: editingLineItems }) });
+    const data = await res.json();
+    setSavingLineItems(false);
+    if (res.ok) { load(); showToast('Line items saved'); }
+    else        { showToast(data.error || 'Failed to save', 'error'); }
+  };
+
+  const generateProposal = async () => {
+    if (!await showConfirm('Generate the proposal PDF from these line items? This cannot be undone.')) return;
+    setActionLoading(true);
+    const res  = await fetch(`/api/jobs/${id}/generate-proposal`, { method: 'POST', headers });
+    const data = await res.json();
+    setActionLoading(false);
+    if (res.ok) { setEditingLineItems(null); load(); showToast('Proposal generated!'); }
+    else        { showToast(data.error || 'Failed to generate proposal', 'error'); }
+  };
+
+  const multiplier = (() => {
+    const pricing = job.proposal_data?.pricing;
+    return pricing?.markupMultiplier || 1.5813;
+  })();
 
   const submitClarAnswer = async (clarId) => {
     if (!clarAnswer.trim()) return;
@@ -330,6 +375,120 @@ export default function JobDetail({ token }) {
           <ul style={{ margin: '6px 0 0 16px', color: '#5D3A00' }}>
             {job.flagged_items.map((f, i) => <li key={i}>{f}</li>)}
           </ul>
+        </div>
+      )}
+
+      {/* ── Review Pending — Line Item Editor ── */}
+      {job.status === 'review_pending' && (
+        <div style={{ background: '#FFF8F0', border: `2px solid ${ORANGE}`, borderRadius: 10, padding: 20, marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <div>
+              <strong style={{ color: ORANGE, fontSize: 15 }}>✏️ Review Extracted Line Items</strong>
+              <div style={{ fontSize: 12, color: '#777', marginTop: 2 }}>
+                Edit costs or descriptions before generating the proposal PDF. Client price = base cost × {multiplier.toFixed(4)}×.
+              </div>
+            </div>
+            {!editingLineItems && (
+              <button onClick={startEditingLineItems}
+                style={{ padding: '8px 16px', background: ORANGE, color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                ✏️ Edit Line Items
+              </button>
+            )}
+          </div>
+
+          {/* Read-only summary (before editing starts) */}
+          {!editingLineItems && (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                  <th style={{ textAlign: 'left', padding: '6px 8px', color: '#555', fontWeight: 600 }}>Trade</th>
+                  <th style={{ textAlign: 'right', padding: '6px 8px', color: '#555', fontWeight: 600 }}>Sub Cost</th>
+                  <th style={{ textAlign: 'right', padding: '6px 8px', color: '#555', fontWeight: 600 }}>Client Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(job.proposal_data?.lineItems || []).map((li, i) => (
+                  <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '7px 8px', color: '#333' }}>{li.trade}</td>
+                    <td style={{ padding: '7px 8px', textAlign: 'right', color: '#777' }}>${(li.baseCost || 0).toLocaleString()}</td>
+                    <td style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 600, color: BLUE }}>${(li.finalPrice || 0).toLocaleString()}</td>
+                  </tr>
+                ))}
+                <tr style={{ borderTop: '2px solid #e5e7eb', background: '#fff7ed' }}>
+                  <td colSpan={2} style={{ padding: '8px', fontWeight: 700, color: '#333' }}>Estimated Total</td>
+                  <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700, color: ORANGE, fontSize: 15 }}>
+                    ${(job.proposal_data?.totalValue || job.total_value || 0).toLocaleString()}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+
+          {/* Editable line items */}
+          {editingLineItems && (
+            <div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                    <th style={{ textAlign: 'left', padding: '6px 4px', color: '#555', fontWeight: 600, width: '30%' }}>Trade</th>
+                    <th style={{ textAlign: 'right', padding: '6px 4px', color: '#555', fontWeight: 600, width: '18%' }}>Sub Cost ($)</th>
+                    <th style={{ textAlign: 'right', padding: '6px 4px', color: '#555', fontWeight: 600, width: '18%' }}>Client Price</th>
+                    <th style={{ textAlign: 'left', padding: '6px 4px', color: '#555', fontWeight: 600 }}>Description</th>
+                    <th style={{ width: 32 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {editingLineItems.map((li, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', verticalAlign: 'top' }}>
+                      <td style={{ padding: '5px 4px' }}>
+                        <input value={li.trade} onChange={e => updateLineItem(i, 'trade', e.target.value)}
+                          style={{ width: '100%', padding: '5px 7px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12, boxSizing: 'border-box' }} />
+                      </td>
+                      <td style={{ padding: '5px 4px' }}>
+                        <input type="number" value={li.baseCost} onChange={e => updateLineItem(i, 'baseCost', e.target.value)}
+                          style={{ width: '100%', padding: '5px 7px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12, textAlign: 'right', boxSizing: 'border-box' }} />
+                      </td>
+                      <td style={{ padding: '5px 4px', textAlign: 'right', fontWeight: 600, color: BLUE, fontSize: 12 }}>
+                        ${Math.round((Number(li.baseCost) || 0) * multiplier).toLocaleString()}
+                      </td>
+                      <td style={{ padding: '5px 4px' }}>
+                        <input value={li.description || ''} onChange={e => updateLineItem(i, 'description', e.target.value)}
+                          style={{ width: '100%', padding: '5px 7px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12, boxSizing: 'border-box' }} />
+                      </td>
+                      <td style={{ padding: '5px 4px' }}>
+                        <button onClick={() => removeLineItem(i)} title="Remove"
+                          style={{ background: '#fee2e2', color: RED, border: 'none', borderRadius: 4, cursor: 'pointer', padding: '4px 8px', fontSize: 12 }}>✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <button onClick={addLineItem}
+                style={{ marginTop: 10, padding: '6px 14px', background: 'white', border: `1px dashed ${ORANGE}`, color: ORANGE, borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                + Add Line Item
+              </button>
+
+              <div style={{ display: 'flex', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
+                <button onClick={() => setEditingLineItems(null)}
+                  style={{ padding: '9px 18px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 13, color: '#555' }}>
+                  Cancel
+                </button>
+                <button onClick={saveLineItems} disabled={savingLineItems}
+                  style={{ padding: '9px 18px', background: '#6B7280', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>
+                  {savingLineItems ? 'Saving...' : '💾 Save Changes'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Generate button — always visible when review_pending */}
+          <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #fcd9a0', display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={generateProposal} disabled={actionLoading}
+              style={{ padding: '11px 28px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14, fontWeight: 700 }}>
+              {actionLoading ? '⏳ Generating...' : '🤖 Generate Proposal PDF'}
+            </button>
+          </div>
         </div>
       )}
 
