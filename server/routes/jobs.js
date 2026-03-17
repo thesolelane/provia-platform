@@ -432,6 +432,10 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
         logAudit(jobId, 'upload_estimate_processed', `Proposal ready. Total: $${proposalData.totalValue}`, 'admin');
         tickQuoteCounter(db);
         notifyClients('job_updated', { jobId, status: 'proposal_ready' });
+        if (process.env.OWNER_WHATSAPP) {
+          const ownerTo = process.env.OWNER_WHATSAPP.startsWith('whatsapp:') ? process.env.OWNER_WHATSAPP : `whatsapp:${process.env.OWNER_WHATSAPP}`;
+          await sendWhatsApp(ownerTo, `📋 Upload job ready for review.\nCustomer: *${proposalData.customer?.name || 'Unknown'}*\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review line items.`);
+        }
       }
     } catch (err) {
       console.error(`[Upload Job ${jobId}] ERROR:`, err.message);
@@ -568,7 +572,7 @@ router.post('/manual', requireAuth, async (req, res) => {
         }
         console.log(`[Manual Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`);
 
-        const ownerWhatsApp = process.env.COOPER_WHATSAPP_NUMBER;
+        const ownerWhatsApp = process.env.OWNER_WHATSAPP;
         if (ownerWhatsApp) {
           const to = ownerWhatsApp.startsWith('whatsapp:') ? ownerWhatsApp : `whatsapp:${ownerWhatsApp}`;
           const firstQ = proposalData.clarificationsNeeded[0];
@@ -863,6 +867,12 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
         logAudit(jobId, 'wizard_estimate_processed', `Wizard submission — pending review`, 'admin');
         console.log(`[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
         notifyClients('job_updated', { jobId, status: 'review_pending' });
+        if (process.env.OWNER_WHATSAPP) {
+          const ownerTo = process.env.OWNER_WHATSAPP.startsWith('whatsapp:') ? process.env.OWNER_WHATSAPP : `whatsapp:${process.env.OWNER_WHATSAPP}`;
+          const cust = proposalData.customer?.name || customerName || 'Unknown';
+          const addr = projectAddress || 'address not provided';
+          await sendWhatsApp(ownerTo, `🧾 Web wizard quote ready for review.\nCustomer: *${cust}*\nAddress: ${addr}\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review and generate proposal.`);
+        }
       }
     } catch (err) {
       console.error(`[Wizard Job ${jobId}] ERROR:`, err.message, err.stack);
