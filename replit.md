@@ -50,6 +50,7 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 - `server/routes/jobPhotos.js` — `POST/GET/DELETE /api/jobs/:id/photos`; files stored in `uploads/jobs/{jobId}/`
 - `server/routes/signing.js` — Server-side HTML signing pages at `/sign/p/:token` and `/sign/c/:token`
 - `server/routes/tasks.js` — Task CRUD + Google Calendar push; exports `{ router, makeCalendarURL }`
+- `server/routes/payments.js` — Payment ledger CRUD for checks received & paid out, per-job summaries
 - `server/routes/settings.js` — Settings CRUD; `GET /api/tasks/calendars` for calendar picker
 - `server/services/claudeService.js` — Claude extraction + pricing math + `adminChat()` (returns `{ reply, createdTask }`)
 - `server/services/contractTemplate.js` — Full MA-compliant contract HTML (7 sections, CSL, change orders)
@@ -63,7 +64,9 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 - `client/src/App.jsx` — React router; persists token + user name/role in localStorage; auto-logout on 401
 - `client/src/components/Layout.jsx` — Sidebar nav; shows "Logged in as [Name] (Role)" in footer
 - `client/src/pages/Dashboard.jsx` — Job list with status color coding; stats bar; archive/restore
-- `client/src/pages/JobDetail.jsx` — Job tabs: Overview, Proposal, Contract, Signatures, Photos
+- `client/src/pages/JobDetail.jsx` — Job tabs: Overview, Payments, Proposal, Contract, Signatures, Photos
+- `client/src/pages/Payments.jsx` — Global payment ledger page; filter by job/date; add check in/out
+- `client/src/components/PaymentsTab.jsx` — Payments tab within job detail; running totals + quick-add forms
 - `client/src/components/PhotosTab.jsx` — Camera capture, upload, photo grid, offline pending badge
 - `client/src/utils/offlinePhotoQueue.js` — IndexedDB offline queue + auto-sync + Background Sync API
 - `client/src/pages/AdminChat.jsx` — Bot chat; tool-call results show as cards (tasks show calendar link)
@@ -91,6 +94,8 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 | `tasks` | To-do items with due dates, priority, job links |
 | `signing_sessions` | Proposal + contract e-signing tokens, read receipts, signature images |
 | `job_photos` | Photo records per job (filename, caption, uploaded_at) |
+| `payments_received` | Checks received (amount, date, time, check_number, payment_type, credit_debit, recorded_by, notes, job_id) |
+| `payments_made` | Checks paid out (amount, date, time, check_number, category, credit_debit, recorded_by, notes, job_id) |
 
 ---
 

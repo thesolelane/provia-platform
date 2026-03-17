@@ -283,6 +283,56 @@ async function initDatabase() {
     DELETE FROM whatsapp_processed WHERE processed_at < datetime('now', '-24 hours')
   `).run();
 
+  // Payment tracking tables
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS payments_received (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id       TEXT NOT NULL,
+      customer_name TEXT,
+      check_number TEXT,
+      amount       REAL NOT NULL,
+      date_received DATE NOT NULL,
+      time_received TEXT,
+      payment_type TEXT NOT NULL DEFAULT 'deposit',
+      credit_debit TEXT NOT NULL DEFAULT 'credit',
+      recorded_by  TEXT,
+      notes        TEXT,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS payments_made (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id       TEXT NOT NULL,
+      payee_name   TEXT NOT NULL,
+      check_number TEXT,
+      amount       REAL NOT NULL,
+      date_paid    DATE NOT NULL,
+      time_paid    TEXT,
+      category     TEXT NOT NULL DEFAULT 'subcontractor',
+      credit_debit TEXT NOT NULL DEFAULT 'debit',
+      recorded_by  TEXT,
+      notes        TEXT,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Migration: add new columns to payments tables if missing (check each individually)
+  const addColIfMissing = (table, col, def) => {
+    try { db.prepare(`SELECT ${col} FROM ${table} LIMIT 1`).get(); } catch {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+  addColIfMissing('payments_received', 'time_received', 'TEXT');
+  addColIfMissing('payments_received', 'credit_debit', "TEXT NOT NULL DEFAULT 'credit'");
+  addColIfMissing('payments_received', 'recorded_by', 'TEXT');
+  addColIfMissing('payments_made', 'time_paid', 'TEXT');
+  addColIfMissing('payments_made', 'credit_debit', "TEXT NOT NULL DEFAULT 'debit'");
+  addColIfMissing('payments_made', 'recorded_by', 'TEXT');
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();

@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 import PhotosTab from '../components/PhotosTab';
+import PaymentsTab from '../components/PaymentsTab';
 
 const BLUE   = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -155,7 +156,7 @@ export default function JobDetail({ token }) {
   const proposalSession = sigSessions.find(s => s.doc_type === 'proposal');
   const contractSession = sigSessions.find(s => s.doc_type === 'contract');
 
-  const TABS = ['overview', 'photos', 'signatures', 'proposal', 'contract', 'conversation', 'audit'];
+  const TABS = ['overview', 'payments', 'photos', 'signatures', 'proposal', 'contract', 'conversation', 'audit'];
 
   // ── Read Receipt Badge ────────────────────────────────────────────────────
   const ReadReceiptBadge = ({ session, label }) => {
@@ -375,12 +376,17 @@ export default function JobDetail({ token }) {
               color: activeTab === tab ? BLUE : '#888',
               borderBottom: activeTab === tab ? `2px solid ${BLUE}` : '2px solid transparent',
               marginBottom: -2, textTransform: 'capitalize' }}>
-            {tab === 'signatures' ? '✍️ Signatures' : tab}
+            {tab === 'signatures' ? '✍️ Signatures' : tab === 'payments' ? '💰 Payments' : tab}
           </button>
         ))}
       </div>
 
       <div style={{ background: 'white', borderRadius: 10, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+
+        {/* PAYMENTS */}
+        {activeTab === 'payments' && (
+          <PaymentsTab jobId={id} token={token} job={job} />
+        )}
 
         {/* PHOTOS */}
         {activeTab === 'photos' && (

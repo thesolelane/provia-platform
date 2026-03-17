@@ -101,6 +101,7 @@ app.use('/api/secrets',       require('./routes/secrets'));
 app.use('/api/status',        require('./routes/status'));
 app.use('/api/users',         require('./routes/users'));
 app.use('/api/remote-update', require('./routes/remoteUpdate'));
+app.use('/api/payments',     require('./routes/payments'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
 app.use(require('./routes/signing'));

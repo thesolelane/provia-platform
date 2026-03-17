@@ -1,5 +1,5 @@
 // client/src/pages/Contacts.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 
@@ -28,6 +28,8 @@ export default function Contacts({ token }) {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ name:'', email:'', phone:'', address:'', city:'', state:'MA', zip:'', customer_type:'residential', notes:'' });
+  const [paymentSummary, setPaymentSummary] = useState(null);
+  const [contactPayments, setContactPayments] = useState({ received: [], made: [] });
 
   const headers = { 'x-auth-token': token };
 
@@ -46,11 +48,19 @@ export default function Contacts({ token }) {
     setSelected(c);
     setEditing(false);
     setSelectedDocs([]);
+    setPaymentSummary(null);
+    setContactPayments({ received: [], made: [] });
     setForm({ name: c.name||'', email: c.email||'', phone: c.phone||'', address: c.address||'', city: c.city||'', state: c.state||'MA', zip: c.zip||'', customer_type: c.customer_type||'residential', notes: c.notes||'' });
-    const res = await fetch(`/api/contacts/${c.id}`, { headers });
-    const data = await res.json();
+    const [contactRes, payRes] = await Promise.all([
+      fetch(`/api/contacts/${c.id}`, { headers }),
+      fetch(`/api/payments/contact/${c.id}`, { headers }),
+    ]);
+    const data = await contactRes.json();
     setSelectedJobs(data.jobs || []);
     setSelectedDocs(data.documents || []);
+    setPaymentSummary(data.paymentSummary || null);
+    const payData = await payRes.json();
+    setContactPayments({ received: payData.received || [], made: payData.made || [] });
   };
 
   const deleteDoc = async (docId) => {
@@ -169,7 +179,7 @@ export default function Contacts({ token }) {
       {/* Contact detail / edit modal */}
       {(selected || showAdd) && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 560, maxHeight: '90vh', overflow: 'auto' }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 700, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ color: '#1B3A6B', margin: 0, fontSize: 18 }}>
                 {showAdd && !selected ? 'New Contact' : editing ? 'Edit Contact' : selected?.name || 'Contact'}
@@ -310,6 +320,91 @@ export default function Contacts({ token }) {
                     </tbody>
                   </table>
                 )}
+
+                {/* Client Payment Ledger */}
+                <div style={{ marginTop: 24 }}>
+                  <h3 style={{ fontSize: 14, color: '#1B3A6B', marginBottom: 10 }}>Client Payment Ledger</h3>
+                  {paymentSummary && (paymentSummary.total_received > 0 || paymentSummary.total_paid_out > 0) ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 16 }}>
+                      <div style={{ borderRadius: 6, padding: '10px 12px', background: '#2E7D3211', border: '1px solid #2E7D3233' }}>
+                        <div style={{ fontSize: 10, color: '#888' }}>Received</div>
+                        <div style={{ fontSize: 16, fontWeight: 'bold', color: '#2E7D32' }}>${paymentSummary.total_received.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                      </div>
+                      <div style={{ borderRadius: 6, padding: '10px 12px', background: '#C6282811', border: '1px solid #C6282833' }}>
+                        <div style={{ fontSize: 10, color: '#888' }}>Paid Out</div>
+                        <div style={{ fontSize: 16, fontWeight: 'bold', color: '#C62828' }}>${paymentSummary.total_paid_out.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                      </div>
+                      <div style={{ borderRadius: 6, padding: '10px 12px', background: paymentSummary.balance >= 0 ? '#1B3A6B11' : '#C6282811', border: `1px solid ${paymentSummary.balance >= 0 ? '#1B3A6B33' : '#C6282833'}` }}>
+                        <div style={{ fontSize: 10, color: '#888' }}>Balance</div>
+                        <div style={{ fontSize: 16, fontWeight: 'bold', color: paymentSummary.balance >= 0 ? '#1B3A6B' : '#C62828' }}>${paymentSummary.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {contactPayments.received.length === 0 && contactPayments.made.length === 0 ? (
+                    <p style={{ fontSize: 12, color: '#888', textAlign: 'center', padding: 16 }}>No payment records for this client yet.</p>
+                  ) : (
+                    <div>
+                      {contactPayments.received.length > 0 && (
+                        <div style={{ marginBottom: 16 }}>
+                          <div style={{ fontSize: 12, fontWeight: 'bold', color: '#2E7D32', marginBottom: 6 }}>Checks Received ({contactPayments.received.length})</div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                            <thead>
+                              <tr style={{ background: '#f0fdf4' }}>
+                                {['Date', 'Time', 'Job', 'Check #', 'Type', 'Cr/Dr', 'Amount', 'By'].map(h => (
+                                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 10, color: '#888', fontWeight: 'bold' }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {contactPayments.received.map(p => (
+                                <tr key={p.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                  <td style={{ padding: '6px 8px' }}>{p.date_received ? new Date(p.date_received + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</td>
+                                  <td style={{ padding: '6px 8px', color: '#888' }}>{p.time_received || '—'}</td>
+                                  <td style={{ padding: '6px 8px', fontSize: 10 }}>{p.project_address || p.job_customer || '—'}</td>
+                                  <td style={{ padding: '6px 8px', color: '#888' }}>{p.check_number || '—'}</td>
+                                  <td style={{ padding: '6px 8px' }}><span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 8, background: '#3B82F622', color: '#3B82F6', fontWeight: 'bold' }}>{p.payment_type}</span></td>
+                                  <td style={{ padding: '6px 8px' }}><span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 8, background: p.credit_debit === 'credit' ? '#2E7D3222' : '#C6282822', color: p.credit_debit === 'credit' ? '#2E7D32' : '#C62828', fontWeight: 'bold' }}>{p.credit_debit === 'credit' ? 'CR' : 'DR'}</span></td>
+                                  <td style={{ padding: '6px 8px', fontWeight: 'bold', color: p.credit_debit === 'debit' ? '#C62828' : '#2E7D32' }}>${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                  <td style={{ padding: '6px 8px', color: '#888', fontSize: 10 }}>{p.recorded_by || '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {contactPayments.made.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 'bold', color: '#C62828', marginBottom: 6 }}>Checks Paid Out ({contactPayments.made.length})</div>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                            <thead>
+                              <tr style={{ background: '#fff5f5' }}>
+                                {['Date', 'Time', 'Job', 'To', 'Check #', 'Cat.', 'Cr/Dr', 'Amount', 'By'].map(h => (
+                                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 10, color: '#888', fontWeight: 'bold' }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {contactPayments.made.map(p => (
+                                <tr key={p.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                  <td style={{ padding: '6px 8px' }}>{p.date_paid ? new Date(p.date_paid + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</td>
+                                  <td style={{ padding: '6px 8px', color: '#888' }}>{p.time_paid || '—'}</td>
+                                  <td style={{ padding: '6px 8px', fontSize: 10 }}>{p.project_address || p.job_customer || '—'}</td>
+                                  <td style={{ padding: '6px 8px' }}>{p.payee_name}</td>
+                                  <td style={{ padding: '6px 8px', color: '#888' }}>{p.check_number || '—'}</td>
+                                  <td style={{ padding: '6px 8px' }}><span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 8, background: '#7C3AED22', color: '#7C3AED', fontWeight: 'bold' }}>{p.category}</span></td>
+                                  <td style={{ padding: '6px 8px' }}><span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 8, background: p.credit_debit === 'credit' ? '#2E7D3222' : '#C6282822', color: p.credit_debit === 'credit' ? '#2E7D32' : '#C62828', fontWeight: 'bold' }}>{p.credit_debit === 'credit' ? 'CR' : 'DR'}</span></td>
+                                  <td style={{ padding: '6px 8px', fontWeight: 'bold', color: p.credit_debit === 'credit' ? '#2E7D32' : '#C62828' }}>${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                  <td style={{ padding: '6px 8px', color: '#888', fontSize: 10 }}>{p.recorded_by || '—'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

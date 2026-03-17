@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 const NAV = [
   { path: '/',           icon: '📊', label: 'Dashboard' },
   { path: '/tasks',      icon: '✅', label: 'Tasks' },
+  { path: '/payments',   icon: '💰', label: 'Payments' },
   { path: '/chat',       icon: '🤖', label: 'Ask the Bot' },
   { path: '/contacts',   icon: '👥', label: 'Contacts' },
   { path: '/settings',   icon: '⚙️',  label: 'Settings' },

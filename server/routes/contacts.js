@@ -47,7 +47,18 @@ router.get('/:id', requireAuth, (req, res) => {
     'SELECT id, filename, original_name, mime_type, source, created_at FROM contact_documents WHERE contact_id = ? ORDER BY created_at DESC'
   ).all(req.params.id);
 
-  res.json({ contact, jobs, documents });
+  const jobIds = jobs.map(j => j.id);
+  let paymentSummary = { total_received: 0, total_paid_out: 0, balance: 0 };
+  if (jobIds.length > 0) {
+    const placeholders = jobIds.map(() => '?').join(',');
+    const recRows  = db.prepare(`SELECT amount, credit_debit FROM payments_received WHERE job_id IN (${placeholders})`).all(...jobIds);
+    const paidRows = db.prepare(`SELECT amount, credit_debit FROM payments_made WHERE job_id IN (${placeholders})`).all(...jobIds);
+    const totalIn  = recRows.reduce((s, r) => s + ((r.credit_debit === 'debit' ? -1 : 1) * (Number(r.amount) || 0)), 0);
+    const totalOut = paidRows.reduce((s, r) => s + ((r.credit_debit === 'credit' ? -1 : 1) * (Number(r.amount) || 0)), 0);
+    paymentSummary = { total_received: totalIn, total_paid_out: totalOut, balance: totalIn - totalOut };
+  }
+
+  res.json({ contact, jobs, documents, paymentSummary });
 });
 
 // DELETE a contact document
