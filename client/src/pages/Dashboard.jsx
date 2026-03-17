@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
+import CreateQuoteWizard from '../components/CreateQuoteWizard';
 
 const STATUS_COLORS = {
   received:          '#888',
@@ -37,6 +38,7 @@ export default function Dashboard({ token }) {
   const [jobs, setJobs] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showWizard, setShowWizard] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [submitTab, setSubmitTab] = useState('text'); // 'text' | 'file'
   const [submitBusy, setSubmitBusy] = useState(false);
@@ -145,10 +147,16 @@ export default function Dashboard({ token }) {
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button
-            onClick={openNewJob}
+            onClick={() => setShowWizard(true)}
             style={{ background: '#1B3A6B', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
           >
-            + New Job
+            + Create Quote
+          </button>
+          <button
+            onClick={openNewJob}
+            style={{ background: 'white', color: '#1B3A6B', border: '1.5px solid #1B3A6B', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+          >
+            New Job
           </button>
         </div>
       </div>
@@ -266,6 +274,15 @@ export default function Dashboard({ token }) {
             )}
           </div>
         </div>
+      )}
+
+      {/* Create Quote Wizard */}
+      {showWizard && (
+        <CreateQuoteWizard
+          token={token}
+          onClose={() => setShowWizard(false)}
+          onSubmitted={() => { loadDashboard(); }}
+        />
       )}
 
       {/* New Job modal */}

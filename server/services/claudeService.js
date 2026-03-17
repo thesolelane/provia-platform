@@ -259,6 +259,26 @@ function applyPricing(data, rates) {
     totalContractPrice += item.finalPrice;
   }
 
+  // Waste removal / dumpster — folded into total, not shown as a line item
+  // Under $10K: $600 (min), $10K–$25K: $1,200 (40-yard 5T), above $25K: +$1,200 per $15K
+  const hasDumpster = items.some(i =>
+    /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || '')
+  );
+  if (!hasDumpster) {
+    let totalBase = 0;
+    for (const item of items) totalBase += (item.baseCost || 0);
+    let dumpsterCost;
+    if (totalBase < 10000) {
+      dumpsterCost = 600;
+    } else if (totalBase <= 25000) {
+      dumpsterCost = 1200;
+    } else {
+      const extraDumpsters = Math.ceil((totalBase - 25000) / 15000);
+      dumpsterCost = 1200 + (extraDumpsters * 1200);
+    }
+    totalContractPrice += Math.round(dumpsterCost * markupMultiplier);
+  }
+
   const depositAmount = Math.round(totalContractPrice * rates.deposit);
 
   data.pricing = {

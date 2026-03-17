@@ -318,6 +318,85 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
   })();
 });
 
+// POST guided wizard — structured contact + address + scope
+router.post('/wizard', requireAuth, async (req, res) => {
+  const { v4: uuidv4 } = require('uuid');
+  const db = getDb();
+  const {
+    contactName = '', contactPhone = '', contactEmail = '',
+    street = '', city = '', state = '', zip = '',
+    scopeText = ''
+  } = req.body;
+
+  // Basic server-side validation
+  if (!contactName.trim()) return res.status(400).json({ error: 'Contact name is required' });
+  if (!street.trim()) return res.status(400).json({ error: 'Street address is required' });
+  if (!city.trim()) return res.status(400).json({ error: 'City is required' });
+  if (!scopeText.trim()) return res.status(400).json({ error: 'Scope of work is required' });
+
+  const projectAddress = [street, city, state, zip].filter(Boolean).join(', ');
+  const jobId = uuidv4();
+
+  let contactRef = null;
+  if (contactName || contactEmail) {
+    try {
+      contactRef = findOrCreateContact(db, {
+        name: contactName, email: contactEmail, phone: contactPhone,
+        address: street, city, state: state || 'MA'
+      });
+    } catch (e) { console.warn('[Wizard Job] Contact upsert failed:', e.message); }
+  }
+
+  db.prepare(`
+    INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
+    VALUES (?, ?, ?, ?, ?, ?, 'processing', 'wizard', ?)
+  `).run(jobId, contactName, contactEmail, contactPhone, projectAddress, scopeText, contactRef?.id || null);
+
+  notifyClients('job_updated', { jobId, status: 'processing' });
+  res.json({ jobId, status: 'processing', message: 'Job created. Processing estimate...' });
+
+  const { processEstimate } = require('../services/claudeService');
+  (async () => {
+    try {
+      console.log(`[Wizard Job ${jobId}] Starting Claude processEstimate...`);
+
+      const sanitizedScope = stripPII(scopeText);
+      const fullEstimate = contactRef
+        ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nSCOPE OF WORK:\n${sanitizedScope}`
+        : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nSCOPE OF WORK:\n${sanitizedScope}`;
+
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en');
+      console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
+
+      if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
+        const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
+        for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
+        console.log(`[Wizard Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`);
+      } else {
+        if (!proposalData.customer) proposalData.customer = {};
+        proposalData.customer.name  = contactName  || proposalData.customer.name  || '';
+        proposalData.customer.email = contactEmail || proposalData.customer.email || '';
+        proposalData.customer.phone = contactPhone || proposalData.customer.phone || '';
+        if (!proposalData.project) proposalData.project = {};
+        proposalData.project.address = proposalData.project.address || street || '';
+        proposalData.project.city    = proposalData.project.city    || city   || '';
+        proposalData.project.state   = proposalData.project.state   || state  || 'MA';
+
+        const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
+        saveProposalReady(db, proposalData, pdfPath, jobId);
+        logAudit(jobId, 'wizard_estimate_processed', `Wizard entry by admin`, 'admin');
+        console.log(`[Wizard Job ${jobId}] Status: proposal_ready. Total: $${proposalData.totalValue}`);
+        tickQuoteCounter(db);
+        notifyClients('job_updated', { jobId, status: 'proposal_ready' });
+      }
+    } catch (err) {
+      console.error(`[Wizard Job ${jobId}] ERROR:`, err.message, err.stack);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', jobId);
+    }
+  })();
+});
+
 // POST manual estimate input (fallback if no Hearth/Wave)
 router.post('/manual', requireAuth, async (req, res) => {
   const { v4: uuidv4 } = require('uuid');
