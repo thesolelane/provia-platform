@@ -57,6 +57,7 @@ app.use((req, res, next) => {
 });
 
 // ── RATE LIMITING ─────────────────────────────────────────────
+app.set('trust proxy', 1);
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
