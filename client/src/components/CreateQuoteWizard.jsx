@@ -367,7 +367,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   const canNext = () => {
     if (step === 0) return contact.name.trim().length > 0;
     if (step === 1) return address.street.trim().length > 0 && address.city.trim().length > 0;
-    if (step === 2) return scope.trim().length > 0;
+    if (step === 2) return scope.trim().length >= 20;
     return true;
   };
 
@@ -393,7 +393,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           setStep(3);
         }
       } else {
-        showToast('AI questions unavailable — proceeding to review.', 'warning');
+        showToast('Could not load AI questions — you can still generate the proposal.', 'warning');
         setAiStepInserted(false);
         setStep(3);
       }
@@ -583,7 +583,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
                 <div>
                   <label style={labelStyle}>Scope of Work *</label>
                   <p style={{ fontSize: 12, color: '#777', margin: '0 0 8px' }}>
-                    Describe the work — trades involved, rough scope, any specific materials?
+                    Describe the work — trades involved, rough scope, any specific materials? (minimum 20 characters)
                   </p>
                   <textarea
                     autoFocus
