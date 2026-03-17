@@ -80,6 +80,21 @@ export default function JobDetail({ token }) {
 
   useEffect(() => { load(); }, [id]);
 
+  // Auto-refresh via SSE when job is processing — no manual refresh needed
+  useEffect(() => {
+    if (!job || !['processing', 'received'].includes(job.status)) return;
+    const es = new EventSource(`/api/jobs/events?token=${encodeURIComponent(token)}`);
+    es.addEventListener('job_updated', (e) => {
+      try {
+        const payload = JSON.parse(e.data);
+        if (payload.jobId === id) load();
+      } catch { load(); }
+    });
+    // Poll as fallback every 8 seconds while processing
+    const poll = setInterval(load, 8000);
+    return () => { es.close(); clearInterval(poll); };
+  }, [job?.status, id]);
+
   // ── Actions ────────────────────────────────────────────────────────────────
 
   const sendForApproval = async () => {
@@ -386,6 +401,33 @@ export default function JobDetail({ token }) {
           <ReadReceiptBadge session={contractSession} label="Contract" />
         )}
       </div>
+
+      {/* ── Processing indicator ── auto-refreshes when done */}
+      {['processing', 'received'].includes(job.status) && (
+        <div style={{ background: '#FFF8F0', border: `2px solid ${ORANGE}`, borderRadius: 10, padding: '18px 20px', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <span style={{ fontSize: 20 }}>⚙️</span>
+            <div>
+              <div style={{ fontWeight: 700, color: ORANGE, fontSize: 14 }}>AI Processing in Progress</div>
+              <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Analyzing scope, extracting line items, and calculating costs — this takes 30–90 seconds. This page will update automatically when done.</div>
+            </div>
+          </div>
+          <div style={{ height: 8, background: '#fde8c8', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', borderRadius: 4, background: `linear-gradient(90deg, ${ORANGE}, #f59e0b)`,
+              animation: 'pb-progress 2s ease-in-out infinite',
+              width: '40%',
+            }} />
+          </div>
+          <style>{`
+            @keyframes pb-progress {
+              0%   { transform: translateX(-100%); width: 40%; }
+              50%  { width: 70%; }
+              100% { transform: translateX(280%); width: 40%; }
+            }
+          `}</style>
+        </div>
+      )}
 
       {/* Flagged items */}
       {job.flagged_items?.length > 0 && (
