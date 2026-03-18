@@ -26,6 +26,9 @@ const DEFAULT_PRICES = {
   baseboard: 1.20,
   doorCasing: 1.20,
   windowCasing: 1.20,
+  passageSet: 45.00,
+  privacySet: 55.00,
+  keyedSet: 110.00,
   garageDoor: 1200.00,
   garageDoorOpener: 380.00,
   outlet: 3.50,
@@ -129,6 +132,9 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
   let fullBathCount = 0;
   let halfBathCount = 0;
   let kitchenCount = 0;
+  let passageDoors = 0;
+  let privacyDoors = 0;
+  let keyedDoors = 0;
 
   for (const room of rooms) {
     const rL = parseFloat(room.length) || 0;
@@ -174,6 +180,16 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     for (const door of (room.doors || [])) {
       totalDoors++;
       headerCount++;
+      // Hardware auto-assignment
+      if (door.type === 'Exterior') {
+        keyedDoors++;
+      } else if (door.type === 'Bifold' || door.type === 'Overhead (Garage)') {
+        // bifold/overhead — no standard lockset, skip hardware
+      } else if (room.type === 'Bedroom' || room.type === 'Bathroom') {
+        privacyDoors++;
+      } else {
+        passageDoors++;
+      }
       if (door.type === 'Overhead (Garage)') {
         garageDoorCount++;
       } else {
@@ -319,6 +335,9 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
       { group: '13 · Garage Doors', name: 'Garage Door Opener', qty: garageDoorCount, unit: 'pcs', priceKey: 'garageDoorOpener' },
     ] : []),
     ...plumbingItems,
+    ...(passageDoors > 0 ? [{ group: '15 · Door Hardware', name: 'Passage Set — Hall / Closet (no lock)', qty: passageDoors, unit: 'pcs', priceKey: 'passageSet' }] : []),
+    ...(privacyDoors > 0 ? [{ group: '15 · Door Hardware', name: 'Privacy Set — Bedroom / Bathroom (push-button lock)', qty: privacyDoors, unit: 'pcs', priceKey: 'privacySet' }] : []),
+    ...(keyedDoors > 0 ? [{ group: '15 · Door Hardware', name: 'Keyed Entry Set — Exterior', qty: keyedDoors, unit: 'pcs', priceKey: 'keyedSet' }] : []),
   ];
 
   return materials.map(m => ({
@@ -803,6 +822,7 @@ export default function MaterialTakeOff() {
                     miniSplitHead: 'Mini-Split Indoor Head', miniSplitOutdoor: 'Mini-Split Outdoor Unit',
                     baseboardHeater: 'Baseboard Heater / Radiator', radiantTubing: 'Radiant PEX Tubing (per lin ft)',
                     boiler: 'Boiler',
+                    passageSet: 'Passage Set — Hall / Closet (per pc)', privacySet: 'Privacy Set — Bedroom / Bath (per pc)', keyedSet: 'Keyed Entry Set — Exterior (per pc)',
                     garageDoor: 'Overhead Garage Door (per door)', garageDoorOpener: 'Garage Door Opener (per opener)',
                   };
                   return (
