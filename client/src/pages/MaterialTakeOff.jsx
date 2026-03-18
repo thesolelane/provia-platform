@@ -23,6 +23,8 @@ const DEFAULT_PRICES = {
   baseboard: 1.20,
   doorCasing: 1.20,
   windowCasing: 1.20,
+  garageDoor: 1200.00,
+  garageDoorOpener: 380.00,
   outlet: 3.50,
   gfiOutlet: 18.00,
   lightSwitch: 3.00,
@@ -80,6 +82,7 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
   let bathroomArea = 0;
   let totalFloorArea = 0;
   let totalDoors = 0;
+  let garageDoorCount = 0;
   let totalWindows = 0;
   let doorCasingLF = 0;
   let windowCasingLF = 0;
@@ -132,9 +135,13 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     for (const door of (room.doors || [])) {
       totalDoors++;
       headerCount++;
-      const dW = parseFloat(door.width) / 12 || 3;
-      const dH = parseFloat(door.height) / 12 || 7;
-      doorCasingLF += 2 * dH + dW;
+      if (door.type === 'Overhead (Garage)') {
+        garageDoorCount++;
+      } else {
+        const dW = parseFloat(door.width) / 12 || 3;
+        const dH = parseFloat(door.height) / 12 || 7;
+        doorCasingLF += 2 * dH + dW;
+      }
     }
     for (const win of (room.windows || [])) {
       totalWindows++;
@@ -239,6 +246,10 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     { group: '12 · Trim / Molding', name: 'Baseboard (floor perimeter)', qty: baseboardLF, unit: 'lin ft', priceKey: 'baseboard' },
     { group: '12 · Trim / Molding', name: 'Door Casing', qty: Math.ceil(doorCasingLF), unit: 'lin ft', priceKey: 'doorCasing' },
     { group: '12 · Trim / Molding', name: 'Window Casing', qty: Math.ceil(windowCasingLF), unit: 'lin ft', priceKey: 'windowCasing' },
+    ...(garageDoorCount > 0 ? [
+      { group: '13 · Garage Doors', name: 'Overhead Garage Door', qty: garageDoorCount, unit: 'pcs', priceKey: 'garageDoor' },
+      { group: '13 · Garage Doors', name: 'Garage Door Opener', qty: garageDoorCount, unit: 'pcs', priceKey: 'garageDoorOpener' },
+    ] : []),
   ];
 
   return materials.map(m => ({
@@ -561,8 +572,18 @@ export default function MaterialTakeOff() {
                       </div>
                       <div style={{ marginBottom: 14 }}>
                         <label style={labelStyle}>Type</label>
-                        <select value={newDoor.type} onChange={e => setNewDoor(d => ({ ...d, type: e.target.value }))} style={fieldStyle}>
+                        <select value={newDoor.type} onChange={e => {
+                          const t = e.target.value;
+                          setNewDoor(d => ({
+                            ...d,
+                            type: t,
+                            width: t === 'Overhead (Garage)' ? '108' : d.width,
+                            height: t === 'Overhead (Garage)' ? '84' : d.height,
+                            side: t === 'Overhead (Garage)' ? 'exterior' : d.side
+                          }));
+                        }} style={fieldStyle}>
                           <option>Swing</option><option>Pocket</option><option>Slider</option>
+                          <option>Overhead (Garage)</option>
                         </select>
                       </div>
                       <div style={{ marginBottom: 14 }}>
@@ -664,6 +685,7 @@ export default function MaterialTakeOff() {
                     miniSplitHead: 'Mini-Split Indoor Head', miniSplitOutdoor: 'Mini-Split Outdoor Unit',
                     baseboardHeater: 'Baseboard Heater / Radiator', radiantTubing: 'Radiant PEX Tubing (per lin ft)',
                     boiler: 'Boiler',
+                    garageDoor: 'Overhead Garage Door (per door)', garageDoorOpener: 'Garage Door Opener (per opener)',
                   };
                   return (
                     <Field key={key} label={labels[key] || key} type="number" step="0.01" value={val} onChange={v => setPrices(p => ({ ...p, [key]: parseFloat(v) || 0 }))} />
