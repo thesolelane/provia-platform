@@ -11,6 +11,7 @@ import FieldGuide from './pages/FieldGuide';
 import Contacts from './pages/Contacts';
 import Tasks from './pages/Tasks';
 import Payments from './pages/Payments';
+import MaterialTakeOff from './pages/MaterialTakeOff';
 import Layout from './components/Layout';
 import Toast from './components/Toast';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -76,6 +77,7 @@ function App() {
           <Route path="/contacts" element={<Contacts token={token} />} />
           <Route path="/tasks" element={<Tasks token={token} />} />
           <Route path="/payments" element={<Payments token={token} />} />
+          <Route path="/takeoff" element={<MaterialTakeOff />} />
           <Route path="/guide" element={<FieldGuide />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

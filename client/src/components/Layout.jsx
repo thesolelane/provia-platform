@@ -7,6 +7,7 @@ const NAV = [
   { path: '/payments',   icon: '💰', label: 'Payments' },
   { path: '/chat',       icon: '🤖', label: 'Ask the Bot' },
   { path: '/contacts',   icon: '👥', label: 'Contacts' },
+  { path: '/takeoff',    icon: '📐', label: 'Material Take-Off' },
   { path: '/settings',   icon: '⚙️',  label: 'Settings' },
   { path: '/knowledge',  icon: '📚', label: 'Knowledge Base' },
   { path: '/team',       icon: '👷', label: 'Team' },
