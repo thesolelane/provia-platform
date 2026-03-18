@@ -491,6 +491,21 @@ export default function JobDetail({ token }) {
                     ${(job.proposal_data?.totalValue || job.total_value || 0).toLocaleString()}
                   </td>
                 </tr>
+                {job.proposal_data?.pricing?.pricePerSqft && (
+                  <tr style={{ background: job.proposal_data.pricing.sqftWarning ? (job.proposal_data.pricing.sqftWarning === 'below' ? '#fff3cd' : '#fde8e8') : '#f0f9f0' }}>
+                    <td colSpan={2} style={{ padding: '6px 8px', fontSize: 12, color: '#555' }}>
+                      Price per sq ft
+                      {job.proposal_data.pricing.sqftWarning && (
+                        <span style={{ marginLeft: 8, fontWeight: 600, color: job.proposal_data.pricing.sqftWarning === 'below' ? '#92400e' : '#991b1b' }}>
+                          ⚠️ {job.proposal_data.pricing.sqftWarning === 'below' ? `Below target ($${job.proposal_data.pricing.sqftTargetLow}–$${job.proposal_data.pricing.sqftTargetHigh}/sqft)` : `Above target ($${job.proposal_data.pricing.sqftTargetLow}–$${job.proposal_data.pricing.sqftTargetHigh}/sqft)`}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, fontSize: 13, color: job.proposal_data.pricing.sqftWarning ? (job.proposal_data.pricing.sqftWarning === 'below' ? '#92400e' : '#991b1b') : '#166534' }}>
+                      ${job.proposal_data.pricing.pricePerSqft}/sqft
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           )}

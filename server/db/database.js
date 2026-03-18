@@ -387,6 +387,9 @@ function seedDefaultSettings() {
     { key: 'allowance.baseMold',     value: JSON.stringify({amount:1.85, unit:'lf'}),    category:'allowance', label:'Base Molding (per LF)' },
     { key: 'allowance.casing',       value: JSON.stringify({amount:1.65, unit:'lf'}),    category:'allowance', label:'Door/Window Casing (per LF)' },
     { key: 'allowance.windowStool',  value: JSON.stringify({amount:85,   unit:'each'}),  category:'allowance', label:'Window Stool & Apron' },
+    // Pricing targets
+    { key: 'pricing.sqftLow',  value: '320', category: 'pricing', label: 'Target Price Low ($/sqft)' },
+    { key: 'pricing.sqftHigh', value: '350', category: 'pricing', label: 'Target Price High ($/sqft)' },
     // Bot behavior
     { key: 'bot.maxClarifications',  value: '3',     category:'behavior', label:'Max Clarification Rounds' },
     { key: 'bot.autoStretchCode',    value: 'true',  category:'behavior', label:'Auto-detect Stretch Code Town' },

@@ -93,12 +93,18 @@ function buildRatesSection(settings) {
     dep:  Math.round((Number(settings['markup.deposit']) || 0.33) * 100),
   };
 
+  const sqftLow  = Number(settings['pricing.sqftLow'])  || 320;
+  const sqftHigh = Number(settings['pricing.sqftHigh']) || 350;
+
   return `## OUR PRICING STRUCTURE
 The system applies markups automatically AFTER extraction — do NOT add markup to baseCost values.
 baseCost = what Preferred Builders pays subs/materials (net cost to us).
 Markup chain applied by system: baseCost × (1 + ${markup.sub}% sub O&P) × (1 + ${markup.gc}% GC O&P) × (1 + ${markup.cont}% contingency) = client price.
 Combined multiplier ≈ ${(((1 + markup.sub/100) * (1 + markup.gc/100) * (1 + markup.cont/100))).toFixed(4)}×.
 Deposit: ${markup.dep}% of total contract price.
+
+## TARGET PRICE RANGE (finished space)
+Our target client price is $${sqftLow}–$${sqftHigh} per finished square foot. After markup is applied, the total contract price should fall within this range per sqft of finished/livable space. Unfinished garage bays, unfinished basements, and utility spaces are excluded from this calculation. If your baseCost extractions would result in a price outside this range, adjust to bring the total in range and note the adjustment in the "notes" field.
 
 ## OUR LABOR RATES (Central MA — use these for baseCost estimates)
 ${laborLines.join('\n')}
@@ -391,17 +397,35 @@ function applyPricing(data, rates) {
 
   const depositAmount = Math.round(totalContractPrice * rates.deposit);
 
+  const sqft = Number(data.project?.sqft) || 0;
+  const sqftLow  = Number(settings['pricing.sqftLow'])  || 320;
+  const sqftHigh = Number(settings['pricing.sqftHigh']) || 350;
+  const pricePerSqft = sqft > 0 ? Math.round(totalContractPrice / sqft) : null;
+  let sqftWarning = null;
+  if (pricePerSqft !== null) {
+    if (pricePerSqft < sqftLow) sqftWarning = `below`;
+    else if (pricePerSqft > sqftHigh) sqftWarning = `above`;
+  }
+
   data.pricing = {
     markupMultiplier: Math.round(markupMultiplier * 10000) / 10000,
     totalContractPrice,
     depositPercent: Math.round(rates.deposit * 100),
-    depositAmount
+    depositAmount,
+    pricePerSqft,
+    sqftTargetLow: sqftLow,
+    sqftTargetHigh: sqftHigh,
+    sqftWarning
   };
 
   data.totalValue = totalContractPrice;
   data.depositAmount = depositAmount;
 
-  console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
+  if (pricePerSqft !== null) {
+    console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → $${pricePerSqft}/sqft (target $${sqftLow}–$${sqftHigh}) → Deposit: $${depositAmount.toLocaleString()}`);
+  } else {
+    console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
+  }
 }
 
 // ── GENERATE CONTRACT (after customer approval) ──────────────────────

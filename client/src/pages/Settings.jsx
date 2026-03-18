@@ -76,6 +76,9 @@ export default function Settings({ token, userRole }) {
 
   const renderMarkup = () => {
     const items = settings.markup || [];
+    const pricingItems = settings.pricing || [];
+    const sqftLow  = pricingItems.find(s => s.key === 'pricing.sqftLow');
+    const sqftHigh = pricingItems.find(s => s.key === 'pricing.sqftHigh');
     return (
       <div>
         <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>These percentages are applied to every estimate automatically.</p>
@@ -93,6 +96,39 @@ export default function Settings({ token, userRole }) {
             </div>
           </div>
         ))}
+
+        <div style={{ borderTop: '2px solid #e5e7eb', marginTop: 24, paddingTop: 20 }}>
+          <p style={{ fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 6 }}>Target Price Range (per finished sq ft)</p>
+          <p style={{ color: '#888', fontSize: 12, marginBottom: 16 }}>
+            Claude will calibrate estimates to land within this range for finished/livable space. Unfinished garages and basements are excluded. A warning is shown on any job that falls outside this range.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Low ($/sqft)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ color: '#888' }}>$</span>
+                <input type="number" min="100" max="1000" step="5"
+                  value={sqftLow ? parseFloat(sqftLow.value) || 320 : 320}
+                  onChange={e => sqftLow && update(sqftLow.key, parseFloat(e.target.value))}
+                  style={{ width: 80, padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14, fontWeight: 'bold' }} />
+              </div>
+            </div>
+            <span style={{ fontSize: 18, color: '#888', marginTop: 16 }}>—</span>
+            <div>
+              <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>High ($/sqft)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ color: '#888' }}>$</span>
+                <input type="number" min="100" max="1000" step="5"
+                  value={sqftHigh ? parseFloat(sqftHigh.value) || 350 : 350}
+                  onChange={e => sqftHigh && update(sqftHigh.key, parseFloat(e.target.value))}
+                  style={{ width: 80, padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14, fontWeight: 'bold' }} />
+              </div>
+            </div>
+            <div style={{ marginTop: 16, padding: '6px 12px', background: '#f0f4ff', borderRadius: 6, fontSize: 12, color: BLUE, fontWeight: 500 }}>
+              per finished sq ft
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
