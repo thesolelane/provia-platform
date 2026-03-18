@@ -3,6 +3,7 @@ import { useState } from 'react';
 const STEPS = ['Building', 'Spacing & HVAC', 'Rooms', 'Openings', 'Prices', 'Results'];
 
 const DEFAULT_PRICES = {
+  concrete: 165.00,
   floorJoists: 9.00,
   rimBoard: 0.90,
   subfloor: 32.00,
@@ -15,6 +16,8 @@ const DEFAULT_PRICES = {
   roofingSquares: 110.00,
   underlayment: 35.00,
   insulation: 45.00,
+  sprayFoamWall: 3.50,
+  sprayFoamRoof: 5.00,
   drywall: 16.00,
   paint: 35.00,
   flooring: 4.50,
@@ -49,14 +52,27 @@ function calcSlope(pitch) {
   return Math.sqrt(1 + Math.pow(pitch / 12, 2));
 }
 
-function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType) {
-  const { length, width, floors, wallHeight, pitch, overhang } = building;
-  const L = parseFloat(length) || 0;
-  const W = parseFloat(width) || 0;
+function parseFtIn(val) {
+  // Accepts decimal feet (19.25) or "19'3\"" style — returns decimal feet
+  if (typeof val === 'string' && val.includes("'")) {
+    const parts = val.split("'");
+    const ft = parseFloat(parts[0]) || 0;
+    const inches = parseFloat(parts[1]) || 0;
+    return ft + inches / 12;
+  }
+  return parseFloat(val) || 0;
+}
+
+function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType) {
+  const { length, width, floors, wallHeight, pitch, overhang, slabThickness, hasSlab } = building;
+  const L = parseFtIn(length);
+  const W = parseFtIn(width);
   const FL = parseInt(floors) || 1;
   const WH = parseFloat(wallHeight) || 9;
   const P = parseFloat(pitch) || 4;
   const OH = parseFloat(overhang) || 2;
+  const slabIn = parseFloat(slabThickness) || 4;
+  const includeSlab = hasSlab !== false;
   const studOC = studSpacing === '16' ? 16 : 24;
   const trussOC = trussSpacing === '16' ? 16 : 24;
 
@@ -77,6 +93,9 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
   const subfloorSheets = Math.ceil((L * W * FL) / 32);
 
   const insulationRolls = Math.ceil(extWallArea / 40);
+  const sprayFoamWallSF = Math.ceil(extWallArea);
+  const sprayFoamRoofSF = Math.ceil(roofArea);
+  const concreteCY = includeSlab ? Math.ceil((L * W * (slabIn / 12) / 27) * 1.1) : 0;
 
   let intWallArea = 0;
   let bathroomArea = 0;
@@ -219,7 +238,23 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     ];
   }
 
+  const iType = insulationType || 'batt';
+  const insulationItems = [];
+  if (iType === 'batt' || iType === 'batt_roof_foam') {
+    insulationItems.push({ group: '5 · Insulation', name: 'Batt Insulation — Walls (rolls)', qty: insulationRolls, unit: 'rolls', priceKey: 'insulation' });
+  }
+  if (iType === 'spray_walls' || iType === 'spray_all') {
+    insulationItems.push({ group: '5 · Insulation', name: 'Spray Foam — Walls (closed cell)', qty: sprayFoamWallSF, unit: 'sq ft', priceKey: 'sprayFoamWall' });
+  }
+  if (iType === 'spray_roof' || iType === 'spray_all' || iType === 'batt_roof_foam') {
+    insulationItems.push({ group: '5 · Insulation', name: 'Spray Foam — Hot Roof (closed cell)', qty: sprayFoamRoofSF, unit: 'sq ft', priceKey: 'sprayFoamRoof' });
+  }
+  if (iType === 'batt' || iType === 'spray_walls') {
+    insulationItems.push({ group: '5 · Insulation', name: 'Batt Insulation — Roof/Ceiling (rolls)', qty: Math.ceil(roofSheathingSheets * 1.1), unit: 'rolls', priceKey: 'insulation' });
+  }
+
   const materials = [
+    ...(concreteCY > 0 ? [{ group: '0 · Foundation / Slab', name: `Concrete Slab (${slabIn}" thick, +10% waste)`, qty: concreteCY, unit: 'CY', priceKey: 'concrete' }] : []),
     { group: '1 · Floor System', name: 'Floor Joists', qty: floorJoistCount, unit: 'pcs', priceKey: 'floorJoists' },
     { group: '1 · Floor System', name: 'Rim Board', qty: Math.ceil(rimBoardLinFt), unit: 'lin ft', priceKey: 'rimBoard' },
     { group: '1 · Floor System', name: 'Subfloor Sheathing', qty: subfloorSheets, unit: 'sheets', priceKey: 'subfloor' },
@@ -231,7 +266,7 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     { group: '3 · Roof Structure', name: 'Roof Sheathing', qty: roofSheathingSheets, unit: 'sheets', priceKey: 'roofSheathing' },
     { group: '4 · Roofing', name: 'Roofing', qty: roofingSquares, unit: 'squares', priceKey: 'roofingSquares' },
     { group: '4 · Roofing', name: 'Underlayment', qty: underlaymentRolls, unit: 'rolls', priceKey: 'underlayment' },
-    { group: '5 · Insulation', name: 'Insulation', qty: insulationRolls, unit: 'rolls', priceKey: 'insulation' },
+    ...insulationItems,
     { group: '6 · Drywall', name: 'Drywall', qty: drywallSheets, unit: 'sheets', priceKey: 'drywall' },
     { group: '7 · Paint', name: 'Paint', qty: paintGallons, unit: 'gal', priceKey: 'paint' },
     { group: '8 · Flooring', name: 'Flooring', qty: Math.ceil(flooringArea), unit: 'sq ft', priceKey: 'flooring' },
@@ -322,10 +357,11 @@ function btnStyle(primary) {
 
 export default function MaterialTakeOff() {
   const [step, setStep] = useState(0);
-  const [building, setBuilding] = useState({ length: '', width: '', floors: '1', wallHeight: '9', pitch: '4', overhang: '2' });
+  const [building, setBuilding] = useState({ length: '', width: '', floors: '1', wallHeight: '9', pitch: '4', overhang: '2', hasSlab: true, slabThickness: '4' });
   const [studSpacing, setStudSpacing] = useState('16');
   const [trussSpacing, setTrussSpacing] = useState('24');
   const [heatingType, setHeatingType] = useState('forced_air');
+  const [insulationType, setInsulationType] = useState('batt');
   const [rooms, setRooms] = useState([]);
   const [prices, setPrices] = useState({ ...DEFAULT_PRICES });
   const [results, setResults] = useState(null);
@@ -337,7 +373,7 @@ export default function MaterialTakeOff() {
   const setB = (k, v) => setBuilding(b => ({ ...b, [k]: v }));
 
   function handleSubmit() {
-    const r = runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType);
+    const r = runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType);
     setResults(r);
     setStep(5);
   }
@@ -413,13 +449,39 @@ export default function MaterialTakeOff() {
             <div>
               {sectionHeader('Building Dimensions')}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
-                <Field label="Building Length (ft)" type="number" min="1" value={building.length} onChange={v => setB('length', v)} />
-                <Field label="Building Width (ft)" type="number" min="1" value={building.width} onChange={v => setB('width', v)} />
+                <Field label={`Building Length (ft or ft'in")`} type="text" value={building.length} onChange={v => setB('length', v)} />
+                <Field label={`Building Width (ft or ft'in")`} type="text" value={building.width} onChange={v => setB('width', v)} />
                 <Field label="Number of Floors" type="number" min="1" value={building.floors} onChange={v => setB('floors', v)} />
                 <Field label="Wall Height (ft)" type="number" min="1" step="0.5" value={building.wallHeight} onChange={v => setB('wallHeight', v)} />
                 <Field label="Roof Pitch (x/12)" type="number" min="0" step="0.5" value={building.pitch} onChange={v => setB('pitch', v)} />
                 <Field label="Roof Overhang (ft)" type="number" min="0" step="0.5" value={building.overhang} onChange={v => setB('overhang', v)} />
               </div>
+              <div style={{ marginTop: 16 }}>{sectionHeader('Concrete Slab / Foundation')}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'white', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={building.hasSlab !== false} onChange={e => setB('hasSlab', e.target.checked)} />
+                  Include concrete slab pour in take-off
+                </label>
+              </div>
+              {building.hasSlab !== false && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={labelStyle}>Slab Thickness (inches)</label>
+                    <select value={building.slabThickness || '4'} onChange={e => setB('slabThickness', e.target.value)} style={fieldStyle}>
+                      <option value="3.5">3.5" (light slab)</option>
+                      <option value="4">4" (standard garage / studio)</option>
+                      <option value="5">5" (heavy load / equipment)</option>
+                      <option value="6">6" (commercial / truck)</option>
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={labelStyle}>Slab Area</label>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', paddingTop: 10 }}>
+                      Uses building footprint ({parseFtIn(building.length).toFixed(2)}' × {parseFtIn(building.width).toFixed(2)}' = {(parseFtIn(building.length) * parseFtIn(building.width)).toFixed(0)} sq ft) +10% waste
+                    </div>
+                  </div>
+                </div>
+              )}
               <div style={{ textAlign: 'right', marginTop: 8 }}>
                 <button style={btnStyle(true)} onClick={() => setStep(1)}>Next: Spacing →</button>
               </div>
@@ -446,6 +508,21 @@ export default function MaterialTakeOff() {
                 {heatingType === 'baseboard' && 'Electric baseboard heater in each room with individual thermostats.'}
                 {heatingType === 'radiant' && 'In-floor PEX tubing loops connected to a boiler, zoned by floor.'}
                 {heatingType === 'steam' && 'Steam boiler with radiators — less common in new construction.'}
+              </div>
+              <div style={{ marginTop: 20 }}>{sectionHeader('Insulation Type')}</div>
+              <Select label='Insulation Strategy' value={insulationType} onChange={setInsulationType} options={[
+                { value: 'batt', label: 'Batt / Fiberglass — Walls & Ceiling (standard)' },
+                { value: 'spray_roof', label: 'Batt Walls + Spray Foam Hot Roof (Stretch Code)' },
+                { value: 'spray_walls', label: 'Spray Foam Walls (closed cell) + Batt Ceiling' },
+                { value: 'spray_all', label: 'Full Spray Foam — Walls & Hot Roof (max performance)' },
+                { value: 'batt_roof_foam', label: 'Batt Walls + Spray Foam Roof Deck (common MA detail)' },
+              ]} />
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: -8, marginBottom: 12, lineHeight: 1.5 }}>
+                {insulationType === 'batt' && 'Standard fiberglass batt in walls and ceiling — lowest cost, meets base code.'}
+                {insulationType === 'spray_roof' && 'Hot roof detail — closed cell spray foam on roof deck eliminates attic venting. Meets MA Stretch Code air sealing requirements.'}
+                {insulationType === 'spray_walls' && 'Closed cell foam in wall cavities for max R-value and air barrier. Ceiling remains batt.'}
+                {insulationType === 'spray_all' && 'Full spray foam envelope — highest performance, air-sealed, Stretch Code compliant. Best for studio / conditioned space.'}
+                {insulationType === 'batt_roof_foam' && 'Common MA detail: batt walls with spray foam on roof deck. Good balance of cost and Stretch Code compliance.'}
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
                 <button style={btnStyle(false)} onClick={() => setStep(0)}>← Back</button>
@@ -668,12 +745,14 @@ export default function MaterialTakeOff() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 24px' }}>
                 {Object.entries(prices).map(([key, val]) => {
                   const labels = {
+                    concrete: 'Concrete Ready-Mix (per CY)',
                     floorJoists: 'Floor Joists (per pc)', rimBoard: 'Rim Board (per lin ft)', subfloor: 'Subfloor (per sheet)',
                     studs: 'Studs (per pc)', plates: 'Plates (per lin ft)', headers: 'Headers (per pc)',
                     trusses: 'Trusses (per pc)',
                     wallSheathing: 'Wall Sheathing (per sheet)', roofSheathing: 'Roof Sheathing (per sheet)',
                     roofingSquares: 'Roofing (per square)', underlayment: 'Underlayment (per roll)',
-                    insulation: 'Insulation (per roll)', drywall: 'Drywall (per sheet)',
+                    insulation: 'Batt Insulation (per roll)', sprayFoamWall: 'Spray Foam — Walls (per sq ft)', sprayFoamRoof: 'Spray Foam — Hot Roof (per sq ft)',
+                    drywall: 'Drywall (per sheet)',
                     paint: 'Paint (per gal)', flooring: 'Flooring (per sq ft)', tile: 'Tile (per sq ft)',
                     cabinetLinFt: 'Kitchen Cabinets (per lin ft)',
                     baseboard: 'Baseboard (per lin ft)', doorCasing: 'Door Casing (per lin ft)', windowCasing: 'Window Casing (per lin ft)',
@@ -688,7 +767,18 @@ export default function MaterialTakeOff() {
                     garageDoor: 'Overhead Garage Door (per door)', garageDoorOpener: 'Garage Door Opener (per opener)',
                   };
                   return (
-                    <Field key={key} label={labels[key] || key} type="number" step="0.01" value={val} onChange={v => setPrices(p => ({ ...p, [key]: parseFloat(v) || 0 }))} />
+                    <div key={key} style={{ marginBottom: 14 }}>
+                      <label style={labelStyle}>{labels[key] || key}</label>
+                      <div style={{ position: 'relative' }}>
+                        <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.6)', fontSize: 13, pointerEvents: 'none' }}>$</span>
+                        <input
+                          type="number" step="0.01" min="0"
+                          value={val}
+                          onChange={e => setPrices(p => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
+                          style={{ ...fieldStyle, paddingLeft: 22 }}
+                        />
+                      </div>
+                    </div>
                   );
                 })}
               </div>
