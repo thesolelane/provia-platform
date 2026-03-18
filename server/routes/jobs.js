@@ -369,6 +369,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
       const response = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 3000,
+        temperature: 0,
         messages: [{
           role: 'user',
           content: [{
@@ -757,6 +758,7 @@ router.post('/wizard/extract-text', requireAuth, async (req, res) => {
       const response = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 3000,
+        temperature: 0,
         messages: [{
           role: 'user',
           content: [{

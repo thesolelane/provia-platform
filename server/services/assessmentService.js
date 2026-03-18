@@ -39,6 +39,7 @@ async function runAssessment(db) {
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 4000,
+    temperature: 0,
     system: `You are a business strategy consultant specializing in the Massachusetts residential and commercial construction market.
 You analyze a contractor's historical invoices to provide honest, actionable competitive intelligence.
 Be specific, data-driven, and direct. The contractor wants to win more jobs.`,

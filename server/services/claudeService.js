@@ -423,6 +423,7 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2000,
+    temperature: 0,
     system: systemPrompt + `\n\nYou are in a clarification conversation about job ${jobId}. 
     If the user's answers complete all missing information, respond with JSON: {"type":"ready","message":"..."} 
     If more questions remain, respond with JSON: {"type":"question","message":"...","questionsRemaining":N}
@@ -578,6 +579,7 @@ IMPORTANT STYLE RULES:
     const response = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2000,
+      temperature: 0,
       system: systemPrompt,
       tools: db ? ADMIN_TOOLS : [],
       messages: msgsToSend
@@ -620,6 +622,7 @@ async function generateWizardQuestions(scopeText, projectAddress = '', budgetTar
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2000,
+    temperature: 0,
     system: `You are a construction estimating assistant helping a Massachusetts GC build accurate quotes. Your job is to read a scope of work and ask ONLY the most important clarifying questions — focusing especially on install-implies-demo trade pairings and ambiguous trade scopes.
 
 INSTALL-IMPLIES-DEMO RULE: When the scope mentions installing, replacing, or upgrading something (cabinets, flooring, fixtures, doors, windows, drywall, roofing, tiles, vanities, toilets, bathtubs, etc.), always check whether removal/demolition of the existing item is already in the scope. If the scope is ambiguous or silent on demo for that item, ask about it as a "demo_check" question.
