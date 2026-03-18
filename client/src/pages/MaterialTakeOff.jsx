@@ -63,7 +63,14 @@ function parseFtIn(val) {
   return parseFloat(val) || 0;
 }
 
-function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType) {
+function getJoistSize(span) {
+  if (span <= 12) return '2×8';
+  if (span <= 16) return '2×10';
+  if (span <= 20) return '2×12';
+  return 'LVL / Engineered';
+}
+
+function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize) {
   const { length, width, floors, wallHeight, pitch, overhang, slabThickness, hasSlab } = building;
   const L = parseFtIn(length);
   const W = parseFtIn(width);
@@ -75,6 +82,13 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
   const includeSlab = hasSlab !== false;
   const studOC = studSpacing === '16' ? 16 : 24;
   const trussOC = trussSpacing === '16' ? 16 : 24;
+  const sSize = studSize || '2x6';
+  const joistSize = getJoistSize(W);
+  const wallHft = Math.ceil(WH) + 1;
+  const studLabel = `${sSize} × ${wallHft}' Stud`;
+  const plateLabel = `${sSize} Plate`;
+  const joistLabel = `${joistSize} Floor Joist × ${Math.ceil(W + 2)}'`;
+  const rimLabel = `${joistSize} Rim Board`;
 
   const perimeterExt = 2 * (L + W);
 
@@ -112,6 +126,9 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
   let totalSwitches = 0;
   let totalLightFixtures = 0;
   let totalRecessedLights = 0;
+  let fullBathCount = 0;
+  let halfBathCount = 0;
+  let kitchenCount = 0;
 
   for (const room of rooms) {
     const rL = parseFloat(room.length) || 0;
@@ -121,8 +138,11 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     totalFloorArea += rArea;
     intWallArea += rPerim * WH;
 
-    if (room.type === 'Bathroom' && room.isFullBath !== false) bathroomArea += rArea;
-    if (room.type === 'Kitchen') cabinetLF += parseFloat(room.cabinetLength) || 0;
+    if (room.type === 'Bathroom') {
+      if (room.isFullBath !== false) { bathroomArea += rArea; fullBathCount++; }
+      else halfBathCount++;
+    }
+    if (room.type === 'Kitchen') { cabinetLF += parseFloat(room.cabinetLength) || 0; kitchenCount++; }
 
     const wallOutlets = rPerim > 0 ? Math.ceil(rPerim / 6) : 0;
 
@@ -253,17 +273,28 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     insulationItems.push({ group: '5 · Insulation', name: 'Batt Insulation — Roof/Ceiling (rolls)', qty: Math.ceil(roofSheathingSheets * 1.1), unit: 'rolls', priceKey: 'insulation' });
   }
 
+  const toiletCount = fullBathCount + halfBathCount;
+  const vanityCount = fullBathCount + halfBathCount;
+  const tubShowerCount = fullBathCount;
+  const cabinetCount = cabinetLF > 0 ? Math.round(cabinetLF / 2) : 0;
+  const plumbingItems = [
+    ...(toiletCount > 0 ? [{ group: '14 · Plumbing Fixtures', name: 'Toilet', qty: toiletCount, unit: 'pcs', priceKey: null }] : []),
+    ...(vanityCount > 0 ? [{ group: '14 · Plumbing Fixtures', name: 'Vanity / Sink', qty: vanityCount, unit: 'pcs', priceKey: null }] : []),
+    ...(tubShowerCount > 0 ? [{ group: '14 · Plumbing Fixtures', name: 'Tub / Shower Unit', qty: tubShowerCount, unit: 'pcs', priceKey: null }] : []),
+    ...(kitchenCount > 0 ? [{ group: '14 · Plumbing Fixtures', name: 'Kitchen Sink', qty: kitchenCount, unit: 'pcs', priceKey: null }] : []),
+  ];
+
   const materials = [
     ...(concreteCY > 0 ? [{ group: '0 · Foundation / Slab', name: `Concrete Slab (${slabIn}" thick, +10% waste)`, qty: concreteCY, unit: 'CY', priceKey: 'concrete' }] : []),
-    { group: '1 · Floor System', name: 'Floor Joists', qty: floorJoistCount, unit: 'pcs', priceKey: 'floorJoists' },
-    { group: '1 · Floor System', name: 'Rim Board', qty: Math.ceil(rimBoardLinFt), unit: 'lin ft', priceKey: 'rimBoard' },
-    { group: '1 · Floor System', name: 'Subfloor Sheathing', qty: subfloorSheets, unit: 'sheets', priceKey: 'subfloor' },
-    { group: '2 · Wall Framing', name: 'Studs', qty: studCount, unit: 'pcs', priceKey: 'studs' },
-    { group: '2 · Wall Framing', name: 'Plates (top & bottom)', qty: Math.ceil(plateLinFt), unit: 'lin ft', priceKey: 'plates' },
-    { group: '2 · Wall Framing', name: 'Headers (doors & windows)', qty: headerCount, unit: 'pcs', priceKey: 'headers' },
-    { group: '2 · Wall Framing', name: 'Wall Sheathing', qty: wallSheathingSheets, unit: 'sheets', priceKey: 'wallSheathing' },
-    { group: '3 · Roof Structure', name: 'Roof Trusses', qty: roofTrusses, unit: 'pcs', priceKey: 'trusses' },
-    { group: '3 · Roof Structure', name: 'Roof Sheathing', qty: roofSheathingSheets, unit: 'sheets', priceKey: 'roofSheathing' },
+    { group: '1 · Floor System', name: joistLabel, qty: floorJoistCount, unit: 'pcs', priceKey: 'floorJoists' },
+    { group: '1 · Floor System', name: rimLabel, qty: Math.ceil(rimBoardLinFt), unit: 'lin ft', priceKey: 'rimBoard' },
+    { group: '1 · Floor System', name: '¾" Tongue-&-Groove Subfloor (4×8)', qty: subfloorSheets, unit: 'sheets', priceKey: 'subfloor' },
+    { group: '2 · Wall Framing', name: studLabel, qty: studCount, unit: 'pcs', priceKey: 'studs' },
+    { group: '2 · Wall Framing', name: `${plateLabel} (top & bottom)`, qty: Math.ceil(plateLinFt), unit: 'lin ft', priceKey: 'plates' },
+    { group: '2 · Wall Framing', name: 'Header (LVL / doubled)', qty: headerCount, unit: 'pcs', priceKey: 'headers' },
+    { group: '2 · Wall Framing', name: '7/16" OSB Wall Sheathing (4×8)', qty: wallSheathingSheets, unit: 'sheets', priceKey: 'wallSheathing' },
+    { group: '3 · Roof Structure', name: `Pre-Fab Roof Truss (${trussOC}" o.c.)`, qty: roofTrusses, unit: 'pcs', priceKey: 'trusses' },
+    { group: '3 · Roof Structure', name: '7/16" OSB Roof Sheathing (4×8)', qty: roofSheathingSheets, unit: 'sheets', priceKey: 'roofSheathing' },
     { group: '4 · Roofing', name: 'Roofing', qty: roofingSquares, unit: 'squares', priceKey: 'roofingSquares' },
     { group: '4 · Roofing', name: 'Underlayment', qty: underlaymentRolls, unit: 'rolls', priceKey: 'underlayment' },
     ...insulationItems,
@@ -277,7 +308,9 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     { group: '9 · Electrical Rough-In', name: 'Light Fixtures (center mount)', qty: totalLightFixtures, unit: 'pcs', priceKey: 'lightFixture' },
     { group: '9 · Electrical Rough-In', name: 'Recessed Lights', qty: totalRecessedLights, unit: 'pcs', priceKey: 'recessedLight' },
     ...hvacItems.map(h => ({ group: '10 · HVAC / Heating', ...h })),
-    { group: '11 · Cabinets', name: 'Kitchen Cabinets (rough layout)', qty: Math.ceil(cabinetLF), unit: 'lin ft', priceKey: 'cabinetLinFt' },
+    ...(cabinetLF > 0 ? [
+      { group: '11 · Cabinets', name: `Kitchen Cabinets — ${Math.ceil(cabinetLF)} lin ft (~${cabinetCount} boxes)`, qty: Math.ceil(cabinetLF), unit: 'lin ft', priceKey: 'cabinetLinFt' },
+    ] : []),
     { group: '12 · Trim / Molding', name: 'Baseboard (floor perimeter)', qty: baseboardLF, unit: 'lin ft', priceKey: 'baseboard' },
     { group: '12 · Trim / Molding', name: 'Door Casing', qty: Math.ceil(doorCasingLF), unit: 'lin ft', priceKey: 'doorCasing' },
     { group: '12 · Trim / Molding', name: 'Window Casing', qty: Math.ceil(windowCasingLF), unit: 'lin ft', priceKey: 'windowCasing' },
@@ -285,12 +318,13 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
       { group: '13 · Garage Doors', name: 'Overhead Garage Door', qty: garageDoorCount, unit: 'pcs', priceKey: 'garageDoor' },
       { group: '13 · Garage Doors', name: 'Garage Door Opener', qty: garageDoorCount, unit: 'pcs', priceKey: 'garageDoorOpener' },
     ] : []),
+    ...plumbingItems,
   ];
 
   return materials.map(m => ({
     ...m,
-    unitPrice: prices[m.priceKey] ?? 0,
-    total: (m.qty * (prices[m.priceKey] ?? 0)),
+    unitPrice: m.priceKey ? (prices[m.priceKey] ?? 0) : null,
+    total: m.priceKey ? (m.qty * (prices[m.priceKey] ?? 0)) : null,
   }));
 }
 
@@ -360,6 +394,7 @@ export default function MaterialTakeOff() {
   const [building, setBuilding] = useState({ length: '', width: '', floors: '1', wallHeight: '9', pitch: '4', overhang: '2', hasSlab: true, slabThickness: '4' });
   const [studSpacing, setStudSpacing] = useState('16');
   const [trussSpacing, setTrussSpacing] = useState('24');
+  const [studSize, setStudSize] = useState('2x6');
   const [heatingType, setHeatingType] = useState('forced_air');
   const [insulationType, setInsulationType] = useState('batt');
   const [rooms, setRooms] = useState([]);
@@ -373,7 +408,7 @@ export default function MaterialTakeOff() {
   const setB = (k, v) => setBuilding(b => ({ ...b, [k]: v }));
 
   function handleSubmit() {
-    const r = runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType);
+    const r = runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize);
     setResults(r);
     setStep(5);
   }
@@ -405,7 +440,7 @@ export default function MaterialTakeOff() {
     setEditingRoom(r => ({ ...r, windows: [...(r.windows || []), { ...newWindow }] }));
   }
 
-  const grandTotal = results ? results.reduce((s, m) => s + m.total, 0) : 0;
+  const grandTotal = results ? results.reduce((s, m) => s + (m.total ?? 0), 0) : 0;
   const groups = results ? [...new Set(results.map(m => m.group))] : [];
 
   const card = {
@@ -491,7 +526,11 @@ export default function MaterialTakeOff() {
           {/* Step 1: Spacing & Systems */}
           {step === 1 && (
             <div>
-              {sectionHeader('Framing Spacing')}
+              {sectionHeader('Framing')}
+              <Select label='Stud Size' value={studSize} onChange={setStudSize} options={[
+                { value: '2x4', label: '2×4 Studs (partition walls / low-load)' },
+                { value: '2x6', label: '2×6 Studs (exterior walls — standard MA)' },
+              ]} />
               <Select label='Stud Spacing' value={studSpacing} onChange={setStudSpacing} options={[{ value: '16', label: '16" o.c.' }, { value: '24', label: '24" o.c.' }]} />
               <Select label='Truss Spacing' value={trussSpacing} onChange={setTrussSpacing} options={[{ value: '16', label: '16" o.c.' }, { value: '24', label: '24" o.c.' }]} />
               <div style={{ marginTop: 20 }}>{sectionHeader('Heating / HVAC System')}</div>
@@ -813,23 +852,27 @@ export default function MaterialTakeOff() {
                           <td style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 600 }}>{m.qty.toLocaleString()}</td>
                           <td style={{ padding: '7px 8px', color: 'rgba(255,255,255,0.55)' }}>{m.unit}</td>
                           <td style={{ padding: '7px 8px', textAlign: 'right' }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
-                              <span style={{ color: 'rgba(255,255,255,0.4)', marginRight: 2 }}>$</span>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={m.unitPrice}
-                                onChange={e => {
-                                  const newPrice = parseFloat(e.target.value) || 0;
-                                  setPrices(p => ({ ...p, [m.priceKey]: newPrice }));
-                                  setResults(prev => prev.map(r => r.priceKey === m.priceKey ? { ...r, unitPrice: newPrice, total: r.qty * newPrice } : r));
-                                }}
-                                style={{ width: 70, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: 'white', padding: '3px 6px', fontSize: 12, textAlign: 'right' }}
-                              />
-                            </div>
+                            {m.priceKey ? (
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span style={{ color: 'rgba(255,255,255,0.4)', marginRight: 2 }}>$</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={m.unitPrice}
+                                  onChange={e => {
+                                    const newPrice = parseFloat(e.target.value) || 0;
+                                    setPrices(p => ({ ...p, [m.priceKey]: newPrice }));
+                                    setResults(prev => prev.map(r => r.priceKey === m.priceKey ? { ...r, unitPrice: newPrice, total: r.qty * newPrice } : r));
+                                  }}
+                                  style={{ width: 70, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: 'white', padding: '3px 6px', fontSize: 12, textAlign: 'right' }}
+                                />
+                              </div>
+                            ) : (
+                              <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 12 }}>see sub</span>
+                            )}
                           </td>
                           <td style={{ padding: '7px 8px', textAlign: 'right', color: '#E07B2A', fontWeight: 600 }}>
-                            ${m.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {m.total !== null ? `$${m.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
                           </td>
                         </tr>
                       ))}
