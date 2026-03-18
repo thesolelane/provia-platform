@@ -70,7 +70,8 @@ function buildRatesSection(settings) {
     const val = settings[key];
     if (val) {
       const v = typeof val === 'string' ? JSON.parse(val) : val;
-      laborLines.push(`  ${label}: $${v.low}–$${v.high} per ${v.unit}`);
+      const mid = Math.round((v.low + v.high) / 2);
+      laborLines.push(`  ${label}: $${mid} per ${v.unit} (use this exact rate — range is $${v.low}–$${v.high})`);
     }
   }
   for (const [key, label] of Object.entries(allowanceMap)) {
@@ -154,6 +155,7 @@ async function processEstimate(rawEstimateText, jobId, language = 'en') {
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 8000,
+    temperature: 0,
     system: systemPrompt,
     messages: [
       {
