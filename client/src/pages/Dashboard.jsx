@@ -179,7 +179,7 @@ export default function Dashboard({ token }) {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#1B3A6B' }}>
-              {['Customer', 'Address', 'Value', 'Status', 'Date', ''].map(h => (
+              {['PB Number', 'Customer', 'Address', 'Value', 'Status', 'Date', ''].map(h => (
                 <th key={h} style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: 12, fontWeight: 'bold' }}>{h}</th>
               ))}
             </tr>
@@ -190,6 +190,14 @@ export default function Dashboard({ token }) {
             )}
             {jobs.map((job, i) => (
               <tr key={job.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                <td style={{ padding: '12px 16px' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1B3A6B', fontFamily: 'monospace' }}>
+                    {job.pb_number || '—'}
+                  </div>
+                  {job.external_ref && (
+                    <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>ref #{job.external_ref}</div>
+                  )}
+                </td>
                 <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500' }}>{job.customer_name || '—'}</td>
                 <td style={{ padding: '12px 16px', fontSize: 12, color: '#555' }}>{job.project_address || '—'}</td>
                 <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500', color: '#1B3A6B' }}>

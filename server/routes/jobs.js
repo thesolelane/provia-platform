@@ -95,7 +95,27 @@ function generateCustomerSerial(db) {
   return assign();
 }
 
-// Find or create a contact, always assigning a CSN to new contacts
+// Generates next PB-YYYY-NNNN quote number (race-safe atomic counter)
+function generatePBNumber(db) {
+  const year = new Date().getFullYear();
+  const assign = db.transaction(() => {
+    db.prepare('INSERT OR IGNORE INTO pb_quote_counter (year, next_seq) VALUES (?, 1)').run(year);
+    const row = db.prepare('SELECT next_seq FROM pb_quote_counter WHERE year = ?').get(year);
+    const seq = row.next_seq;
+    db.prepare('UPDATE pb_quote_counter SET next_seq = next_seq + 1 WHERE year = ?').run(year);
+    return `PB-${year}-${String(seq).padStart(4, '0')}`;
+  });
+  return assign();
+}
+
+// Extract external estimate/quote number from raw estimate text (e.g. Hearth/Wave ref)
+function extractExternalRef(text) {
+  if (!text) return null;
+  const match = text.match(/(?:estimate|quote|proposal|ref|#|no\.?)\s*[:#]?\s*(\d{3,8})/i);
+  return match ? match[1] : null;
+}
+
+
 function findOrCreateContact(db, { name, email, phone, address, city, state }) {
   let contact = email
     ? db.prepare('SELECT * FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1').get(email)
@@ -151,7 +171,7 @@ router.get('/archived/list', requireAuth, (req, res) => {
 router.get('/', requireAuth, (req, res) => {
   const db = getDb();
   const { status, limit = 50, offset = 0 } = req.query;
-  let query = 'SELECT * FROM jobs WHERE archived = 0';
+  let query = 'SELECT id, customer_name, customer_email, customer_phone, project_address, project_city, status, total_value, deposit_amount, created_at, updated_at, submitted_by, contact_id, pb_number, external_ref FROM jobs WHERE archived = 0';
   const params = [];
   if (status) { query += ' AND status = ?'; params.push(status); }
   query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
@@ -415,13 +435,20 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)`
   ).run(jobId, customerName, customerEmail, customerPhone, projectAddress, fullEstimate, uploadedBy, contactRef?.id || null);
 
+  // Assign PB number immediately on job creation
+  try {
+    const pbNum = generatePBNumber(db);
+    const extRef = extractExternalRef(rawText);
+    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ? WHERE id = ?').run(pbNum, extRef, jobId);
+  } catch (e) { console.warn('[Upload] PB number generation failed:', e.message); }
+
   res.json({ jobId, status: 'received', message: 'File uploaded. Processing estimate...' });
 
   const { processEstimate } = require('../services/claudeService');
   (async () => {
     try {
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en');
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress);
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
@@ -480,6 +507,13 @@ router.post('/wizard', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'processing', ?, ?)
   `).run(jobId, contactName, contactEmail, contactPhone, projectAddress, scopeText, wizardBy, contactRef?.id || null);
 
+  // Assign PB number immediately on job creation
+  try {
+    const pbNum = generatePBNumber(db);
+    const extRef = extractExternalRef(scopeText);
+    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ? WHERE id = ?').run(pbNum, extRef, jobId);
+  } catch (e) { console.warn('[Wizard] PB number generation failed:', e.message); }
+
   notifyClients('job_updated', { jobId, status: 'processing' });
   res.json({ jobId, status: 'processing', message: 'Job created. Processing estimate...' });
 
@@ -493,7 +527,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
         ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nSCOPE OF WORK:\n${sanitizedScope}`
         : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nSCOPE OF WORK:\n${sanitizedScope}`;
 
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en');
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress);
       console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
@@ -549,6 +583,13 @@ router.post('/manual', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
   `).run(jobId, customerName, customerEmail, customerPhone, projectAddress, estimateText, manualBy, contactRef?.id || null);
 
+  // Assign PB number immediately on job creation
+  try {
+    const pbNum = generatePBNumber(db);
+    const extRef = extractExternalRef(estimateText);
+    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ? WHERE id = ?').run(pbNum, extRef, jobId);
+  } catch (e) { console.warn('[Manual] PB number generation failed:', e.message); }
+
   res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
 
   const { processEstimate } = require('../services/claudeService');
@@ -562,7 +603,7 @@ router.post('/manual', requireAuth, async (req, res) => {
       const fullEstimate = contactRef
         ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`
         : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`;
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en');
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress);
       console.log(`[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
@@ -850,6 +891,13 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
   `).run(jobId, customerName || '', customerEmail || '', customerPhone || '', projectAddress || '', rawEstimateData, submittedBy, contactRef?.id || null);
 
+  // Assign PB number immediately on job creation
+  try {
+    const pbNum = generatePBNumber(db);
+    const extRef = extractExternalRef(scopeText);
+    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ? WHERE id = ?').run(pbNum, extRef, jobId);
+  } catch (e) { console.warn('[Wizard] PB number generation failed:', e.message); }
+
   res.json({ jobId, status: 'received', message: 'Wizard submission received. Processing estimate...' });
 
   const { processEstimate } = require('../services/claudeService');
@@ -857,7 +905,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     try {
       console.log(`[Wizard Job ${jobId}] Starting Claude processEstimate...`);
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en');
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress);
       console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
@@ -898,7 +946,7 @@ router.post('/:id/reprocess', requireAuth, requireRole('admin', 'pm', 'system_ad
     try {
       console.log(`[Reprocess Job ${job.id}] Starting Claude processEstimate...`);
       const fullEstimate = `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${job.raw_estimate_data}`;
-      const proposalData = await processEstimate(fullEstimate, job.id, 'en');
+      const proposalData = await processEstimate(fullEstimate, job.id, 'en', db, job.project_address || null);
       console.log(`[Reprocess Job ${job.id}] Claude returned. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {

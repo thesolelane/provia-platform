@@ -151,11 +151,55 @@ If the estimate includes a BUDGET TARGET line, calibrate all line item baseCosts
 ${knowledgeBase}`;
 }
 
+// ── MEMORY: Look up prior estimates for same address ─────────────────
+function buildMemoryContext(db, projectAddress) {
+  if (!db || !projectAddress) return '';
+  try {
+    // Find prior jobs at the same address that have proposal data
+    const prior = db.prepare(`
+      SELECT pb_number, external_ref, created_at, total_value, deposit_amount, proposal_data
+      FROM jobs
+      WHERE project_address LIKE ?
+        AND proposal_data IS NOT NULL
+        AND archived = 0
+      ORDER BY created_at DESC
+      LIMIT 3
+    `).all(`%${projectAddress.trim()}%`);
+
+    if (!prior.length) return '';
+
+    const lines = prior.map(j => {
+      let lineItems = '';
+      try {
+        const pd = JSON.parse(j.proposal_data);
+        lineItems = (pd.lineItems || [])
+          .map(li => `    - ${li.trade}: baseCost $${li.baseCost?.toLocaleString()}`)
+          .join('\n');
+      } catch {}
+      const ref = j.pb_number || j.external_ref || j.id;
+      return `  Quote ${ref} (${new Date(j.created_at).toLocaleDateString()}) — Total: $${Number(j.total_value || 0).toLocaleString()}\n${lineItems}`;
+    }).join('\n\n');
+
+    return `\n\n## PRIOR ESTIMATES FOR THIS ADDRESS
+This address has been estimated before. Use these as your consistency anchor:
+${lines}
+
+RULES:
+- Keep baseCosts consistent with prior quotes unless the new scope explicitly changes them
+- If a trade appears in a prior quote, use the same cost unless Jackson submitted a different number
+- If costs differ significantly from prior quote, add a note in the "notes" field explaining why`;
+  } catch (e) {
+    console.warn('[buildMemoryContext] Error:', e.message);
+    return '';
+  }
+}
+
 // ── PROCESS ESTIMATE → EXTRACT DATA ─────────────────────────────────
-async function processEstimate(rawEstimateText, jobId, language = 'en') {
+async function processEstimate(rawEstimateText, jobId, language = 'en', db = null, projectAddress = null) {
   const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
-  const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language);
+  const memoryContext = buildMemoryContext(db, projectAddress);
+  const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language) + memoryContext;
   const rates = getMarkupRates(settings);
 
   const response = await client.messages.create({
@@ -709,4 +753,4 @@ RULES:
   }
 }
 
-module.exports = { processEstimate, generateContract, handleClarification, adminChat, generateWizardQuestions };
+module.exports = { processEstimate, generateContract, handleClarification, adminChat, generateWizardQuestions, buildMemoryContext };

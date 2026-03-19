@@ -320,6 +320,28 @@ async function initDatabase() {
     );
   `);
 
+  // Migration: add pb_number, external_ref, version tracking to jobs
+  try { db.prepare("SELECT pb_number FROM jobs LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN pb_number TEXT");
+  }
+  try { db.prepare("SELECT external_ref FROM jobs LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN external_ref TEXT");
+  }
+  try { db.prepare("SELECT quote_version FROM jobs LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN quote_version INTEGER DEFAULT 1");
+  }
+  try { db.prepare("SELECT parent_job_id FROM jobs LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN parent_job_id TEXT");
+  }
+
+  // Atomic quote number counter (separate from customer serial counter)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pb_quote_counter (
+      year     INTEGER PRIMARY KEY,
+      next_seq INTEGER NOT NULL DEFAULT 1
+    )
+  `);
+
   // Migration: add new columns to payments tables if missing (check each individually)
   const addColIfMissing = (table, col, def) => {
     try { db.prepare(`SELECT ${col} FROM ${table} LIMIT 1`).get(); } catch {

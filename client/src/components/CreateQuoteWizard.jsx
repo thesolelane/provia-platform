@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 
 const inputStyle = {
@@ -329,6 +330,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   // STEPS: 0=Contact, 1=Job Address, 2=Scope, 3=AI Questions (dynamic), 4=Review
   const BASE_STEPS = ['Contact', 'Job Address', 'Scope of Work', 'Review'];
 
+  const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [fetchingQuestions, setFetchingQuestions] = useState(false);
@@ -469,6 +471,8 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
         showToast('Quote submitted — processing now');
         onSubmitted();
         onClose();
+        // Navigate to the job detail page so user lands on the review/edit screen
+        navigate(`/jobs/${data.jobId}`);
       } else {
         showToast(data.error || 'Error submitting quote', 'error');
       }
