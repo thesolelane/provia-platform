@@ -19,9 +19,17 @@ const DEFAULT_PRICES = {
   sprayFoamWall: 3.50,
   sprayFoamRoof: 5.00,
   drywall: 16.00,
+  blueBoard: 18.00,
+  jointCompound: 18.00,
+  skimCoat: 22.00,
+  primer: 28.00,
   paint: 35.00,
-  flooring: 4.50,
+  ceilingPaint: 28.00,
+  hardwood: 6.50,
+  vinylPlank: 3.20,
+  carpetSY: 28.00,
   tile: 3.50,
+  // (legacy 'flooring' key removed — use vinylPlank/carpetSY/hardwood/tile)
   cabinetLinFt: 150.00,
   baseboard: 1.20,
   doorCasing: 1.20,
@@ -73,7 +81,7 @@ function getJoistSize(span) {
   return 'LVL / Engineered';
 }
 
-function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize) {
+function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize, wallFinishType) {
   const { length, width, floors, wallHeight, pitch, overhang, slabThickness, hasSlab } = building;
   const L = parseFtIn(length);
   const W = parseFtIn(width);
@@ -135,6 +143,10 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
   let passageDoors = 0;
   let privacyDoors = 0;
   let keyedDoors = 0;
+  let vinylPlankSF = 0;
+  let carpetSF = 0;
+  let hardwoodSF = 0;
+  let tileSF = 0;
 
   for (const room of rooms) {
     const rL = parseFloat(room.length) || 0;
@@ -149,6 +161,14 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
       else halfBathCount++;
     }
     if (room.type === 'Kitchen') { cabinetLF += parseFloat(room.cabinetLength) || 0; kitchenCount++; }
+
+    // Flooring by type
+    const defaultFT = room.type === 'Bathroom' ? 'tile' : room.type === 'Bedroom' ? 'carpet' : room.type === 'Garage' ? 'concrete' : 'vinyl_plank';
+    const ft = room.flooringType || defaultFT;
+    if (ft === 'tile') tileSF += rArea;
+    else if (ft === 'carpet') carpetSF += rArea;
+    else if (ft === 'vinyl_plank') vinylPlankSF += rArea;
+    else if (ft === 'hardwood') hardwoodSF += rArea;
 
     const wallOutlets = rPerim > 0 ? Math.ceil(rPerim / 6) : 0;
 
@@ -207,9 +227,25 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     }
   }
 
-  const drywallSheets = Math.ceil((extWallArea + intWallArea) / 32);
-  const paintGallons = Math.ceil((extWallArea + intWallArea) / 350);
-  const flooringArea = totalFloorArea > 0 ? totalFloorArea : L * W * FL;
+  // Drywall — walls vs ceiling separate
+  const ceilingArea = totalFloorArea > 0 ? totalFloorArea : L * W * FL;
+  const wallDrywallSF = extWallArea + intWallArea;
+  const wallDrywallSheets = Math.ceil(wallDrywallSF / 32);
+  const ceilingDrywallSheets = Math.ceil(ceilingArea / 32);
+  const totalDrywallSF = wallDrywallSF + ceilingArea;
+  const jointCompoundBags = Math.ceil(totalDrywallSF / 300);
+  const skimCoatBags = Math.ceil(totalDrywallSF / 100);
+
+  // Paint — wall primer + finish, ceiling separate
+  const wallPaintGal = Math.ceil(wallDrywallSF / 175);
+  const primerGal = Math.ceil(wallDrywallSF / 300);
+  const ceilingPaintGal = Math.ceil(ceilingArea / 350);
+
+  // Flooring — by type from rooms; fallback if no rooms entered
+  const hasRoomFlooring = (vinylPlankSF + carpetSF + hardwoodSF + tileSF) > 0;
+  const fallbackFlooringArea = hasRoomFlooring ? 0 : (L * W * FL);
+  const carpetSY = Math.ceil(carpetSF / 9);
+
   const roofingSquares = Math.ceil(roofArea / 100);
   const underlaymentRolls = roofArea > 0 ? Math.ceil(roofArea / 1000) : 0;
   const tileArea = bathroomArea;
@@ -314,10 +350,26 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     { group: '4 · Roofing', name: 'Roofing', qty: roofingSquares, unit: 'squares', priceKey: 'roofingSquares' },
     { group: '4 · Roofing', name: 'Underlayment', qty: underlaymentRolls, unit: 'rolls', priceKey: 'underlayment' },
     ...insulationItems,
-    { group: '6 · Drywall', name: 'Drywall', qty: drywallSheets, unit: 'sheets', priceKey: 'drywall' },
-    { group: '7 · Paint', name: 'Paint', qty: paintGallons, unit: 'gal', priceKey: 'paint' },
-    { group: '8 · Flooring', name: 'Flooring', qty: Math.ceil(flooringArea), unit: 'sq ft', priceKey: 'flooring' },
-    { group: '8 · Flooring', name: 'Tile (Bathrooms)', qty: Math.ceil(tileArea), unit: 'sq ft', priceKey: 'tile' },
+    // Drywall / Blue Board
+    ...(wallFinishType === 'blueboard' ? [
+      { group: '6 · Drywall / Blue Board', name: '½" Blue Board — Walls (4×8 sheets)', qty: wallDrywallSheets, unit: 'sheets', priceKey: 'blueBoard' },
+      { group: '6 · Drywall / Blue Board', name: '½" Blue Board — Ceiling (4×8 sheets)', qty: ceilingDrywallSheets, unit: 'sheets', priceKey: 'blueBoard' },
+      { group: '6 · Drywall / Blue Board', name: 'Veneer Plaster / Skim Coat (50 lb bag)', qty: skimCoatBags, unit: 'bags', priceKey: 'skimCoat' },
+    ] : [
+      { group: '6 · Drywall / Blue Board', name: '½" Drywall — Walls (4×8 sheets)', qty: wallDrywallSheets, unit: 'sheets', priceKey: 'drywall' },
+      { group: '6 · Drywall / Blue Board', name: `½" Drywall — Ceiling (4×8 sheets)${totalRecessedLights > 0 ? ' — incl. recessed backing' : ''}`, qty: ceilingDrywallSheets, unit: 'sheets', priceKey: 'drywall' },
+      { group: '6 · Drywall / Blue Board', name: 'Joint Compound (4.5 gal all-purpose)', qty: jointCompoundBags, unit: 'bags', priceKey: 'jointCompound' },
+    ]),
+    // Paint
+    { group: '7 · Paint', name: 'Primer (wall surfaces)', qty: primerGal, unit: 'gal', priceKey: 'primer' },
+    { group: '7 · Paint', name: 'Wall Paint — finish coat (2 coats)', qty: wallPaintGal, unit: 'gal', priceKey: 'paint' },
+    { group: '7 · Paint', name: 'Ceiling Paint — flat (1–2 coats)', qty: ceilingPaintGal, unit: 'gal', priceKey: 'ceilingPaint' },
+    // Flooring — by type
+    ...(vinylPlankSF > 0 ? [{ group: '8 · Flooring', name: 'Vinyl Plank LVP', qty: Math.ceil(vinylPlankSF), unit: 'sq ft', priceKey: 'vinylPlank' }] : []),
+    ...(hardwoodSF > 0 ? [{ group: '8 · Flooring', name: 'Hardwood Flooring', qty: Math.ceil(hardwoodSF), unit: 'sq ft', priceKey: 'hardwood' }] : []),
+    ...(carpetSY > 0 ? [{ group: '8 · Flooring', name: 'Carpet + Pad', qty: carpetSY, unit: 'sq yd', priceKey: 'carpetSY' }] : []),
+    ...(tileSF > 0 ? [{ group: '8 · Flooring', name: 'Floor Tile', qty: Math.ceil(tileSF), unit: 'sq ft', priceKey: 'tile' }] : []),
+    ...(fallbackFlooringArea > 0 ? [{ group: '8 · Flooring', name: 'Flooring (add rooms for type breakdown)', qty: Math.ceil(fallbackFlooringArea), unit: 'sq ft', priceKey: 'vinylPlank' }] : []),
     { group: '9 · Electrical Rough-In', name: 'Standard Outlets', qty: totalOutlets, unit: 'pcs', priceKey: 'outlet' },
     { group: '9 · Electrical Rough-In', name: 'GFI Outlets (kitchen / bath / garage)', qty: totalGFI, unit: 'pcs', priceKey: 'gfiOutlet' },
     { group: '9 · Electrical Rough-In', name: 'Light Switches', qty: totalSwitches, unit: 'pcs', priceKey: 'lightSwitch' },
@@ -338,13 +390,19 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     ...(passageDoors > 0 ? [{ group: '15 · Door Hardware', name: 'Passage Set — Hall / Closet (no lock)', qty: passageDoors, unit: 'pcs', priceKey: 'passageSet' }] : []),
     ...(privacyDoors > 0 ? [{ group: '15 · Door Hardware', name: 'Privacy Set — Bedroom / Bathroom (push-button lock)', qty: privacyDoors, unit: 'pcs', priceKey: 'privacySet' }] : []),
     ...(keyedDoors > 0 ? [{ group: '15 · Door Hardware', name: 'Keyed Entry Set — Exterior', qty: keyedDoors, unit: 'pcs', priceKey: 'keyedSet' }] : []),
+    // Openings summary
+    ...(totalDoors > 0 ? [{ group: '16 · Openings Count', name: `Interior + Exterior Doors (total)`, qty: totalDoors, unit: 'doors', priceKey: null }] : []),
+    ...(garageDoorCount > 0 ? [{ group: '16 · Openings Count', name: 'Overhead / Garage Doors', qty: garageDoorCount, unit: 'doors', priceKey: null }] : []),
+    ...(totalWindows > 0 ? [{ group: '16 · Openings Count', name: 'Windows (all sizes)', qty: totalWindows, unit: 'windows', priceKey: null }] : []),
   ];
 
-  return materials.map(m => ({
-    ...m,
-    unitPrice: m.priceKey ? (prices[m.priceKey] ?? 0) : null,
-    total: m.priceKey ? (m.qty * (prices[m.priceKey] ?? 0)) : null,
-  }));
+  return materials
+    .filter(m => m.qty > 0)
+    .map(m => ({
+      ...m,
+      unitPrice: m.priceKey ? (prices[m.priceKey] ?? 0) : null,
+      total: m.priceKey ? (m.qty * (prices[m.priceKey] ?? 0)) : null,
+    }));
 }
 
 const sectionHeader = (label) => (
@@ -414,12 +472,13 @@ export default function MaterialTakeOff() {
   const [studSpacing, setStudSpacing] = useState('16');
   const [trussSpacing, setTrussSpacing] = useState('24');
   const [studSize, setStudSize] = useState('2x6');
+  const [wallFinishType, setWallFinishType] = useState('drywall');
   const [heatingType, setHeatingType] = useState('forced_air');
   const [insulationType, setInsulationType] = useState('batt');
   const [rooms, setRooms] = useState([]);
   const [prices, setPrices] = useState({ ...DEFAULT_PRICES });
   const [results, setResults] = useState(null);
-  const [newRoom, setNewRoom] = useState({ name: '', type: 'Bedroom', floor: '1', length: '', width: '', cabinetLength: '', isFullBath: true, lightingType: 'center', doors: [], windows: [] });
+  const [newRoom, setNewRoom] = useState({ name: '', type: 'Bedroom', floor: '1', length: '', width: '', cabinetLength: '', isFullBath: true, lightingType: 'center', flooringType: '', doors: [], windows: [] });
   const [newDoor, setNewDoor] = useState({ width: '36', height: '80', side: 'interior', type: 'Swing' });
   const [newWindow, setNewWindow] = useState({ width: '36', height: '48', kind: 'new' });
   const [editingRoom, setEditingRoom] = useState(null);
@@ -427,7 +486,7 @@ export default function MaterialTakeOff() {
   const setB = (k, v) => setBuilding(b => ({ ...b, [k]: v }));
 
   function handleSubmit() {
-    const r = runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize);
+    const r = runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize, wallFinishType);
     setResults(r);
     setStep(5);
   }
@@ -435,7 +494,7 @@ export default function MaterialTakeOff() {
   function addRoom() {
     if (!newRoom.name) return;
     setRooms(prev => [...prev, { ...newRoom, id: Date.now() }]);
-    setNewRoom({ name: '', type: 'Bedroom', floor: '1', length: '', width: '', cabinetLength: '', isFullBath: true, lightingType: 'center', doors: [], windows: [] });
+    setNewRoom({ name: '', type: 'Bedroom', floor: '1', length: '', width: '', cabinetLength: '', isFullBath: true, lightingType: 'center', flooringType: '', doors: [], windows: [] });
   }
 
   function removeRoom(id) {
@@ -545,7 +604,16 @@ export default function MaterialTakeOff() {
           {/* Step 1: Spacing & Systems */}
           {step === 1 && (
             <div>
-              {sectionHeader('Framing')}
+              {sectionHeader('Wall Finish')}
+              <Select label='Wall & Ceiling Finish' value={wallFinishType} onChange={setWallFinishType} options={[
+                { value: 'drywall', label: 'Standard Drywall (½" + joint compound)' },
+                { value: 'blueboard', label: 'Blue Board + Veneer Plaster / Skim Coat' },
+              ]} />
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: -8, marginBottom: 16, lineHeight: 1.5 }}>
+                {wallFinishType === 'drywall' && 'Standard ½" gypsum board, taped and finished with all-purpose joint compound.'}
+                {wallFinishType === 'blueboard' && 'Blue board (plaster base) with skim coat / veneer plaster finish — harder surface, common in MA renovations.'}
+              </div>
+              <div style={{ marginTop: 4 }}>{sectionHeader('Framing')}</div>
               <Select label='Stud Size' value={studSize} onChange={setStudSize} options={[
                 { value: '2x4', label: '2×4 Studs (partition walls / low-load)' },
                 { value: '2x6', label: '2×6 Studs (exterior walls — standard MA)' },
@@ -628,6 +696,15 @@ export default function MaterialTakeOff() {
                       <option value="center">Center Fixture (1 per room)</option>
                       <option value="recessed">Recessed Lighting (multiple)</option>
                     </select>
+                    <label style={{ ...labelStyle, marginTop: 10 }}>Flooring Type</label>
+                    <select value={newRoom.flooringType} onChange={e => setNewRoom(r => ({ ...r, flooringType: e.target.value }))} style={fieldStyle}>
+                      <option value="">Auto (by room type)</option>
+                      <option value="vinyl_plank">Vinyl Plank / LVP</option>
+                      <option value="carpet">Carpet + Pad</option>
+                      <option value="hardwood">Hardwood</option>
+                      <option value="tile">Floor Tile</option>
+                      <option value="concrete">Concrete / No Flooring</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -690,6 +767,15 @@ export default function MaterialTakeOff() {
                       <select value={editingRoom.lightingType || 'center'} onChange={e => setEditingRoom(r => ({ ...r, lightingType: e.target.value }))} style={fieldStyle}>
                         <option value="center">Center Fixture (1 per room)</option>
                         <option value="recessed">Recessed Lighting (multiple)</option>
+                      </select>
+                      <label style={{ ...labelStyle, marginTop: 10 }}>Flooring Type</label>
+                      <select value={editingRoom.flooringType || ''} onChange={e => setEditingRoom(r => ({ ...r, flooringType: e.target.value }))} style={fieldStyle}>
+                        <option value="">Auto (by room type)</option>
+                        <option value="vinyl_plank">Vinyl Plank / LVP</option>
+                        <option value="carpet">Carpet + Pad</option>
+                        <option value="hardwood">Hardwood</option>
+                        <option value="tile">Floor Tile</option>
+                        <option value="concrete">Concrete / No Flooring</option>
                       </select>
                     </div>
                   </div>
@@ -810,8 +896,9 @@ export default function MaterialTakeOff() {
                     wallSheathing: 'Wall Sheathing (per sheet)', roofSheathing: 'Roof Sheathing (per sheet)',
                     roofingSquares: 'Roofing (per square)', underlayment: 'Underlayment (per roll)',
                     insulation: 'Batt Insulation (per roll)', sprayFoamWall: 'Spray Foam — Walls (per sq ft)', sprayFoamRoof: 'Spray Foam — Hot Roof (per sq ft)',
-                    drywall: 'Drywall (per sheet)',
-                    paint: 'Paint (per gal)', flooring: 'Flooring (per sq ft)', tile: 'Tile (per sq ft)',
+                    drywall: '½" Drywall (per sheet)', blueBoard: '½" Blue Board (per sheet)', jointCompound: 'Joint Compound 4.5 gal (per bag)', skimCoat: 'Veneer Plaster / Skim Coat (per bag)',
+                    primer: 'Primer (per gal)', paint: 'Wall Paint — finish (per gal)', ceilingPaint: 'Ceiling Paint — flat (per gal)',
+                    hardwood: 'Hardwood Flooring (per sq ft)', vinylPlank: 'Vinyl Plank LVP (per sq ft)', carpetSY: 'Carpet + Pad (per sq yard)', tile: 'Floor Tile (per sq ft)',
                     cabinetLinFt: 'Kitchen Cabinets (per lin ft)',
                     baseboard: 'Baseboard (per lin ft)', doorCasing: 'Door Casing (per lin ft)', windowCasing: 'Window Casing (per lin ft)',
                     outlet: 'Standard Outlet (per pc)', gfiOutlet: 'GFI Outlet (per pc)',
