@@ -85,9 +85,9 @@ export default function JobDetail({ token }) {
 
   useEffect(() => { load(); }, [id]);
 
-  // Load margin data when audit tab becomes active
+  // Load margin data when assessment tab becomes active
   useEffect(() => {
-    if (activeTab !== 'audit' || !id) return;
+    if (activeTab !== 'assessment' || !id) return;
     setMarginLoading(true);
     fetch(`/api/jobs/${id}/margin`, { headers: { 'x-auth-token': token } })
       .then(r => r.ok ? r.json() : Promise.reject())
@@ -266,7 +266,7 @@ export default function JobDetail({ token }) {
   const proposalSession = sigSessions.find(s => s.doc_type === 'proposal');
   const contractSession = sigSessions.find(s => s.doc_type === 'contract');
 
-  const TABS = ['overview', 'history', 'payments', 'photos', 'signatures', 'proposal', 'contract', 'conversation', 'audit'];
+  const TABS = ['overview', 'history', 'payments', 'photos', 'signatures', 'proposal', 'contract', 'conversation', 'assessment'];
 
   // ── Read Receipt Badge ────────────────────────────────────────────────────
   const ReadReceiptBadge = ({ session, label }) => {
@@ -683,7 +683,7 @@ export default function JobDetail({ token }) {
               color: activeTab === tab ? BLUE : '#888',
               borderBottom: activeTab === tab ? `2px solid ${BLUE}` : '2px solid transparent',
               marginBottom: -2, textTransform: 'capitalize' }}>
-            {tab === 'signatures' ? '✍️ Signatures' : tab === 'payments' ? '💰 Payments' : tab === 'history' ? '📋 Version History' : tab === 'audit' ? '📊 Assessment' : tab}
+            {tab === 'signatures' ? '✍️ Signatures' : tab === 'payments' ? '💰 Payments' : tab === 'history' ? '📋 Version History' : tab === 'assessment' ? '📊 Assessment' : tab}
           </button>
         ))}
       </div>
@@ -972,8 +972,8 @@ export default function JobDetail({ token }) {
           </div>
         )}
 
-        {/* AUDIT — Proposal Assessment */}
-        {activeTab === 'audit' && (() => {
+        {/* ASSESSMENT — Proposal Assessment */}
+        {activeTab === 'assessment' && (() => {
           const pd = job.proposal_data;
           const lineItems = pd?.lineItems || [];
           const isLocked = ['proposal_approved','customer_approved','contract_ready','contract_sent','contract_signed','complete'].includes(job.status);
@@ -996,19 +996,32 @@ export default function JobDetail({ token }) {
           const totalVal    = Number(pd?.totalValue  || job.total_value   || 0);
           const depositAmt  = Number(pd?.depositAmount || job.deposit_amount || 0);
           const depositPct  = totalVal > 0 ? Math.round((depositAmt / totalVal) * 100) : 0;
-          const depositOk   = depositPct >= 30 && depositPct <= 36;
+          const depositOk   = depositPct >= 28 && depositPct <= 38;
 
-          // ── Project-type range band ───────────────────────────────────────
-          const projType = pd?.project?.type || '';
-          const tradeNames = lineItems.map(li => (li.trade || '').toLowerCase());
-          const isGarage = tradeNames.some(t => t.includes('garage')) || projType === 'adu'
-                           || (pd?.project?.description || '').toLowerCase().includes('garage');
+          // ── ADU / Garage detection (keyword overlay — separate from project.type) ─
+          const projType    = pd?.project?.type || '';
+          const tradeNames  = lineItems.map(li => (li.trade || '').toLowerCase());
+          const jobNameLc   = (job.project_name || job.address || '').toLowerCase();
+          const descLc      = (pd?.project?.description || '').toLowerCase();
+          const aduKeywords = ['adu','garage apartment','carriage house','in-law','inlaw','garage with apartment','accessory dwelling'];
+          const garageKw    = ['garage','detached garage','attached garage'];
+          const isADU       = projType === 'adu'
+                              || aduKeywords.some(k => jobNameLc.includes(k) || descLc.includes(k) || tradeNames.some(t => t.includes(k)));
+          const isGarage    = !isADU && (
+                              garageKw.some(k => jobNameLc.includes(k) || descLc.includes(k))
+                              || tradeNames.some(t => t.includes('garage door') || t.includes('garage slab'))
+                            );
+          const aduOnSeptic = pd?.job?.adu?.on_septic === true;
+
+          // ── Project-type $/sqft band ──────────────────────────────────────
           const TYPE_BANDS = {
-            adu:              { label: 'Garage / ADU',             low: 85,  mid: 140, high: 200 },
-            new_construction: { label: 'Custom Home / New Build',  low: 180, mid: 250, high: 350 },
-            renovation:       { label: 'Addition / Renovation',    low: 150, mid: 220, high: 300 },
+            garage:           { label: 'Detached Garage',           low: 85,  mid: 120, high: 160 },
+            adu:              { label: 'Garage w/ Apartment / ADU', low: 130, mid: 190, high: 250 },
+            new_construction: { label: 'Custom Home / New Build',   low: 180, mid: 250, high: 350 },
+            renovation:       { label: 'Addition / Renovation',     low: 150, mid: 220, high: 300 },
           };
-          const band = TYPE_BANDS[projType] || (isGarage ? TYPE_BANDS.adu : null);
+          const bandKey = isGarage ? 'garage' : isADU ? 'adu' : projType || null;
+          const band    = bandKey ? (TYPE_BANDS[bandKey] || null) : null;
           const bandStatus = band && sqftPrice
             ? (sqftPrice < band.low ? 'low' : sqftPrice <= band.mid ? 'good_low' : sqftPrice <= band.high ? 'good_high' : 'high')
             : null;
@@ -1017,7 +1030,34 @@ export default function JobDetail({ token }) {
           const BAND_TEXT  = { low: '#92400e',    good_low: '#166534',            good_high: '#166534',          high: '#991b1b' };
 
           // ── Expected trades by project type ──────────────────────────────
+          const BASE_ADU_TRADES = [
+            { label: 'Foundation / Slab',   kw: ['foundation','slab','concrete','crawl','pier','footing'] },
+            { label: 'Framing',             kw: ['framing','frame','structural'] },
+            { label: 'Roofing',             kw: ['roof','shingle','standing seam','metal roof'] },
+            { label: 'Siding',              kw: ['siding','hardie','fiber cement','clapboard','board & batten'] },
+            { label: 'Electrical',          kw: ['electric','wiring','panel'] },
+            { label: 'Permits',             kw: ['permit','fee','stretch code'] },
+          ];
           const EXPECTED_TRADES = {
+            garage: [
+              { label: 'Foundation / Slab',   kw: ['foundation','slab','concrete','crawl','pier','footing'] },
+              { label: 'Framing',             kw: ['framing','frame','structural'] },
+              { label: 'Roofing',             kw: ['roof','shingle','standing seam','metal roof'] },
+              { label: 'Siding / Exterior',   kw: ['siding','hardie','fiber cement','clapboard','board & batten'] },
+              { label: 'Electrical',          kw: ['electric','wiring','panel'] },
+              { label: 'Permits',             kw: ['permit','fee','stretch code'] },
+            ],
+            adu: [
+              ...BASE_ADU_TRADES,
+              { label: 'Plumbing',            kw: ['plumbing','pipe','drain','fixture'] },
+              { label: 'HVAC / Mini-Split',   kw: ['hvac','heat','mini-split','furnace','erv','mechanical'] },
+              { label: 'Insulation',          kw: ['insulation','spray foam','batt','blown'] },
+              { label: 'Drywall / Plaster',   kw: ['drywall','sheetrock','plaster','blueboard'] },
+              ...(aduOnSeptic ? [
+                { label: 'Title 5 / Septic Inspection', kw: ['title 5','title5','septic inspection','perc test'] },
+                { label: 'Septic / Site Work',          kw: ['septic','leach','site work','excavat','well'] },
+              ] : []),
+            ],
             new_construction: [
               { label: 'Foundation / Slab',   kw: ['foundation','slab','concrete','crawl','pier','footing'] },
               { label: 'Framing',             kw: ['framing','frame','structural'] },
@@ -1031,48 +1071,49 @@ export default function JobDetail({ token }) {
               { label: 'Drywall',             kw: ['drywall','sheetrock','plaster','blueboard'] },
               { label: 'Permits',             kw: ['permit','fee','stretch code'] },
             ],
-            adu: [
-              { label: 'Foundation / Slab',   kw: ['foundation','slab','concrete','crawl','pier','footing'] },
-              { label: 'Framing',             kw: ['framing','frame','structural'] },
-              { label: 'Roofing',             kw: ['roof','shingle','standing seam','metal roof'] },
-              { label: 'Siding',              kw: ['siding','hardie','fiber cement','clapboard'] },
-              { label: 'Electrical',          kw: ['electric','wiring','panel'] },
-              { label: 'Permits',             kw: ['permit','fee','stretch code'] },
-            ],
             renovation: [
               { label: 'Electrical',          kw: ['electric','wiring','panel'] },
               { label: 'Plumbing',            kw: ['plumbing','pipe','drain','fixture'] },
               { label: 'Permits',             kw: ['permit','fee','stretch code'] },
             ],
           };
-          const expectedTrades = EXPECTED_TRADES[projType] || [];
+          const expectedTradesKey = isGarage ? 'garage' : isADU ? 'adu' : projType || null;
+          const expectedTrades = expectedTradesKey ? (EXPECTED_TRADES[expectedTradesKey] || []) : [];
           const missingTrades = expectedTrades.filter(et =>
             !tradeNames.some(t => et.kw.some(k => t.includes(k)))
           );
 
+          // BENCHMARKS: note = display text; low/high = numeric sub-cost floor/ceiling (null = no range check)
           const BENCHMARKS = [
-            { kw: ['foundation','slab','concrete','basement','crawl','pier','footing'],          note: '$18–55/sqft depending on type' },
-            { kw: ['framing','frame','structural','lvl','tji'],                                  note: '$45–70/sqft (labor + materials)' },
-            { kw: ['roof','shingle','metal roofing','tpo','standing seam'],                      note: '$450–650/sq; $18–28/sqft metal' },
-            { kw: ['siding','hardie','fiber cement','vinyl siding','clapboard','board & batten'],note: '$4–20/sqft installed' },
-            { kw: ['window','door','entry door','garage door'],                                  note: '$600–4,500 each by type' },
-            { kw: ['electric','wiring','panel','service upgrade','circuit'],                     note: '$12–20/sqft full house' },
-            { kw: ['plumbing','pipe','drain','fixture','bath rough','kitchen rough'],             note: '$1,500–8,000/trade scope' },
-            { kw: ['hvac','heat','mini-split','minisplit','furnace','erv','mechanical'],          note: '$3,500–20,000+ per system' },
-            { kw: ['insulation','spray foam','batt','blown','rigid foam'],                       note: '$1.20–6/sqft by type' },
-            { kw: ['drywall','sheetrock','plaster','skim coat','blueboard'],                     note: '$3.50–6/sqft hang & finish' },
-            { kw: ['permit','fee','inspection','compliance','stretch code'],                     note: '0.5–1.5% of project value' },
-            { kw: ['demo','demolition','removal','tear out'],                                    note: 'Varies by scope' },
-            { kw: ['floor','tile','hardwood','carpet','lvp','vinyl plank'],                      note: '$5–25/sqft installed' },
-            { kw: ['cabinet','kitchen','counter','quartz','granite'],                            note: 'Mid-range kitchen $25K–50K' },
-            { kw: ['painting','interior paint','exterior paint'],                               note: '$1.50–4/sqft interior; $2–5/sqft exterior (labor + materials)' },
-            { kw: ['trim','baseboard','millwork','interior finish','crown molding'],             note: 'Interior finishes pkg: $35K–120K per 1,000 sqft (full scope)' },
-            { kw: ['site work','excavat','grading','septic','well','driveway'],                  note: 'Typically excluded — verify' },
-            { kw: ['dumpster','disposal','waste'],                                               note: '$500–1,500 typical' },
+            { kw: ['foundation','slab','concrete','basement','crawl','pier','footing'],          note: '$18–55/sqft (sub cost)',          low: 5000,  high: 80000 },
+            { kw: ['framing','frame','structural','lvl','tji'],                                  note: '$45–70/sqft labor+materials',     low: 8000,  high: 200000 },
+            { kw: ['roof','shingle','metal roofing','tpo','standing seam'],                      note: '$450–650/sq; $18–28/sqft metal',  low: 3000,  high: 60000 },
+            { kw: ['siding','hardie','fiber cement','vinyl siding','clapboard','board & batten'],note: '$4–20/sqft installed',            low: 2000,  high: 50000 },
+            { kw: ['window','door','entry door','garage door'],                                  note: '$600–4,500 each by type',         low: 600,   high: 40000 },
+            { kw: ['electric','wiring','panel','service upgrade','circuit'],                     note: '$12–20/sqft full house',          low: 2000,  high: 50000 },
+            { kw: ['plumbing','pipe','drain','fixture','bath rough','kitchen rough'],             note: '$1,500–8,000/trade scope',        low: 1500,  high: 30000 },
+            { kw: ['hvac','heat','mini-split','minisplit','furnace','erv','mechanical'],          note: '$3,500–20,000+ per system',       low: 3500,  high: 50000 },
+            { kw: ['insulation','spray foam','batt','blown','rigid foam'],                       note: '$1.20–6/sqft by type',            low: 800,   high: 25000 },
+            { kw: ['drywall','sheetrock','plaster','skim coat','blueboard'],                     note: '$3.50–6/sqft hang & finish',      low: 1500,  high: 40000 },
+            { kw: ['permit','fee','inspection','compliance','stretch code'],                     note: '0.5–1.5% of project value',       low: 500,   high: 15000 },
+            { kw: ['demo','demolition','removal','tear out'],                                    note: 'Varies by scope',                 low: null,  high: null },
+            { kw: ['floor','tile','hardwood','carpet','lvp','vinyl plank'],                      note: '$5–25/sqft installed',            low: 1000,  high: 40000 },
+            { kw: ['cabinet','kitchen','counter','quartz','granite'],                            note: 'Mid-range kitchen $25K–50K',      low: 5000,  high: 80000 },
+            { kw: ['painting','interior paint','exterior paint'],                               note: '$1.50–4/sqft interior',           low: 500,   high: 15000 },
+            { kw: ['trim','baseboard','millwork','interior finish','crown molding'],             note: 'Interior finishes pkg $35K–120K', low: 5000,  high: 120000 },
+            { kw: ['septic','title 5','title5','leach field'],                                  note: 'Title 5 + septic $3K–30K+',       low: 1500,  high: 60000 },
+            { kw: ['site work','excavat','grading','well','driveway'],                           note: 'Typically excluded — verify',     low: null,  high: null },
+            { kw: ['dumpster','disposal','waste'],                                               note: '$500–1,500 typical',              low: 400,   high: 2500 },
           ];
           const matchBench = (trade) => {
             const lc = (trade || '').toLowerCase();
             return BENCHMARKS.find(b => b.kw.some(k => lc.includes(k)));
+          };
+          const benchStatus = (bench, baseCost) => {
+            if (!bench || bench.low == null) return 'unknown';
+            if (baseCost < bench.low * 0.5) return 'low';
+            if (baseCost > bench.high * 2.0) return 'high';
+            return 'ok';
           };
 
           return (
@@ -1237,15 +1278,21 @@ export default function JobDetail({ token }) {
                     )}
                   </div>
 
-                  {/* Flagged items */}
-                  {pd.flaggedItems?.length > 0 && (
-                    <div style={{ background: '#FFF8F0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
-                      <strong style={{ color: ORANGE, fontSize: 13 }}>⚠️ Items Flagged by AI ({pd.flaggedItems.length})</strong>
-                      <ul style={{ margin: '8px 0 0 18px', fontSize: 13, color: '#5D3A00' }}>
-                        {pd.flaggedItems.map((f, i) => <li key={i}>{f}</li>)}
-                      </ul>
-                    </div>
-                  )}
+                  {/* Flagged items — prefer job.flagged_items (persisted DB column), fall back to pd.flaggedItems */}
+                  {(() => {
+                    const flags = (Array.isArray(job.flagged_items) && job.flagged_items.length > 0)
+                      ? job.flagged_items
+                      : (pd.flaggedItems?.length > 0 ? pd.flaggedItems : []);
+                    if (flags.length === 0) return null;
+                    return (
+                      <div style={{ background: '#FFF8F0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+                        <strong style={{ color: ORANGE, fontSize: 13 }}>⚠️ Items Flagged by AI ({flags.length})</strong>
+                        <ul style={{ margin: '8px 0 0 18px', fontSize: 13, color: '#5D3A00' }}>
+                          {flags.map((f, i) => <li key={i}>{f}</li>)}
+                        </ul>
+                      </div>
+                    );
+                  })()}
 
                   {/* Missing trades check */}
                   {missingTrades.length > 0 && (
@@ -1253,7 +1300,7 @@ export default function JobDetail({ token }) {
                       <strong style={{ color: '#92400e', fontSize: 13 }}>
                         ⚠️ Expected Trades Not Found ({missingTrades.length})
                         <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 8, color: '#b45309' }}>
-                          — typical for a {band ? band.label : projType || 'this project type'}
+                          — typical for a {band ? band.label : 'this project type'}
                         </span>
                       </strong>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
@@ -1265,12 +1312,13 @@ export default function JobDetail({ token }) {
                       </div>
                       <div style={{ fontSize: 11, color: '#b45309', marginTop: 8 }}>
                         These trades are typically scoped in a {band ? band.label : 'this type of project'} but appear missing from the estimate. Confirm with the sub or verify the scope intentionally excludes them.
+                        {isADU && aduOnSeptic && ' Note: ADU on private septic — Title 5 inspection + septic work may be required.'}
                       </div>
                     </div>
                   )}
                   {missingTrades.length === 0 && expectedTrades.length > 0 && (
                     <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 12, color: '#166534' }}>
-                      ✅ All expected trades present for a {band ? band.label : projType} project
+                      ✅ All expected trades present for a {band ? band.label : (projType || 'this')} project
                     </div>
                   )}
 
@@ -1283,17 +1331,26 @@ export default function JobDetail({ token }) {
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>Sub Cost</th>
                         <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>Client Price</th>
                         <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>PB Benchmark Range</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'center', fontWeight: 600 }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {lineItems.map((li, i) => {
                         const bench = matchBench(li.trade);
+                        const bc    = Number(li.baseCost) || 0;
+                        const bs    = benchStatus(bench, bc);
+                        const statusIcon = bs === 'ok' ? '✅' : bs === 'low' ? '⚠️ Low' : bs === 'high' ? '🔴 High' : '—';
+                        const statusColor = bs === 'ok' ? '#166534' : bs === 'low' ? '#92400e' : bs === 'high' ? '#991b1b' : '#aaa';
+                        const rowBg = bs === 'high' ? '#fff1f2' : bs === 'low' ? '#fffbeb' : (i % 2 === 0 ? 'white' : '#f8f8f8');
                         return (
-                          <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#f8f8f8', borderBottom: '1px solid #eee' }}>
+                          <tr key={i} style={{ background: rowBg, borderBottom: '1px solid #eee' }}>
                             <td style={{ padding: '8px 10px', color: '#333' }}>{li.trade}</td>
-                            <td style={{ padding: '8px 10px', textAlign: 'right', color: '#777' }}>${(Number(li.baseCost) || 0).toLocaleString()}</td>
+                            <td style={{ padding: '8px 10px', textAlign: 'right', color: '#777' }}>${bc.toLocaleString()}</td>
                             <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: BLUE }}>${(Number(li.finalPrice) || 0).toLocaleString()}</td>
-                            <td style={{ padding: '8px 10px', color: bench ? '#555' : '#bbb', fontSize: 12 }}>{bench ? bench.note : '—'}</td>
+                            <td style={{ padding: '8px 10px', color: bench ? '#555' : '#bbb', fontSize: 12 }} title={bench ? `Range: $${bench.low?.toLocaleString()}–$${bench.high?.toLocaleString()} (sub cost)` : ''}>
+                              {bench ? bench.note : '—'}
+                            </td>
+                            <td style={{ padding: '8px 10px', textAlign: 'center', fontSize: 12, fontWeight: 600, color: statusColor }}>{statusIcon}</td>
                           </tr>
                         );
                       })}
@@ -1301,6 +1358,7 @@ export default function JobDetail({ token }) {
                         <td style={{ padding: '10px', color: BLUE }}>TOTAL</td>
                         <td style={{ padding: '10px', textAlign: 'right', color: '#555' }}>${subTotal.toLocaleString()}</td>
                         <td style={{ padding: '10px', textAlign: 'right', color: BLUE }}>${clientTotal.toLocaleString()}</td>
+                        <td style={{ padding: '10px' }}></td>
                         <td style={{ padding: '10px' }}></td>
                       </tr>
                     </tbody>
