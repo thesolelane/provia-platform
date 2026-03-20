@@ -85,15 +85,14 @@ export default function JobDetail({ token }) {
 
   useEffect(() => { load(); }, [id]);
 
-  // Load margin data when assessment tab becomes active
+  // Load margin data when job loads (Financial Health Check — added by Task #16)
   useEffect(() => {
-    if (activeTab !== 'assessment' || !id) return;
-    setMarginLoading(true);
+    if (!id) return;
     fetch(`/api/jobs/${id}/margin`, { headers: { 'x-auth-token': token } })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => { setMarginData(data); setMarginLoading(false); })
       .catch(() => { setMarginData(null); setMarginLoading(false); });
-  }, [activeTab, id, token]);
+  }, [id, token]);
 
   // Auto-refresh via SSE when job is processing — no manual refresh needed
   useEffect(() => {
@@ -1019,6 +1018,7 @@ export default function JobDetail({ token }) {
             adu:              { label: 'Garage w/ Apartment / ADU', low: 130, mid: 190, high: 250 },
             new_construction: { label: 'Custom Home / New Build',   low: 180, mid: 250, high: 350 },
             renovation:       { label: 'Addition / Renovation',     low: 150, mid: 220, high: 300 },
+            addition:         { label: 'Addition / Renovation',     low: 150, mid: 220, high: 300 },
           };
           const bandKey = isGarage ? 'garage' : isADU ? 'adu' : projType || null;
           const band    = bandKey ? (TYPE_BANDS[bandKey] || null) : null;
@@ -1076,8 +1076,14 @@ export default function JobDetail({ token }) {
               { label: 'Plumbing',            kw: ['plumbing','pipe','drain','fixture'] },
               { label: 'Permits',             kw: ['permit','fee','stretch code'] },
             ],
+            addition: [
+              { label: 'Electrical',          kw: ['electric','wiring','panel'] },
+              { label: 'Plumbing',            kw: ['plumbing','pipe','drain','fixture'] },
+              { label: 'Permits',             kw: ['permit','fee','stretch code'] },
+            ],
           };
-          const expectedTradesKey = isGarage ? 'garage' : isADU ? 'adu' : projType || null;
+          const expectedTradesKey = isGarage ? 'garage' : isADU ? 'adu'
+            : (projType === 'addition' ? 'addition' : projType) || null;
           const expectedTrades = expectedTradesKey ? (EXPECTED_TRADES[expectedTradesKey] || []) : [];
           const missingTrades = expectedTrades.filter(et =>
             !tradeNames.some(t => et.kw.some(k => t.includes(k)))
