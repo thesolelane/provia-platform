@@ -972,8 +972,15 @@ export default function JobDetail({ token }) {
           const effectiveMult = subTotal > 0 ? clientTotal / subTotal : 0;
           const multOk = effectiveMult >= 1.55 && effectiveMult <= 1.62;
 
-          const sqftPrice   = pd?.pricing?.pricePerSqft;
+          const projectSqft = Number(pd?.project?.sqft) || 0;
+          const sqftPrice   = pd?.pricing?.pricePerSqft
+                              || (projectSqft > 0 && clientTotal > 0 ? Math.round(clientTotal / projectSqft) : null);
           const sqftWarning = pd?.pricing?.sqftWarning;
+          const sqftTargetLow  = pd?.pricing?.sqftTargetLow  || 320;
+          const sqftTargetHigh = pd?.pricing?.sqftTargetHigh || 350;
+          const computedSqftWarning = sqftPrice && !sqftWarning
+            ? (sqftPrice < sqftTargetLow ? 'below' : sqftPrice > sqftTargetHigh ? 'above' : null)
+            : sqftWarning;
           const totalVal    = Number(pd?.totalValue  || job.total_value   || 0);
           const depositAmt  = Number(pd?.depositAmount || job.deposit_amount || 0);
           const depositPct  = totalVal > 0 ? Math.round((depositAmt / totalVal) * 100) : 0;
@@ -1035,13 +1042,15 @@ export default function JobDetail({ token }) {
                       <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>Estimate Total</div>
                       <div style={{ fontSize: 20, fontWeight: 700, color: BLUE }}>${totalVal.toLocaleString()}</div>
                     </div>
-                    <div style={{ background: sqftWarning === 'below' ? '#fff3cd' : sqftWarning === 'above' ? '#fde8e8' : sqftPrice ? '#f0fdf4' : '#f8f8f8', borderRadius: 8, padding: 14, textAlign: 'center' }}>
+                    <div style={{ background: computedSqftWarning === 'below' ? '#fff3cd' : computedSqftWarning === 'above' ? '#fde8e8' : sqftPrice ? '#f0fdf4' : '#f8f8f8', borderRadius: 8, padding: 14, textAlign: 'center' }}>
                       <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>Price / Sq Ft</div>
-                      <div style={{ fontSize: 20, fontWeight: 700, color: sqftWarning ? (sqftWarning === 'below' ? '#92400e' : '#991b1b') : sqftPrice ? '#166534' : '#aaa' }}>
-                        {sqftPrice ? `$${sqftPrice}/sqft` : '—'}
+                      <div style={{ fontSize: 20, fontWeight: 700, color: computedSqftWarning ? (computedSqftWarning === 'below' ? '#92400e' : '#991b1b') : sqftPrice ? '#166534' : '#aaa' }}>
+                        {sqftPrice ? `$${sqftPrice.toLocaleString()}/sqft` : '—'}
                       </div>
-                      {sqftWarning && <div style={{ fontSize: 10, color: sqftWarning === 'below' ? '#92400e' : '#991b1b', marginTop: 2 }}>⚠️ {sqftWarning === 'below' ? 'Below' : 'Above'} target range</div>}
-                      {!sqftWarning && sqftPrice && <div style={{ fontSize: 10, color: '#166534', marginTop: 2 }}>✅ In target range</div>}
+                      {projectSqft > 0 && <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>{projectSqft.toLocaleString()} sqft project</div>}
+                      {computedSqftWarning && <div style={{ fontSize: 10, color: computedSqftWarning === 'below' ? '#92400e' : '#991b1b', marginTop: 2 }}>⚠️ {computedSqftWarning === 'below' ? `Below` : `Above`} target (${sqftTargetLow}–${sqftTargetHigh}/sqft)</div>}
+                      {!computedSqftWarning && sqftPrice && <div style={{ fontSize: 10, color: '#166534', marginTop: 2 }}>✅ In target range ({sqftTargetLow}–{sqftTargetHigh}/sqft)</div>}
+                      {!sqftPrice && <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>Sqft not found in estimate</div>}
                     </div>
                     <div style={{ background: depositAmt > 0 ? (depositOk ? '#f0fdf4' : '#fff3cd') : '#f8f8f8', borderRadius: 8, padding: 14, textAlign: 'center' }}>
                       <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>Deposit</div>
