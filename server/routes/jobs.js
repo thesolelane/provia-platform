@@ -1091,7 +1091,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
   })();
 });
 
-// POST /:id/revise — reopen any estimate for editing (bumps version, resets to proposal_ready)
+// POST /:id/revise — reopen any estimate for editing (bumps version, resets to review_pending so line-item editor opens)
 router.post('/:id/revise', requireAuth, requireRole('admin', 'pm', 'system_admin'), (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ? AND archived = 0').get(req.params.id);
