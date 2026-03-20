@@ -206,10 +206,6 @@ export default function Contacts({ token }) {
                     { label: 'Full Name', key: 'name', placeholder: 'John Smith' },
                     { label: 'Phone', key: 'phone', placeholder: '+1 555 000 0000' },
                     { label: 'Email', key: 'email', placeholder: 'john@email.com' },
-                    { label: 'Street Address', key: 'address', placeholder: '123 Main St' },
-                    { label: 'City', key: 'city', placeholder: 'Fitchburg' },
-                    { label: 'State', key: 'state', placeholder: 'MA' },
-                    { label: 'ZIP', key: 'zip', placeholder: '01420' },
                   ].map(f => (
                     <div key={f.key}>
                       <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 3 }}>{f.label}</label>
@@ -221,6 +217,47 @@ export default function Contacts({ token }) {
                       />
                     </div>
                   ))}
+                </div>
+
+                {/* Owner Mailing Address section */}
+                <div style={{ borderTop: '1px solid #eee', paddingTop: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: 1 }}>Owner Mailing Address</div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#555', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={!form.address && !form.city && !form.zip}
+                        onChange={e => {
+                          if (e.target.checked) setForm({ ...form, address: '', city: '', state: 'MA', zip: '' });
+                        }}
+                      />
+                      Same as project address
+                    </label>
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 8 }}>
+                    Owner's home or billing address — appears on the contract. Leave blank if the owner lives at the job site.
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    { label: 'Street Address', key: 'address', placeholder: '123 Main St', span: 2 },
+                    { label: 'City', key: 'city', placeholder: 'Fitchburg' },
+                    { label: 'State', key: 'state', placeholder: 'MA' },
+                    { label: 'ZIP', key: 'zip', placeholder: '01420' },
+                  ].map(f => (
+                    <div key={f.key} style={f.span ? { gridColumn: `span ${f.span}` } : {}}>
+                      <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 3 }}>{f.label}</label>
+                      <input
+                        value={form[f.key]}
+                        onChange={e => setForm({ ...form, [f.key]: e.target.value })}
+                        placeholder={f.placeholder}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  ))}
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
                   <div>
                     <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 3 }}>Customer Type</label>
                     <select value={form.customer_type} onChange={e => setForm({ ...form, customer_type: e.target.value })}
@@ -254,7 +291,7 @@ export default function Contacts({ token }) {
                   {[
                     { label: 'Phone', value: selected?.phone },
                     { label: 'Email', value: selected?.email },
-                    { label: 'Address', value: [selected?.address, selected?.city, selected?.state, selected?.zip].filter(Boolean).join(', ') },
+                    { label: 'Mailing', value: [selected?.address, selected?.city, selected?.state, selected?.zip].filter(Boolean).join(', ') || '(same as project)' },
                     { label: 'Type', value: selected?.customer_type },
                     { label: 'Source', value: SOURCE_LABELS[selected?.source] || selected?.source },
                     { label: 'Added', value: selected?.created_at ? new Date(selected.created_at).toLocaleDateString() : null },

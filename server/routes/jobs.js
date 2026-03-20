@@ -473,6 +473,22 @@ router.post('/:id/approve', requireAuth, requireRole('admin', 'pm', 'system_admi
 
     const { generateContract } = require('../services/claudeService');
     const proposalData = JSON.parse(job.proposal_data);
+
+    // Inject owner address from contact record if not already in proposal data
+    if (!proposalData.customer) proposalData.customer = {};
+    if (!proposalData.customer.address_line1 && job.contact_id) {
+      const contact = db.prepare('SELECT address, city, state, zip FROM contacts WHERE id = ?').get(job.contact_id);
+      if (contact?.address) {
+        proposalData.customer.address_line1  = contact.address;
+        proposalData.customer.city_state_zip = [contact.city, contact.state, contact.zip].filter(Boolean).join(', ');
+      }
+    }
+    // If still no owner address, fall back to project address (owner lives at job site)
+    if (!proposalData.customer.address_line1 && job.project_address) {
+      proposalData.customer.address_line1  = job.project_address;
+      proposalData.customer.city_state_zip = [job.project_city, 'MA'].filter(Boolean).join(', ');
+    }
+
     const contractData = await generateContract(proposalData, job.id, 'en');
 
     const contractPDF = await generatePDF(contractData, 'contract', job.id);
