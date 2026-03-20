@@ -370,6 +370,7 @@ async function initDatabase() {
   addColIfMissing('payments_made', 'time_paid', 'TEXT');
   addColIfMissing('payments_made', 'credit_debit', "TEXT NOT NULL DEFAULT 'debit'");
   addColIfMissing('payments_made', 'recorded_by', 'TEXT');
+  addColIfMissing('jobs', 'takeoff_data', 'TEXT');
 
   seedDefaultSettings();
   seedDefaultSenders();

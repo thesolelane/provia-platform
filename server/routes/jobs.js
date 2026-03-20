@@ -285,6 +285,19 @@ function stripPII(text) {
     .replace(/\b(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g, '[phone-redacted]');
 }
 
+// PATCH /:id/takeoff — save material take-off data to a job
+router.patch('/:id/takeoff', requireAuth, (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT id FROM jobs WHERE id = ? AND archived = 0').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  const { takeoffData } = req.body;
+  if (!takeoffData) return res.status(400).json({ error: 'takeoffData is required' });
+  db.prepare('UPDATE jobs SET takeoff_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(JSON.stringify(takeoffData), req.params.id);
+  logAudit(req.params.id, 'takeoff_saved', 'Material take-off saved', req.session?.name || 'user');
+  res.json({ success: true });
+});
+
 // GET archived jobs (must be before /:id route)
 router.get('/archived/list', requireAuth, (req, res) => {
   const db = getDb();

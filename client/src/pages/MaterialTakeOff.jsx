@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const STEPS = ['Building', 'Spacing & HVAC', 'Rooms', 'Openings', 'Prices', 'Results'];
 
@@ -30,6 +30,11 @@ const DEFAULT_PRICES = {
   carpetSY: 28.00,
   tile: 3.50,
   // (legacy 'flooring' key removed — use vinylPlank/carpetSY/hardwood/tile)
+  typeXDrywall: 20.00,
+  greenBoard: 19.00,
+  hwBaseboard: 25.00,
+  expansionTank: 150.00,
+  circulatorPump: 350.00,
   cabinetLinFt: 150.00,
   baseboard: 1.20,
   doorCasing: 1.20,
@@ -81,7 +86,7 @@ function getJoistSize(span) {
   return 'LVL / Engineered';
 }
 
-function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize, wallFinishType) {
+function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize, wallFinishType, joistType) {
   const { length, width, floors, wallHeight, pitch, overhang, slabThickness, hasSlab } = building;
   const L = parseFtIn(length);
   const W = parseFtIn(width);
@@ -94,12 +99,23 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
   const studOC = studSpacing === '16' ? 16 : 24;
   const trussOC = trussSpacing === '16' ? 16 : 24;
   const sSize = studSize || '2x6';
-  const joistSize = getJoistSize(W);
+  const jType = joistType || 'auto';
+  const JOIST_LABELS = {
+    'auto': getJoistSize(W),
+    '2x8': '2×8', '2x10': '2×10', '2x12': '2×12',
+    'tji_95': 'TJI® 9½"', 'tji_118': 'TJI® 11⅞"', 'tji_14': 'TJI® 14"', 'tji_16': 'TJI® 16"',
+  };
+  const joistSize = JOIST_LABELS[jType] || getJoistSize(W);
+  const isTJI = jType.startsWith('tji');
   const wallHft = Math.ceil(WH) + 1;
   const studLabel = `${sSize} × ${wallHft}' Stud`;
   const plateLabel = `${sSize} Plate`;
-  const joistLabel = `${joistSize} Floor Joist × ${Math.ceil(W + 2)}'`;
-  const rimLabel = `${joistSize} Rim Board`;
+  const joistLabel = isTJI
+    ? `${joistSize} TJI® Joist × ${Math.ceil(W + 2)}' (engineered)`
+    : `${joistSize} Floor Joist × ${Math.ceil(W + 2)}'`;
+  const rimLabel = isTJI
+    ? `${joistSize} TJI® Rim / Blocking`
+    : `${joistSize} Rim Board`;
 
   const perimeterExt = 2 * (L + W);
 
@@ -300,6 +316,18 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
       { name: 'Boiler', qty: boilers, unit: 'pcs', priceKey: 'boiler' },
       { name: 'Thermostat (per zone)', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' },
     ];
+  } else if (ht === 'fhw_boiler') {
+    const boilers = Math.max(Math.ceil(totalBuildingSF / 3500), 1);
+    const hwBaseboardLF = Math.ceil(totalBuildingSF / 8);
+    const circulators = Math.max(FL, 1);
+    const thermostats = Math.max(FL, 1);
+    hvacItems = [
+      { name: 'Hot Water Boiler (gas/oil)', qty: boilers, unit: 'pcs', priceKey: 'boiler' },
+      { name: 'Hot Water Baseboard (fin-tube)', qty: hwBaseboardLF, unit: 'lin ft', priceKey: 'hwBaseboard' },
+      { name: 'Expansion Tank', qty: boilers, unit: 'pcs', priceKey: 'expansionTank' },
+      { name: 'Circulator Pump', qty: circulators, unit: 'pcs', priceKey: 'circulatorPump' },
+      { name: 'Thermostat (per zone)', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' },
+    ];
   } else if (ht === 'steam') {
     const boilers = Math.max(Math.ceil(totalBuildingSF / 3000), 1);
     const radiators = heatedRoomCount;
@@ -350,15 +378,23 @@ function runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingTyp
     { group: '4 · Roofing', name: 'Roofing', qty: roofingSquares, unit: 'squares', priceKey: 'roofingSquares' },
     { group: '4 · Roofing', name: 'Underlayment', qty: underlaymentRolls, unit: 'rolls', priceKey: 'underlayment' },
     ...insulationItems,
-    // Drywall / Blue Board
+    // Drywall / Finish — by wall finish type
     ...(wallFinishType === 'blueboard' ? [
       { group: '6 · Drywall / Blue Board', name: '½" Blue Board — Walls (4×8 sheets)', qty: wallDrywallSheets, unit: 'sheets', priceKey: 'blueBoard' },
       { group: '6 · Drywall / Blue Board', name: '½" Blue Board — Ceiling (4×8 sheets)', qty: ceilingDrywallSheets, unit: 'sheets', priceKey: 'blueBoard' },
       { group: '6 · Drywall / Blue Board', name: 'Veneer Plaster / Skim Coat (50 lb bag)', qty: skimCoatBags, unit: 'bags', priceKey: 'skimCoat' },
+    ] : wallFinishType === 'type_x' ? [
+      { group: '6 · Drywall', name: '5/8" Type X (Fire-Rated) — Walls (4×8 sheets)', qty: wallDrywallSheets, unit: 'sheets', priceKey: 'typeXDrywall' },
+      { group: '6 · Drywall', name: '5/8" Type X (Fire-Rated) — Ceiling (4×8 sheets)', qty: ceilingDrywallSheets, unit: 'sheets', priceKey: 'typeXDrywall' },
+      { group: '6 · Drywall', name: 'Joint Compound (4.5 gal all-purpose)', qty: jointCompoundBags, unit: 'bags', priceKey: 'jointCompound' },
+    ] : wallFinishType === 'green_board' ? [
+      { group: '6 · Drywall', name: 'Green Board / Purple Board — Walls (4×8 sheets)', qty: wallDrywallSheets, unit: 'sheets', priceKey: 'greenBoard' },
+      { group: '6 · Drywall', name: 'Green Board / Purple Board — Ceiling (4×8 sheets)', qty: ceilingDrywallSheets, unit: 'sheets', priceKey: 'greenBoard' },
+      { group: '6 · Drywall', name: 'Joint Compound (4.5 gal all-purpose)', qty: jointCompoundBags, unit: 'bags', priceKey: 'jointCompound' },
     ] : [
-      { group: '6 · Drywall / Blue Board', name: '½" Drywall — Walls (4×8 sheets)', qty: wallDrywallSheets, unit: 'sheets', priceKey: 'drywall' },
-      { group: '6 · Drywall / Blue Board', name: `½" Drywall — Ceiling (4×8 sheets)${totalRecessedLights > 0 ? ' — incl. recessed backing' : ''}`, qty: ceilingDrywallSheets, unit: 'sheets', priceKey: 'drywall' },
-      { group: '6 · Drywall / Blue Board', name: 'Joint Compound (4.5 gal all-purpose)', qty: jointCompoundBags, unit: 'bags', priceKey: 'jointCompound' },
+      { group: '6 · Drywall', name: `${wallFinishType === 'lightweight' ? '½" Lightweight Drywall' : '½" Drywall'} — Walls (4×8 sheets)`, qty: wallDrywallSheets, unit: 'sheets', priceKey: 'drywall' },
+      { group: '6 · Drywall', name: `${wallFinishType === 'lightweight' ? '½" Lightweight Drywall' : '½" Drywall'} — Ceiling (4×8 sheets)${totalRecessedLights > 0 ? ' — incl. recessed backing' : ''}`, qty: ceilingDrywallSheets, unit: 'sheets', priceKey: 'drywall' },
+      { group: '6 · Drywall', name: 'Joint Compound (4.5 gal all-purpose)', qty: jointCompoundBags, unit: 'bags', priceKey: 'jointCompound' },
     ]),
     // Paint
     { group: '7 · Paint', name: 'Primer (wall surfaces)', qty: primerGal, unit: 'gal', priceKey: 'primer' },
@@ -472,6 +508,7 @@ export default function MaterialTakeOff() {
   const [studSpacing, setStudSpacing] = useState('16');
   const [trussSpacing, setTrussSpacing] = useState('24');
   const [studSize, setStudSize] = useState('2x6');
+  const [joistType, setJoistType] = useState('auto');
   const [wallFinishType, setWallFinishType] = useState('drywall');
   const [heatingType, setHeatingType] = useState('forced_air');
   const [insulationType, setInsulationType] = useState('batt');
@@ -482,13 +519,39 @@ export default function MaterialTakeOff() {
   const [newDoor, setNewDoor] = useState({ width: '36', height: '80', side: 'interior', type: 'Swing' });
   const [newWindow, setNewWindow] = useState({ width: '36', height: '48', kind: 'new' });
   const [editingRoom, setEditingRoom] = useState(null);
+  const [jobs, setJobs] = useState([]);
+  const [saveJobId, setSaveJobId] = useState('');
+  const [saveStatus, setSaveStatus] = useState('');
 
   const setB = (k, v) => setBuilding(b => ({ ...b, [k]: v }));
 
+  useEffect(() => {
+    const t = localStorage.getItem('pb_token');
+    if (!t) return;
+    fetch('/api/jobs', { headers: { 'x-auth-token': t } })
+      .then(r => r.json())
+      .then(d => setJobs(d.jobs || []))
+      .catch(() => {});
+  }, []);
+
   function handleSubmit() {
-    const r = runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize, wallFinishType);
+    const r = runCalcs(building, studSpacing, trussSpacing, rooms, prices, heatingType, insulationType, studSize, wallFinishType, joistType);
     setResults(r);
+    setSaveStatus('');
     setStep(5);
+  }
+
+  async function handleSaveToJob() {
+    if (!saveJobId) return;
+    setSaveStatus('saving');
+    const t = localStorage.getItem('pb_token');
+    const payload = { results, building, rooms, prices, heatingType, insulationType, studSize, joistType, wallFinishType, grandTotal };
+    const res = await fetch(`/api/jobs/${saveJobId}/takeoff`, {
+      method: 'PATCH',
+      headers: { 'x-auth-token': t, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ takeoffData: payload }),
+    });
+    setSaveStatus(res.ok ? 'saved' : 'error');
   }
 
   function addRoom() {
@@ -595,6 +658,24 @@ export default function MaterialTakeOff() {
                   </div>
                 </div>
               )}
+              <div style={{ marginTop: 16 }}>{sectionHeader('Floor Joist System')}</div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Floor Joist Type</label>
+                <select value={joistType} onChange={e => setJoistType(e.target.value)} style={fieldStyle}>
+                  <option value="auto">Auto — size by span (2×8 / 2×10 / 2×12)</option>
+                  <option value="2x8">2×8 Solid Lumber</option>
+                  <option value="2x10">2×10 Solid Lumber</option>
+                  <option value="2x12">2×12 Solid Lumber</option>
+                  <option value="tji_95">TJI® 9½" (11⅞" flange — light residential)</option>
+                  <option value="tji_118">TJI® 11⅞" (standard residential)</option>
+                  <option value="tji_14">TJI® 14" (long spans / commercial)</option>
+                  <option value="tji_16">TJI® 16" (deep depth — long clear-span)</option>
+                </select>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 5, lineHeight: 1.5 }}>
+                  {joistType === 'auto' && 'Auto-selects 2×8 (≤12 ft span), 2×10 (≤16 ft), 2×12 (≤20 ft), or LVL/Engineered for wider buildings.'}
+                  {joistType.startsWith('tji') && 'TJI® (I-Joist) engineered lumber — lighter, stronger, longer spans than solid lumber. Price per pc reflects TJI material cost.'}
+                </div>
+              </div>
               <div style={{ textAlign: 'right', marginTop: 8 }}>
                 <button style={btnStyle(true)} onClick={() => setStep(1)}>Next: Spacing →</button>
               </div>
@@ -606,12 +687,18 @@ export default function MaterialTakeOff() {
             <div>
               {sectionHeader('Wall Finish')}
               <Select label='Wall & Ceiling Finish' value={wallFinishType} onChange={setWallFinishType} options={[
-                { value: 'drywall', label: 'Standard Drywall (½" + joint compound)' },
-                { value: 'blueboard', label: 'Blue Board + Veneer Plaster / Skim Coat' },
+                { value: 'drywall', label: '½" Standard Drywall / Sheetrock (joint compound)' },
+                { value: 'lightweight', label: '½" Lightweight Drywall (same finish process, lighter weight)' },
+                { value: 'type_x', label: '5/8" Type X / Type C — Fire-Rated (garage, basement, mechanical)' },
+                { value: 'green_board', label: 'Green Board / Purple Board — Moisture-Resistant (bath, kitchen, basement)' },
+                { value: 'blueboard', label: 'Blue Board (Plaster Baseboard) + Veneer Plaster / Skim Coat' },
               ]} />
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: -8, marginBottom: 16, lineHeight: 1.5 }}>
-                {wallFinishType === 'drywall' && 'Standard ½" gypsum board, taped and finished with all-purpose joint compound.'}
-                {wallFinishType === 'blueboard' && 'Blue board (plaster base) with skim coat / veneer plaster finish — harder surface, common in MA renovations.'}
+                {wallFinishType === 'drywall' && 'Standard ½" gypsum board — interior walls and ceilings in living areas. Taped and finished with all-purpose joint compound.'}
+                {wallFinishType === 'lightweight' && '½" lightweight gypsum — same finish process as standard, roughly 25% lighter. Easier to handle and cut.'}
+                {wallFinishType === 'type_x' && '5/8" Type X / Type C fire-rated gypsum — required for garages (attached), basements, and mechanical rooms. Also provides better soundproofing.'}
+                {wallFinishType === 'green_board' && 'Moisture-resistant gypsum (green or purple face) — for bathrooms, kitchens, and basements. NOT a tile backer — use cement board behind tile.'}
+                {wallFinishType === 'blueboard' && 'Blue board (plaster base) with skim coat / veneer plaster finish — harder, more durable surface common in New England renovations.'}
               </div>
               <div style={{ marginTop: 4 }}>{sectionHeader('Framing')}</div>
               <Select label='Stud Size' value={studSize} onChange={setStudSize} options={[
@@ -623,6 +710,7 @@ export default function MaterialTakeOff() {
               <div style={{ marginTop: 20 }}>{sectionHeader('Heating / HVAC System')}</div>
               <Select label='System Type' value={heatingType} onChange={setHeatingType} options={[
                 { value: 'forced_air', label: 'Forced Air (furnace + A/C + ductwork)' },
+                { value: 'fhw_boiler', label: 'Forced Hot Water (boiler + hot water baseboards)' },
                 { value: 'mini_split', label: 'Mini-Split (indoor heads + outdoor unit)' },
                 { value: 'baseboard', label: 'Electric Baseboard Heat' },
                 { value: 'radiant', label: 'Radiant Floor (PEX tubing + boiler)' },
@@ -630,6 +718,7 @@ export default function MaterialTakeOff() {
               ]} />
               <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: -8, marginBottom: 12, lineHeight: 1.5 }}>
                 {heatingType === 'forced_air' && 'Standard ducted system — furnace, condenser, supply runs & returns per room.'}
+                {heatingType === 'fhw_boiler' && 'Forced hot water (hydronic) — gas or oil boiler heats water circulated through fin-tube baseboard heaters. Very common in New England. Includes expansion tank, circulator pump, and zone thermostats.'}
                 {heatingType === 'mini_split' && 'Ductless — one wall-mounted head per room, outdoor unit(s) sized to building.'}
                 {heatingType === 'baseboard' && 'Electric baseboard heater in each room with individual thermostats.'}
                 {heatingType === 'radiant' && 'In-floor PEX tubing loops connected to a boiler, zoned by floor.'}
@@ -896,7 +985,8 @@ export default function MaterialTakeOff() {
                     wallSheathing: 'Wall Sheathing (per sheet)', roofSheathing: 'Roof Sheathing (per sheet)',
                     roofingSquares: 'Roofing (per square)', underlayment: 'Underlayment (per roll)',
                     insulation: 'Batt Insulation (per roll)', sprayFoamWall: 'Spray Foam — Walls (per sq ft)', sprayFoamRoof: 'Spray Foam — Hot Roof (per sq ft)',
-                    drywall: '½" Drywall (per sheet)', blueBoard: '½" Blue Board (per sheet)', jointCompound: 'Joint Compound 4.5 gal (per bag)', skimCoat: 'Veneer Plaster / Skim Coat (per bag)',
+                    drywall: '½" Drywall (per sheet)', blueBoard: '½" Blue Board (per sheet)', typeXDrywall: '5/8" Type X Fire-Rated (per sheet)', greenBoard: 'Green/Purple Board (per sheet)',
+                    jointCompound: 'Joint Compound 4.5 gal (per bag)', skimCoat: 'Veneer Plaster / Skim Coat (per bag)',
                     primer: 'Primer (per gal)', paint: 'Wall Paint — finish (per gal)', ceilingPaint: 'Ceiling Paint — flat (per gal)',
                     hardwood: 'Hardwood Flooring (per sq ft)', vinylPlank: 'Vinyl Plank LVP (per sq ft)', carpetSY: 'Carpet + Pad (per sq yard)', tile: 'Floor Tile (per sq ft)',
                     cabinetLinFt: 'Kitchen Cabinets (per lin ft)',
@@ -907,8 +997,9 @@ export default function MaterialTakeOff() {
                     hvacDuctRun: 'Duct Run (per supply)', hvacVent: 'Supply Vent / Register', hvacReturn: 'Return Air Grille',
                     hvacThermostat: 'Thermostat',
                     miniSplitHead: 'Mini-Split Indoor Head', miniSplitOutdoor: 'Mini-Split Outdoor Unit',
-                    baseboardHeater: 'Baseboard Heater / Radiator', radiantTubing: 'Radiant PEX Tubing (per lin ft)',
-                    boiler: 'Boiler',
+                    baseboardHeater: 'Electric Baseboard Heater / Steam Radiator', radiantTubing: 'Radiant PEX Tubing (per lin ft)',
+                    boiler: 'Boiler (steam / radiant / hot water)',
+                    hwBaseboard: 'Hot Water Baseboard Fin-Tube (per lin ft)', expansionTank: 'Expansion Tank', circulatorPump: 'Circulator Pump',
                     passageSet: 'Passage Set — Hall / Closet (per pc)', privacySet: 'Privacy Set — Bedroom / Bath (per pc)', keyedSet: 'Keyed Entry Set — Exterior (per pc)',
                     garageDoor: 'Overhead Garage Door (per door)', garageDoorOpener: 'Garage Door Opener (per opener)',
                   };
@@ -939,6 +1030,36 @@ export default function MaterialTakeOff() {
           {step === 5 && results && (
             <div>
               {sectionHeader('Material Take-Off Results')}
+
+              {/* Save to Job panel */}
+              <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 600, whiteSpace: 'nowrap' }}>💾 Save to Job:</span>
+                <select
+                  value={saveJobId}
+                  onChange={e => { setSaveJobId(e.target.value); setSaveStatus(''); }}
+                  style={{ ...fieldStyle, flex: 1, minWidth: 180, maxWidth: 340 }}
+                >
+                  <option value="">— Select a job —</option>
+                  {jobs.map(j => (
+                    <option key={j.id} value={j.id}>
+                      {j.pb_number ? `${j.pb_number} · ` : ''}{j.customer_name || '—'}{j.project_address ? ` · ${j.project_address}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleSaveToJob}
+                  disabled={!saveJobId || saveStatus === 'saving'}
+                  style={{ ...btnStyle(true), padding: '8px 18px', background: saveStatus === 'saved' ? '#059669' : saveStatus === 'error' ? '#C62828' : '#E07B2A', opacity: (!saveJobId || saveStatus === 'saving') ? 0.5 : 1 }}
+                >
+                  {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'error' ? '✗ Error' : 'Save'}
+                </button>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Attaches full take-off data to the selected job.</span>
+              </div>
+
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 12 }}>
+                ✏️ Qty and Unit are editable — adjust any row to fine-tune. Unit price edits update all rows sharing that price.
+              </div>
+
               {groups.map(group => (
                 <div key={group} style={{ marginBottom: 20 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: '#E07B2A', marginBottom: 8 }}>{group}</div>
@@ -953,11 +1074,35 @@ export default function MaterialTakeOff() {
                       </tr>
                     </thead>
                     <tbody>
-                      {results.filter(m => m.group === group).map((m, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      {results.map((m, globalIdx) => m.group !== group ? null : (
+                        <tr key={globalIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                           <td style={{ padding: '7px 8px' }}>{m.name}</td>
-                          <td style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 600 }}>{m.qty.toLocaleString()}</td>
-                          <td style={{ padding: '7px 8px', color: 'rgba(255,255,255,0.55)' }}>{m.unit}</td>
+                          <td style={{ padding: '5px 8px', textAlign: 'right' }}>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              value={m.qty}
+                              onChange={e => {
+                                const newQty = Math.max(0, parseFloat(e.target.value) || 0);
+                                setResults(prev => prev.map((r, ri) => ri === globalIdx
+                                  ? { ...r, qty: newQty, total: r.unitPrice != null ? newQty * r.unitPrice : r.total }
+                                  : r));
+                              }}
+                              style={{ width: 68, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: 'white', padding: '3px 6px', fontSize: 12, textAlign: 'right', fontWeight: 600 }}
+                            />
+                          </td>
+                          <td style={{ padding: '5px 8px' }}>
+                            <select
+                              value={m.unit}
+                              onChange={e => setResults(prev => prev.map((r, ri) => ri === globalIdx ? { ...r, unit: e.target.value } : r))}
+                              style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: 'white', padding: '3px 5px', fontSize: 11 }}
+                            >
+                              {['pcs', 'lin ft', 'sq ft', 'sq yd', 'sheets', 'rolls', 'bags', 'gal', 'CY', 'squares', 'runs', 'doors', 'windows'].map(u => (
+                                <option key={u} value={u}>{u}</option>
+                              ))}
+                            </select>
+                          </td>
                           <td style={{ padding: '7px 8px', textAlign: 'right' }}>
                             {m.priceKey ? (
                               <div style={{ display: 'inline-flex', alignItems: 'center' }}>
@@ -996,7 +1141,7 @@ export default function MaterialTakeOff() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 20 }}>
-                <button style={btnStyle(false)} onClick={() => { setStep(0); setResults(null); }}>← Start Over</button>
+                <button style={btnStyle(false)} onClick={() => { setStep(0); setResults(null); setSaveStatus(''); }}>← Start Over</button>
                 <button style={{ ...btnStyle(false), marginLeft: 10 }} onClick={() => setStep(4)}>← Edit Prices</button>
               </div>
             </div>
