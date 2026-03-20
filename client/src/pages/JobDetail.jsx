@@ -154,13 +154,13 @@ export default function JobDetail({ token }) {
     const currentVer = job.version || 1;
     const nextVer = currentVer + 1;
     if (!await showConfirm(
-      `Create Revision ${nextVer} of this estimate?\n\nThis will reset the job to "Proposal Ready" so you can edit line items and re-send. The existing contract PDF will be cleared. Version ${currentVer} stays in the audit history.`
+      `Open Revision ${nextVer} for editing?\n\nThis will reopen the line-item editor so you can adjust trades, costs, and descriptions before generating a new proposal PDF. Version ${currentVer} stays in the activity log. The existing contract PDF will be cleared.`
     )) return;
     setActionLoading(true);
     const res  = await fetch(`/api/jobs/${id}/revise`, { method: 'POST', headers });
     const data = await res.json();
     setActionLoading(false);
-    if (res.ok) { load(); showToast(`Estimate reset to Version ${data.version} — ready to edit`, 'info'); }
+    if (res.ok) { load(); showToast(`Version ${data.version} opened for editing — adjust line items below`, 'info'); }
     else        { showToast(data.error || 'Failed to revise estimate', 'error'); }
   };
 
@@ -254,7 +254,7 @@ export default function JobDetail({ token }) {
   const proposalSession = sigSessions.find(s => s.doc_type === 'proposal');
   const contractSession = sigSessions.find(s => s.doc_type === 'contract');
 
-  const TABS = ['overview', 'history', 'payments', 'photos', 'signatures', 'proposal', 'contract', 'conversation', 'audit'];
+  const TABS = ['overview', 'history', 'payments', 'photos', 'signatures', 'proposal', 'contract', 'conversation'];
 
   // ── Read Receipt Badge ────────────────────────────────────────────────────
   const ReadReceiptBadge = ({ session, label }) => {
@@ -486,7 +486,21 @@ export default function JobDetail({ token }) {
             <div>
               <strong style={{ color: ORANGE, fontSize: 15 }}>✏️ Review Extracted Line Items</strong>
               <div style={{ fontSize: 12, color: '#777', marginTop: 2 }}>
-                Edit costs or descriptions before generating the proposal PDF. Client price = base cost × {multiplier.toFixed(4)}×.
+                Edit costs or descriptions before generating the proposal PDF.
+              </div>
+              <div style={{ display: 'flex', gap: 16, marginTop: 6, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11, background: '#fff3e0', color: '#b45309', borderRadius: 4, padding: '2px 8px', fontWeight: 600 }}>
+                  Sub O&amp;P 15%
+                </span>
+                <span style={{ fontSize: 11, background: '#fff3e0', color: '#b45309', borderRadius: 4, padding: '2px 8px', fontWeight: 600 }}>
+                  GC O&amp;P 25%
+                </span>
+                <span style={{ fontSize: 11, background: '#fff3e0', color: '#b45309', borderRadius: 4, padding: '2px 8px', fontWeight: 600 }}>
+                  Contingency 10%
+                </span>
+                <span style={{ fontSize: 11, background: '#e0e7ff', color: '#3730a3', borderRadius: 4, padding: '2px 8px', fontWeight: 700 }}>
+                  = {multiplier.toFixed(4)}× multiplier
+                </span>
               </div>
             </div>
             {!editingLineItems && (
@@ -735,6 +749,22 @@ export default function JobDetail({ token }) {
                 </table>
               </div>
             )}
+
+            {/* Activity log — all audit entries for this job */}
+            <div style={{ marginTop: 28 }}>
+              <h4 style={{ color: BLUE, marginBottom: 10, fontSize: 14 }}>📋 Activity Log</h4>
+              {auditLog.length === 0
+                ? <div style={{ color: '#aaa', fontSize: 13 }}>No activity recorded yet.</div>
+                : auditLog.map(a => (
+                  <div key={a.id} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: '1px solid #f0f0f0', fontSize: 12, flexWrap: 'wrap' }}>
+                    <span style={{ color: '#aaa', width: 130, flexShrink: 0 }}>{new Date(a.created_at).toLocaleString()}</span>
+                    <span style={{ fontWeight: 600, color: ORANGE, flexShrink: 0, minWidth: 160 }}>{a.action.replace(/_/g, ' ')}</span>
+                    <span style={{ color: '#555', flex: 1 }}>{a.details}</span>
+                    <span style={{ color: '#bbb', flexShrink: 0 }}>by {a.performed_by}</span>
+                  </div>
+                ))
+              }
+            </div>
           </div>
         )}
 
@@ -924,24 +954,6 @@ export default function JobDetail({ token }) {
                     <span style={{ fontSize: 10, color: '#888' }}>{new Date(c.created_at).toLocaleString()}</span>
                   </div>
                   <div style={{ fontSize: 12, color: '#333', whiteSpace: 'pre-wrap' }}>{c.message}</div>
-                </div>
-              ))
-            }
-          </div>
-        )}
-
-        {/* AUDIT */}
-        {activeTab === 'audit' && (
-          <div>
-            <h3 style={{ color: BLUE, marginBottom: 16 }}>Audit Log</h3>
-            {auditLog.length === 0
-              ? <div style={{ color: '#888' }}>No audit entries.</div>
-              : auditLog.map(a => (
-                <div key={a.id} style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: 12 }}>
-                  <span style={{ color: '#888', width: 140, flexShrink: 0 }}>{new Date(a.created_at).toLocaleString()}</span>
-                  <span style={{ fontWeight: 'bold', color: BLUE, width: 180, flexShrink: 0 }}>{a.action}</span>
-                  <span style={{ color: '#555' }}>{a.details}</span>
-                  <span style={{ color: '#aaa', marginLeft: 'auto', flexShrink: 0 }}>by {a.performed_by}</span>
                 </div>
               ))
             }

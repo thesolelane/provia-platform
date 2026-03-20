@@ -363,7 +363,7 @@ router.patch('/:id/line-items', requireAuth, requireRole('admin', 'pm', 'system_
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.proposal_data) return res.status(400).json({ error: 'No proposal data found' });
+  if (!job.proposal_data) return res.status(400).json({ error: 'No editable estimate data found. This estimate was revised but has no stored line items — use the AI to regenerate the estimate from the original scope.' });
 
   const { lineItems } = req.body;
   if (!Array.isArray(lineItems)) return res.status(400).json({ error: 'lineItems must be an array' });
@@ -441,7 +441,7 @@ router.post('/:id/generate-proposal', requireAuth, requireRole('admin', 'pm', 's
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.proposal_data) return res.status(400).json({ error: 'No proposal data to generate from' });
+  if (!job.proposal_data) return res.status(400).json({ error: 'No estimate data to generate from. Edit and save line items first, or reprocess the job to regenerate from the original scope.' });
 
   try {
     const proposalData = JSON.parse(job.proposal_data);
@@ -1112,7 +1112,7 @@ router.post('/:id/revise', requireAuth, requireRole('admin', 'pm', 'system_admin
 
   db.prepare(`
     UPDATE jobs
-    SET status = 'proposal_ready', version = ?, proposal_data = ?, contract_pdf_path = NULL,
+    SET status = 'review_pending', version = ?, proposal_data = ?, contract_pdf_path = NULL,
         updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(nextVersion, proposalDataStr, job.id);
