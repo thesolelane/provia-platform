@@ -254,7 +254,7 @@ export default function JobDetail({ token }) {
   const proposalSession = sigSessions.find(s => s.doc_type === 'proposal');
   const contractSession = sigSessions.find(s => s.doc_type === 'contract');
 
-  const TABS = ['overview', 'history', 'payments', 'photos', 'signatures', 'proposal', 'contract', 'conversation'];
+  const TABS = ['overview', 'history', 'payments', 'photos', 'signatures', 'proposal', 'contract', 'conversation', 'audit'];
 
   // ── Read Receipt Badge ────────────────────────────────────────────────────
   const ReadReceiptBadge = ({ session, label }) => {
@@ -957,6 +957,24 @@ export default function JobDetail({ token }) {
                 </div>
               ))
             }
+          </div>
+        )}
+
+        {/* AUDIT — Proposal Assessment (coming in Task #15) */}
+        {activeTab === 'audit' && (
+          <div>
+            <h3 style={{ color: BLUE, marginBottom: 8 }}>Proposal Assessment</h3>
+            <div style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+              This tab will show a full pricing assessment — per-trade benchmarks vs. PB labor rates, $/sqft vs. local market, markup chain verification, and flagged items. Coming soon.
+            </div>
+            {job.proposal_data?.flaggedItems?.length > 0 && (
+              <div style={{ background: '#FFF8F0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 14 }}>
+                <strong style={{ color: ORANGE, fontSize: 13 }}>⚠️ Claude Flagged Items ({job.proposal_data.flaggedItems.length})</strong>
+                <ul style={{ margin: '8px 0 0 18px', fontSize: 13, color: '#5D3A00' }}>
+                  {job.proposal_data.flaggedItems.map((f, i) => <li key={i}>{f}</li>)}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>
