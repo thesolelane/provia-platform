@@ -134,57 +134,59 @@ export default function Team({ token, userRole }) {
 
       {/* ── TEAM MEMBERS ── */}
       {tab === 'team' && (
-        <div style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
             <thead>
               <tr style={{ background: BLUE }}>
-                {['Name', 'Email', 'Title', 'Permission Level', 'Phone', 'Language', 'Status', ''].map(h => (
-                  <th key={h} style={{ padding: '12px 14px', color: 'white', textAlign: 'left', fontSize: 12 }}>{h}</th>
+                {['Name / Title', 'Email', 'Role', 'Phone', 'Lang', 'Status', 'Actions'].map(h => (
+                  <th key={h} style={{ padding: '11px 14px', color: 'white', textAlign: 'left', fontSize: 12, whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {users.length === 0 && (
-                <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#888' }}>No team members found.</td></tr>
+                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#888' }}>No team members found.</td></tr>
               )}
               {users.map((u, i) => {
                 const ri = roleInfo(u.role);
                 return (
                   <tr key={u.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
-                    <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: '600' }}>{u.name}</td>
-                    <td style={{ padding: '12px 14px', fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{u.email}</td>
-                    <td style={{ padding: '12px 14px', fontSize: 12, color: '#666' }}>{u.title}</td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span style={{ background: ri.bg, color: ri.color, padding: '3px 10px', borderRadius: 10, fontSize: 11, fontWeight: 'bold' }}>
+                    <td style={{ padding: '11px 14px' }}>
+                      <div style={{ fontSize: 13, fontWeight: '600' }}>{u.name}</div>
+                      <div style={{ fontSize: 11, color: '#888', marginTop: 1 }}>{u.title}</div>
+                    </td>
+                    <td style={{ padding: '11px 14px', fontSize: 12, color: '#555', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{u.email}</td>
+                    <td style={{ padding: '11px 14px' }}>
+                      <span style={{ background: ri.bg, color: ri.color, padding: '3px 9px', borderRadius: 10, fontSize: 11, fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                         {ri.label}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 14px', fontSize: 12, color: '#555' }}>{u.phone || '—'}</td>
-                    <td style={{ padding: '12px 14px', fontSize: 12 }}>{u.language === 'pt-BR' ? '🇧🇷 PT-BR' : '🇺🇸 EN'}</td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <span style={{ color: u.active ? GREEN : '#ccc', fontWeight: 'bold', fontSize: 12 }}>
-                        {u.active ? '● Active' : '○ Inactive'}
+                    <td style={{ padding: '11px 14px', fontSize: 12, color: '#555', whiteSpace: 'nowrap' }}>{u.phone || '—'}</td>
+                    <td style={{ padding: '11px 14px', fontSize: 12, whiteSpace: 'nowrap' }}>{u.language === 'pt-BR' ? '🇧🇷' : '🇺🇸'}</td>
+                    <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
+                      <span style={{ color: u.active ? GREEN : '#bbb', fontWeight: 'bold', fontSize: 12 }}>
+                        {u.active ? '● Active' : '○ Off'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 14px' }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
+                    <td style={{ padding: '11px 14px' }}>
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'nowrap' }}>
                         <button onClick={() => setEditUser({ ...u })}
-                          style={{ fontSize: 11, padding: '4px 10px', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer', background: 'white' }}>
-                          Edit
+                          style={{ fontSize: 11, padding: '5px 10px', border: '1px solid #ccc', borderRadius: 5, cursor: 'pointer', background: 'white', whiteSpace: 'nowrap' }}>
+                          ✏️ Edit
                         </button>
                         <button onClick={() => { setPwdUser(u); setPwdForm({ currentPassword: '', newPassword: '', confirm: '' }); setPwdErr(''); }}
-                          style={{ fontSize: 11, padding: '4px 10px', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer', background: 'white' }}>
-                          Password
+                          style={{ fontSize: 11, padding: '5px 10px', border: '1px solid #ccc', borderRadius: 5, cursor: 'pointer', background: 'white', whiteSpace: 'nowrap' }}>
+                          🔑 Pwd
                         </button>
                         {isSysAdmin && (
                           <>
                             <button onClick={() => toggleUser(u)}
-                              style={{ fontSize: 11, padding: '4px 10px', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer', background: 'white' }}>
+                              style={{ fontSize: 11, padding: '5px 10px', border: '1px solid #ccc', borderRadius: 5, cursor: 'pointer', background: 'white', whiteSpace: 'nowrap' }}>
                               {u.active ? 'Disable' : 'Enable'}
                             </button>
                             <button onClick={() => deleteUser(u)}
-                              style={{ fontSize: 11, padding: '4px 10px', border: `1px solid ${RED}`, borderRadius: 4, cursor: 'pointer', color: RED, background: 'white' }}>
-                              Remove
+                              style={{ fontSize: 11, padding: '5px 11px', border: `1px solid ${RED}`, borderRadius: 5, cursor: 'pointer', color: 'white', background: RED, fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                              🗑 Remove
                             </button>
                           </>
                         )}
@@ -204,12 +206,12 @@ export default function Team({ token, userRole }) {
           <div style={{ background: '#FFF8F0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 14, marginBottom: 16, fontSize: 12, color: '#5D3A00' }}>
             ⚠️ Only emails and WhatsApp numbers on this list can trigger the bot. Messages from others are silently dropped.
           </div>
-          <div style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620 }}>
               <thead>
                 <tr style={{ background: BLUE }}>
-                  {['Name', 'Identifier', 'Type', 'Role', 'Language', 'Status', ''].map(h => (
-                    <th key={h} style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: 12 }}>{h}</th>
+                  {['Name', 'Identifier', 'Type', 'Role', 'Lang', 'Status', 'Actions'].map(h => (
+                    <th key={h} style={{ padding: '11px 14px', color: 'white', textAlign: 'left', fontSize: 12, whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -219,29 +221,29 @@ export default function Team({ token, userRole }) {
                 )}
                 {senders.map((s, i) => (
                   <tr key={s.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
-                    <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500' }}>{s.name || '—'}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{s.identifier}</td>
-                    <td style={{ padding: '12px 16px' }}>
+                    <td style={{ padding: '11px 14px', fontSize: 13, fontWeight: '500', whiteSpace: 'nowrap' }}>{s.name || '—'}</td>
+                    <td style={{ padding: '11px 14px', fontSize: 12, color: '#555', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{s.identifier}</td>
+                    <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
                       <span style={{ background: s.type === 'email' ? '#E3ECFF' : '#E8F5E9', color: s.type === 'email' ? BLUE : GREEN, padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 'bold' }}>
                         {s.type === 'email' ? '📧 Email' : '📱 WhatsApp'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 12, color: '#666', textTransform: 'capitalize' }}>{s.role}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 12 }}>{s.language === 'pt-BR' ? '🇧🇷 PT-BR' : '🇺🇸 EN'}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{ color: s.active ? GREEN : '#ccc', fontWeight: 'bold', fontSize: 12 }}>
-                        {s.active ? '● Active' : '○ Inactive'}
+                    <td style={{ padding: '11px 14px', fontSize: 12, color: '#666', textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{s.role}</td>
+                    <td style={{ padding: '11px 14px', fontSize: 12, whiteSpace: 'nowrap' }}>{s.language === 'pt-BR' ? '🇧🇷' : '🇺🇸'}</td>
+                    <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
+                      <span style={{ color: s.active ? GREEN : '#bbb', fontWeight: 'bold', fontSize: 12 }}>
+                        {s.active ? '● Active' : '○ Off'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', gap: 8 }}>
+                    <td style={{ padding: '11px 14px' }}>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' }}>
                         <button onClick={() => toggleSender(s.id, s.active)}
-                          style={{ fontSize: 11, padding: '4px 10px', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer', background: 'white' }}>
+                          style={{ fontSize: 11, padding: '5px 10px', border: '1px solid #ccc', borderRadius: 5, cursor: 'pointer', background: 'white', whiteSpace: 'nowrap' }}>
                           {s.active ? 'Disable' : 'Enable'}
                         </button>
                         <button onClick={() => removeSender(s.id)}
-                          style={{ fontSize: 11, padding: '4px 10px', border: `1px solid ${RED}`, borderRadius: 4, cursor: 'pointer', color: RED, background: 'white' }}>
-                          Remove
+                          style={{ fontSize: 11, padding: '5px 11px', border: `1px solid ${RED}`, borderRadius: 5, cursor: 'pointer', color: 'white', background: RED, fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                          🗑 Remove
                         </button>
                       </div>
                     </td>
