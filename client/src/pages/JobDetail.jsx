@@ -64,6 +64,7 @@ export default function JobDetail({ token }) {
   const [marginData, setMarginData] = useState(null);
   const [marginLoading, setMarginLoading] = useState(false);
   const [pipelineCtx, setPipelineCtx] = useState(null);
+  const [followUpTask, setFollowUpTask] = useState(null); // null | 'creating' | 'error' | taskObject
 
   const load = () => {
     fetch(`/api/jobs/${id}`, { headers: { 'x-auth-token': token } })
@@ -96,6 +97,13 @@ export default function JobDetail({ token }) {
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => setPipelineCtx(data))
       .catch(() => setPipelineCtx(null));
+    fetch(`/api/tasks?job_id=${id}`, { headers: { 'x-auth-token': token } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        const existing = (data.tasks || []).find(t => t.status !== 'done' && /follow.?up/i.test(t.title));
+        if (existing) setFollowUpTask(existing);
+      })
+      .catch(() => {});
   }, [id, token]);
 
   // Auto-refresh via SSE when job is processing — no manual refresh needed
@@ -1315,8 +1323,59 @@ export default function JobDetail({ token }) {
                         )}
                       </div>
                       {pipelineCtx.daysAtCurrentStage > 14 && (
-                        <div style={{ marginTop: 10, fontSize: 12, color: '#991b1b', background: '#fef2f2', borderRadius: 6, padding: '8px 12px' }}>
-                          This job has been at its current stage for over 2 weeks. Consider following up or reviewing the status.
+                        <div style={{ marginTop: 10, fontSize: 12, color: '#991b1b', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 6, padding: '10px 12px' }}>
+                          <div style={{ fontWeight: 600, marginBottom: 6 }}>⚠️ Stale — {pipelineCtx.daysAtCurrentStage} days at current stage</div>
+                          <div style={{ color: '#7f1d1d', marginBottom: 8 }}>
+                            This job has been at <em>{job.status?.replace(/_/g,' ')}</em> for over 2 weeks. Consider reaching out to the customer to keep momentum.
+                          </div>
+                          {followUpTask === null && (
+                            <button
+                              onClick={async () => {
+                                setFollowUpTask('creating');
+                                const due = new Date();
+                                due.setDate(due.getDate() + 2);
+                                const dueStr = due.toISOString().slice(0, 16);
+                                try {
+                                  const res = await fetch('/api/tasks', {
+                                    method: 'POST',
+                                    headers,
+                                    body: JSON.stringify({
+                                      title: `Follow up: ${job.customer_name}`,
+                                      description: `Proposal has been at "${job.status?.replace(/_/g,' ')}" stage for ${pipelineCtx.daysAtCurrentStage} days. Reach out to customer to check interest and keep the job moving. Future: SMS/email reminder hook.`,
+                                      due_at: dueStr,
+                                      job_id: job.id,
+                                      contact_id: job.contact_id || null,
+                                      priority: 'high'
+                                    })
+                                  });
+                                  const data = await res.json();
+                                  if (data.task) setFollowUpTask(data.task);
+                                  else setFollowUpTask('error');
+                                } catch { setFollowUpTask('error'); }
+                              }}
+                              style={{ padding: '5px 14px', background: '#991b1b', color: 'white', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                            >
+                              + Create Follow-Up Task
+                            </button>
+                          )}
+                          {followUpTask === 'creating' && (
+                            <div style={{ color: '#7f1d1d', fontStyle: 'italic' }}>Creating task...</div>
+                          )}
+                          {followUpTask === 'error' && (
+                            <div style={{ color: '#7f1d1d' }}>Failed to create task — try again from the Tasks page.</div>
+                          )}
+                          {followUpTask && typeof followUpTask === 'object' && (
+                            <div style={{ background: '#fff1f1', border: '1px solid #fca5a5', borderRadius: 4, padding: '7px 10px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <span style={{ color: '#166534', fontWeight: 600 }}>✅ Task created:</span>
+                              <span style={{ color: '#333' }}>{followUpTask.title}</span>
+                              {followUpTask.due_at && (
+                                <span style={{ color: '#777' }}>— due {new Date(followUpTask.due_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                              )}
+                              {followUpTask.calendar_url && (
+                                <a href={followUpTask.calendar_url} target="_blank" rel="noreferrer" style={{ color: '#991b1b', fontWeight: 600, marginLeft: 4 }}>📅 View in Calendar</a>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
