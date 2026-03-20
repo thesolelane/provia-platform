@@ -13,19 +13,23 @@ function getMailgun() {
   return mg;
 }
 
-async function sendEmail({ to, subject, html, text, attachmentPath, attachmentName }) {
+async function sendEmail({ to, subject, html, text, attachmentPath, attachmentName, replyTo }) {
   const client = getMailgun();
   if (!client) {
     console.log('[Email MOCK] To:', to, 'Subject:', subject);
     return;
   }
 
+  const fromAddress = process.env.BOT_EMAIL || 'noreply@preferredbuildersusa.com';
+  const replyToAddress = replyTo || process.env.OWNER_EMAIL || process.env.REPLY_TO_EMAIL;
+
   const messageData = {
-    from: `Preferred Builders AI <${process.env.BOT_EMAIL || 'noreply@preferredbuildersusa.com'}>`,
+    from: `Preferred Builders <${fromAddress}>`,
     to: Array.isArray(to) ? to : [to],
     subject,
     html,
-    text: text || html?.replace(/<[^>]+>/g, '')
+    text: text || html?.replace(/<[^>]+>/g, ''),
+    ...(replyToAddress ? { 'h:Reply-To': replyToAddress } : {})
   };
 
   if (attachmentPath && fs.existsSync(attachmentPath)) {
