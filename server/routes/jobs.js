@@ -1091,6 +1091,31 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
   })();
 });
 
+// POST /:id/revise — reopen any sent/approved/signed estimate for editing (bumps version)
+router.post('/:id/revise', requireAuth, requireRole('admin', 'pm', 'system_admin'), (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT * FROM jobs WHERE id = ? AND archived = 0').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (!job.proposal_data) return res.status(400).json({ error: 'No estimate to revise — generate one first' });
+
+  const nextVersion = (job.version || 1) + 1;
+
+  // Patch version in proposal_data too so PDFs reflect the revision number
+  let proposalData;
+  try { proposalData = JSON.parse(job.proposal_data); } catch { proposalData = {}; }
+  proposalData.quoteVersion = nextVersion;
+
+  db.prepare(`
+    UPDATE jobs
+    SET status = 'proposal_ready', version = ?, proposal_data = ?, contract_pdf_path = NULL,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(nextVersion, JSON.stringify(proposalData), job.id);
+
+  logAudit(job.id, 'estimate_revised', `Estimate reopened for revision — now version ${nextVersion}`, req.session?.name || 'admin');
+  res.json({ success: true, version: nextVersion });
+});
+
 // POST /:id/reprocess — retry AI estimation for a job stuck in error status
 router.post('/:id/reprocess', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
   const db = getDb();

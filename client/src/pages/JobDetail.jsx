@@ -150,6 +150,20 @@ export default function JobDetail({ token }) {
     else        { showToast(data.error || 'Failed to reprocess', 'error'); }
   };
 
+  const reviseEstimate = async () => {
+    const currentVer = job.version || 1;
+    const nextVer = currentVer + 1;
+    if (!await showConfirm(
+      `Create Revision ${nextVer} of this estimate?\n\nThis will reset the job to "Proposal Ready" so you can edit line items and re-send. The existing contract PDF will be cleared. Version ${currentVer} stays in the audit history.`
+    )) return;
+    setActionLoading(true);
+    const res  = await fetch(`/api/jobs/${id}/revise`, { method: 'POST', headers });
+    const data = await res.json();
+    setActionLoading(false);
+    if (res.ok) { load(); showToast(`Estimate reset to Version ${data.version} — ready to edit`, 'info'); }
+    else        { showToast(data.error || 'Failed to revise estimate', 'error'); }
+  };
+
   const markComplete = async () => {
     if (!await showConfirm('Mark this job as complete?')) return;
     setActionLoading(true);
@@ -407,6 +421,14 @@ export default function JobDetail({ token }) {
             <button onClick={markComplete} disabled={actionLoading}
               style={{ padding: '9px 18px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
               {actionLoading ? '...' : '🎉 Mark Job Complete'}
+            </button>
+          )}
+
+          {/* Revise estimate — available any time after proposal_ready */}
+          {job.proposal_data && ['proposal_sent', 'proposal_approved', 'contract_ready', 'contract_sent', 'contract_signed', 'complete'].includes(job.status) && (
+            <button onClick={reviseEstimate} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: 'white', color: ORANGE, border: `2px solid ${ORANGE}`, borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? '...' : `✏️ Revise Estimate (v${job.version || 1})`}
             </button>
           )}
         </div>
