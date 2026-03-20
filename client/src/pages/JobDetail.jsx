@@ -1110,9 +1110,9 @@ export default function JobDetail({ token }) {
             return BENCHMARKS.find(b => b.kw.some(k => lc.includes(k)));
           };
           const benchStatus = (bench, baseCost) => {
-            if (!bench || bench.low == null) return 'unknown';
-            if (baseCost < bench.low * 0.5) return 'low';
-            if (baseCost > bench.high * 2.0) return 'high';
+            if (!bench || bench.low == null || baseCost === 0) return 'unknown';
+            if (baseCost < bench.low) return 'low';
+            if (baseCost > bench.high) return 'high';
             return 'ok';
           };
 
@@ -1223,8 +1223,8 @@ export default function JobDetail({ token }) {
               {!pd ? (
                 <div style={{ color: '#888', textAlign: 'center', padding: 40 }}>
                   <div style={{ fontSize: 32, marginBottom: 10 }}>📊</div>
-                  <div style={{ fontWeight: 600 }}>No proposal generated yet.</div>
-                  <div style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>Assessment appears once a proposal PDF has been generated.</div>
+                  <div style={{ fontWeight: 600 }}>Generate an estimate first to see the assessment.</div>
+                  <div style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>Upload an estimate and generate a proposal PDF to unlock this panel.</div>
                 </div>
               ) : (
                 <>
