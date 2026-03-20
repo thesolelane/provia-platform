@@ -1,4 +1,4 @@
- // server/routes/jobs.js
+// server/routes/jobs.js
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requireRole } = require('../middleware/auth');
@@ -9,6 +9,131 @@ const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
 const { tickQuoteCounter } = require('../services/assessmentService');
 const { addClient, removeClient, notifyClients } = require('../services/sseManager');
+
+// ── Quote versioning ────────────────────────────────────────────────────────
+// Given a raw quote number (e.g. "303"), determine the next version and parent
+// job ID for this quote. Returns { version, parentJobId }.
+function resolveQuoteVersion(db, quoteNumber, excludeJobId = null) {
+  if (!quoteNumber) return { version: 1, parentJobId: null };
+  const query = excludeJobId
+    ? `SELECT id, version FROM jobs WHERE quote_number = ? AND id != ? ORDER BY version DESC LIMIT 1`
+    : `SELECT id, version FROM jobs WHERE quote_number = ? ORDER BY version DESC LIMIT 1`;
+  const prior = excludeJobId
+    ? db.prepare(query).get(String(quoteNumber), excludeJobId)
+    : db.prepare(query).get(String(quoteNumber));
+  if (!prior) return { version: 1, parentJobId: null };
+  return { version: prior.version + 1, parentJobId: prior.id };
+}
+
+// Format a versioned quote display string, e.g. "303/2"
+function formatVersionedQuote(quoteNumber, version) {
+  if (!quoteNumber) return '';
+  return `${quoteNumber}/${version || 1}`;
+}
+
+// Try to pre-extract a quote number from raw estimate text using common patterns
+function preExtractQuoteNumber(text) {
+  if (!text) return null;
+  const patterns = [
+    /(?:quote|estimate|proposal|job|ref|#|no\.?)\s*[:\-#]?\s*(\d{2,6})\b/i,
+    /\b(\d{3,6})\s*(?:rev|revision|version|v)\s*\d/i,
+    /^[\s\S]{0,500}?#\s*(\d{3,6})\b/,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+// Find prior quote context using all available info: contact, address, and text regex
+// Priority: contact+address together > contact alone > address alone > regex fallback
+function findPriorQuoteContext(db, { rawText, contactId, projectAddress }) {
+  const { getPriorVersionContext } = require('../services/claudeService');
+
+  // 1. Best match: same contact AND same address
+  if (contactId && projectAddress && projectAddress.length > 5) {
+    const prior = db.prepare(`
+      SELECT quote_number FROM jobs
+      WHERE contact_id = ? AND project_address = ? AND quote_number IS NOT NULL AND proposal_data IS NOT NULL
+      ORDER BY created_at DESC LIMIT 1
+    `).get(contactId, projectAddress);
+    if (prior?.quote_number) {
+      const ctx = getPriorVersionContext(db, prior.quote_number);
+      if (ctx) return { quoteNumber: prior.quote_number, context: ctx };
+    }
+  }
+
+  // 2. Same contact (any address) — only if single-property customer
+  if (contactId) {
+    const prior = db.prepare(`
+      SELECT quote_number FROM jobs
+      WHERE contact_id = ? AND quote_number IS NOT NULL AND proposal_data IS NOT NULL
+      ORDER BY created_at DESC LIMIT 1
+    `).get(contactId);
+    if (prior?.quote_number) {
+      const ctx = getPriorVersionContext(db, prior.quote_number);
+      if (ctx) return { quoteNumber: prior.quote_number, context: ctx };
+    }
+  }
+
+  // 3. Same address (different contact or no contact)
+  if (projectAddress && projectAddress.length > 5) {
+    const prior = db.prepare(`
+      SELECT quote_number FROM jobs
+      WHERE project_address = ? AND quote_number IS NOT NULL AND proposal_data IS NOT NULL
+      ORDER BY created_at DESC LIMIT 1
+    `).get(projectAddress);
+    if (prior?.quote_number) {
+      const ctx = getPriorVersionContext(db, prior.quote_number);
+      if (ctx) return { quoteNumber: prior.quote_number, context: ctx };
+    }
+  }
+
+  // 4. Last resort: try regex extraction from raw estimate text
+  const preQuoteNum = preExtractQuoteNumber(rawText);
+  if (preQuoteNum) {
+    const ctx = getPriorVersionContext(db, preQuoteNum);
+    if (ctx) return { quoteNumber: preQuoteNum, context: ctx };
+  }
+
+  return { quoteNumber: null, context: null };
+}
+
+// After Claude returns, store quote_number + version + parent_job_id on the job and in proposalData
+// Idempotent: if the job already has a version assigned, re-use it instead of incrementing
+function finalizeJobVersioning(db, jobId, proposalData) {
+  let rawQuoteNum = proposalData.quoteNumber
+    ? String(proposalData.quoteNumber).trim()
+    : null;
+  if (!rawQuoteNum) return;
+
+  rawQuoteNum = rawQuoteNum.split('/')[0].replace(/[^\w\-]/g, '');
+  if (!rawQuoteNum) return;
+
+  const existing = db.prepare(`SELECT quote_number, version FROM jobs WHERE id = ?`).get(jobId);
+  if (existing?.quote_number && existing?.version) {
+    const versionedDisplay = formatVersionedQuote(existing.quote_number, existing.version);
+    proposalData.quoteNumberRaw = existing.quote_number;
+    proposalData.quoteVersion = existing.version;
+    proposalData.quoteNumber = versionedDisplay;
+    console.log(`[Versioning] Job ${jobId}: already versioned as ${versionedDisplay}, skipping`);
+    return;
+  }
+
+  const { version, parentJobId } = resolveQuoteVersion(db, rawQuoteNum, jobId);
+  const versionedDisplay = formatVersionedQuote(rawQuoteNum, version);
+
+  db.prepare(
+    `UPDATE jobs SET quote_number = ?, version = ?, parent_job_id = ?, estimate_source = 'ai' WHERE id = ?`
+  ).run(rawQuoteNum, version, parentJobId, jobId);
+
+  proposalData.quoteNumberRaw = rawQuoteNum;
+  proposalData.quoteVersion = version;
+  proposalData.quoteNumber = versionedDisplay;
+
+  console.log(`[Versioning] Job ${jobId}: quote ${rawQuoteNum} → version ${version} (${versionedDisplay})`);
+}
 
 // Helper: save proposal, backfill job columns, and upsert contact record
 function saveProposalReady(db, proposalData, pdfPath, jobId) {
@@ -196,7 +321,16 @@ router.get('/:id', requireAuth, (req, res) => {
   if (job.contract_data) { try { job.contract_data = JSON.parse(job.contract_data); } catch {} }
   if (job.flagged_items) { try { job.flagged_items = JSON.parse(job.flagged_items); } catch {} }
 
-  res.json({ job, conversations, clarifications, auditLog });
+  // Include version history for the same quote number
+  let versionHistory = [];
+  if (job.quote_number) {
+    versionHistory = db.prepare(
+      `SELECT id, version, status, total_value, created_at, estimate_source, proposal_pdf_path
+       FROM jobs WHERE quote_number = ? ORDER BY version ASC`
+    ).all(job.quote_number);
+  }
+
+  res.json({ job, conversations, clarifications, auditLog, versionHistory });
 });
 
 // POST approve proposal → generate contract
@@ -448,13 +582,16 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
   (async () => {
     try {
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress);
+      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedText, contactId: contactRef?.id, projectAddress });
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        finalizeJobVersioning(db, jobId, proposalData);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
         logAudit(jobId, 'upload_estimate_clarification', `${proposalData.clarificationsNeeded.length} questions needed`, 'admin');
       } else {
+        finalizeJobVersioning(db, jobId, proposalData);
         const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
         saveProposalReady(db, proposalData, pdfPath, jobId);
         logAudit(jobId, 'upload_estimate_processed', `Proposal ready. Total: $${proposalData.totalValue}`, 'admin');
@@ -527,10 +664,12 @@ router.post('/wizard', requireAuth, async (req, res) => {
         ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nSCOPE OF WORK:\n${sanitizedScope}`
         : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nSCOPE OF WORK:\n${sanitizedScope}`;
 
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress);
+      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedScope, contactId: contactRef?.id, projectAddress });
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
       console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        finalizeJobVersioning(db, jobId, proposalData);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
@@ -545,6 +684,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
         proposalData.project.city    = proposalData.project.city    || city   || '';
         proposalData.project.state   = proposalData.project.state   || state  || 'MA';
 
+        finalizeJobVersioning(db, jobId, proposalData);
         saveReviewPending(db, proposalData, jobId);
         logAudit(jobId, 'wizard_estimate_processed', `Wizard entry — pending review`, 'admin');
         console.log(`[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
@@ -598,15 +738,16 @@ router.post('/manual', requireAuth, async (req, res) => {
       console.log(`[Manual Job ${jobId}] Starting Claude processEstimate...`);
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
 
-      // Build estimate with CSN instead of real PII — Claude only sees the reference code
       const sanitizedScope = stripPII(estimateText);
       const fullEstimate = contactRef
         ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`
         : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`;
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress);
+      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedScope, contactId: contactRef?.id, projectAddress });
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
       console.log(`[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        finalizeJobVersioning(db, jobId, proposalData);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) {
@@ -622,6 +763,7 @@ router.post('/manual', requireAuth, async (req, res) => {
           await sendWhatsApp(to, `Hey! 👋 I'm working on the estimate for *${customerName}* at ${projectAddress} but I'm missing a few details.\n\nI'll ask you one question at a time — just reply and I'll move to the next one.\n\n❓ Question 1 of ${total}:\n${firstQ}`);
         }
       } else {
+        finalizeJobVersioning(db, jobId, proposalData);
         saveReviewPending(db, proposalData, jobId);
         logAudit(jobId, 'manual_estimate_processed', `Manual entry — pending review`, 'admin');
         console.log(`[Manual Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
@@ -663,11 +805,13 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
           const rawEstimate = job.raw_estimate_data || '';
 
           const { processEstimate } = require('../services/claudeService');
+          const { context: priorCtx } = findPriorQuoteContext(db, { rawText: rawEstimate, contactId: job.contact_id, projectAddress: job.project_address });
           const proposalData = await processEstimate(
             `${rawEstimate}\n\nCLARIFICATION ANSWERS:\n${answersText}`,
-            job.id, 'en'
+            job.id, 'en', db, job.project_address || null, priorCtx
           );
 
+          finalizeJobVersioning(db, job.id, proposalData);
           const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
           saveProposalReady(db, proposalData, pdfPath, job.id);
           logAudit(job.id, 'proposal_generated', `Proposal generated after clarification`, 'admin');
@@ -905,14 +1049,17 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     try {
       console.log(`[Wizard Job ${jobId}] Starting Claude processEstimate...`);
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress);
+      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedScope, contactId: contactRef?.id, projectAddress });
+      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
       console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        finalizeJobVersioning(db, jobId, proposalData);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
       } else {
+        finalizeJobVersioning(db, jobId, proposalData);
         saveReviewPending(db, proposalData, jobId);
         logAudit(jobId, 'wizard_estimate_processed', `Wizard submission — pending review`, 'admin');
         console.log(`[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
@@ -946,14 +1093,17 @@ router.post('/:id/reprocess', requireAuth, requireRole('admin', 'pm', 'system_ad
     try {
       console.log(`[Reprocess Job ${job.id}] Starting Claude processEstimate...`);
       const fullEstimate = `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${job.raw_estimate_data}`;
-      const proposalData = await processEstimate(fullEstimate, job.id, 'en', db, job.project_address || null);
+      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: job.raw_estimate_data, contactId: job.contact_id, projectAddress: job.project_address });
+      const proposalData = await processEstimate(fullEstimate, job.id, 'en', db, job.project_address || null, priorCtx);
       console.log(`[Reprocess Job ${job.id}] Claude returned. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        finalizeJobVersioning(db, job.id, proposalData);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', job.id);
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(job.id, q);
       } else {
+        finalizeJobVersioning(db, job.id, proposalData);
         saveReviewPending(db, proposalData, job.id);
         logAudit(job.id, 'reprocessed', 'Job reprocessed after error', req.session?.name || 'admin');
         notifyClients('job_updated', { jobId: job.id, status: 'review_pending' });

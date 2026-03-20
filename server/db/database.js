@@ -162,6 +162,22 @@ async function initDatabase() {
     db.exec("ALTER TABLE jobs ADD COLUMN contact_id INTEGER");
   }
 
+  // Migration: add quote versioning columns to jobs
+  try { db.prepare("SELECT quote_number FROM jobs LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN quote_number TEXT");
+  }
+  try { db.prepare("SELECT version FROM jobs LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN version INTEGER DEFAULT 1");
+  }
+  try { db.prepare("SELECT parent_job_id FROM jobs LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN parent_job_id TEXT");
+  }
+  try { db.prepare("SELECT estimate_source FROM jobs LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE jobs ADD COLUMN estimate_source TEXT DEFAULT 'ai'");
+  }
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_quote_number ON jobs(quote_number)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_parent_job_id ON jobs(parent_job_id)`);
+
   // Atomic serial counter table for customer numbers
   db.exec(`
     CREATE TABLE IF NOT EXISTS customer_serial_counter (

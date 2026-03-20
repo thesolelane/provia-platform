@@ -155,7 +155,6 @@ ${knowledgeBase}`;
 function buildMemoryContext(db, projectAddress) {
   if (!db || !projectAddress) return '';
   try {
-    // Find prior jobs at the same address that have proposal data
     const prior = db.prepare(`
       SELECT pb_number, external_ref, created_at, total_value, deposit_amount, proposal_data
       FROM jobs
@@ -194,19 +193,57 @@ RULES:
   }
 }
 
+// ── LOOKUP PRIOR VERSION CONTEXT ─────────────────────────────────────
+function getPriorVersionContext(db, quoteNumber) {
+  if (!quoteNumber) return null;
+  const prior = db.prepare(`
+    SELECT j.id, j.version, j.total_value, j.created_at, j.proposal_data
+    FROM jobs j
+    WHERE j.quote_number = ? AND j.proposal_data IS NOT NULL
+    ORDER BY j.version DESC
+    LIMIT 1
+  `).get(quoteNumber);
+  if (!prior) return null;
+  try {
+    const data = typeof prior.proposal_data === 'string' ? JSON.parse(prior.proposal_data) : prior.proposal_data;
+    const items = (data.lineItems || []).map(li =>
+      `  - ${li.trade}: baseCost $${(li.baseCost || 0).toLocaleString()} → client price $${(li.finalPrice || 0).toLocaleString()} | ${li.description || ''}`
+    ).join('\n');
+    return `## IMPORTANT: YOU ALREADY PRICED THIS QUOTE (Quote #${quoteNumber}, Version ${prior.version} — ${new Date(prior.created_at).toLocaleDateString('en-US')})
+You have already processed an estimate for this quote number. This is a revision of the same project. You MUST use your previous pricing as the baseline — do NOT re-estimate from scratch.
+
+Your previous total contract price: $${(prior.total_value || 0).toLocaleString()}
+Your previous line items:
+${items}
+
+RULES FOR THIS REVISION:
+1. Keep the same quoteNumber: "${quoteNumber}"
+2. For line items that appear in BOTH the old and new scope, keep your baseCost values the same as above unless the new scope explicitly changes the quantity or specification.
+3. Only add new baseCosts for genuinely NEW work items that were not in the prior version.
+4. Only remove line items that are explicitly removed from the new scope.
+5. If the new scope is identical or nearly identical, your output should match the prior version almost exactly.`;
+  } catch {
+    return null;
+  }
+}
+
 // ── PROCESS ESTIMATE → EXTRACT DATA ─────────────────────────────────
-async function processEstimate(rawEstimateText, jobId, language = 'en', db = null, projectAddress = null) {
+async function processEstimate(rawEstimateText, jobId, language = 'en', db = null, projectAddress = null, priorVersionContext = null) {
   const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
   const memoryContext = buildMemoryContext(db, projectAddress);
   const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language) + memoryContext;
   const rates = getMarkupRates(settings);
 
+  const priorContextSection = priorVersionContext
+    ? `\n\n${priorVersionContext}`
+    : '';
+
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 8000,
-    temperature: 0,
-    system: systemPrompt,
+    temperature: 0.1,
+    system: systemPrompt + priorContextSection,
     messages: [
       {
         role: 'user',
@@ -491,7 +528,7 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2000,
-    temperature: 0,
+    temperature: 0.1,
     system: systemPrompt + `\n\nYou are in a clarification conversation about job ${jobId}. 
     If the user's answers complete all missing information, respond with JSON: {"type":"ready","message":"..."} 
     If more questions remain, respond with JSON: {"type":"question","message":"...","questionsRemaining":N}
@@ -753,4 +790,4 @@ RULES:
   }
 }
 
-module.exports = { processEstimate, generateContract, handleClarification, adminChat, generateWizardQuestions, buildMemoryContext };
+module.exports = { processEstimate, generateContract, handleClarification, adminChat, generateWizardQuestions, buildMemoryContext, getPriorVersionContext };
