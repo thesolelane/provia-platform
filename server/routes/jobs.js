@@ -922,22 +922,29 @@ router.get('/stats/summary', requireAuth, (req, res) => {
   });
 });
 
-// ARCHIVE a job (soft delete)
+// ARCHIVE a job (soft delete) — with optional outcome capture
 router.delete('/:id', requireAuth, requireRole('admin', 'system_admin'), (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT id FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
-  db.prepare('UPDATE jobs SET archived = 1, archived_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.params.id);
-  logAudit(req.params.id, 'archived', 'Job archived', 'admin');
+  const { closed_reason, closed_note } = req.body || {};
+  const validReasons = ['lost_price', 'lost_timing', 'lost_competitor', 'ghosted', 'mistake', 'completed'];
+  const reason = validReasons.includes(closed_reason) ? closed_reason : null;
+  const note = typeof closed_note === 'string' ? closed_note.trim().slice(0, 500) : null;
+
+  db.prepare('UPDATE jobs SET archived = 1, archived_at = CURRENT_TIMESTAMP, closed_reason = ?, closed_note = ? WHERE id = ?')
+    .run(reason, note || null, req.params.id);
+  const reasonLabel = reason ? ` (${reason}${note ? ': ' + note : ''})` : '';
+  logAudit(req.params.id, 'archived', `Job archived${reasonLabel}`, 'admin');
   res.json({ success: true, message: 'Job archived' });
 });
 
 // RESTORE an archived job
 router.post('/:id/restore', requireAuth, requireRole('admin', 'system_admin'), (req, res) => {
   const db = getDb();
-  db.prepare('UPDATE jobs SET archived = 0, archived_at = NULL WHERE id = ?').run(req.params.id);
-  logAudit(req.params.id, 'restored', 'Job restored from archive', 'admin');
+  db.prepare('UPDATE jobs SET archived = 0, archived_at = NULL, closed_reason = NULL, closed_note = NULL WHERE id = ?').run(req.params.id);
+  logAudit(req.params.id, 'restored', 'Job restored from archive (outcome cleared)', 'admin');
   res.json({ success: true });
 });
 

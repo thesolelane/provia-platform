@@ -34,6 +34,19 @@ const STATUS_LABELS = {
   complete:          'Complete',
 };
 
+const OUTCOME_BADGES = {
+  lost_price:      { label: 'Lost – Price',     bg: '#FFEBEE', color: '#C62828' },
+  lost_timing:     { label: 'Lost – Timing',    bg: '#FFF3E0', color: '#E65100' },
+  lost_competitor: { label: 'Lost – Competitor', bg: '#F3E5F5', color: '#6A1B9A' },
+  ghosted:         { label: 'Ghosted',    bg: '#ECEFF1', color: '#546E7A' },
+  mistake:         { label: 'Mistake / Duplicate', bg: '#EFEBE9', color: '#795548' },
+  completed:       { label: 'Completed',  bg: '#E8F5E9', color: '#2E7D32' },
+};
+
+function outcomeBadge(reason) {
+  return OUTCOME_BADGES[reason] || null;
+}
+
 export default function Dashboard({ token }) {
   const [jobs, setJobs] = useState([]);
   const [stats, setStats] = useState(null);
@@ -67,13 +80,51 @@ export default function Dashboard({ token }) {
 
   const [showArchived, setShowArchived] = useState(false);
   const [archivedJobs, setArchivedJobs] = useState([]);
+  const [archiveModal, setArchiveModal] = useState(null);
+  const [archiveReason, setArchiveReason] = useState('');
+  const [archiveNote, setArchiveNote] = useState('');
+  const [archiveBusy, setArchiveBusy] = useState(false);
 
-  const archiveJob = async (jobId, customerName) => {
-    if (!await showConfirm(`Archive job for ${customerName || 'this customer'}? It will be permanently deleted after 90 days.`)) return;
-    const res = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE', headers });
+  const openArchiveModal = (jobId, customerName, status) => {
+    if (['complete', 'contract_signed'].includes(status)) {
+      archiveCompleted(jobId);
+      return;
+    }
+    setArchiveReason('');
+    setArchiveNote('');
+    setArchiveModal({ jobId, customerName });
+  };
+
+  const archiveCompleted = async (jobId) => {
+    const res = await fetch(`/api/jobs/${jobId}`, {
+      method: 'DELETE',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ closed_reason: 'completed' })
+    });
     if (res.ok) {
       setJobs(jobs.filter(j => j.id !== jobId));
       setStats(prev => prev ? { ...prev, total: (prev.total || 1) - 1 } : prev);
+      showToast('Completed job archived');
+    } else {
+      const data = await res.json();
+      showToast(data.error || 'Failed to archive', 'error');
+    }
+  };
+
+  const confirmArchive = async () => {
+    if (!archiveModal) return;
+    setArchiveBusy(true);
+    const res = await fetch(`/api/jobs/${archiveModal.jobId}`, {
+      method: 'DELETE',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ closed_reason: archiveReason || null, closed_note: archiveNote || null })
+    });
+    setArchiveBusy(false);
+    if (res.ok) {
+      setJobs(jobs.filter(j => j.id !== archiveModal.jobId));
+      setStats(prev => prev ? { ...prev, total: (prev.total || 1) - 1 } : prev);
+      setArchiveModal(null);
+      showToast('Job archived');
     } else {
       const data = await res.json();
       showToast(data.error || 'Failed to archive', 'error');
@@ -218,7 +269,7 @@ export default function Dashboard({ token }) {
                 <td style={{ padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'center' }}>
                   <Link to={`/jobs/${job.id}`} style={{ color: '#1B3A6B', fontSize: 12, fontWeight: 'bold', textDecoration: 'none' }}>View →</Link>
                   <button
-                    onClick={() => archiveJob(job.id, job.customer_name)}
+                    onClick={() => openArchiveModal(job.id, job.customer_name, job.status)}
                     style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}
                     title="Archive job"
                   >Archive</button>
@@ -251,6 +302,7 @@ export default function Dashboard({ token }) {
                 <thead>
                   <tr style={{ background: '#f5f5f5' }}>
                     <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>Customer</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>Outcome</th>
                     <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>Archived</th>
                     <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>Days Left</th>
                     <th style={{ padding: '8px 12px', fontSize: 11 }}></th>
@@ -259,9 +311,17 @@ export default function Dashboard({ token }) {
                 <tbody>
                   {archivedJobs.map(job => {
                     const daysLeft = Math.max(0, 90 - Math.floor((Date.now() - new Date(job.archived_at).getTime()) / 86400000));
+                    const badge = outcomeBadge(job.closed_reason);
                     return (
                       <tr key={job.id} style={{ borderBottom: '1px solid #eee' }}>
                         <td style={{ padding: '8px 12px', fontSize: 13 }}>{job.customer_name || '—'}</td>
+                        <td style={{ padding: '8px 12px' }}>
+                          {badge ? (
+                            <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 'bold', background: badge.bg, color: badge.color }}>
+                              {badge.label}
+                            </span>
+                          ) : <span style={{ fontSize: 10, color: '#bbb' }}>—</span>}
+                        </td>
                         <td style={{ padding: '8px 12px', fontSize: 11, color: '#888' }}>{new Date(job.archived_at).toLocaleDateString()}</td>
                         <td style={{ padding: '8px 12px', fontSize: 11, color: daysLeft < 14 ? '#C62828' : '#888' }}>{daysLeft} days</td>
                         <td style={{ padding: '8px 12px' }}>
@@ -275,6 +335,82 @@ export default function Dashboard({ token }) {
                 </tbody>
               </table>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Archive Outcome Modal */}
+      {archiveModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: 28, width: 440, maxHeight: '80vh', overflow: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ color: '#1B3A6B', margin: 0, fontSize: 18 }}>Archive Job</h3>
+              <button onClick={() => setArchiveModal(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>×</button>
+            </div>
+            <p style={{ fontSize: 13, color: '#555', marginBottom: 16 }}>
+              Archiving <strong>{archiveModal.customerName || 'this job'}</strong>. Why is this job being closed?
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+              {[
+                { value: 'lost_price', label: 'Lost – Price', icon: '💰', color: '#C62828', bg: '#FFEBEE' },
+                { value: 'lost_timing', label: 'Lost – Timing', icon: '⏰', color: '#E65100', bg: '#FFF3E0' },
+                { value: 'lost_competitor', label: 'Lost – Competitor', icon: '🏢', color: '#6A1B9A', bg: '#F3E5F5' },
+                { value: 'ghosted', label: 'Ghosted', icon: '👻', color: '#546E7A', bg: '#ECEFF1' },
+                { value: 'mistake', label: 'Mistake / Duplicate', icon: '🗑️', color: '#795548', bg: '#EFEBE9' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setArchiveReason(archiveReason === opt.value ? '' : opt.value)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                    background: archiveReason === opt.value ? opt.bg : '#fafafa',
+                    color: archiveReason === opt.value ? opt.color : '#555',
+                    border: archiveReason === opt.value ? `2px solid ${opt.color}` : '2px solid #eee',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  <span style={{ fontSize: 18 }}>{opt.icon}</span>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Note (optional)</label>
+              <textarea
+                value={archiveNote}
+                onChange={e => setArchiveNote(e.target.value)}
+                placeholder="Any details about this outcome..."
+                rows={2}
+                maxLength={500}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={confirmArchive}
+                disabled={archiveBusy}
+                style={{
+                  flex: 1, padding: '10px 16px', borderRadius: 6, cursor: archiveBusy ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold', fontSize: 13, border: 'none',
+                  background: archiveBusy ? '#888' : '#1B3A6B', color: 'white'
+                }}
+              >
+                {archiveBusy ? 'Archiving...' : 'Archive Job'}
+              </button>
+              <button
+                onClick={() => setArchiveModal(null)}
+                style={{ padding: '10px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13, background: '#f0f0f0', color: '#555', border: 'none' }}
+              >
+                Cancel
+              </button>
+            </div>
+            <p style={{ fontSize: 10, color: '#aaa', marginTop: 10, textAlign: 'center' }}>
+              Selecting a reason is optional but helps track why jobs are lost.
+            </p>
           </div>
         </div>
       )}

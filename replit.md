@@ -50,6 +50,7 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 - `server/routes/jobPhotos.js` — `POST/GET/DELETE /api/jobs/:id/photos`; files stored in `uploads/jobs/{jobId}/`
 - `server/routes/signing.js` — Server-side HTML signing pages at `/sign/p/:token` and `/sign/c/:token`
 - `server/routes/tasks.js` — Task CRUD + Google Calendar push; exports `{ router, makeCalendarURL }`
+- `server/routes/analytics.js` — Pipeline analytics API (`/api/analytics/pipeline`) and per-job context (`/api/analytics/job/:id/context`); wins = complete/contract_signed jobs, losses = archived with closed_reason
 - `server/routes/payments.js` — Payment ledger CRUD for checks received & paid out, per-job summaries
 - `server/routes/settings.js` — Settings CRUD; `GET /api/tasks/calendars` for calendar picker
 - `server/services/claudeService.js` — Claude extraction + pricing math + `adminChat()` (returns `{ reply, createdTask }`)
@@ -63,8 +64,9 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 ### Client
 - `client/src/App.jsx` — React router; persists token + user name/role in localStorage; auto-logout on 401
 - `client/src/components/Layout.jsx` — Sidebar nav; shows "Logged in as [Name] (Role)" in footer
-- `client/src/pages/Dashboard.jsx` — Job list with status color coding; stats bar; archive/restore; guided 4-step wizard (Customer Info → Scope → AI Questions → Review)
-- `client/src/pages/JobDetail.jsx` — Job tabs: Overview, Payments, Proposal, Contract, Signatures, Photos
+- `client/src/pages/Dashboard.jsx` — Job list with status color coding; stats bar; archive/restore with outcome capture modal (Lost–Price/Timing/Competitor, Ghosted, Mistake/Duplicate); guided 4-step wizard
+- `client/src/pages/Analytics.jsx` — Pipeline analytics: summary cards (Total Jobs, Pipeline Value, Won Revenue, Win Rate), velocity metrics, avg won margin, pipeline funnel, loss breakdown, monthly revenue
+- `client/src/pages/JobDetail.jsx` — Job tabs: Overview, Payments, Proposal, Contract, Signatures, Photos, Assessment (scorecard with margin compliance, $/sqft benchmarks, pipeline context, trade coverage)
 - `client/src/pages/Payments.jsx` — Global payment ledger page; filter by job/date; add check in/out
 - `client/src/components/PaymentsTab.jsx` — Payments tab within job detail; running totals + quick-add forms
 - `client/src/components/PhotosTab.jsx` — Camera capture, upload, photo grid, offline pending badge
@@ -86,7 +88,7 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 | Table | Purpose |
 |-------|---------|
 | `users` | Login accounts (Anthony Cooper + Jackson Deaquino, bcrypt passwords) |
-| `jobs` | All jobs (soft-delete/archive; auto-purge after 90 days) |
+| `jobs` | All jobs (soft-delete/archive; auto-purge after 90 days; closed_reason + closed_note for win/loss tracking) |
 | `contacts` | Pseudonymized customer records (PB-XXXX serial numbers) |
 | `whitelist` | Approved WhatsApp/email senders |
 | `settings` | Runtime config overrides (markup %, labor rates, gcal settings) |

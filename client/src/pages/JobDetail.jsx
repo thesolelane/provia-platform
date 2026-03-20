@@ -63,6 +63,7 @@ export default function JobDetail({ token }) {
   const [versionHistory, setVersionHistory] = useState([]);
   const [marginData, setMarginData] = useState(null);
   const [marginLoading, setMarginLoading] = useState(false);
+  const [pipelineCtx, setPipelineCtx] = useState(null);
 
   const load = () => {
     fetch(`/api/jobs/${id}`, { headers: { 'x-auth-token': token } })
@@ -85,13 +86,16 @@ export default function JobDetail({ token }) {
 
   useEffect(() => { load(); }, [id]);
 
-  // Load margin data when job loads (Financial Health Check — added by Task #16)
   useEffect(() => {
     if (!id) return;
     fetch(`/api/jobs/${id}/margin`, { headers: { 'x-auth-token': token } })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => { setMarginData(data); setMarginLoading(false); })
       .catch(() => { setMarginData(null); setMarginLoading(false); });
+    fetch(`/api/analytics/job/${id}/context`, { headers: { 'x-auth-token': token } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => setPipelineCtx(data))
+      .catch(() => setPipelineCtx(null));
   }, [id, token]);
 
   // Auto-refresh via SSE when job is processing — no manual refresh needed
@@ -1274,25 +1278,49 @@ export default function JobDetail({ token }) {
                     </div>
                   </div>
 
-                  {/* Markup chain */}
-                  <div style={{ background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 16 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: '#333', marginBottom: 10 }}>Markup Chain Verification</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
-                      <span style={{ background: '#fff3e0', color: '#b45309', borderRadius: 4, padding: '3px 10px', fontWeight: 600 }}>Sub Cost ${subTotal.toLocaleString()}</span>
-                      <span style={{ color: '#aaa' }}>→ Sub O&amp;P 15% →</span>
-                      <span style={{ background: '#fff3e0', color: '#b45309', borderRadius: 4, padding: '3px 10px', fontWeight: 600 }}>GC O&amp;P 25%</span>
-                      <span style={{ color: '#aaa' }}>→</span>
-                      <span style={{ background: '#fff3e0', color: '#b45309', borderRadius: 4, padding: '3px 10px', fontWeight: 600 }}>Contingency 10%</span>
-                      <span style={{ color: '#aaa' }}>→</span>
-                      <span style={{ background: multOk ? '#dcfce7' : '#fee2e2', color: multOk ? '#166534' : '#991b1b', borderRadius: 4, padding: '3px 10px', fontWeight: 700 }}>
-                        {effectiveMult > 0 ? `${effectiveMult.toFixed(4)}×` : '—'} {multOk ? '✅' : effectiveMult > 0 ? '⚠️' : ''}
-                      </span>
-                      <span style={{ color: '#555', fontSize: 12 }}>→ Client Price ${clientTotal.toLocaleString()}</span>
+                  {pipelineCtx && (
+                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, color: BLUE, marginBottom: 12 }}>Pipeline Context</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 20, fontWeight: 700, color: pipelineCtx.daysAtCurrentStage > (pipelineCtx.avgDaysToClose || 30) ? '#991b1b' : pipelineCtx.daysAtCurrentStage > 7 ? '#92400e' : '#166534' }}>
+                            {pipelineCtx.daysAtCurrentStage}d
+                          </div>
+                          <div style={{ fontSize: 11, color: '#666' }}>At Current Stage</div>
+                        </div>
+                        {pipelineCtx.avgDaysToClose !== null && (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: BLUE }}>{pipelineCtx.avgDaysToClose}d</div>
+                            <div style={{ fontSize: 11, color: '#666' }}>Avg Days to Close</div>
+                            <div style={{ fontSize: 10, color: '#aaa' }}>({pipelineCtx.avgDaysToCloseSample} won jobs)</div>
+                          </div>
+                        )}
+                        {pipelineCtx.avgWonMargin !== null && (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: marginData?.actualNetMarginPct && Math.abs(marginData.actualNetMarginPct - pipelineCtx.avgWonMargin) > 5 ? '#92400e' : '#166534' }}>
+                              {pipelineCtx.avgWonMargin}%
+                            </div>
+                            <div style={{ fontSize: 11, color: '#666' }}>Avg Won Margin</div>
+                            <div style={{ fontSize: 10, color: '#aaa' }}>({pipelineCtx.avgWonMarginSample} jobs)</div>
+                          </div>
+                        )}
+                        {pipelineCtx.avgWonSqftPrice !== null && (
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: 20, fontWeight: 700, color: sqftPrice && Math.abs(sqftPrice - pipelineCtx.avgWonSqftPrice) > 50 ? '#92400e' : '#166534' }}>
+                              ${pipelineCtx.avgWonSqftPrice}/sqft
+                            </div>
+                            <div style={{ fontSize: 11, color: '#666' }}>Avg Won $/sqft</div>
+                            <div style={{ fontSize: 10, color: '#aaa' }}>({pipelineCtx.avgWonSqftPriceSample} jobs)</div>
+                          </div>
+                        )}
+                      </div>
+                      {pipelineCtx.daysAtCurrentStage > 14 && (
+                        <div style={{ marginTop: 10, fontSize: 12, color: '#991b1b', background: '#fef2f2', borderRadius: 6, padding: '8px 12px' }}>
+                          This job has been at its current stage for over 2 weeks. Consider following up or reviewing the status.
+                        </div>
+                      )}
                     </div>
-                    {!multOk && effectiveMult > 0 && (
-                      <div style={{ fontSize: 12, color: '#991b1b', marginTop: 8 }}>Expected 1.5813×. Difference may indicate rounding or manual line-item adjustments.</div>
-                    )}
-                  </div>
+                  )}
 
                   {/* Flagged items — prefer job.flagged_items (persisted DB column), fall back to pd.flaggedItems */}
                   {(() => {
