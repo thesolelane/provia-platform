@@ -161,9 +161,12 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
 
           logAudit(jobId, 'proposal_ready_email', `Proposal ready. Total: $${proposalData.totalValue}`, 'email-poller');
 
+          const { getOwnerEmails } = require('./emailService');
           const recipients = [from];
-          if (process.env.OWNER_EMAIL && !recipients.includes(process.env.OWNER_EMAIL.toLowerCase())) {
-            recipients.push(process.env.OWNER_EMAIL);
+          for (const ownerEmail of getOwnerEmails()) {
+            if (!recipients.map(r => r.toLowerCase()).includes(ownerEmail.toLowerCase())) {
+              recipients.push(ownerEmail);
+            }
           }
 
           await sendEmail({

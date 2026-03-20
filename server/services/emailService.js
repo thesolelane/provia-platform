@@ -4,6 +4,12 @@ const Mailgun = require('mailgun.js');
 const fs = require('fs');
 const path = require('path');
 
+// Returns an array of owner emails parsed from OWNER_EMAIL (comma-separated)
+function getOwnerEmails() {
+  const raw = process.env.OWNER_EMAIL || process.env.REPLY_TO_EMAIL || '';
+  return raw.split(',').map(e => e.trim()).filter(Boolean);
+}
+
 let mg;
 function getMailgun() {
   if (!mg && process.env.MAILGUN_API_KEY) {
@@ -21,7 +27,8 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
   }
 
   const fromAddress = process.env.BOT_EMAIL || 'noreply@preferredbuildersusa.com';
-  const replyToAddress = replyTo || process.env.OWNER_EMAIL || process.env.REPLY_TO_EMAIL;
+  const ownerEmails = getOwnerEmails();
+  const replyToAddress = replyTo || (ownerEmails.length ? ownerEmails.join(', ') : null);
 
   const messageData = {
     from: `Preferred Builders <${fromAddress}>`,
@@ -50,4 +57,4 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
   }
 }
 
-module.exports = { sendEmail };
+module.exports = { sendEmail, getOwnerEmails };

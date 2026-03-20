@@ -86,9 +86,12 @@ router.post('/', async (req, res) => {
       db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
         .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_sent', jobId);
 
+      const { getOwnerEmails } = require('../services/emailService');
       const recipients = [from];
-      if (process.env.OWNER_EMAIL && !recipients.includes(process.env.OWNER_EMAIL)) {
-        recipients.push(process.env.OWNER_EMAIL);
+      for (const ownerEmail of getOwnerEmails()) {
+        if (!recipients.map(r => r.toLowerCase()).includes(ownerEmail.toLowerCase())) {
+          recipients.push(ownerEmail);
+        }
       }
 
       await sendEmail({
