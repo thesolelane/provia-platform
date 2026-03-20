@@ -960,23 +960,170 @@ export default function JobDetail({ token }) {
           </div>
         )}
 
-        {/* AUDIT — Proposal Assessment (coming in Task #15) */}
-        {activeTab === 'audit' && (
-          <div>
-            <h3 style={{ color: BLUE, marginBottom: 8 }}>Proposal Assessment</h3>
-            <div style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
-              This tab will show a full pricing assessment — per-trade benchmarks vs. PB labor rates, $/sqft vs. local market, markup chain verification, and flagged items. Coming soon.
-            </div>
-            {job.proposal_data?.flaggedItems?.length > 0 && (
-              <div style={{ background: '#FFF8F0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 14 }}>
-                <strong style={{ color: ORANGE, fontSize: 13 }}>⚠️ Claude Flagged Items ({job.proposal_data.flaggedItems.length})</strong>
-                <ul style={{ margin: '8px 0 0 18px', fontSize: 13, color: '#5D3A00' }}>
-                  {job.proposal_data.flaggedItems.map((f, i) => <li key={i}>{f}</li>)}
-                </ul>
+        {/* AUDIT — Proposal Assessment */}
+        {activeTab === 'audit' && (() => {
+          const pd = job.proposal_data;
+          const lineItems = pd?.lineItems || [];
+          const isLocked = ['proposal_approved','customer_approved','contract_ready','contract_sent','contract_signed','complete'].includes(job.status);
+          const isSemiLocked = ['proposal_ready','proposal_sent'].includes(job.status);
+
+          const subTotal    = lineItems.reduce((s, li) => s + (Number(li.baseCost)   || 0), 0);
+          const clientTotal = lineItems.reduce((s, li) => s + (Number(li.finalPrice) || 0), 0);
+          const effectiveMult = subTotal > 0 ? clientTotal / subTotal : 0;
+          const multOk = effectiveMult >= 1.55 && effectiveMult <= 1.62;
+
+          const sqftPrice   = pd?.pricing?.pricePerSqft;
+          const sqftWarning = pd?.pricing?.sqftWarning;
+          const totalVal    = Number(pd?.totalValue  || job.total_value   || 0);
+          const depositAmt  = Number(pd?.depositAmount || job.deposit_amount || 0);
+          const depositPct  = totalVal > 0 ? Math.round((depositAmt / totalVal) * 100) : 0;
+          const depositOk   = depositPct >= 30 && depositPct <= 36;
+
+          const BENCHMARKS = [
+            { kw: ['foundation','slab','concrete','basement','crawl','pier','footing'],          note: '$18–55/sqft depending on type' },
+            { kw: ['framing','frame','structural','lvl','tji'],                                  note: '$45–70/sqft (labor + materials)' },
+            { kw: ['roof','shingle','metal roofing','tpo','standing seam'],                      note: '$450–650/sq; $18–28/sqft metal' },
+            { kw: ['siding','hardie','fiber cement','vinyl siding','clapboard','board & batten'],note: '$4–20/sqft installed' },
+            { kw: ['window','door','entry door','garage door'],                                  note: '$600–4,500 each by type' },
+            { kw: ['electric','wiring','panel','service upgrade','circuit'],                     note: '$12–20/sqft full house' },
+            { kw: ['plumbing','pipe','drain','fixture','bath rough','kitchen rough'],             note: '$1,500–8,000/trade scope' },
+            { kw: ['hvac','heat','mini-split','minisplit','furnace','erv','mechanical'],          note: '$3,500–20,000+ per system' },
+            { kw: ['insulation','spray foam','batt','blown','rigid foam'],                       note: '$1.20–6/sqft by type' },
+            { kw: ['drywall','sheetrock','plaster','skim coat','blueboard'],                     note: '$3.50–6/sqft hang & finish' },
+            { kw: ['permit','fee','inspection','compliance','stretch code'],                     note: '0.5–1.5% of project value' },
+            { kw: ['demo','demolition','removal','tear out'],                                    note: 'Varies by scope' },
+            { kw: ['floor','tile','hardwood','carpet','lvp','vinyl plank'],                      note: '$5–25/sqft installed' },
+            { kw: ['cabinet','kitchen','counter','quartz','granite'],                            note: 'Mid-range kitchen $25K–50K' },
+            { kw: ['paint','trim','baseboard','millwork','interior finish'],                     note: '$35K–120K per 1,000 sqft living' },
+            { kw: ['site work','excavat','grading','septic','well','driveway'],                  note: 'Typically excluded — verify' },
+            { kw: ['dumpster','disposal','waste'],                                               note: '$500–1,500 typical' },
+          ];
+          const matchBench = (trade) => {
+            const lc = (trade || '').toLowerCase();
+            return BENCHMARKS.find(b => b.kw.some(k => lc.includes(k)));
+          };
+
+          return (
+            <div>
+              {/* Header + lock badge */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ color: BLUE, margin: 0 }}>Proposal Assessment</h3>
+                {isLocked && (
+                  <span style={{ background: '#f1f5f9', border: '1px solid #94a3b8', borderRadius: 6, padding: '4px 12px', fontSize: 12, color: '#475569', fontWeight: 700 }}>
+                    🔒 Locked — Proposal Approved
+                  </span>
+                )}
+                {isSemiLocked && !isLocked && (
+                  <span style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 6, padding: '4px 12px', fontSize: 12, color: '#c2410c', fontWeight: 700 }}>
+                    📋 Semi-locked — Proposal Ready
+                  </span>
+                )}
               </div>
-            )}
-          </div>
-        )}
+
+              {!pd ? (
+                <div style={{ color: '#888', textAlign: 'center', padding: 40 }}>
+                  <div style={{ fontSize: 32, marginBottom: 10 }}>📊</div>
+                  <div style={{ fontWeight: 600 }}>No proposal generated yet.</div>
+                  <div style={{ fontSize: 12, color: '#aaa', marginTop: 6 }}>Assessment appears once a proposal PDF has been generated.</div>
+                </div>
+              ) : (
+                <>
+                  {/* Score cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+                    <div style={{ background: '#EEF3FB', borderRadius: 8, padding: 14, textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>Estimate Total</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: BLUE }}>${totalVal.toLocaleString()}</div>
+                    </div>
+                    <div style={{ background: sqftWarning === 'below' ? '#fff3cd' : sqftWarning === 'above' ? '#fde8e8' : sqftPrice ? '#f0fdf4' : '#f8f8f8', borderRadius: 8, padding: 14, textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>Price / Sq Ft</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: sqftWarning ? (sqftWarning === 'below' ? '#92400e' : '#991b1b') : sqftPrice ? '#166534' : '#aaa' }}>
+                        {sqftPrice ? `$${sqftPrice}/sqft` : '—'}
+                      </div>
+                      {sqftWarning && <div style={{ fontSize: 10, color: sqftWarning === 'below' ? '#92400e' : '#991b1b', marginTop: 2 }}>⚠️ {sqftWarning === 'below' ? 'Below' : 'Above'} target range</div>}
+                      {!sqftWarning && sqftPrice && <div style={{ fontSize: 10, color: '#166534', marginTop: 2 }}>✅ In target range</div>}
+                    </div>
+                    <div style={{ background: depositAmt > 0 ? (depositOk ? '#f0fdf4' : '#fff3cd') : '#f8f8f8', borderRadius: 8, padding: 14, textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>Deposit</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: depositAmt > 0 ? (depositOk ? '#166534' : '#92400e') : '#aaa' }}>
+                        {depositAmt > 0 ? `$${Number(depositAmt).toLocaleString()}` : '—'}
+                      </div>
+                      {depositAmt > 0 && <div style={{ fontSize: 10, color: depositOk ? '#166534' : '#92400e', marginTop: 2 }}>{depositPct}% of total {depositOk ? '✅' : '⚠️ (expect ~33%)'}</div>}
+                    </div>
+                  </div>
+
+                  {/* Markup chain */}
+                  <div style={{ background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 16 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: '#333', marginBottom: 10 }}>Markup Chain Verification</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
+                      <span style={{ background: '#fff3e0', color: '#b45309', borderRadius: 4, padding: '3px 10px', fontWeight: 600 }}>Sub Cost ${subTotal.toLocaleString()}</span>
+                      <span style={{ color: '#aaa' }}>→ Sub O&amp;P 15% →</span>
+                      <span style={{ background: '#fff3e0', color: '#b45309', borderRadius: 4, padding: '3px 10px', fontWeight: 600 }}>GC O&amp;P 25%</span>
+                      <span style={{ color: '#aaa' }}>→</span>
+                      <span style={{ background: '#fff3e0', color: '#b45309', borderRadius: 4, padding: '3px 10px', fontWeight: 600 }}>Contingency 10%</span>
+                      <span style={{ color: '#aaa' }}>→</span>
+                      <span style={{ background: multOk ? '#dcfce7' : '#fee2e2', color: multOk ? '#166534' : '#991b1b', borderRadius: 4, padding: '3px 10px', fontWeight: 700 }}>
+                        {effectiveMult > 0 ? `${effectiveMult.toFixed(4)}×` : '—'} {multOk ? '✅' : effectiveMult > 0 ? '⚠️' : ''}
+                      </span>
+                      <span style={{ color: '#555', fontSize: 12 }}>→ Client Price ${clientTotal.toLocaleString()}</span>
+                    </div>
+                    {!multOk && effectiveMult > 0 && (
+                      <div style={{ fontSize: 12, color: '#991b1b', marginTop: 8 }}>Expected 1.5813×. Difference may indicate rounding or manual line-item adjustments.</div>
+                    )}
+                  </div>
+
+                  {/* Flagged items */}
+                  {pd.flaggedItems?.length > 0 && (
+                    <div style={{ background: '#FFF8F0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 14, marginBottom: 16 }}>
+                      <strong style={{ color: ORANGE, fontSize: 13 }}>⚠️ Items Flagged by AI ({pd.flaggedItems.length})</strong>
+                      <ul style={{ margin: '8px 0 0 18px', fontSize: 13, color: '#5D3A00' }}>
+                        {pd.flaggedItems.map((f, i) => <li key={i}>{f}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Per-trade table */}
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#333', marginBottom: 8 }}>Line Item Breakdown vs. PB Benchmarks</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: BLUE, color: 'white' }}>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>Trade</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>Sub Cost</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600 }}>Client Price</th>
+                        <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>PB Benchmark Range</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lineItems.map((li, i) => {
+                        const bench = matchBench(li.trade);
+                        return (
+                          <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#f8f8f8', borderBottom: '1px solid #eee' }}>
+                            <td style={{ padding: '8px 10px', color: '#333' }}>{li.trade}</td>
+                            <td style={{ padding: '8px 10px', textAlign: 'right', color: '#777' }}>${(Number(li.baseCost) || 0).toLocaleString()}</td>
+                            <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 600, color: BLUE }}>${(Number(li.finalPrice) || 0).toLocaleString()}</td>
+                            <td style={{ padding: '8px 10px', color: bench ? '#555' : '#bbb', fontSize: 12 }}>{bench ? bench.note : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                      <tr style={{ background: '#EEF3FB', fontWeight: 700, borderTop: '2px solid #c7d7f4' }}>
+                        <td style={{ padding: '10px', color: BLUE }}>TOTAL</td>
+                        <td style={{ padding: '10px', textAlign: 'right', color: '#555' }}>${subTotal.toLocaleString()}</td>
+                        <td style={{ padding: '10px', textAlign: 'right', color: BLUE }}>${clientTotal.toLocaleString()}</td>
+                        <td style={{ padding: '10px' }}></td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Lock note */}
+                  {isLocked && (
+                    <div style={{ marginTop: 16, padding: 12, background: '#f1f5f9', borderRadius: 8, fontSize: 12, color: '#64748b', textAlign: 'center' }}>
+                      🔒 This assessment was locked when the proposal was approved and is preserved as a permanent historical record for this job.
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
