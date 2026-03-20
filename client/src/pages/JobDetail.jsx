@@ -61,6 +61,8 @@ export default function JobDetail({ token }) {
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   const [versionHistory, setVersionHistory] = useState([]);
+  const [marginData, setMarginData] = useState(null);
+  const [marginLoading, setMarginLoading] = useState(false);
 
   const load = () => {
     fetch(`/api/jobs/${id}`, { headers: { 'x-auth-token': token } })
@@ -82,6 +84,16 @@ export default function JobDetail({ token }) {
   };
 
   useEffect(() => { load(); }, [id]);
+
+  // Load margin data when audit tab becomes active
+  useEffect(() => {
+    if (activeTab !== 'audit' || !id) return;
+    setMarginLoading(true);
+    fetch(`/api/jobs/${id}/margin`, { headers: { 'x-auth-token': token } })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => { setMarginData(data); setMarginLoading(false); })
+      .catch(() => { setMarginData(null); setMarginLoading(false); });
+  }, [activeTab, id, token]);
 
   // Auto-refresh via SSE when job is processing — no manual refresh needed
   useEffect(() => {
@@ -1013,6 +1025,93 @@ export default function JobDetail({ token }) {
 
           return (
             <div>
+              {/* ── Financial Profit Margin Breakdown ── */}
+              <div style={{ marginBottom: 28 }}>
+                <h3 style={{ color: BLUE, marginBottom: 16, marginTop: 0 }}>💰 Financial Health Check</h3>
+                {marginLoading ? (
+                  <div style={{ color: '#888', fontSize: 13, padding: '20px 0' }}>Loading financial data...</div>
+                ) : !marginData || !marginData.hasData ? (
+                  <div style={{ background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: 8, padding: 28, textAlign: 'center' }}>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
+                    <div style={{ fontWeight: 600, color: '#555' }}>No estimate data yet</div>
+                    <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>Margin breakdown appears once a proposal has been generated for this job.</div>
+                  </div>
+                ) : (
+                  <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead>
+                        <tr style={{ background: BLUE, color: 'white' }}>
+                          <th style={{ padding: '9px 14px', textAlign: 'left', fontWeight: 600 }}>Layer</th>
+                          <th style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 600 }}>Target %</th>
+                          <th style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 600 }}>Actual %</th>
+                          <th style={{ padding: '9px 14px', textAlign: 'right', fontWeight: 600 }}>$ Added</th>
+                          <th style={{ padding: '9px 14px', textAlign: 'center', fontWeight: 600 }}>Pass / Fail</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Base Cost row */}
+                        <tr style={{ background: '#f8f9fa', borderBottom: '1px solid #e9ecef' }}>
+                          <td style={{ padding: '10px 14px', fontWeight: 600, color: '#333' }}>Base Cost</td>
+                          <td style={{ padding: '10px 14px', textAlign: 'right', color: '#aaa' }}>—</td>
+                          <td style={{ padding: '10px 14px', textAlign: 'right', color: '#aaa' }}>—</td>
+                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700, color: '#333' }}>${marginData.baseCost.toLocaleString()}</td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center', color: '#aaa' }}>—</td>
+                        </tr>
+                        {/* Markup layers */}
+                        {marginData.layers.map((layer, i) => (
+                          <tr key={layer.label} style={{ background: i % 2 === 0 ? 'white' : '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
+                            <td style={{ padding: '10px 14px', color: '#444' }}>{layer.label}</td>
+                            <td style={{ padding: '10px 14px', textAlign: 'right', color: '#777' }}>{(layer.targetPct * 100).toFixed(1)}%</td>
+                            <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 600, color: layer.pass ? '#166534' : '#991b1b' }}>
+                              {(layer.actualPct * 100).toFixed(1)}%{!marginData.hasStoredRates && <span title="Assumed from current settings" style={{ fontSize: 10, color: '#aaa', marginLeft: 3 }}>*</span>}
+                            </td>
+                            <td style={{ padding: '10px 14px', textAlign: 'right', color: '#555' }}>+${layer.dollarAdded.toLocaleString()}</td>
+                            <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                              {layer.pass ? (
+                                <span style={{ background: '#dcfce7', color: '#166534', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>✓ Pass</span>
+                              ) : (
+                                <span style={{ background: '#fee2e2', color: '#991b1b', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>✗ Fail</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Contract Price row */}
+                        <tr style={{ background: '#EEF3FB', borderTop: '2px solid #c7d7f4', fontWeight: 700 }}>
+                          <td style={{ padding: '12px 14px', color: BLUE }}>Contract Price</td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#aaa' }}>—</td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#aaa' }}>—</td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: BLUE, fontSize: 15 }}>${marginData.contractPrice.toLocaleString()}</td>
+                          <td style={{ padding: '12px 14px', textAlign: 'center' }}>
+                            {marginData.overallPass === null ? (
+                              <span style={{ color: '#bbb', fontSize: 12 }}>—</span>
+                            ) : marginData.overallPass ? (
+                              <span style={{ background: '#dcfce7', color: '#166534', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>✓ On Target</span>
+                            ) : (
+                              <span style={{ background: '#fff3cd', color: '#92400e', borderRadius: 12, padding: '2px 10px', fontSize: 12, fontWeight: 600 }}>⚠ Off Target</span>
+                            )}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    {/* Net margin summary bar */}
+                    <div style={{ background: marginData.actualNetMarginPct >= 30 ? '#f0fdf4' : marginData.actualNetMarginPct >= 20 ? '#fff7ed' : '#fef2f2', borderTop: '1px solid #e5e7eb', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: 13, color: '#555' }}>
+                        <span style={{ fontWeight: 600 }}>Actual Profit Margin</span>
+                        <span style={{ fontSize: 11, color: '#888', marginLeft: 8 }}>(revenue − base cost) ÷ revenue</span>
+                        {!marginData.hasStoredRates && (
+                          <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>* Actual % assumed from current settings (proposal predates rate tracking)</div>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: marginData.actualNetMarginPct >= 30 ? '#166534' : marginData.actualNetMarginPct >= 20 ? '#92400e' : '#991b1b' }}>
+                        {marginData.actualNetMarginPct}%
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <hr style={{ border: 'none', borderTop: '1px solid #eee', marginBottom: 24 }} />
+
               {/* Header + lock badge */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <h3 style={{ color: BLUE, margin: 0 }}>Proposal Assessment</h3>

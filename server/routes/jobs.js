@@ -424,7 +424,13 @@ router.patch('/:id/line-items', requireAuth, requireRole('admin', 'pm', 'system_
   const prevTotal = proposalData.totalValue || 0;
 
   proposalData.lineItems = updatedItems;
-  proposalData.pricing = { markupMultiplier: Math.round(multiplier * 10000) / 10000, totalContractPrice: total, depositPercent: Math.round(deposit * 100), depositAmount };
+  proposalData.pricing = {
+    markupMultiplier: Math.round(multiplier * 10000) / 10000,
+    totalContractPrice: total,
+    depositPercent: Math.round(deposit * 100),
+    depositAmount,
+    appliedRates: { subOandP, gcOandP, contingency },
+  };
   proposalData.totalValue = total;
   proposalData.depositAmount = depositAmount;
 
@@ -1156,6 +1162,119 @@ router.post('/:id/reprocess', requireAuth, requireRole('admin', 'pm', 'system_ad
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', job.id);
     }
   })();
+});
+
+// GET /:id/margin — financial profit margin breakdown for a job
+router.get('/:id/margin', requireAuth, (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT proposal_data FROM jobs WHERE id = ?').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  if (!job.proposal_data) return res.json({ hasData: false });
+
+  let proposalData;
+  try {
+    proposalData = typeof job.proposal_data === 'string' ? JSON.parse(job.proposal_data) : job.proposal_data;
+  } catch {
+    return res.json({ hasData: false });
+  }
+
+  // Load current target rates from settings (for comparison)
+  const settingsRows = db.prepare('SELECT key, value FROM settings WHERE category = ?').all('markup');
+  const settingsMap = {};
+  for (const row of settingsRows) settingsMap[row.key] = row.value;
+  const targetSubOandP    = Number(settingsMap['markup.subOandP'])    || 0.15;
+  const targetGcOandP     = Number(settingsMap['markup.gcOandP'])     || 0.25;
+  const targetContingency = Number(settingsMap['markup.contingency']) || 0.10;
+
+  // Use the actual rates that were applied at proposal generation time (stored in pricing.appliedRates).
+  // Fall back to current settings if the proposal was generated before this field existed.
+  const pricing = proposalData.pricing || {};
+  const stored = pricing.appliedRates || {};
+  const hasStoredRates = stored.subOandP != null;
+  const actualSubOandP    = hasStoredRates ? Number(stored.subOandP)    : targetSubOandP;
+  const actualGcOandP     = hasStoredRates ? Number(stored.gcOandP)     : targetGcOandP;
+  const actualContingency = hasStoredRates ? Number(stored.contingency) : targetContingency;
+
+  const items = proposalData.lineItems || [];
+  const contractPrice = pricing.totalContractPrice || proposalData.totalValue || 0;
+
+  // Base cost = sum of all non-stretch-code line items (stretch-code items pass through at cost, no markup).
+  // Also include any implicit dumpster base cost that was added at proposal generation time but not stored
+  // as a line item (it was folded directly into totalContractPrice via the markup multiplier).
+  const implicitDumpsterBaseCost = Number(pricing.implicitDumpsterBaseCost) || 0;
+
+  let markupBaseCost = implicitDumpsterBaseCost;
+  let stretchBaseCost = 0;
+  for (const item of items) {
+    if (item.isStretchCode) {
+      stretchBaseCost += (item.baseCost || 0);
+    } else {
+      markupBaseCost += (item.baseCost || 0);
+    }
+  }
+  const totalBaseCost = markupBaseCost + stretchBaseCost;
+
+  // Compute dollar contribution of each markup layer using actual applied rates on the markup-eligible base cost
+  const afterSubOandP    = Math.round(markupBaseCost * (1 + actualSubOandP));
+  const afterGcOandP     = Math.round(afterSubOandP * (1 + actualGcOandP));
+  const afterContingency = Math.round(afterGcOandP * (1 + actualContingency));
+
+  const subOandPDollar    = afterSubOandP - markupBaseCost;
+  const gcOandPDollar     = afterGcOandP - afterSubOandP;
+  const contingencyDollar = afterContingency - afterGcOandP;
+
+  // Compute target contract price for overall pass/fail comparison
+  const targetAfterSub  = Math.round(markupBaseCost * (1 + targetSubOandP));
+  const targetAfterGc   = Math.round(targetAfterSub * (1 + targetGcOandP));
+  const targetAfterCont = Math.round(targetAfterGc * (1 + targetContingency));
+  const targetContractPrice = targetAfterCont + stretchBaseCost;
+
+  // Actual net profit margin: (contractPrice − totalBaseCost) / contractPrice
+  const actualNetMarginPct = contractPrice > 0
+    ? Math.round(((contractPrice - totalBaseCost) / contractPrice) * 1000) / 10
+    : 0;
+
+  // Per-layer pass/fail: actual applied % within ±1% of configured target
+  const layerPass = (actual, target) => Math.abs(actual - target) <= 0.01;
+  const overallPass = contractPrice > 0 && targetContractPrice > 0
+    ? Math.abs((contractPrice - targetContractPrice) / targetContractPrice) <= 0.01
+    : null;
+
+  res.json({
+    hasData: true,
+    hasStoredRates,
+    baseCost: totalBaseCost,
+    markupBaseCost,
+    stretchBaseCost,
+    contractPrice,
+    targetContractPrice,
+    actualNetMarginPct,
+    layers: [
+      {
+        label: 'Sub O&P',
+        targetPct: targetSubOandP,
+        actualPct: actualSubOandP,
+        dollarAdded: subOandPDollar,
+        pass: layerPass(actualSubOandP, targetSubOandP),
+      },
+      {
+        label: 'GC O&P',
+        targetPct: targetGcOandP,
+        actualPct: actualGcOandP,
+        dollarAdded: gcOandPDollar,
+        pass: layerPass(actualGcOandP, targetGcOandP),
+      },
+      {
+        label: 'Contingency',
+        targetPct: targetContingency,
+        actualPct: actualContingency,
+        dollarAdded: contingencyDollar,
+        pass: layerPass(actualContingency, targetContingency),
+      },
+    ],
+    overallPass,
+  });
 });
 
 // Auto-purge: permanently delete jobs archived more than 90 days ago

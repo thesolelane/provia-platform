@@ -461,6 +461,7 @@ function applyPricing(data, rates) {
   const hasDumpster = items.some(i =>
     /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || '')
   );
+  let implicitDumpsterBaseCost = 0;
   if (!hasDumpster) {
     let totalBase = 0;
     for (const item of items) totalBase += (item.baseCost || 0);
@@ -473,6 +474,7 @@ function applyPricing(data, rates) {
       const extraDumpsters = Math.ceil((totalBase - 25000) / 15000);
       dumpsterCost = 1200 + (extraDumpsters * 1200);
     }
+    implicitDumpsterBaseCost = dumpsterCost;
     totalContractPrice += Math.round(dumpsterCost * markupMultiplier);
   }
 
@@ -496,7 +498,13 @@ function applyPricing(data, rates) {
     pricePerSqft,
     sqftTargetLow: sqftLow,
     sqftTargetHigh: sqftHigh,
-    sqftWarning
+    sqftWarning,
+    appliedRates: {
+      subOandP: rates.subOandP,
+      gcOandP: rates.gcOandP,
+      contingency: rates.contingency,
+    },
+    implicitDumpsterBaseCost,
   };
 
   data.totalValue = totalContractPrice;
