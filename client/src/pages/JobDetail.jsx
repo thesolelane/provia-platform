@@ -100,7 +100,7 @@ export default function JobDetail({ token }) {
     fetch(`/api/tasks?job_id=${id}`, { headers: { 'x-auth-token': token } })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then(data => {
-        const existing = (data.tasks || []).find(t => t.status !== 'done' && /follow.?up/i.test(t.title));
+        const existing = (data.tasks || []).find(t => t.status !== 'done' && /reach.?out|follow.?up/i.test(t.title));
         if (existing) setFollowUpTask(existing);
       })
       .catch(() => {});
@@ -1340,8 +1340,14 @@ export default function JobDetail({ token }) {
                                     method: 'POST',
                                     headers,
                                     body: JSON.stringify({
-                                      title: `Follow up: ${job.customer_name}`,
-                                      description: `Proposal has been at "${job.status?.replace(/_/g,' ')}" stage for ${pipelineCtx.daysAtCurrentStage} days. Reach out to customer to check interest and keep the job moving. Future: SMS/email reminder hook.`,
+                                      title: `Reach Out: ${job.customer_name}`,
+                                      description: [
+                                        `📋 Job: ${job.project_address || 'No address'}`,
+                                        job.customer_phone ? `📞 Phone: ${job.customer_phone}` : null,
+                                        job.customer_email ? `✉️ Email: ${job.customer_email}` : null,
+                                        `📌 Status: ${job.status?.replace(/_/g,' ')} — stale for ${pipelineCtx.daysAtCurrentStage} days`,
+                                        `💬 Reach out to check interest and keep the job moving forward.`
+                                      ].filter(Boolean).join('\n'),
                                       due_at: dueStr,
                                       job_id: job.id,
                                       contact_id: job.contact_id || null,
@@ -1355,7 +1361,7 @@ export default function JobDetail({ token }) {
                               }}
                               style={{ padding: '5px 14px', background: '#991b1b', color: 'white', border: 'none', borderRadius: 4, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
                             >
-                              + Create Follow-Up Task
+                              + Create Reach Out Task
                             </button>
                           )}
                           {followUpTask === 'creating' && (
