@@ -994,7 +994,8 @@ export default function JobDetail({ token }) {
             { kw: ['demo','demolition','removal','tear out'],                                    note: 'Varies by scope' },
             { kw: ['floor','tile','hardwood','carpet','lvp','vinyl plank'],                      note: '$5–25/sqft installed' },
             { kw: ['cabinet','kitchen','counter','quartz','granite'],                            note: 'Mid-range kitchen $25K–50K' },
-            { kw: ['paint','trim','baseboard','millwork','interior finish'],                     note: '$35K–120K per 1,000 sqft living' },
+            { kw: ['painting','interior paint','exterior paint'],                               note: '$1.50–4/sqft interior; $2–5/sqft exterior (labor + materials)' },
+            { kw: ['trim','baseboard','millwork','interior finish','crown molding'],             note: 'Interior finishes pkg: $35K–120K per 1,000 sqft (full scope)' },
             { kw: ['site work','excavat','grading','septic','well','driveway'],                  note: 'Typically excluded — verify' },
             { kw: ['dumpster','disposal','waste'],                                               note: '$500–1,500 typical' },
           ];
