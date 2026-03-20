@@ -424,8 +424,8 @@ export default function JobDetail({ token }) {
             </button>
           )}
 
-          {/* Revise estimate — available any time after proposal_ready */}
-          {job.proposal_data && ['proposal_sent', 'proposal_approved', 'contract_ready', 'contract_sent', 'contract_signed', 'complete'].includes(job.status) && (
+          {/* Revise estimate — show whenever a proposal PDF exists and not actively processing */}
+          {(job.proposal_pdf_path || job.proposal_data) && !['received', 'processing', 'error', 'clarification'].includes(job.status) && (
             <button onClick={reviseEstimate} disabled={actionLoading}
               style={{ padding: '9px 18px', background: 'white', color: ORANGE, border: `2px solid ${ORANGE}`, borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
               {actionLoading ? '...' : `✏️ Revise Estimate (v${job.version || 1})`}
