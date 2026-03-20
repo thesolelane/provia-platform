@@ -21,6 +21,9 @@ uploads/*
 !uploads/invoices/
 !uploads/jobs/
 
+# Backup archives — stored locally, never committed to git
+backups/*.tar.gz
+
 # Temporary files
 tmp/*
 !tmp/.gitkeep
