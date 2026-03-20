@@ -683,7 +683,7 @@ export default function JobDetail({ token }) {
               color: activeTab === tab ? BLUE : '#888',
               borderBottom: activeTab === tab ? `2px solid ${BLUE}` : '2px solid transparent',
               marginBottom: -2, textTransform: 'capitalize' }}>
-            {tab === 'signatures' ? '✍️ Signatures' : tab === 'payments' ? '💰 Payments' : tab === 'history' ? '📋 Version History' : tab}
+            {tab === 'signatures' ? '✍️ Signatures' : tab === 'payments' ? '💰 Payments' : tab === 'history' ? '📋 Version History' : tab === 'audit' ? '📊 Assessment' : tab}
           </button>
         ))}
       </div>
@@ -998,6 +998,58 @@ export default function JobDetail({ token }) {
           const depositPct  = totalVal > 0 ? Math.round((depositAmt / totalVal) * 100) : 0;
           const depositOk   = depositPct >= 30 && depositPct <= 36;
 
+          // ── Project-type range band ───────────────────────────────────────
+          const projType = pd?.project?.type || '';
+          const tradeNames = lineItems.map(li => (li.trade || '').toLowerCase());
+          const isGarage = tradeNames.some(t => t.includes('garage')) || projType === 'adu'
+                           || (pd?.project?.description || '').toLowerCase().includes('garage');
+          const TYPE_BANDS = {
+            adu:              { label: 'Garage / ADU',             low: 85,  mid: 140, high: 200 },
+            new_construction: { label: 'Custom Home / New Build',  low: 180, mid: 250, high: 350 },
+            renovation:       { label: 'Addition / Renovation',    low: 150, mid: 220, high: 300 },
+          };
+          const band = TYPE_BANDS[projType] || (isGarage ? TYPE_BANDS.adu : null);
+          const bandStatus = band && sqftPrice
+            ? (sqftPrice < band.low ? 'low' : sqftPrice <= band.mid ? 'good_low' : sqftPrice <= band.high ? 'good_high' : 'high')
+            : null;
+          const BAND_COLOR = { low: '#fff3cd', good_low: '#f0fdf4', good_high: '#f0fdf4', high: '#fde8e8' };
+          const BAND_LABEL = { low: '⬇ Below Low', good_low: '✅ Low–Mid Range', good_high: '✅ Mid–High Range', high: '🔴 Above High' };
+          const BAND_TEXT  = { low: '#92400e',    good_low: '#166534',            good_high: '#166534',          high: '#991b1b' };
+
+          // ── Expected trades by project type ──────────────────────────────
+          const EXPECTED_TRADES = {
+            new_construction: [
+              { label: 'Foundation / Slab',   kw: ['foundation','slab','concrete','crawl','pier','footing'] },
+              { label: 'Framing',             kw: ['framing','frame','structural'] },
+              { label: 'Roofing',             kw: ['roof','shingle','standing seam','metal roof','tpo'] },
+              { label: 'Siding',              kw: ['siding','hardie','fiber cement','clapboard','board & batten'] },
+              { label: 'Windows & Doors',     kw: ['window','door','entry door','garage door'] },
+              { label: 'Electrical',          kw: ['electric','wiring','panel'] },
+              { label: 'Plumbing',            kw: ['plumbing','pipe','drain','fixture'] },
+              { label: 'HVAC',               kw: ['hvac','heat','mini-split','furnace','erv','mechanical'] },
+              { label: 'Insulation',          kw: ['insulation','spray foam','batt','blown'] },
+              { label: 'Drywall',             kw: ['drywall','sheetrock','plaster','blueboard'] },
+              { label: 'Permits',             kw: ['permit','fee','stretch code'] },
+            ],
+            adu: [
+              { label: 'Foundation / Slab',   kw: ['foundation','slab','concrete','crawl','pier','footing'] },
+              { label: 'Framing',             kw: ['framing','frame','structural'] },
+              { label: 'Roofing',             kw: ['roof','shingle','standing seam','metal roof'] },
+              { label: 'Siding',              kw: ['siding','hardie','fiber cement','clapboard'] },
+              { label: 'Electrical',          kw: ['electric','wiring','panel'] },
+              { label: 'Permits',             kw: ['permit','fee','stretch code'] },
+            ],
+            renovation: [
+              { label: 'Electrical',          kw: ['electric','wiring','panel'] },
+              { label: 'Plumbing',            kw: ['plumbing','pipe','drain','fixture'] },
+              { label: 'Permits',             kw: ['permit','fee','stretch code'] },
+            ],
+          };
+          const expectedTrades = EXPECTED_TRADES[projType] || [];
+          const missingTrades = expectedTrades.filter(et =>
+            !tradeNames.some(t => et.kw.some(k => t.includes(k)))
+          );
+
           const BENCHMARKS = [
             { kw: ['foundation','slab','concrete','basement','crawl','pier','footing'],          note: '$18–55/sqft depending on type' },
             { kw: ['framing','frame','structural','lvl','tji'],                                  note: '$45–70/sqft (labor + materials)' },
@@ -1141,14 +1193,19 @@ export default function JobDetail({ token }) {
                       <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>Estimate Total</div>
                       <div style={{ fontSize: 20, fontWeight: 700, color: BLUE }}>${totalVal.toLocaleString()}</div>
                     </div>
-                    <div style={{ background: computedSqftWarning === 'below' ? '#fff3cd' : computedSqftWarning === 'above' ? '#fde8e8' : sqftPrice ? '#f0fdf4' : '#f8f8f8', borderRadius: 8, padding: 14, textAlign: 'center' }}>
+                    <div style={{ background: bandStatus ? BAND_COLOR[bandStatus] : computedSqftWarning === 'below' ? '#fff3cd' : computedSqftWarning === 'above' ? '#fde8e8' : sqftPrice ? '#f0fdf4' : '#f8f8f8', borderRadius: 8, padding: 14, textAlign: 'center' }}>
                       <div style={{ fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 4 }}>Price / Sq Ft</div>
-                      <div style={{ fontSize: 20, fontWeight: 700, color: computedSqftWarning ? (computedSqftWarning === 'below' ? '#92400e' : '#991b1b') : sqftPrice ? '#166534' : '#aaa' }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: bandStatus ? BAND_TEXT[bandStatus] : computedSqftWarning ? (computedSqftWarning === 'below' ? '#92400e' : '#991b1b') : sqftPrice ? '#166534' : '#aaa' }}>
                         {sqftPrice ? `$${sqftPrice.toLocaleString()}/sqft` : '—'}
                       </div>
-                      {projectSqft > 0 && <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>{projectSqft.toLocaleString()} sqft project</div>}
-                      {computedSqftWarning && <div style={{ fontSize: 10, color: computedSqftWarning === 'below' ? '#92400e' : '#991b1b', marginTop: 2 }}>⚠️ {computedSqftWarning === 'below' ? `Below` : `Above`} target (${sqftTargetLow}–${sqftTargetHigh}/sqft)</div>}
-                      {!computedSqftWarning && sqftPrice && <div style={{ fontSize: 10, color: '#166534', marginTop: 2 }}>✅ In target range ({sqftTargetLow}–{sqftTargetHigh}/sqft)</div>}
+                      {projectSqft > 0 && <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>{projectSqft.toLocaleString()} sqft · {band ? band.label : 'project'}</div>}
+                      {bandStatus && band && (
+                        <div style={{ fontSize: 10, color: BAND_TEXT[bandStatus], marginTop: 3, fontWeight: 600 }}>
+                          {BAND_LABEL[bandStatus]} (${band.low}–${band.high}/sqft)
+                        </div>
+                      )}
+                      {!bandStatus && computedSqftWarning && <div style={{ fontSize: 10, color: computedSqftWarning === 'below' ? '#92400e' : '#991b1b', marginTop: 2 }}>⚠️ {computedSqftWarning === 'below' ? `Below` : `Above`} target ({sqftTargetLow}–{sqftTargetHigh}/sqft)</div>}
+                      {!bandStatus && !computedSqftWarning && sqftPrice && <div style={{ fontSize: 10, color: '#166534', marginTop: 2 }}>✅ In target range ({sqftTargetLow}–{sqftTargetHigh}/sqft)</div>}
                       {!sqftPrice && <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>Sqft not found in estimate</div>}
                     </div>
                     <div style={{ background: depositAmt > 0 ? (depositOk ? '#f0fdf4' : '#fff3cd') : '#f8f8f8', borderRadius: 8, padding: 14, textAlign: 'center' }}>
@@ -1187,6 +1244,33 @@ export default function JobDetail({ token }) {
                       <ul style={{ margin: '8px 0 0 18px', fontSize: 13, color: '#5D3A00' }}>
                         {pd.flaggedItems.map((f, i) => <li key={i}>{f}</li>)}
                       </ul>
+                    </div>
+                  )}
+
+                  {/* Missing trades check */}
+                  {missingTrades.length > 0 && (
+                    <div style={{ background: '#fef9f0', border: '1px solid #fcd34d', borderRadius: 8, padding: 14, marginBottom: 16 }}>
+                      <strong style={{ color: '#92400e', fontSize: 13 }}>
+                        ⚠️ Expected Trades Not Found ({missingTrades.length})
+                        <span style={{ fontWeight: 400, fontSize: 12, marginLeft: 8, color: '#b45309' }}>
+                          — typical for a {band ? band.label : projType || 'this project type'}
+                        </span>
+                      </strong>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                        {missingTrades.map(t => (
+                          <span key={t.label} style={{ background: '#fef3c7', color: '#92400e', borderRadius: 12, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
+                            {t.label}
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#b45309', marginTop: 8 }}>
+                        These trades are typically scoped in a {band ? band.label : 'this type of project'} but appear missing from the estimate. Confirm with the sub or verify the scope intentionally excludes them.
+                      </div>
+                    </div>
+                  )}
+                  {missingTrades.length === 0 && expectedTrades.length > 0 && (
+                    <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 12, color: '#166534' }}>
+                      ✅ All expected trades present for a {band ? band.label : projType} project
                     </div>
                   )}
 
