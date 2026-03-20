@@ -997,8 +997,18 @@ export default function JobDetail({ token }) {
           const depositPct  = totalVal > 0 ? Math.round((depositAmt / totalVal) * 100) : 0;
           const depositOk   = depositPct >= 28 && depositPct <= 38;
 
-          // ── ADU / Garage detection (keyword overlay — separate from project.type) ─
-          const projType    = pd?.project?.type || '';
+          // ── Project type: pd.project.type is the only stored source (no job.project_type column)
+          // Normalize to canonical key: 'new_construction'|'adu'|'renovation'|'addition'|'garage'
+          const rawType = pd?.project?.type || '';
+          const normalizeType = (t) => {
+            const s = (t || '').toLowerCase().replace(/[\s-]/g, '_');
+            if (s.includes('new_construct') || s.includes('custom_home')) return 'new_construction';
+            if (s === 'adu' || s.includes('accessory') || s.includes('carriage') || s.includes('in_law')) return 'adu';
+            if (s.includes('addition')) return 'addition';
+            if (s.includes('garage')) return 'garage';
+            return s || 'renovation'; // renovation is the default for unknown
+          };
+          const projType    = normalizeType(rawType);
           const tradeNames  = lineItems.map(li => (li.trade || '').toLowerCase());
           const jobNameLc   = (job.project_name || job.address || '').toLowerCase();
           const descLc      = (pd?.project?.description || '').toLowerCase();
