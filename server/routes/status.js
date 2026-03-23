@@ -132,6 +132,8 @@ async function checkSigning() {
   }
 }
 
+const { getRecentErrors } = require('../services/errorLogger');
+
 // GET /api/status — admin and system_admin only
 router.get('/', requireAuth, async (req, res) => {
   if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });
@@ -158,7 +160,8 @@ router.get('/', requireAuth, async (req, res) => {
       calendar: { label: 'Google Calendar',        ...calendar },
       pdf:      { label: 'PDF Generation',         ...pdf      },
       signing:  { label: 'Digital Signatures',     ...signing  },
-    }
+    },
+    recentErrors: getRecentErrors(20),
   });
 });
 

@@ -529,7 +529,7 @@ export default function Settings({ token, userRole }) {
         </div>
 
         {/* Service rows */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
           {services.map((svc, i) => (
             <div key={i} style={{
               display: 'flex', alignItems: 'flex-start', gap: 14,
@@ -548,6 +548,36 @@ export default function Settings({ token, userRole }) {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Recent error log */}
+        <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 'bold', color: BLUE, marginBottom: 12 }}>
+            Recent Server Errors
+            <span style={{ fontSize: 11, fontWeight: 'normal', color: '#888', marginLeft: 8 }}>
+              (last {statusData.recentErrors?.length || 0} captured since last restart)
+            </span>
+          </div>
+          {!statusData.recentErrors?.length ? (
+            <div style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 13, color: GREEN_C }}>
+              ✅ No errors recorded since last restart
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {statusData.recentErrors.map((err, i) => (
+                <div key={i} style={{
+                  padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca',
+                  borderRadius: 8, fontFamily: 'monospace'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 11, fontWeight: 'bold', color: RED_C }}>🔴 {err.source}</span>
+                    <span style={{ fontSize: 11, color: '#888' }}>{new Date(err.ts).toLocaleTimeString()}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#333', wordBreak: 'break-word' }}>{err.message}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );

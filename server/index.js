@@ -4,6 +4,7 @@
 // ============================================================
 
 require('dotenv').config();
+require('./services/errorLogger'); // must load early to capture all errors
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
