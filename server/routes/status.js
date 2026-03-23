@@ -132,9 +132,9 @@ async function checkSigning() {
   }
 }
 
-// GET /api/status — owner only
+// GET /api/status — admin and system_admin only
 router.get('/', requireAuth, async (req, res) => {
-  if (req.user.role !== 'owner') return res.status(403).json({ error: 'Owner only' });
+  if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });
 
   const [database, claude, mailgun, twilio, whatsapp, calendar, pdf, signing] = await Promise.all([
     checkDatabase(),
