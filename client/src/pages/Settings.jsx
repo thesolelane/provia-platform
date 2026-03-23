@@ -23,6 +23,7 @@ export default function Settings({ token, userRole }) {
   const [secretsLoading, setSecretsLoading] = useState(false);
   const [statusData, setStatusData]     = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError]   = useState(null);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   useEffect(() => {
@@ -457,11 +458,22 @@ export default function Settings({ token, userRole }) {
 
   const loadStatus = async () => {
     setStatusLoading(true);
+    setStatusError(null);
     try {
       const res  = await fetch('/api/status', { headers: { 'x-auth-token': token } });
       const data = await res.json();
-      if (res.ok) setStatusData(data);
-    } catch (e) {}
+      if (res.ok) {
+        setStatusData(data);
+      } else if (res.status === 401) {
+        setStatusError('Session expired — please log out and log back in.');
+      } else if (res.status === 403) {
+        setStatusError('Access denied — system admin only.');
+      } else {
+        setStatusError(data.error || `Error ${res.status}`);
+      }
+    } catch (e) {
+      setStatusError('Could not reach server — ' + e.message);
+    }
     setStatusLoading(false);
   };
 
@@ -480,6 +492,11 @@ export default function Settings({ token, userRole }) {
             style={{ padding: '10px 28px', background: BLUE, color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>
             {statusLoading ? '⏳ Checking...' : '🔍 Run Status Check'}
           </button>
+          {statusError && (
+            <div style={{ marginTop: 16, padding: '10px 16px', background: '#fff3f3', border: '1px solid #ffcccc', borderRadius: 8, color: '#c00', fontSize: 13 }}>
+              {statusError}
+            </div>
+          )}
         </div>
       );
     }
