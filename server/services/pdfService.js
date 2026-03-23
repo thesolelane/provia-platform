@@ -22,6 +22,8 @@ function resolveChromiumPath() {
     } catch (_) {}
     // Try common install locations
     const winPaths = [
+      'C:\\Users\\theso\\.cache\\puppeteer\\chrome\\win64-146.0.7680.76\\chrome-win64\\chrome.exe',
+      'C:\\Users\\theso\\.cache\\puppeteer\\chrome\\win64-127.0.6533.88\\chrome-win64\\chrome.exe',
       'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Users\\theso\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
