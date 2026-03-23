@@ -81,6 +81,20 @@ function App() {
     };
   }, [token]);
 
+  // Auto-logout after 20 minutes of no mouse/keyboard/touch activity
+  useEffect(() => {
+    if (!token) return;
+    const IDLE_MS = 20 * 60 * 1000;
+    let timer = setTimeout(handleLogout, IDLE_MS);
+    const reset = () => { clearTimeout(timer); timer = setTimeout(handleLogout, IDLE_MS); };
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    return () => {
+      clearTimeout(timer);
+      events.forEach(e => window.removeEventListener(e, reset));
+    };
+  }, [token]);
+
   if (!token) return <Login onLogin={handleLogin} />;
 
   return (
