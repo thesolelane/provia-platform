@@ -15,14 +15,22 @@ function resolveChromiumPath() {
 
   // Windows paths
   if (process.platform === 'win32') {
+    // Try 'where chrome' first (works regardless of install location)
+    try {
+      const p = execSync('where chrome', { timeout: 3000 }).toString().split('\n')[0].trim();
+      if (p && fs.existsSync(p)) return p;
+    } catch (_) {}
+    // Try common install locations
     const winPaths = [
       'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Users\\theso\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Program Files\\Chromium\\Application\\chrome.exe',
-      process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+      (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
+      (process.env.PROGRAMFILES || '') + '\\Google\\Chrome\\Application\\chrome.exe',
     ];
     for (const p of winPaths) {
-      try { if (fs.existsSync(p)) return p; } catch (_) {}
+      try { if (p && fs.existsSync(p)) return p; } catch (_) {}
     }
     return undefined;
   }
