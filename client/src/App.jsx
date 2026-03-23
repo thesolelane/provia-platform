@@ -60,6 +60,27 @@ function App() {
     return () => { window.fetch = origFetch; };
   }, [token]);
 
+  // Validate session when user returns to the tab or focuses the window
+  useEffect(() => {
+    if (!token) return;
+    const validate = async () => {
+      try {
+        const res = await fetch('/api/auth/validate', {
+          headers: { 'x-auth-token': token }
+        });
+        if (res.status === 401) handleLogout();
+      } catch {}
+    };
+    const onVisibility = () => { if (document.visibilityState === 'visible') validate(); };
+    const onFocus = () => validate();
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [token]);
+
   if (!token) return <Login onLogin={handleLogin} />;
 
   return (

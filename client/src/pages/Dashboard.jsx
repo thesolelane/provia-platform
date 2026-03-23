@@ -1,6 +1,6 @@
 // client/src/pages/Dashboard.jsx
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 import CreateQuoteWizard from '../components/CreateQuoteWizard';
@@ -48,6 +48,7 @@ function outcomeBadge(reason) {
 }
 
 export default function Dashboard({ token }) {
+  const location = useLocation();
   const [jobs, setJobs] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,7 @@ export default function Dashboard({ token }) {
   const [manual, setManual] = useState({ customerName: '', customerEmail: '', customerPhone: '', projectAddress: '', estimateText: '' });
   const [uploadFile, setUploadFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
+  const esRef = useRef(null);
 
   const headers = { 'x-auth-token': token };
 
@@ -68,14 +70,35 @@ export default function Dashboard({ token }) {
     setJobs(jobsData.jobs || []);
     setStats(statsData);
     setLoading(false);
-  });
+  }).catch(() => setLoading(false));
 
-  useEffect(() => {
-    loadDashboard();
+  const connectSSE = () => {
+    if (esRef.current) esRef.current.close();
     const es = new EventSource(`/api/jobs/events?token=${encodeURIComponent(token)}`);
     es.addEventListener('job_updated', () => loadDashboard());
-    es.onerror = () => {};
-    return () => es.close();
+    es.onerror = () => {
+      es.close();
+      setTimeout(connectSSE, 5000);
+    };
+    esRef.current = es;
+  };
+
+  // Re-fetch whenever navigating to the dashboard
+  useEffect(() => {
+    loadDashboard();
+  }, [location.key]);
+
+  // SSE connection — set up once, auto-reconnect on error
+  useEffect(() => {
+    connectSSE();
+    return () => { if (esRef.current) esRef.current.close(); };
+  }, []);
+
+  // Re-fetch when tab becomes visible again
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') loadDashboard(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   const [showArchived, setShowArchived] = useState(false);

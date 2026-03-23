@@ -25,4 +25,10 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out' });
 });
 
+// GET /api/auth/validate — lightweight session check (no DB hit)
+const { requireAuth } = require('../middleware/auth');
+router.get('/validate', requireAuth, (req, res) => {
+  res.json({ ok: true, name: req.session.name, role: req.session.role });
+});
+
 module.exports = router;
