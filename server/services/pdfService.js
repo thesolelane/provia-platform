@@ -9,9 +9,25 @@ const { execSync } = require('child_process');
 
 const { buildContractHTML: buildContractHTMLNew, adaptToContractSchema, blankContractSchema } = require('./contractTemplate');
 
-// Resolve Chromium: prefer env var, then nix-installed system chromium, then puppeteer bundled
+// Resolve Chromium: prefer env var, then OS-specific paths, then puppeteer bundled
 function resolveChromiumPath() {
   if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
+
+  // Windows paths
+  if (process.platform === 'win32') {
+    const winPaths = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files\\Chromium\\Application\\chrome.exe',
+      process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+    ];
+    for (const p of winPaths) {
+      try { if (fs.existsSync(p)) return p; } catch (_) {}
+    }
+    return undefined;
+  }
+
+  // Linux/macOS — use which
   try {
     const p = execSync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null', { timeout: 3000 }).toString().trim();
     if (p) return p;
