@@ -68,8 +68,8 @@ router.get('/', requireAuth, (req, res) => {
   });
 });
 
-// POST /webhook/mailgun — Mailgun open/click tracking webhook
-router.post('/webhook/mailgun', express.json(), (req, res) => {
+// POST /mailgun — Mailgun open/click tracking webhook (mounted at /webhook/mailgun)
+router.post('/mailgun', express.json(), (req, res) => {
   try {
     const db = getDb();
     const events = Array.isArray(req.body['event-data'])

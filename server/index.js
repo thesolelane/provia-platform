@@ -114,7 +114,7 @@ app.use(require('./routes/signing'));
 app.use('/webhook/hearth',    require('./routes/webhookHearth'));
 app.use('/webhook/email',     require('./routes/webhookEmail'));
 app.use('/webhook/whatsapp',  require('./routes/webhookWhatsapp'));
-app.use('/',                  require('./routes/emailLog'));
+app.use('/webhook',           require('./routes/emailLog'));
 
 // ── SERVE REACT FRONTEND (production) ────────────────────────
 const clientBuild = path.join(__dirname, '../client/build');
