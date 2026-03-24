@@ -392,6 +392,25 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_email_log_sent_at ON email_log(sent_at)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_email_log_job_id  ON email_log(job_id)`);
 
+  // Field photos — standalone camera inbox with GPS grouping
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS field_photos (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      filename       TEXT NOT NULL,
+      original_name  TEXT,
+      taken_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+      lat            REAL,
+      lon            REAL,
+      location_label TEXT,
+      accuracy       REAL,
+      job_id         TEXT,
+      uploaded_by    TEXT,
+      created_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_field_photos_job_id ON field_photos(job_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_field_photos_location_label ON field_photos(location_label)`);
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();

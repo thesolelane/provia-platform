@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 const MAIN_NAV = [
-  { path: '/',         icon: '📊', label: 'Dashboard' },
-  { path: '/tasks',    icon: '✅', label: 'Tasks' },
-  { path: '/payments', icon: '💰', label: 'Payments' },
-  { path: '/chat',     icon: '🤖', label: 'Ask the Bot' },
-  { path: '/contacts', icon: '👥', label: 'Contacts' },
-  { path: '/takeoff',  icon: '📐', label: 'Material Take-Off' },
-  { path: '/analytics', icon: '📈', label: 'Analytics' },
+  { path: '/',              icon: '📊', label: 'Dashboard' },
+  { path: '/tasks',         icon: '✅', label: 'Tasks' },
+  { path: '/payments',      icon: '💰', label: 'Payments' },
+  { path: '/field-camera',  icon: '📷', label: 'Field Camera' },
+  { path: '/chat',          icon: '🤖', label: 'Ask the Bot' },
+  { path: '/contacts',      icon: '👥', label: 'Contacts' },
+  { path: '/takeoff',       icon: '📐', label: 'Material Take-Off' },
+  { path: '/analytics',     icon: '📈', label: 'Analytics' },
 ];
 
 const CONFIG_NAV = [
