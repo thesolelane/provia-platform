@@ -699,6 +699,47 @@ export default function Settings({ token, userRole }) {
           ))}
         </div>
 
+        {/* Alerts summary (last 24h) */}
+        {statusData.alertsSummary && (
+          <div style={{ borderTop: '1px solid #eee', paddingTop: 20, marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 'bold', color: BLUE, marginBottom: 12 }}>
+              System Alerts Sent — Last 24 Hours
+              <span style={{
+                marginLeft: 10, padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 'bold',
+                background: statusData.alertsSummary.last24hCount > 0 ? '#fef2f2' : '#f0fdf4',
+                color: statusData.alertsSummary.last24hCount > 0 ? RED_C : GREEN_C,
+                border: `1px solid ${statusData.alertsSummary.last24hCount > 0 ? '#fecaca' : '#bbf7d0'}`
+              }}>
+                {statusData.alertsSummary.last24hCount} alert{statusData.alertsSummary.last24hCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+            {statusData.alertsSummary.last24hCount === 0 ? (
+              <div style={{ padding: '12px 16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, fontSize: 13, color: GREEN_C }}>
+                ✅ No system alerts fired in the last 24 hours
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {statusData.alertsSummary.last24h.map((alert, i) => (
+                  <div key={i} style={{
+                    padding: '12px 14px', borderRadius: 8,
+                    background: alert.severity === 'critical' ? '#fef2f2' : '#fff8f0',
+                    border: `1px solid ${alert.severity === 'critical' ? '#fecaca' : '#f9ddb3'}`
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 'bold', color: alert.severity === 'critical' ? RED_C : ORANGE }}>
+                        {alert.severity === 'critical' ? '🔴' : '🟡'} {alert.source.toUpperCase()} — {alert.severity.toUpperCase()}
+                      </span>
+                      <span style={{ fontSize: 11, color: '#888' }}>{new Date(alert.ts).toLocaleString()}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#1B3A6B', fontWeight: 500, marginBottom: 4 }}>{alert.suggestedCause}</div>
+                    <div style={{ fontSize: 11, color: '#666', fontFamily: 'monospace', wordBreak: 'break-word' }}>{alert.message}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Recent error log */}
         <div style={{ borderTop: '1px solid #eee', paddingTop: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 'bold', color: BLUE, marginBottom: 12 }}>

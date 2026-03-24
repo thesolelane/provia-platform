@@ -132,7 +132,7 @@ async function checkSigning() {
   }
 }
 
-const { getRecentErrors } = require('../services/errorLogger');
+const { getRecentErrors, getAlertsSummary } = require('../services/errorLogger');
 
 // GET /api/status — admin and system_admin only
 router.get('/', requireAuth, async (req, res) => {
@@ -162,6 +162,7 @@ router.get('/', requireAuth, async (req, res) => {
       signing:  { label: 'Digital Signatures',     ...signing  },
     },
     recentErrors: getRecentErrors(20),
+    alertsSummary: getAlertsSummary(),
   });
 });
 
