@@ -373,6 +373,7 @@ async function initDatabase() {
   addColIfMissing('jobs', 'takeoff_data', 'TEXT');
   addColIfMissing('jobs', 'closed_reason', 'TEXT');
   addColIfMissing('jobs', 'closed_note', 'TEXT');
+  addColIfMissing('jobs', 'error_message', 'TEXT');
 
   seedDefaultSettings();
   seedDefaultSenders();

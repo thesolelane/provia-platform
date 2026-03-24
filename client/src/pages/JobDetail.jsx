@@ -433,10 +433,17 @@ export default function JobDetail({ token }) {
 
           {/* Retry failed job */}
           {job.status === 'error' && (
-            <button onClick={reprocessJob} disabled={actionLoading}
-              style={{ padding: '9px 18px', background: ORANGE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
-              {actionLoading ? 'Retrying...' : '🔄 Retry AI Processing'}
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={reprocessJob} disabled={actionLoading}
+                style={{ padding: '9px 18px', background: ORANGE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+                {actionLoading ? 'Retrying...' : '🔄 Retry AI Processing'}
+              </button>
+              {job.error_message && (
+                <div style={{ background: '#FEE2E2', border: '1px solid #FCA5A5', borderRadius: 6, padding: '8px 12px', fontSize: 12, color: '#991B1B', maxWidth: 420 }}>
+                  <strong>Error:</strong> {job.error_message}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Mark complete */}

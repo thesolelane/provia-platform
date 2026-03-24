@@ -1181,8 +1181,10 @@ router.post('/:id/reprocess', requireAuth, requireRole('admin', 'pm', 'system_ad
         notifyClients('job_updated', { jobId: job.id, status: 'review_pending' });
       }
     } catch (err) {
-      console.error(`[Reprocess Job ${job.id}] ERROR:`, err.message);
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', job.id);
+      const errMsg = err.message || String(err);
+      console.error(`[Reprocess Job ${job.id}] ERROR: ${errMsg}\n${err.stack || ''}`);
+      db.prepare('UPDATE jobs SET status = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run('error', errMsg, job.id);
     }
   })();
 });
