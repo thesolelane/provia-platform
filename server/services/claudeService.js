@@ -435,7 +435,8 @@ RULES:
 }
 
 // ── SYSTEM-CONTROLLED PRICING MATH ──────────────────────────────────
-function applyPricing(data, rates) {
+function applyPricing(data, rates, settings) {
+  if (!settings) settings = loadSettings();
   // Always set validUntil to today + 15 days — every generated proposal is valid for 15 days from generation
   const validDate = new Date();
   validDate.setDate(validDate.getDate() + 15);
