@@ -1235,10 +1235,13 @@ function buildPermitChecklistHTML(data) {
   const isStretchCode   = project.stretchCodeTown || data.isStretchCodeTown || false;
   const isNewConstruct  = project.type === 'new_construction';
   const isADU           = project.type === 'adu';
-  // C of O only for ADU (living dwelling with bedrooms) — new garages/studios get Certificate of Completion
-  const needsCO         = isADU;
-  // HERS rating only for ADU (residential dwelling with bedrooms) + stretch code town
-  const needsHERS       = isADU && isStretchCode;
+  // hasBedrooms = true only for structures with actual sleeping/living quarters
+  // (new homes, ADUs, in-law suites) — NOT garages, studios, workshops, art rooms, half-bath-only structures
+  const hasBedrooms     = !!(project.hasBedrooms || isADU);
+  // C of O only when the structure has bedrooms (residential living dwelling)
+  const needsCO         = (isNewConstruct || isADU) && hasBedrooms;
+  // HERS rating only for residential dwelling with bedrooms in a stretch code town
+  const needsHERS       = isStretchCode && (isNewConstruct || isADU) && hasBedrooms;
   const hasElectrical   = !!trades.electrical;
   const hasPlumbing     = !!trades.plumbing;
   const hasHVAC         = !!trades.hvac;

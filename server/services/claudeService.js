@@ -276,7 +276,8 @@ Return this EXACT JSON structure:
     "type": "renovation",
     "description": "",
     "sqft": 0,
-    "stretchCodeTown": false
+    "stretchCodeTown": false,
+    "hasBedrooms": false
   },
   "job": {
     "has_demo": false,
@@ -368,7 +369,8 @@ RULES:
 18. sub_deposits: dollar amount (string) if the estimate calls for subcontractor mobilization deposits. null if not mentioned.
 19. special_order_deposits: dollar amount (string) if the estimate includes custom, special-order, or long-lead material deposits. null if not mentioned.
 20. allowances: set true for each allowance item that is relevant to this project scope. Example: if bathrooms are in scope, set bath_vanity_full, bath_toilet, bath_faucet, bath_exhaust_fan etc. to true. If flooring is in scope, set flooring_lvp and/or flooring_tile to true. If kitchen is in scope, set kitchen_* items to true. If interior doors and trim are in scope, set doors_* items to true. Only include allowances that make sense for the actual scope — do not set all to true for a simple repair job.
-21. job.adu section: only populate if project.type === "adu". on_septic=true if the property uses a septic system. separate_metering=true if the ADU will have separate electric/gas metering. site_plan_required=true if the municipality requires site plan review. new_sewer_connection=true if a new sewer connection is required.`
+21. job.adu section: only populate if project.type === "adu". on_septic=true if the property uses a septic system. separate_metering=true if the ADU will have separate electric/gas metering. site_plan_required=true if the municipality requires site plan review. new_sewer_connection=true if a new sewer connection is required.
+22. project.hasBedrooms: set true ONLY if the scope includes sleeping/living space with bedrooms — a new residential home, a full ADU/in-law suite, or a renovation that adds/modifies bedrooms. Set false for garages, studios, workshops, art rooms, commercial spaces, or any structure without sleeping quarters. A half bath alone does not qualify — there must be actual bedrooms.`
       }
     ]
   });
