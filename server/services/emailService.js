@@ -19,7 +19,17 @@ function getMailgun() {
   return mg;
 }
 
-async function sendEmail({ to, subject, html, text, attachmentPath, attachmentName, replyTo }) {
+function logEmail(db, { messageId, to, subject, emailType, jobId }) {
+  try {
+    db.prepare(
+      'INSERT INTO email_log (message_id, to_address, subject, email_type, job_id) VALUES (?, ?, ?, ?, ?)'
+    ).run(messageId || null, Array.isArray(to) ? to.join(', ') : to, subject || null, emailType || 'general', jobId || null);
+  } catch (e) {
+    console.error('[EmailLog] Failed to log email:', e.message);
+  }
+}
+
+async function sendEmail({ to, subject, html, text, attachmentPath, attachmentName, replyTo, emailType, jobId, db }) {
   const client = getMailgun();
   if (!client) {
     console.log('[Email MOCK] To:', to, 'Subject:', subject);
@@ -36,6 +46,8 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     subject,
     html,
     text: text || html?.replace(/<[^>]+>/g, ''),
+    'o:tracking': 'yes',
+    'o:tracking-opens': 'yes',
     ...(replyToAddress ? { 'h:Reply-To': replyToAddress } : {})
   };
 
@@ -50,6 +62,14 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     const domain = process.env.MAILGUN_DOMAIN || 'mg.preferredbuildersusa.com';
     const result = await client.messages.create(domain, messageData);
     console.log('Email sent:', result.id);
+    if (db) {
+      logEmail(db, { messageId: result.id, to, subject, emailType, jobId });
+    } else {
+      try {
+        const { getDb } = require('../db/database');
+        logEmail(getDb(), { messageId: result.id, to, subject, emailType, jobId });
+      } catch (_) {}
+    }
     return result;
   } catch (err) {
     console.error('Email send failed:', err.message);

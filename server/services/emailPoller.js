@@ -128,7 +128,9 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
             subject: `Received — Quote #${shortId}`,
             html: language === 'pt-BR'
               ? `<p>Oi ${firstName}! Recebi o orçamento e já estou processando. Ref: <strong>#${shortId}</strong></p><p>Você receberá a proposta em breve.</p>`
-              : `<p>Hey ${firstName}! Got your estimate — processing it now. Ref: <strong>#${shortId}</strong></p><p>You'll receive the proposal shortly.</p>`
+              : `<p>Hey ${firstName}! Got your estimate — processing it now. Ref: <strong>#${shortId}</strong></p><p>You'll receive the proposal shortly.</p>`,
+            emailType: 'acknowledgement',
+            jobId
           });
         } catch (e) {
           console.error('[Email Poller] Could not send receipt email:', e.message);
@@ -150,7 +152,9 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
             subject: `A few questions — Quote #${shortId}`,
             html: language === 'pt-BR'
               ? `<p>Preciso de mais informações sobre o orçamento:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Por favor responda este email com as respostas.</p>`
-              : `<p>I need a few more details about the estimate:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Please reply to this email with your answers.</p>`
+              : `<p>I need a few more details about the estimate:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Please reply to this email with your answers.</p>`,
+            emailType: 'clarification',
+            jobId
           });
           console.log(`[Email Poller] Job ${shortId} needs ${proposalData.clarificationsNeeded.length} clarifications — emailed ${from}`);
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
 
-const BASE_TABS = ['Markup', 'Labor Rates', 'Allowances', 'Integrations', 'Bot Behavior', 'Calendar'];
+const BASE_TABS = ['Markup', 'Labor Rates', 'Allowances', 'Integrations', 'Bot Behavior', 'Calendar', 'Email Log'];
 
 export default function Settings({ token, userRole }) {
   const TABS = userRole === 'system_admin' ? [...BASE_TABS, 'Secrets', 'Status'] : BASE_TABS;
@@ -24,6 +24,8 @@ export default function Settings({ token, userRole }) {
   const [statusData, setStatusData]     = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [statusError, setStatusError]   = useState(null);
+  const [emailLog, setEmailLog]         = useState(null);
+  const [emailLogLoading, setEmailLogLoading] = useState(false);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   useEffect(() => {
@@ -477,6 +479,153 @@ export default function Settings({ token, userRole }) {
     setStatusLoading(false);
   };
 
+  const loadEmailLog = async () => {
+    setEmailLogLoading(true);
+    const res = await fetch('/api/email-log?limit=200', { headers: { 'x-auth-token': token } });
+    const data = await res.json();
+    setEmailLog(data);
+    setEmailLogLoading(false);
+  };
+
+  const renderEmailLog = () => {
+    if (!emailLog) {
+      return (
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <button onClick={loadEmailLog} disabled={emailLogLoading}
+            style={{ background: BLUE, color: 'white', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 14 }}>
+            {emailLogLoading ? 'Loading...' : '📬 Load Email Log'}
+          </button>
+        </div>
+      );
+    }
+    const { stats, byType, byDay, byMonth, emails } = emailLog;
+    const openRate = stats.total > 0 ? Math.round((stats.opened / stats.total) * 100) : 0;
+
+    return (
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ margin: 0, color: BLUE }}>Email Activity</h3>
+          <button onClick={loadEmailLog} disabled={emailLogLoading}
+            style={{ background: '#eee', border: 'none', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
+            {emailLogLoading ? 'Refreshing...' : '🔄 Refresh'}
+          </button>
+        </div>
+
+        {/* Summary cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12, marginBottom: 24 }}>
+          {[
+            { label: 'Today', value: stats.today },
+            { label: 'This Month', value: stats.thisMonth },
+            { label: 'This Year', value: stats.thisYear },
+            { label: 'All Time', value: stats.total },
+            { label: 'Open Rate', value: `${openRate}%` },
+          ].map(c => (
+            <div key={c.label} style={{ background: '#F3F6FC', borderRadius: 8, padding: '14px 16px', textAlign: 'center' }}>
+              <div style={{ fontSize: 24, fontWeight: 'bold', color: BLUE }}>{c.value}</div>
+              <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>{c.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* By type */}
+        {byType.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontWeight: 'bold', color: '#444', marginBottom: 10 }}>By Type</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {byType.map(t => (
+                <div key={t.email_type} style={{ background: '#E8F0FE', borderRadius: 20, padding: '4px 12px', fontSize: 12, color: BLUE }}>
+                  {t.email_type} <strong>{t.count}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Last 30 days chart */}
+        {byDay.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontWeight: 'bold', color: '#444', marginBottom: 10 }}>Last 30 Days</div>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 60 }}>
+              {[...byDay].reverse().map(d => {
+                const max = Math.max(...byDay.map(x => x.count), 1);
+                const h = Math.max(4, Math.round((d.count / max) * 56));
+                return (
+                  <div key={d.day} title={`${d.day}: ${d.count}`}
+                    style={{ flex: 1, background: BLUE, borderRadius: '2px 2px 0 0', height: h, minWidth: 4 }} />
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Monthly breakdown */}
+        {byMonth.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontWeight: 'bold', color: '#444', marginBottom: 10 }}>Monthly Totals</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#F3F6FC' }}>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', color: '#555' }}>Month</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'right', color: '#555' }}>Emails Sent</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byMonth.map(m => (
+                  <tr key={m.month} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '8px 12px' }}>{m.month}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 'bold' }}>{m.count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Recent emails */}
+        <div>
+          <div style={{ fontWeight: 'bold', color: '#444', marginBottom: 10 }}>Recent Emails ({emails.length})</div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: '#F3F6FC' }}>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', color: '#555' }}>Sent</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', color: '#555' }}>To</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', color: '#555' }}>Subject</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'left', color: '#555' }}>Type</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'center', color: '#555' }}>Opened</th>
+                </tr>
+              </thead>
+              <tbody>
+                {emails.map(e => (
+                  <tr key={e.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <td style={{ padding: '7px 10px', whiteSpace: 'nowrap', color: '#666' }}>
+                      {new Date(e.sent_at).toLocaleString()}
+                    </td>
+                    <td style={{ padding: '7px 10px', color: '#333' }}>{e.to_address}</td>
+                    <td style={{ padding: '7px 10px', color: '#333' }}>{e.subject}</td>
+                    <td style={{ padding: '7px 10px' }}>
+                      <span style={{ background: '#E8F0FE', color: BLUE, borderRadius: 10, padding: '2px 8px', fontSize: 11 }}>
+                        {e.email_type}
+                      </span>
+                    </td>
+                    <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                      {e.opened_at
+                        ? <span title={`Opened ${e.opened_count}x — first: ${new Date(e.opened_at).toLocaleString()}`} style={{ color: '#2E7D32', fontWeight: 'bold' }}>✅ {e.opened_count}×</span>
+                        : <span style={{ color: '#aaa' }}>—</span>}
+                    </td>
+                  </tr>
+                ))}
+                {emails.length === 0 && (
+                  <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: '#aaa' }}>No emails logged yet</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderStatus = () => {
     const GREEN_C  = '#2E7D32';
     const RED_C    = '#C62828';
@@ -625,6 +774,7 @@ export default function Settings({ token, userRole }) {
         {activeTab === 'Integrations' && renderIntegrations()}
         {activeTab === 'Bot Behavior' && renderBotBehavior()}
         {activeTab === 'Calendar' && renderCalendar()}
+        {activeTab === 'Email Log' && renderEmailLog()}
         {activeTab === 'Secrets' && renderSecrets()}
         {activeTab === 'Status' && renderStatus()}
       </div>

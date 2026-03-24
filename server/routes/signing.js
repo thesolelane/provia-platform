@@ -352,7 +352,9 @@ router.post('/api/signing/signed/:token', async (req, res) => {
 <p>Thank you — your construction contract with Preferred Builders General Services Inc. has been signed and is on file.</p>
 <p>Your project at <strong>${job.project_address}</strong> is officially confirmed. We'll be in touch shortly with next steps.</p>
 <p style="margin-top:24px">— The Preferred Builders Team<br>978-377-1784 | jackson.deaquino@preferredbuildersusa.com</p>`,
-          text: `Your contract is signed and on file. Project at ${job.project_address} confirmed.`
+          text: `Your contract is signed and on file. Project at ${job.project_address} confirmed.`,
+          emailType: 'contract_signed',
+          jobId: job.id
         });
       }
     } catch (e) { console.warn('[ContractSignedEmail]', e.message); }
@@ -413,7 +415,9 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
         Preferred Builders General Services Inc. · 37 Duck Mill Rd, Fitchburg MA 01420
       </div>
     </div>`,
-    text: `Hi ${job.customer_name || 'there'},\n\nYour proposal for ${job.project_address} is ready. Review and approve it here:\n${link}`
+    text: `Hi ${job.customer_name || 'there'},\n\nYour proposal for ${job.project_address} is ready. Review and approve it here:\n${link}`,
+    emailType: 'proposal_signing',
+    jobId: job.id
   });
 
   notifyClients('job_updated', { jobId: job.id, status: 'proposal_sent' });

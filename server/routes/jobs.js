@@ -520,7 +520,9 @@ router.post('/:id/send-to-customer', requireAuth, requireRole('admin', 'pm', 'sy
         <p>Best regards,<br>Jackson Deaquino<br>Preferred Builders General Services Inc.<br>LIC# HIC-197400</p>
       `,
       attachmentPath: job.contract_pdf_path,
-      attachmentName: `PB_Contract_${job.customer_name?.replace(/\s/g, '_')}.pdf`
+      attachmentName: `PB_Contract_${job.customer_name?.replace(/\s/g, '_')}.pdf`,
+      emailType: 'contract',
+      jobId: job.id
     });
 
     db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('contract_sent', job.id);

@@ -375,6 +375,23 @@ async function initDatabase() {
   addColIfMissing('jobs', 'closed_note', 'TEXT');
   addColIfMissing('jobs', 'error_message', 'TEXT');
 
+  // Email log table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS email_log (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      message_id  TEXT,
+      to_address  TEXT NOT NULL,
+      subject     TEXT,
+      email_type  TEXT DEFAULT 'general',
+      job_id      TEXT,
+      sent_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+      opened_at   DATETIME,
+      opened_count INTEGER DEFAULT 0
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_email_log_sent_at ON email_log(sent_at)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_email_log_job_id  ON email_log(job_id)`);
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();
