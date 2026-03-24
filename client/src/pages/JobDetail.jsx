@@ -1,5 +1,5 @@
 // client/src/pages/JobDetail.jsx
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
@@ -57,6 +57,7 @@ export default function JobDetail({ token }) {
   const [activeTab, setActiveTab]   = useState('overview');
   const [editingLineItems, setEditingLineItems] = useState(null);
   const [savingLineItems, setSavingLineItems]   = useState(false);
+  const [expandedRows, setExpandedRows]         = useState(new Set());
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
@@ -216,6 +217,33 @@ export default function JobDetail({ token }) {
 
   const removeLineItem = (idx) => {
     setEditingLineItems(prev => prev.filter((_, i) => i !== idx));
+    setExpandedRows(prev => { const n = new Set(prev); n.delete(idx); return n; });
+  };
+
+  const toggleRowExpanded = (idx) => {
+    setExpandedRows(prev => {
+      const n = new Set(prev);
+      n.has(idx) ? n.delete(idx) : n.add(idx);
+      return n;
+    });
+  };
+
+  const addIncludedItem = (rowIdx) => {
+    setEditingLineItems(prev => prev.map((li, i) =>
+      i === rowIdx ? { ...li, scopeIncluded: [...(li.scopeIncluded || []), ''] } : li
+    ));
+  };
+
+  const updateIncludedItem = (rowIdx, itemIdx, value) => {
+    setEditingLineItems(prev => prev.map((li, i) =>
+      i === rowIdx ? { ...li, scopeIncluded: li.scopeIncluded.map((v, j) => j === itemIdx ? value : v) } : li
+    ));
+  };
+
+  const removeIncludedItem = (rowIdx, itemIdx) => {
+    setEditingLineItems(prev => prev.map((li, i) =>
+      i === rowIdx ? { ...li, scopeIncluded: li.scopeIncluded.filter((_, j) => j !== itemIdx) } : li
+    ));
   };
 
   const saveLineItems = async () => {
@@ -601,8 +629,12 @@ export default function JobDetail({ token }) {
                   {editingLineItems.map((li, i) => {
                     const tradeErr = !li.trade?.trim();
                     const costErr  = li.baseCost === '' || li.baseCost === null || Number(li.baseCost) < 0;
+                    const isExpanded = expandedRows.has(i);
+                    const includedItems = li.scopeIncluded || [];
                     return (
-                    <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', verticalAlign: 'top' }}>
+                    <React.Fragment key={i}>
+
+                    <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #f0f0f0', verticalAlign: 'top' }}>
                       <td style={{ padding: '5px 4px' }}>
                         <input value={li.trade} onChange={e => updateLineItem(i, 'trade', e.target.value)}
                           title={tradeErr ? 'Trade name is required' : ''}
@@ -620,11 +652,38 @@ export default function JobDetail({ token }) {
                         <input value={li.description || ''} onChange={e => updateLineItem(i, 'description', e.target.value)}
                           style={{ width: '100%', padding: '5px 7px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12, boxSizing: 'border-box' }} />
                       </td>
-                      <td style={{ padding: '5px 4px' }}>
+                      <td style={{ padding: '5px 4px', whiteSpace: 'nowrap' }}>
+                        <button onClick={() => toggleRowExpanded(i)} title={isExpanded ? 'Hide bullet points' : 'Edit bullet points'}
+                          style={{ background: isExpanded ? BLUE : '#f0f4ff', color: isExpanded ? 'white' : BLUE, border: `1px solid ${BLUE}`, borderRadius: 4, cursor: 'pointer', padding: '4px 7px', fontSize: 11, marginRight: 4 }}>
+                          {isExpanded ? '▲' : '▼'} {includedItems.length}
+                        </button>
                         <button onClick={() => removeLineItem(i)} title="Remove"
                           style={{ background: '#fee2e2', color: RED, border: 'none', borderRadius: 4, cursor: 'pointer', padding: '4px 8px', fontSize: 12 }}>✕</button>
                       </td>
                     </tr>
+                    {isExpanded && (
+                      <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td colSpan={5} style={{ padding: '4px 8px 12px 8px', background: '#f8fbff' }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+                            ✓ What this trade includes (bullet points on proposal)
+                          </div>
+                          {includedItems.map((item, j) => (
+                            <div key={j} style={{ display: 'flex', gap: 6, marginBottom: 4, alignItems: 'center' }}>
+                              <span style={{ color: '#2E7D32', fontWeight: 'bold', fontSize: 13 }}>✓</span>
+                              <input value={item} onChange={e => updateIncludedItem(i, j, e.target.value)}
+                                style={{ flex: 1, padding: '4px 7px', border: '1px solid #dde8f0', borderRadius: 4, fontSize: 12 }} />
+                              <button onClick={() => removeIncludedItem(i, j)}
+                                style={{ background: '#fee2e2', color: RED, border: 'none', borderRadius: 4, cursor: 'pointer', padding: '3px 7px', fontSize: 11 }}>✕</button>
+                            </div>
+                          ))}
+                          <button onClick={() => addIncludedItem(i)}
+                            style={{ marginTop: 4, padding: '4px 12px', background: 'white', border: `1px dashed #2E7D32`, color: '#2E7D32', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
+                            + Add bullet point
+                          </button>
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                   })}
                 </tbody>

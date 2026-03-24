@@ -1203,19 +1203,13 @@ ${buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, lineIte
 function buildScopeHTML(lineItems) {
   return lineItems.map(item => {
     const included = item.scopeIncluded || [];
-    const excluded = item.scopeExcluded || [];
     return `
     <div class="sub-header">${item.trade}</div>
     ${item.description ? `<p style="font-size:10.5pt;color:#333;margin-bottom:10px;line-height:1.6;">${item.description}</p>` : ''}
     ${included.length ? `
-    <p style="font-size:9.5pt;font-weight:bold;color:${BRAND_BLUE};margin:6px 0 4px;">Included in this scope:</p>
+    <p style="font-size:9.5pt;font-weight:bold;color:${BRAND_BLUE};margin:6px 0 4px;">This trade includes:</p>
     <ul class="check-list">
       ${included.map(i => `<li class="yes"><span class="label">${i}</span></li>`).join('')}
-    </ul>` : ''}
-    ${excluded.length ? `
-    <p style="font-size:9.5pt;font-weight:bold;color:#C62828;margin:6px 0 4px;">Not included in this trade:</p>
-    <ul class="check-list">
-      ${excluded.map(i => `<li class="no"><span class="label">${i}</span></li>`).join('')}
     </ul>` : ''}`;
   }).join('');
 }
@@ -1241,7 +1235,10 @@ function buildPermitChecklistHTML(data) {
   const isStretchCode   = project.stretchCodeTown || data.isStretchCodeTown || false;
   const isNewConstruct  = project.type === 'new_construction';
   const isADU           = project.type === 'adu';
-  const needsCO         = isNewConstruct || isADU; // Certificate of Occupancy
+  // C of O only for ADU (living dwelling with bedrooms) — new garages/studios get Certificate of Completion
+  const needsCO         = isADU;
+  // HERS rating only for ADU (residential dwelling with bedrooms) + stretch code town
+  const needsHERS       = isADU && isStretchCode;
   const hasElectrical   = !!trades.electrical;
   const hasPlumbing     = !!trades.plumbing;
   const hasHVAC         = !!trades.hvac;
@@ -1286,15 +1283,15 @@ function buildPermitChecklistHTML(data) {
   // Final building inspection — any permitted or structural work
   if (needsPermit || hasFraming || isNewConstruct) rows.push('Final building inspection');
 
-  // Stretch code energy test
-  if (isStretchCode) rows.push('HERS rating and blower door test (Stretch Code)');
+  // HERS rating + blower door — only for ADU (living dwelling with bedrooms) in a stretch code town
+  if (needsHERS) rows.push('HERS rating and blower door test (Stretch Code — ADU residential unit)');
 
   // Closing certificate:
-  // C of O → new construction or ADU (new dwelling unit requiring occupancy approval)
-  // Certificate of Completion → all other permitted renovations
+  // C of O → ADU only (new residential living dwelling with bedrooms)
+  // Certificate of Completion → new construction of accessory structures (garage, studio) and all renovations
   if (needsCO) {
-    rows.push('Certificate of Occupancy');
-  } else if (needsPermit || hasAnyTrade) {
+    rows.push('Certificate of Occupancy (residential dwelling unit)');
+  } else if (needsPermit || hasAnyTrade || isNewConstruct) {
     rows.push('Certificate of Completion');
   }
 
