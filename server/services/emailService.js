@@ -30,6 +30,13 @@ function logEmail(db, { messageId, to, subject, emailType, jobId }) {
 }
 
 async function sendEmail({ to, subject, html, text, attachmentPath, attachmentName, replyTo, emailType, jobId, db }) {
+  const recipients = Array.isArray(to) ? to : [to];
+  const validRecipients = recipients.filter(addr => addr && typeof addr === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr.trim()));
+  if (validRecipients.length === 0) {
+    console.warn('[Email] Skipped — no valid recipients in:', recipients);
+    return;
+  }
+
   const client = getMailgun();
   if (!client) {
     console.log('[Email MOCK] To:', to, 'Subject:', subject);
@@ -42,7 +49,7 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
 
   const messageData = {
     from: `Preferred Builders <${fromAddress}>`,
-    to: Array.isArray(to) ? to : [to],
+    to: validRecipients,
     subject,
     html,
     text: text || html?.replace(/<[^>]+>/g, ''),
