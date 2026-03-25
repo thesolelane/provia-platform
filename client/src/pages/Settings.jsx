@@ -394,7 +394,7 @@ export default function Settings({ token, userRole }) {
     return (
       <div>
         <div style={{ background: '#fff8f0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 12, fontSize: 12, color: '#5D3A00', marginBottom: 20 }}>
-          ⚠️ Changes are saved to your <strong>.env</strong> file and take effect immediately for most settings. API key changes (Claude, Mailgun, Twilio) require a server restart to fully take effect.
+          ⚠️ Changes are saved to your <strong>.env</strong> file and take effect immediately for most settings. API key changes (Claude, Resend, Twilio) require a server restart to fully take effect.
         </div>
 
         {groups.map(group => (

@@ -73,7 +73,7 @@ router.get('/integrations/status', requireAuth, (req, res) => {
   res.json({
     platform,
     whatsapp: { enabled: whatsappEnabled, configured: !!process.env.TWILIO_ACCOUNT_SID },
-    email: { enabled: emailEnabled, configured: !!process.env.MAILGUN_API_KEY },
+    email: { enabled: emailEnabled, configured: !!process.env.RESEND_API_KEY },
     hearth: { configured: !!process.env.HEARTH_API_KEY },
     wave: { configured: false } // placeholder
   });

@@ -54,15 +54,12 @@ function classifyError(message, stack) {
     return { type: 'system', severity: 'warning', source: 'database', suggestedCause: 'Database error — check SQLite file integrity and disk space.' };
   }
 
-  // Email / Mailgun / Resend (check before generic "unauthorized"/"not found" user patterns)
-  if (/mailgun|resend|smtp|email send|mg\.messages/.test(text)) {
+  // Email / Resend (check before generic "unauthorized"/"not found" user patterns)
+  if (/resend|smtp|email send/.test(text)) {
     if (/unauthorized|invalid key|\b403\b/.test(text)) {
-      return { type: 'system', severity: 'critical', source: 'email', suggestedCause: 'Email API key rejected — check MAILGUN_API_KEY is correct and active.' };
+      return { type: 'system', severity: 'critical', source: 'email', suggestedCause: 'Email API key rejected — check RESEND_API_KEY is correct and active.' };
     }
-    if (/domain not found|not verified/.test(text)) {
-      return { type: 'system', severity: 'critical', source: 'email', suggestedCause: 'Mailgun domain not found or not verified — check MAILGUN_DOMAIN setting.' };
-    }
-    return { type: 'system', severity: 'warning', source: 'email', suggestedCause: 'Email delivery failed — check Mailgun dashboard for bounce/block details.' };
+    return { type: 'system', severity: 'warning', source: 'email', suggestedCause: 'Email delivery failed — check Resend dashboard for bounce/block details.' };
   }
 
   // Port / network (all uppercase tokens lowercased)

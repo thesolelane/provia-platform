@@ -1,6 +1,5 @@
 // server/services/emailService.js
-const formData = require('form-data');
-const Mailgun = require('mailgun.js');
+const { Resend } = require('resend');
 const fs = require('fs');
 const path = require('path');
 
@@ -10,13 +9,12 @@ function getOwnerEmails() {
   return raw.split(',').map(e => e.trim()).filter(Boolean);
 }
 
-let mg;
-function getMailgun() {
-  if (!mg && process.env.MAILGUN_API_KEY) {
-    const mailgun = new Mailgun(formData);
-    mg = mailgun.client({ username: 'api', key: process.env.MAILGUN_API_KEY });
+let resendClient;
+function getResend() {
+  if (!resendClient && process.env.RESEND_API_KEY) {
+    resendClient = new Resend(process.env.RESEND_API_KEY);
   }
-  return mg;
+  return resendClient;
 }
 
 function logEmail(db, { messageId, to, subject, emailType, jobId }) {
@@ -37,7 +35,7 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     return;
   }
 
-  const client = getMailgun();
+  const client = getResend();
   if (!client) {
     console.log('[Email MOCK] To:', to, 'Subject:', subject);
     return;
@@ -45,7 +43,7 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
 
   const fromAddress = process.env.BOT_EMAIL || 'noreply@preferredbuildersusa.com';
   const ownerEmails = getOwnerEmails();
-  const replyToAddress = replyTo || (ownerEmails.length ? ownerEmails.join(', ') : null);
+  const replyToAddress = replyTo || (ownerEmails.length ? ownerEmails.join(', ') : undefined);
 
   const messageData = {
     from: `Preferred Builders <${fromAddress}>`,
@@ -53,31 +51,33 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     subject,
     html,
     text: text || html?.replace(/<[^>]+>/g, ''),
-    'o:tracking': 'yes',
-    'o:tracking-opens': 'yes',
-    ...(replyToAddress ? { 'h:Reply-To': replyToAddress } : {})
+    ...(replyToAddress ? { reply_to: replyToAddress } : {})
   };
 
   if (attachmentPath && fs.existsSync(attachmentPath)) {
-    messageData.attachment = {
+    const fileData = fs.readFileSync(attachmentPath);
+    messageData.attachments = [{
       filename: attachmentName || path.basename(attachmentPath),
-      data: fs.readFileSync(attachmentPath)
-    };
+      content: fileData
+    }];
   }
 
   try {
-    const domain = process.env.MAILGUN_DOMAIN || 'mg.preferredbuildersusa.com';
-    const result = await client.messages.create(domain, messageData);
-    console.log('Email sent:', result.id);
+    const result = await client.emails.send(messageData);
+    if (result.error) {
+      throw new Error(result.error.message || JSON.stringify(result.error));
+    }
+    const messageId = result.data?.id;
+    console.log('Email sent:', messageId);
     if (db) {
-      logEmail(db, { messageId: result.id, to, subject, emailType, jobId });
+      logEmail(db, { messageId, to, subject, emailType, jobId });
     } else {
       try {
         const { getDb } = require('../db/database');
-        logEmail(getDb(), { messageId: result.id, to, subject, emailType, jobId });
+        logEmail(getDb(), { messageId, to, subject, emailType, jobId });
       } catch (_) {}
     }
-    return result;
+    return result.data;
   } catch (err) {
     console.error('Email send failed:', err.message);
     throw err;

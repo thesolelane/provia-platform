@@ -11,8 +11,7 @@ const ENV_PATH = path.resolve(__dirname, '../../.env');
 
 const MANAGED_KEYS = [
   { key: 'ANTHROPIC_API_KEY',       label: 'Claude AI API Key',          group: 'AI' },
-  { key: 'MAILGUN_API_KEY',         label: 'Mailgun API Key',             group: 'Email' },
-  { key: 'MAILGUN_DOMAIN',          label: 'Mailgun Domain',              group: 'Email',    noMask: true },
+  { key: 'RESEND_API_KEY',           label: 'Resend API Key',              group: 'Email' },
   { key: 'BOT_EMAIL',               label: 'Bot From Email',              group: 'Email',    noMask: true },
   { key: 'PB_FROM_EMAIL',           label: 'PB From Email',               group: 'Email',    noMask: true },
   { key: 'TWILIO_ACCOUNT_SID',      label: 'Twilio Account SID',          group: 'WhatsApp' },

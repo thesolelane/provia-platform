@@ -36,20 +36,16 @@ async function checkClaude() {
   return { ok: true, detail: 'API key configured' };
 }
 
-async function checkMailgun() {
-  const key    = process.env.MAILGUN_API_KEY;
-  const domain = process.env.MAILGUN_DOMAIN;
-  if (!key)    return { ok: false, detail: 'MAILGUN_API_KEY not set' };
-  if (!domain) return { ok: false, detail: 'MAILGUN_DOMAIN not set' };
+async function checkResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return { ok: false, detail: 'RESEND_API_KEY not set' };
   try {
-    const auth = Buffer.from(`api:${key}`).toString('base64');
-    const res  = await httpsGet(`https://api.mailgun.net/v3/domains/${domain}`, {
-      Authorization: `Basic ${auth}`
+    const res = await httpsGet('https://api.resend.com/domains', {
+      Authorization: `Bearer ${key}`
     });
-    if (res.status === 200) return { ok: true,  detail: `Domain ${domain} verified` };
-    if (res.status === 404) return { ok: false, detail: `Domain "${domain}" not found in Mailgun` };
-    if (res.status === 401) return { ok: false, detail: 'Mailgun API key rejected (401 Unauthorized)' };
-    return { ok: false, detail: `Mailgun returned HTTP ${res.status}` };
+    if (res.status === 200) return { ok: true,  detail: 'API key valid' };
+    if (res.status === 401) return { ok: false, detail: 'Resend API key rejected (401 Unauthorized)' };
+    return { ok: false, detail: `Resend returned HTTP ${res.status}` };
   } catch (e) {
     return { ok: false, detail: e.message };
   }
@@ -138,10 +134,10 @@ const { getRecentErrors, getAlertsSummary } = require('../services/errorLogger')
 router.get('/', requireAuth, async (req, res) => {
   if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });
 
-  const [database, claude, mailgun, twilio, whatsapp, calendar, pdf, signing] = await Promise.all([
+  const [database, claude, resend, twilio, whatsapp, calendar, pdf, signing] = await Promise.all([
     checkDatabase(),
     checkClaude(),
-    checkMailgun(),
+    checkResend(),
     checkTwilio(),
     checkWhatsApp(),
     checkGoogleCalendar(),
@@ -154,7 +150,7 @@ router.get('/', requireAuth, async (req, res) => {
     services: {
       database: { label: 'Database (SQLite)',     ...database },
       claude:   { label: 'Claude AI (Anthropic)', ...claude   },
-      mailgun:  { label: 'Email (Mailgun)',        ...mailgun  },
+      resend:   { label: 'Email (Resend)',         ...resend   },
       twilio:   { label: 'Twilio SMS',             ...twilio   },
       whatsapp: { label: 'WhatsApp (Twilio)',      ...whatsapp },
       calendar: { label: 'Google Calendar',        ...calendar },
