@@ -106,6 +106,7 @@ app.use('/api/remote-update', require('./routes/remoteUpdate'));
 app.use('/api/payments',     require('./routes/payments'));
 app.use('/api/analytics',    require('./routes/analytics'));
 app.use('/api/email-log',    require('./routes/emailLog'));
+app.use(require('./routes/emailTracking'));
 app.use('/api/field-photos', require('./routes/fieldPhotos'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─

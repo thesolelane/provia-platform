@@ -66,6 +66,7 @@ export default function JobDetail({ token }) {
   const [marginLoading, setMarginLoading] = useState(false);
   const [pipelineCtx, setPipelineCtx] = useState(null);
   const [followUpTask, setFollowUpTask] = useState(null); // null | 'creating' | 'error' | taskObject
+  const [pinModal, setPinModal] = useState({ show: false, resolve: null });
 
   const load = () => {
     fetch(`/api/jobs/${id}`, { headers: { 'x-auth-token': token } })
@@ -124,10 +125,14 @@ export default function JobDetail({ token }) {
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
+  const askPin = () => new Promise(resolve => setPinModal({ show: true, resolve }));
+
   const sendForApproval = async () => {
     if (!await showConfirm(`Send a proposal signing link to ${job.customer_email}?`)) return;
+    const pin = await askPin();
+    if (pin === null) return;
     setActionLoading(true);
-    const res  = await fetch(`/api/signing/send-proposal/${id}`, { method: 'POST', headers });
+    const res  = await fetch(`/api/signing/send-proposal/${id}`, { method: 'POST', headers, body: JSON.stringify({ pin }) });
     const data = await res.json();
     if (res.ok) { load(); showToast('Proposal signing link sent!'); }
     else        { showToast(data.error || 'Failed to send', 'error'); }
@@ -156,8 +161,10 @@ export default function JobDetail({ token }) {
 
   const sendContractForSigning = async () => {
     if (!await showConfirm(`Send contract signing link to ${job.customer_email}?`)) return;
+    const pin = await askPin();
+    if (pin === null) return;
     setActionLoading(true);
-    const res  = await fetch(`/api/signing/send-contract/${id}`, { method: 'POST', headers });
+    const res  = await fetch(`/api/signing/send-contract/${id}`, { method: 'POST', headers, body: JSON.stringify({ pin }) });
     const data = await res.json();
     if (res.ok) { load(); showToast('Contract signing link sent!'); }
     else        { showToast(data.error || 'Failed to send', 'error'); }
@@ -338,6 +345,7 @@ export default function JobDetail({ token }) {
   };
 
   return (
+    <>
     <div style={{ padding: 32 }}>
       {/* Back */}
       <button onClick={() => navigate('/')}
@@ -1552,5 +1560,12 @@ export default function JobDetail({ token }) {
         })()}
       </div>
     </div>
+
+    {pinModal.show && (
+      <PinModal
+        onSubmit={pin => { setPinModal({ show: false, resolve: null }); pinModal.resolve(pin); }}
+        onCancel={() => { setPinModal({ show: false, resolve: null }); pinModal.resolve(null); }}
+      />
+    )}
   );
 }

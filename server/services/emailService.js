@@ -68,18 +68,22 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     }];
   }
 
+  const appUrl = process.env.APP_URL || '';
+  let pixelId = null;
+
+  if (html && appUrl) {
+    const { v4: uuidv4 } = require('uuid');
+    pixelId = uuidv4();
+    const pixel = `<img src="${appUrl}/api/track/o/${pixelId}" width="1" height="1" style="display:none" alt="" />`;
+    messageData.html = html + pixel;
+  }
+
   try {
     const result = await transport.sendMail(messageData);
-    const messageId = result.messageId;
-    console.log('Email sent:', messageId);
-    if (db) {
-      logEmail(db, { messageId, to, subject, emailType, jobId });
-    } else {
-      try {
-        const { getDb } = require('../db/database');
-        logEmail(getDb(), { messageId, to, subject, emailType, jobId });
-      } catch (_) {}
-    }
+    const messageId = pixelId || result.messageId;
+    console.log('Email sent:', result.messageId);
+    const dbInstance = db || (() => { try { return require('../db/database').getDb(); } catch (_) { return null; } })();
+    if (dbInstance) logEmail(dbInstance, { messageId, to, subject, emailType, jobId });
     return { id: messageId };
   } catch (err) {
     console.error('Email send failed:', err.message);

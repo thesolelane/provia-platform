@@ -479,6 +479,8 @@ function seedDefaultSettings() {
     // Google Calendar
     { key: 'gcal.calendarId',        value: 'primary', category:'calendar', label:'Google Calendar ID' },
     { key: 'gcal.enabled',           value: 'true',    category:'calendar', label:'Auto-add tasks to Google Calendar' },
+    // Email security
+    { key: 'email.pin',              value: '',        category:'email',    label:'4-Digit PIN to send customer emails (leave blank to disable)' },
   ];
 
   const insert = db.prepare(`

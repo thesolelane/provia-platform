@@ -434,6 +434,12 @@ router.post('/api/signing/signed/:token', async (req, res) => {
 
 router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) => {
   const db  = getDb();
+  const pinSetting = db.prepare("SELECT value FROM settings WHERE key = 'email.pin'").get();
+  const requiredPin = pinSetting?.value?.trim();
+  if (requiredPin) {
+    const submitted = String(req.body?.pin || '').trim();
+    if (submitted !== requiredPin) return res.status(403).json({ error: 'Incorrect PIN. Email not sent.' });
+  }
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'Job not found' });
   if (!job.proposal_pdf_path) return res.status(400).json({ error: 'No proposal PDF ready' });
@@ -495,6 +501,12 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
 
 router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) => {
   const db  = getDb();
+  const pinSetting = db.prepare("SELECT value FROM settings WHERE key = 'email.pin'").get();
+  const requiredPin = pinSetting?.value?.trim();
+  if (requiredPin) {
+    const submitted = String(req.body?.pin || '').trim();
+    if (submitted !== requiredPin) return res.status(403).json({ error: 'Incorrect PIN. Email not sent.' });
+  }
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'Job not found' });
   if (!job.contract_pdf_path) return res.status(400).json({ error: 'No contract PDF ready. Generate the contract first.' });
