@@ -36,19 +36,12 @@ async function checkClaude() {
   return { ok: true, detail: 'API key configured' };
 }
 
-async function checkResend() {
-  const key = process.env.RESEND_API_KEY;
-  if (!key) return { ok: false, detail: 'RESEND_API_KEY not set' };
-  try {
-    const res = await httpsGet('https://api.resend.com/domains', {
-      Authorization: `Bearer ${key}`
-    });
-    if (res.status === 200) return { ok: true,  detail: 'API key valid' };
-    if (res.status === 401) return { ok: false, detail: 'Resend API key rejected (401 Unauthorized)' };
-    return { ok: false, detail: `Resend returned HTTP ${res.status}` };
-  } catch (e) {
-    return { ok: false, detail: e.message };
-  }
+async function checkSmtp() {
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  if (!user) return { ok: false, detail: 'SMTP_USER not set' };
+  if (!pass) return { ok: false, detail: 'SMTP_PASS not set' };
+  return { ok: true, detail: `Sending as ${user}` };
 }
 
 async function checkTwilio() {
@@ -137,7 +130,7 @@ router.get('/', requireAuth, async (req, res) => {
   const [database, claude, resend, twilio, whatsapp, calendar, pdf, signing] = await Promise.all([
     checkDatabase(),
     checkClaude(),
-    checkResend(),
+    checkSmtp(),
     checkTwilio(),
     checkWhatsApp(),
     checkGoogleCalendar(),
@@ -150,7 +143,7 @@ router.get('/', requireAuth, async (req, res) => {
     services: {
       database: { label: 'Database (SQLite)',     ...database },
       claude:   { label: 'Claude AI (Anthropic)', ...claude   },
-      resend:   { label: 'Email (Resend)',         ...resend   },
+      resend:   { label: 'Email (Google SMTP)',     ...resend   },
       twilio:   { label: 'Twilio SMS',             ...twilio   },
       whatsapp: { label: 'WhatsApp (Twilio)',      ...whatsapp },
       calendar: { label: 'Google Calendar',        ...calendar },
