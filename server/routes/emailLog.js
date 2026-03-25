@@ -68,30 +68,70 @@ router.get('/', requireAuth, (req, res) => {
   });
 });
 
-// POST /mailgun — Mailgun open/click tracking webhook (mounted at /webhook/mailgun)
-router.post('/mailgun', express.json(), (req, res) => {
-  try {
-    const db = getDb();
-    const events = Array.isArray(req.body['event-data'])
-      ? req.body['event-data']
-      : [req.body['event-data'] || req.body];
+// POST /resend — Resend email event webhook (mounted at /webhook/resend)
+// Register this URL in Resend dashboard → Webhooks → Add endpoint
+// Events: email.opened, email.clicked, email.delivered, email.bounced
+router.post('/resend', express.json(), async (req, res) => {
+  res.json({ ok: true }); // always ack immediately
 
-    for (const ev of events) {
-      const event     = ev?.event || ev?.event_data?.event;
-      const messageId = ev?.message?.headers?.['message-id'] || ev?.['message-id'];
-      if ((event === 'opened' || event === 'clicked') && messageId) {
-        db.prepare(`
-          UPDATE email_log
-          SET opened_at    = COALESCE(opened_at, CURRENT_TIMESTAMP),
-              opened_count = opened_count + 1
-          WHERE message_id = ?
-        `).run(messageId);
+  try {
+    const db        = getDb();
+    const type      = req.body?.type;        // e.g. "email.opened"
+    const emailData = req.body?.data || {};
+    const emailId   = emailData.email_id;    // matches message_id stored at send time
+
+    if (!type || !emailId) return;
+
+    if (type === 'email.opened' || type === 'email.clicked') {
+      const isFirstOpen = db.prepare(`
+        SELECT opened_at FROM email_log WHERE message_id = ?
+      `).get(emailId);
+
+      db.prepare(`
+        UPDATE email_log
+        SET opened_at    = COALESCE(opened_at, CURRENT_TIMESTAMP),
+            opened_count = opened_count + 1
+        WHERE message_id = ?
+      `).run(emailId);
+
+      // Notify owners on first open only
+      if (isFirstOpen && !isFirstOpen.opened_at) {
+        const logRow = db.prepare(`
+          SELECT to_address, subject, email_type, job_id FROM email_log WHERE message_id = ?
+        `).get(emailId);
+
+        if (logRow && logRow.email_type !== 'system_alert') {
+          const { sendEmail, getOwnerEmails } = require('../services/emailService');
+          const owners = getOwnerEmails();
+          if (owners.length) {
+            const when   = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+            const typeLabel = {
+              proposal_signing: 'Proposal signing link',
+              contract:         'Contract email',
+              acknowledgement:  'Acknowledgement email',
+              general:          'Email',
+            }[logRow.email_type] || 'Email';
+
+            await sendEmail({
+              to: owners,
+              subject: `📬 ${typeLabel} opened — ${logRow.to_address}`,
+              html: `<p><strong>${typeLabel}</strong> was opened by <strong>${logRow.to_address}</strong>.</p>
+                     <p><strong>Subject:</strong> ${logRow.subject || '—'}</p>
+                     <p><strong>Time:</strong> ${when}</p>
+                     ${logRow.job_id ? `<p><a href="${process.env.APP_URL || ''}/jobs/${logRow.job_id}">View job →</a></p>` : ''}`,
+              emailType: 'system_alert',
+              jobId: logRow.job_id || null
+            });
+          }
+        }
       }
     }
-    res.json({ ok: true });
+
+    if (type === 'email.bounced') {
+      console.warn(`[Resend] Email bounced — id:${emailId} to:${emailData.to?.[0]}`);
+    }
   } catch (err) {
-    console.error('[Mailgun webhook]', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[Resend webhook]', err.message);
   }
 });
 

@@ -281,12 +281,33 @@ router.post('/api/signing/opened/:token', (req, res) => {
     db.prepare('UPDATE signing_sessions SET opened_at = CURRENT_TIMESTAMP, opened_ip = ?, status = ? WHERE token = ?')
       .run(ip, 'opened', req.params.token);
 
-    const job     = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
+    const job      = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
     const docLabel = session.doc_type === 'proposal' ? 'Proposal' : 'Contract';
     logAudit(session.job_id, `${session.doc_type}_opened`, `${docLabel} opened by customer (IP: ${ip})`, 'customer');
     notifyClients('job_updated', {
       jobId: session.job_id, event: `${session.doc_type}_opened`,
       message: `📬 ${job?.customer_name || 'Customer'} opened the ${docLabel.toLowerCase()} — ${new Date().toLocaleString()}`
+    });
+
+    // Email owners on first open
+    setImmediate(async () => {
+      try {
+        const { sendEmail, getOwnerEmails } = require('../services/emailService');
+        const owners = getOwnerEmails();
+        if (owners.length) {
+          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+          await sendEmail({
+            to: owners,
+            subject: `📬 ${docLabel} opened — ${job?.customer_name || 'Customer'}`,
+            html: `<p><strong>${job?.customer_name || 'The customer'}</strong> just opened their <strong>${docLabel.toLowerCase()}</strong> signing link.</p>
+                   <p><strong>Project:</strong> ${job?.project_address || '—'}</p>
+                   <p><strong>Time:</strong> ${when}</p>
+                   <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}">View job →</a></p>`,
+            emailType: 'system_alert',
+            jobId: session.job_id
+          });
+        }
+      } catch (e) { console.warn('[SigningOpenedAlert]', e.message); }
     });
   }
   res.json({ ok: true });
@@ -317,6 +338,29 @@ router.post('/api/signing/signed/:token', async (req, res) => {
       message: `✅ Proposal signed by ${signer_name}`
     });
 
+    // Notify owners that proposal was signed
+    setImmediate(async () => {
+      try {
+        const { sendEmail, getOwnerEmails } = require('../services/emailService');
+        const owners = getOwnerEmails();
+        if (owners.length) {
+          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+          await sendEmail({
+            to: owners,
+            subject: `✅ Proposal signed — ${job?.customer_name || signer_name}`,
+            html: `<p><strong>${signer_name}</strong> just signed the proposal for <strong>${job?.customer_name || 'a customer'}</strong>.</p>
+                   <p><strong>Project:</strong> ${job?.project_address || '—'}</p>
+                   <p><strong>Total:</strong> $${Number(job?.total_value || 0).toLocaleString()}</p>
+                   <p><strong>Time:</strong> ${when}</p>
+                   <p>The contract is now being auto-generated.</p>
+                   <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}">View job →</a></p>`,
+            emailType: 'system_alert',
+            jobId: session.job_id
+          });
+        }
+      } catch (e) { console.warn('[ProposalSignedAlert]', e.message); }
+    });
+
     // Auto-generate contract in background
     setImmediate(async () => {
       try {
@@ -342,7 +386,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
       message: `🎉 Contract signed by ${signer_name}`
     });
 
-    // Email a signed confirmation to customer
+    // Email signed confirmation to customer
     try {
       if (job?.customer_email) {
         await sendEmail({
@@ -358,6 +402,29 @@ router.post('/api/signing/signed/:token', async (req, res) => {
         });
       }
     } catch (e) { console.warn('[ContractSignedEmail]', e.message); }
+
+    // Notify owners that contract was signed
+    setImmediate(async () => {
+      try {
+        const { sendEmail, getOwnerEmails } = require('../services/emailService');
+        const owners = getOwnerEmails();
+        if (owners.length) {
+          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+          await sendEmail({
+            to: owners,
+            subject: `🎉 Contract signed — ${job?.customer_name || signer_name}`,
+            html: `<p><strong>${signer_name}</strong> just signed the construction contract.</p>
+                   <p><strong>Customer:</strong> ${job?.customer_name || '—'}</p>
+                   <p><strong>Project:</strong> ${job?.project_address || '—'}</p>
+                   <p><strong>Contract Value:</strong> $${Number(job?.total_value || 0).toLocaleString()}</p>
+                   <p><strong>Time:</strong> ${when}</p>
+                   <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}">View job →</a></p>`,
+            emailType: 'system_alert',
+            jobId: session.job_id
+          });
+        }
+      } catch (e) { console.warn('[ContractSignedAlert]', e.message); }
+    });
   }
 
   res.json({ ok: true });
