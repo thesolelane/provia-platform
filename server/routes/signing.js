@@ -565,9 +565,15 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
 
   const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
 
+  const fs = require('fs');
+  const proposalAttachment = job.proposal_pdf_path && fs.existsSync(job.proposal_pdf_path)
+    ? { attachmentPath: job.proposal_pdf_path, attachmentName: `Preferred-Builders-Proposal-${job.customer_name || job.id}.pdf` }
+    : {};
+
   await sendEmail({
     to: job.customer_email,
     subject: `Your Preferred Builders Contract is Ready to Sign`,
+    ...proposalAttachment,
     html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
       <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
         <div style="font-size:17px;font-weight:700">Preferred Builders General Services Inc.</div>
@@ -582,6 +588,7 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
         <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:20px">
           Your approved proposal and full scope of work are included in this contract. Please review everything carefully before signing.
           Your electronic signature creates a <strong>legally binding agreement</strong>.
+          ${proposalAttachment.attachmentPath ? `<br><br>📎 <strong>Your signed proposal is attached to this email</strong> for your reference.` : ''}
         </p>
         <div style="text-align:center;margin-bottom:20px">
           <a href="${link}" style="background:#059669;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:700;display:inline-block">
