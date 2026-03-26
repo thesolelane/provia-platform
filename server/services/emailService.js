@@ -76,7 +76,8 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     }];
   }
 
-  const appUrl = process.env.APP_URL || '';
+  const appUrl = process.env.APP_URL ||
+    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '');
   let pixelId = null;
 
   if (html && appUrl) {

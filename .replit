@@ -81,6 +81,7 @@ BOT_EMAIL = "estimates@preferredbuildersusa.com"
 PORT = "5000"
 DISABLE_WHATSAPP_POLLER = "true"
 DISABLE_WHATSAPP_WEBHOOK = "true"
+APP_URL = "https://preferredbuilders.duckdns.org"
 
 [postMerge]
 path = "scripts/post-merge.sh"
