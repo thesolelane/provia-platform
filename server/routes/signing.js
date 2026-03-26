@@ -386,17 +386,59 @@ router.post('/api/signing/signed/:token', async (req, res) => {
       message: `🎉 Contract signed by ${signer_name}`
     });
 
-    // Email signed confirmation to customer
+    // Email signed confirmation to customer — attach signed contract PDF
     try {
       if (job?.customer_email) {
+        const signedWhen = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/New_York' });
         await sendEmail({
           to: job.customer_email,
-          subject: `Your contract with Preferred Builders is signed ✅`,
-          html: `<p>Hi ${job.customer_name || 'there'},</p>
-<p>Thank you — your construction contract with Preferred Builders General Services Inc. has been signed and is on file.</p>
-<p>Your project at <strong>${job.project_address}</strong> is officially confirmed. We'll be in touch shortly with next steps.</p>
-<p style="margin-top:24px">— The Preferred Builders Team<br>978-377-1784 | jackson.deaquino@preferredbuildersusa.com</p>`,
-          text: `Your contract is signed and on file. Project at ${job.project_address} confirmed.`,
+          subject: `Your Preferred Builders Contract is Signed — Copy Enclosed`,
+          attachmentPath: job.contract_pdf_path,
+          attachmentName: `Preferred-Builders-Signed-Contract-${(job.customer_name || job.id).replace(/\s+/g, '-')}.pdf`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
+            <div style="background:#059669;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
+              <div style="font-size:17px;font-weight:700">✅ Contract Signed — Preferred Builders General Services Inc.</div>
+              <div style="font-size:12px;opacity:.8;margin-top:4px">HIC-197400 · CSL CS-121662 · 978-377-1784</div>
+            </div>
+            <div style="background:white;padding:28px 24px;border:1px solid #eee;border-top:none">
+              <p style="font-size:15px;color:#1B3A6B;font-weight:700;margin-bottom:12px">Hi ${job.customer_name || 'there'},</p>
+              <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:16px">
+                Thank you — your construction contract with Preferred Builders General Services Inc. has been signed and is on file.
+                <strong>📎 A copy of your signed contract is attached to this email</strong> for your records. Please save it in a safe place.
+              </p>
+              <div style="background:#F0FFF6;border-radius:8px;padding:16px 20px;margin-bottom:20px">
+                <p style="margin:0 0 8px 0;font-size:13px;color:#444"><strong>Project:</strong> ${job.project_address}${job.project_city ? ', ' + job.project_city : ''}</p>
+                <p style="margin:0 0 8px 0;font-size:13px;color:#444"><strong>Contract Value:</strong> ${job.total_value ? '$' + Number(job.total_value).toLocaleString() : '—'}</p>
+                <p style="margin:0;font-size:13px;color:#444"><strong>Signed:</strong> ${signedWhen}</p>
+              </div>
+              <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:16px">
+                Your deposit is due as outlined in the contract. Once your deposit is received, your project will be officially scheduled.
+                We will follow up shortly with your start date and project timeline.
+              </p>
+              <div style="background:#FFF8F0;border-left:3px solid #E07B2A;padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:20px">
+                <p style="margin:0 0 6px 0;font-size:12px;color:#5D3A00;line-height:1.6">
+                  <strong>⚠️ 3-Day Right to Cancel:</strong> Per M.G.L. c. 93 §48, you have the right to cancel this agreement within 3 business days of signing if it was executed away from our principal place of business. Cancellation must be submitted in writing to jackson.deaquino@preferredbuildersusa.com.
+                </p>
+              </div>
+              <div style="background:#F0FFF6;border-radius:8px;padding:16px 20px;margin-bottom:20px">
+                <p style="margin:0 0 6px 0;font-size:13px;font-weight:700;color:#059669">🤝 Refer a Friend &amp; Save $250</p>
+                <p style="margin:0;font-size:13px;color:#444;line-height:1.6">
+                  Welcome to the Preferred Builders family! Refer a friend or family member — if they sign a contract with us,
+                  <strong>you receive $250 off your next project</strong>. Just have them mention your name when they reach out.
+                </p>
+              </div>
+              <p style="color:#888;font-size:12px;line-height:1.6">
+                Questions? Reply to this email or call us at <strong>978-377-1784</strong>.
+              </p>
+            </div>
+            <div style="background:#f8f9ff;padding:14px 24px;font-size:10px;color:#aaa;border-radius:0 0 8px 8px">
+              <p style="margin:0 0 4px 0">Preferred Builders General Services Inc. · 37 Duck Mill Rd, Fitchburg MA 01420 · HIC-197400 · CSL CS-121662</p>
+              <p style="margin:0 0 4px 0">By receiving this contract you agree to receive digital communications from Preferred Builders General Services Inc. as required for your project.</p>
+              <p style="margin:0 0 4px 0">This contract is legally binding once signed and deposit is received and the 3-business-day cancellation period has elapsed.</p>
+              <p style="margin:0">The approved Proposal / Scope of Work is non-binding on its own and is incorporated herein as a Contract Addendum upon execution of this agreement.</p>
+            </div>
+          </div>`,
+          text: `Hi ${job.customer_name || 'there'},\n\nYour construction contract with Preferred Builders is signed and on file. A copy is attached.\n\nProject: ${job.project_address}\nSigned: ${signedWhen}\n\nYour deposit is due per the contract. Once received your project will be scheduled.\n\nNote: You have 3 business days to cancel per M.G.L. c. 93 §48.\n\nRefer a friend who signs a contract and receive $250 off your next project.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
           emailType: 'contract_signed',
           jobId: job.id
         });

@@ -157,6 +157,64 @@ router.post('/received', requireAuth, (req, res) => {
   const payment = db.prepare('SELECT * FROM payments_received WHERE id = ?').get(info.lastInsertRowid);
   logAudit(job_id, 'payment_received', `Check received: $${amount} (${payment_type || 'deposit'}, ${credit_debit || 'credit'}) recorded by ${recorder}`, recorder);
   res.json({ payment, summary: jobSummary(db, job_id) });
+
+  // After responding, send deposit confirmation email if contract is signed
+  setImmediate(async () => {
+    try {
+      const fullJob = db.prepare('SELECT * FROM jobs WHERE id = ?').get(job_id);
+      if (!fullJob?.customer_email) return;
+      if (!['contract_signed', 'in_progress', 'completed'].includes(fullJob.status)) return;
+
+      const { sendEmail } = require('../services/emailService');
+      const paidAmount  = `$${Number(parsedAmount).toLocaleString()}`;
+      const paidWhen    = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/New_York' });
+      const pTypeLabel  = { deposit: 'Deposit', progress: 'Progress Payment', final: 'Final Payment', other: 'Payment' }[pType] || 'Payment';
+
+      await sendEmail({
+        to: fullJob.customer_email,
+        subject: `Payment Received — Preferred Builders (${pTypeLabel} ${paidAmount})`,
+        attachmentPath: fullJob.contract_pdf_path,
+        attachmentName: `Preferred-Builders-Signed-Contract-${(fullJob.customer_name || job_id).replace(/\s+/g, '-')}.pdf`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
+          <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
+            <div style="font-size:17px;font-weight:700">Preferred Builders General Services Inc.</div>
+            <div style="font-size:12px;opacity:.8;margin-top:4px">HIC-197400 · CSL CS-121662 · 978-377-1784</div>
+          </div>
+          <div style="background:white;padding:28px 24px;border:1px solid #eee;border-top:none">
+            <p style="font-size:15px;color:#1B3A6B;font-weight:700;margin-bottom:12px">Hi ${fullJob.customer_name || 'there'},</p>
+            <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:16px">
+              We have received your payment — thank you! Your project at <strong>${fullJob.project_address}${fullJob.project_city ? ', ' + fullJob.project_city : ''}</strong>
+              is now officially confirmed and scheduled. We will be in touch shortly with your start date.
+            </p>
+            <div style="background:#F0FFF6;border-radius:8px;padding:16px 20px;margin-bottom:20px">
+              <p style="margin:0 0 8px 0;font-size:13px;color:#444"><strong>Payment Type:</strong> ${pTypeLabel}</p>
+              <p style="margin:0 0 8px 0;font-size:13px;color:#444"><strong>Amount Received:</strong> ${paidAmount}</p>
+              <p style="margin:0 0 8px 0;font-size:13px;color:#444"><strong>Date:</strong> ${paidWhen}</p>
+              <p style="margin:0;font-size:13px;color:#444"><strong>Project:</strong> ${fullJob.project_address}${fullJob.project_city ? ', ' + fullJob.project_city : ''}</p>
+            </div>
+            <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:16px">
+              📎 <strong>A copy of your signed contract is attached</strong> for your records.
+            </p>
+            <p style="color:#888;font-size:12px;line-height:1.6">
+              Questions? Reply to this email or call us at <strong>978-377-1784</strong>.
+            </p>
+          </div>
+          <div style="background:#f8f9ff;padding:14px 24px;font-size:10px;color:#aaa;border-radius:0 0 8px 8px">
+            <p style="margin:0 0 4px 0">Preferred Builders General Services Inc. · 37 Duck Mill Rd, Fitchburg MA 01420 · HIC-197400 · CSL CS-121662</p>
+            <p style="margin:0 0 4px 0">By receiving this communication you agree to receive digital communications from Preferred Builders General Services Inc. as required for your project.</p>
+            <p style="margin:0 0 4px 0">This contract is legally binding. The 3-business-day cancellation period per M.G.L. c. 93 §48 applies from the date of signing.</p>
+            <p style="margin:0">The approved Proposal / Scope of Work is non-binding on its own and is incorporated as a Contract Addendum upon execution of this agreement.</p>
+          </div>
+        </div>`,
+        text: `Hi ${fullJob.customer_name || 'there'},\n\nWe received your ${pTypeLabel} of ${paidAmount} on ${paidWhen}.\n\nYour project at ${fullJob.project_address} is confirmed and scheduled. We will follow up with your start date shortly.\n\nA copy of your signed contract is attached.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
+        emailType: 'general',
+        jobId: job_id
+      });
+      console.log(`[Payment] Deposit confirmation sent to ${fullJob.customer_email}`);
+    } catch (e) {
+      console.warn('[Payment] Confirmation email failed:', e.message);
+    }
+  });
 });
 
 router.post('/made', requireAuth, (req, res) => {
