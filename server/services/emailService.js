@@ -27,11 +27,14 @@ function getTransporter() {
 
 function logEmail(db, { messageId, to, subject, emailType, jobId }) {
   try {
+    if (!db) { console.error('[EmailLog] No db instance — skipping log'); return; }
+    const toAddress = Array.isArray(to) ? to.join(', ') : (to || 'unknown');
     db.prepare(
       'INSERT INTO email_log (message_id, to_address, subject, email_type, job_id) VALUES (?, ?, ?, ?, ?)'
-    ).run(messageId || null, Array.isArray(to) ? to.join(', ') : to, subject || null, emailType || 'general', jobId || null);
+    ).run(messageId || null, toAddress, subject || null, emailType || 'general', jobId || null);
+    console.log(`[EmailLog] Logged: type=${emailType} to=${toAddress}`);
   } catch (e) {
-    console.error('[EmailLog] Failed to log email:', e.message);
+    console.error('[EmailLog] Failed to log email:', e.message, '| type:', emailType, '| to:', to);
   }
 }
 
@@ -98,8 +101,12 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     const result = await transport.sendMail(messageData);
     const messageId = pixelId || result.messageId;
     console.log('Email sent:', result.messageId);
-    const dbInstance = db || (() => { try { return require('../db/database').getDb(); } catch (_) { return null; } })();
-    if (dbInstance) logEmail(dbInstance, { messageId, to, subject, emailType, jobId });
+    let dbInstance = db;
+    if (!dbInstance) {
+      try { dbInstance = require('../db/database').getDb(); }
+      catch (dbErr) { console.error('[EmailLog] Could not get DB instance:', dbErr.message); }
+    }
+    logEmail(dbInstance, { messageId, to, subject, emailType, jobId });
     return { id: messageId };
   } catch (err) {
     console.error('Email send failed:', err.message);

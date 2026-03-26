@@ -68,6 +68,19 @@ router.get('/', requireAuth, (req, res) => {
   });
 });
 
+// GET /api/email-log/diag — quick table diagnostic
+router.get('/diag', requireAuth, (req, res) => {
+  try {
+    const db    = getDb();
+    const count = db.prepare('SELECT COUNT(*) as n FROM email_log').get();
+    const latest = db.prepare('SELECT * FROM email_log ORDER BY sent_at DESC LIMIT 5').all();
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all();
+    res.json({ emailLogCount: count.n, latest, tables: tables.map(t => t.name) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /resend — Resend email event webhook (mounted at /webhook/resend)
 // Register this URL in Resend dashboard → Webhooks → Add endpoint
 // Events: email.opened, email.clicked, email.delivered, email.bounced
