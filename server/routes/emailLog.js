@@ -104,7 +104,7 @@ router.post('/resend', express.json(), async (req, res) => {
           const { sendEmail, getOwnerEmails } = require('../services/emailService');
           const owners = getOwnerEmails();
           if (owners.length) {
-            const when   = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+            const when   = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
             const typeLabel = {
               proposal_signing: 'Proposal signing link',
               contract:         'Contract email',

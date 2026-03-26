@@ -295,7 +295,7 @@ router.post('/api/signing/opened/:token', (req, res) => {
         const { sendEmail, getOwnerEmails } = require('../services/emailService');
         const owners = getOwnerEmails();
         if (owners.length) {
-          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
           await sendEmail({
             to: owners,
             subject: `📬 ${docLabel} opened — ${job?.customer_name || 'Customer'}`,
@@ -344,7 +344,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
         const { sendEmail, getOwnerEmails } = require('../services/emailService');
         const owners = getOwnerEmails();
         if (owners.length) {
-          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
           await sendEmail({
             to: owners,
             subject: `✅ Proposal signed — ${job?.customer_name || signer_name}`,
@@ -409,7 +409,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
         const { sendEmail, getOwnerEmails } = require('../services/emailService');
         const owners = getOwnerEmails();
         if (owners.length) {
-          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
           await sendEmail({
             to: owners,
             subject: `🎉 Contract signed — ${job?.customer_name || signer_name}`,

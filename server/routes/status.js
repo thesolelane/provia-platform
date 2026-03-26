@@ -130,7 +130,7 @@ router.post('/email-test', requireAuth, async (req, res) => {
     const { sendEmail, getOwnerEmails } = require('../services/emailService');
     const owners = getOwnerEmails();
     if (!owners.length) return res.status(400).json({ ok: false, error: 'OWNER_EMAIL not set' });
-    const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+    const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
     const result = await sendEmail({
       to: owners,
       subject: `📬 Notification Test — Preferred Builders AI (${when})`,

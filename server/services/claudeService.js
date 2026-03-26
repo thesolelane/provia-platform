@@ -653,7 +653,7 @@ async function adminChat(messages, language = 'en', db = null, sender = null) {
   const settings     = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
 
-  const today = new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const today = new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' });
 
   const senderName = sender ? sender.name : null;
   const senderRole = sender ? sender.role : 'team member';
