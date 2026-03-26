@@ -35,7 +35,8 @@ function logEmail(db, { messageId, to, subject, emailType, jobId }) {
   }
 }
 
-async function sendEmail({ to, subject, html, text, attachmentPath, attachmentName, replyTo, emailType, jobId, db }) {
+// attachments: array of { path, filename } objects — OR use legacy attachmentPath/attachmentName
+async function sendEmail({ to, subject, html, text, attachmentPath, attachmentName, attachments, replyTo, emailType, jobId, db }) {
   const recipients = Array.isArray(to) ? to : [to];
   const validRecipients = recipients.filter(addr => addr && typeof addr === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr.trim()));
   if (validRecipients.length === 0) {
@@ -52,7 +53,6 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
   const fromAddress = process.env.SMTP_USER || process.env.BOT_EMAIL || 'noreply@contactpreferred.com';
   const ownerEmails = getOwnerEmails();
   const replyToAddress = replyTo || (ownerEmails.length ? ownerEmails.join(', ') : undefined);
-
   const ownerReceiptAddress = ownerEmails.length ? ownerEmails[0] : fromAddress;
 
   const messageData = {
@@ -69,12 +69,19 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     }
   };
 
+  // Build attachments list — supports both array and legacy single-attachment params
+  const allAttachments = [];
   if (attachmentPath && fs.existsSync(attachmentPath)) {
-    messageData.attachments = [{
-      filename: attachmentName || path.basename(attachmentPath),
-      path: attachmentPath
-    }];
+    allAttachments.push({ filename: attachmentName || path.basename(attachmentPath), path: attachmentPath });
   }
+  if (Array.isArray(attachments)) {
+    for (const a of attachments) {
+      if (a?.path && fs.existsSync(a.path)) {
+        allAttachments.push({ filename: a.filename || path.basename(a.path), path: a.path });
+      }
+    }
+  }
+  if (allAttachments.length) messageData.attachments = allAttachments;
 
   const appUrl = process.env.APP_URL ||
     (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '');

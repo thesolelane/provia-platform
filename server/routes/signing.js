@@ -453,6 +453,8 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
   await sendEmail({
     to: job.customer_email,
     subject: `Your Preferred Builders Proposal is Ready for Your Review`,
+    attachmentPath: job.proposal_pdf_path,
+    attachmentName: `Preferred-Builders-Proposal-${(job.customer_name || job.id).replace(/\s+/g, '-')}.pdf`,
     html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
       <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
         <div style="font-size:17px;font-weight:700">Preferred Builders General Services Inc.</div>
@@ -464,10 +466,13 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
           Your project proposal for <strong>${job.project_address}</strong> is ready for your review.
           ${amount ? `The estimated total is <strong>${amount}</strong>.` : ''}
         </p>
+        <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:8px">
+          <strong>📎 Your proposal is attached to this email as a PDF</strong> — please open it to review your full scope of work and allowance schedule.
+        </p>
         <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:20px">
-          This proposal includes your full <strong>scope of work and allowance schedule</strong>. Please review it carefully —
-          this is your estimate, <strong>not a contract</strong>. Nothing is binding at this stage.
+          This proposal is your <strong>estimate only — it is not a contract</strong>. Nothing is binding at this stage.
           We want to make sure we are completely on the same page before moving forward.
+          Once you are satisfied with the scope, use the button below to sign and approve it.
         </p>
         <div style="text-align:center;margin-bottom:20px">
           <a href="${link}" style="background:#1B3A6B;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-size:15px;font-weight:700;display:inline-block">
