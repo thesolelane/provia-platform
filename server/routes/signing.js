@@ -404,20 +404,6 @@ router.post('/api/signing/signed/:token', async (req, res) => {
           mergedPdfPath = job.contract_pdf_path;
         }
 
-        // Auto-save to signed contracts folder (Windows server)
-        const contractsDir = process.env.SIGNED_CONTRACTS_DIR;
-        if (contractsDir && mergedPdfPath) {
-          try {
-            const fsSync = require('fs');
-            if (!fsSync.existsSync(contractsDir)) fsSync.mkdirSync(contractsDir, { recursive: true });
-            const destPath = require('path').join(contractsDir, mergedPdfName);
-            fsSync.copyFileSync(mergedPdfPath, destPath);
-            console.log(`[SignedContracts] Saved to: ${destPath}`);
-          } catch (saveErr) {
-            console.warn('[SignedContracts] Failed to save to contracts folder:', saveErr.message);
-          }
-        }
-
         await sendEmail({
           to: job.customer_email,
           subject: `Your Preferred Builders Contract is Signed — Copy Enclosed`,
