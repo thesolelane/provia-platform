@@ -14,7 +14,8 @@ module.exports = {
         TZ: 'America/New_York',
         APP_URL: 'https://preferredbuilders.duckdns.org',
         DISABLE_WHATSAPP_POLLER: 'false',
-        DISABLE_WHATSAPP_WEBHOOK: 'false'
+        DISABLE_WHATSAPP_WEBHOOK: 'false',
+        SIGNED_CONTRACTS_DIR: 'C:\\Users\\theso\\Desktop\\Preferred Builders signed Contracts'
       }
     }
   ]
