@@ -84,7 +84,13 @@ async function checkGoogleCalendar() {
   const replId      = process.env.REPL_IDENTITY;
   const webRenewal  = process.env.WEB_REPL_RENEWAL;
   if (!hostname || (!replId && !webRenewal)) {
-    return { ok: false, detail: 'Google Calendar connector not configured — connect via Settings → Calendar' };
+    const onWindows = process.platform === 'win32';
+    return {
+      ok: false,
+      detail: onWindows
+        ? 'Google Calendar runs via Replit — not available on Windows server (tasks still save locally)'
+        : 'Google Calendar connector not configured — connect via Settings → Calendar'
+    };
   }
   try {
     const db      = getDb();
@@ -98,12 +104,38 @@ async function checkGoogleCalendar() {
 async function checkPDF() {
   const { execSync } = require('child_process');
   const fs = require('fs');
+
+  // Check env override first
+  if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
+    return { ok: true, detail: `Chrome (env): ${process.env.CHROME_PATH}` };
+  }
+
+  if (process.platform === 'win32') {
+    const winPaths = [
+      'C:\\Users\\theso\\.cache\\puppeteer\\chrome\\win64-146.0.7680.76\\chrome-win64\\chrome.exe',
+      'C:\\Users\\theso\\.cache\\puppeteer\\chrome\\win64-127.0.6533.88\\chrome-win64\\chrome.exe',
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Users\\theso\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
+      (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
+    ];
+    for (const p of winPaths) {
+      if (p && fs.existsSync(p)) return { ok: true, detail: `Chrome (Windows): ${p}` };
+    }
+    try {
+      const p = execSync('where chrome', { timeout: 3000 }).toString().split('\n')[0].trim();
+      if (p && fs.existsSync(p)) return { ok: true, detail: `Chrome (PATH): ${p}` };
+    } catch {}
+    return { ok: false, detail: 'Chrome not found on Windows — set CHROME_PATH in ecosystem.config.js or install Chrome' };
+  }
+
+  // Linux / Replit
   try {
-    const path = execSync(
+    const p = execSync(
       'which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null',
       { timeout: 3000 }
     ).toString().trim();
-    if (path) return { ok: true, detail: `Chromium: ${path}` };
+    if (p) return { ok: true, detail: `Chromium: ${p}` };
   } catch {}
   const nixPath = '/nix/store/gasnw5878924jbw6bql257ll29hkm4fd-chromium-123.0.6312.105/bin/chromium';
   if (fs.existsSync(nixPath)) return { ok: true, detail: 'Chromium found in Nix store' };
