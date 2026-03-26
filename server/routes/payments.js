@@ -182,6 +182,23 @@ router.post('/received', requireAuth, (req, res) => {
         console.warn('[PaymentEmail] PDF merge failed, using contract only:', mergeErr.message);
       }
 
+      // Auto-save completed file to signed contracts folder (Windows server)
+      const contractsDir = process.env.SIGNED_CONTRACTS_DIR;
+      if (contractsDir && mergedPdfPath) {
+        try {
+          const fsSync = require('fs');
+          const pathLib = require('path');
+          if (!fsSync.existsSync(contractsDir)) fsSync.mkdirSync(contractsDir, { recursive: true });
+          const dateStamp = new Date().toISOString().slice(0, 10);
+          const destName  = `Preferred-Builders-COMPLETED-${safeName}-${dateStamp}.pdf`;
+          const destPath  = pathLib.join(contractsDir, destName);
+          fsSync.copyFileSync(mergedPdfPath, destPath);
+          console.log(`[SignedContracts] Payment-confirmed file saved: ${destPath}`);
+        } catch (saveErr) {
+          console.warn('[SignedContracts] Failed to save payment-confirmed file:', saveErr.message);
+        }
+      }
+
       await sendEmail({
         to: fullJob.customer_email,
         subject: `Payment Received — Preferred Builders (${pTypeLabel} ${paidAmount})`,
