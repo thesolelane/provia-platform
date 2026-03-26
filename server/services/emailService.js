@@ -12,7 +12,7 @@ let transporter;
 function getTransporter() {
   if (!transporter && process.env.SMTP_USER && process.env.SMTP_PASS) {
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.networksolutions.com',
+      host: process.env.SMTP_HOST || 'smtp.contactpreferred.com',
       port: parseInt(process.env.SMTP_PORT || '587'),
       secure: false,
       auth: {
