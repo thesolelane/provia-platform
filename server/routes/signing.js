@@ -404,6 +404,20 @@ router.post('/api/signing/signed/:token', async (req, res) => {
           mergedPdfPath = job.contract_pdf_path;
         }
 
+        // Save combined contract + addendum to signed contracts folder (Windows server)
+        const contractsDir = process.env.SIGNED_CONTRACTS_DIR;
+        if (contractsDir && mergedPdfPath) {
+          try {
+            const fsSync = require('fs');
+            if (!fsSync.existsSync(contractsDir)) fsSync.mkdirSync(contractsDir, { recursive: true });
+            const destPath = require('path').join(contractsDir, mergedPdfName);
+            fsSync.copyFileSync(mergedPdfPath, destPath);
+            console.log(`[SignedContracts] Combined contract+addendum saved: ${destPath}`);
+          } catch (saveErr) {
+            console.warn('[SignedContracts] Failed to save combined file:', saveErr.message);
+          }
+        }
+
         await sendEmail({
           to: job.customer_email,
           subject: `Your Preferred Builders Contract is Signed — Copy Enclosed`,
