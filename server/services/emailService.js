@@ -52,13 +52,20 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
   const ownerEmails = getOwnerEmails();
   const replyToAddress = replyTo || (ownerEmails.length ? ownerEmails.join(', ') : undefined);
 
+  const ownerReceiptAddress = ownerEmails.length ? ownerEmails[0] : fromAddress;
+
   const messageData = {
     from: `Preferred Builders <${fromAddress}>`,
     to: validRecipients,
     subject,
     html,
     text: text || html?.replace(/<[^>]+>/g, ''),
-    ...(replyToAddress ? { replyTo: replyToAddress } : {})
+    ...(replyToAddress ? { replyTo: replyToAddress } : {}),
+    headers: {
+      'Disposition-Notification-To': ownerReceiptAddress,
+      'Return-Receipt-To': ownerReceiptAddress,
+      'X-Confirm-Reading-To': ownerReceiptAddress
+    }
   };
 
   if (attachmentPath && fs.existsSync(attachmentPath)) {
