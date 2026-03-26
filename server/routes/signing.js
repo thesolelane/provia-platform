@@ -509,6 +509,7 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
   if (!job.proposal_pdf_path) return res.status(400).json({ error: 'No proposal PDF ready' });
   if (!job.customer_email) return res.status(400).json({ error: 'No customer email on file' });
 
+  try {
   const token = uuidv4();
   const base  = baseURL(req);
   const link  = `${base}/sign/p/${token}`;
@@ -618,6 +619,10 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
 
   notifyClients('job_updated', { jobId: job.id, status: 'proposal_sent' });
   res.json({ success: true, message: `Proposal signing link sent to ${job.customer_email}` });
+  } catch (err) {
+    console.error('[send-proposal] Error:', err.message);
+    res.status(500).json({ error: 'Failed to send proposal: ' + err.message });
+  }
 });
 
 // ─── Admin: send contract for signing ────────────────────────────────────────

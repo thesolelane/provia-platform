@@ -28,6 +28,26 @@ export default function Settings({ token, userRole }) {
   const [emailLogLoading, setEmailLogLoading] = useState(false);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
+  // Auto-load email log when the tab is opened for the first time
+  useEffect(() => {
+    if (activeTab === 'Email Log' && !emailLog && !emailLogLoading) {
+      loadEmailLog();
+    }
+  }, [activeTab]);
+
+  // Auto-refresh email log every 20s while the tab is open and log is loaded
+  useEffect(() => {
+    if (activeTab !== 'Email Log' || !emailLog) return;
+    const interval = setInterval(async () => {
+      try {
+        const res  = await fetch('/api/email-log?limit=200', { headers: { 'x-auth-token': token } });
+        const data = await res.json();
+        if (data && !data.error) setEmailLog(data);
+      } catch (_) {}
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [activeTab, emailLog, token]);
+
   useEffect(() => {
     fetch('/api/settings', { headers: { 'x-auth-token': token } })
       .then(r => r.json()).then(data => {
