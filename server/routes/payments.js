@@ -166,15 +166,27 @@ router.post('/received', requireAuth, (req, res) => {
       if (!['contract_signed', 'in_progress', 'completed'].includes(fullJob.status)) return;
 
       const { sendEmail } = require('../services/emailService');
+      const { mergePDFs } = require('../services/pdfMergeService');
       const paidAmount  = `$${Number(parsedAmount).toLocaleString()}`;
       const paidWhen    = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/New_York' });
       const pTypeLabel  = { deposit: 'Deposit', progress: 'Progress Payment', final: 'Final Payment', other: 'Payment' }[pType] || 'Payment';
+      const safeName    = (fullJob.customer_name || job_id).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+
+      let mergedPdfPath = fullJob.contract_pdf_path;
+      try {
+        mergedPdfPath = await mergePDFs(
+          [fullJob.proposal_pdf_path, fullJob.contract_pdf_path],
+          `pb-payment-${job_id}.pdf`
+        );
+      } catch (mergeErr) {
+        console.warn('[PaymentEmail] PDF merge failed, using contract only:', mergeErr.message);
+      }
 
       await sendEmail({
         to: fullJob.customer_email,
         subject: `Payment Received — Preferred Builders (${pTypeLabel} ${paidAmount})`,
-        attachmentPath: fullJob.contract_pdf_path,
-        attachmentName: `Preferred-Builders-Signed-Contract-${(fullJob.customer_name || job_id).replace(/\s+/g, '-')}.pdf`,
+        attachmentPath: mergedPdfPath,
+        attachmentName: `Preferred-Builders-Contract-and-Proposal-${safeName}.pdf`,
         html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
           <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
             <div style="font-size:17px;font-weight:700">Preferred Builders General Services Inc.</div>
@@ -193,7 +205,7 @@ router.post('/received', requireAuth, (req, res) => {
               <p style="margin:0;font-size:13px;color:#444"><strong>Project:</strong> ${fullJob.project_address}${fullJob.project_city ? ', ' + fullJob.project_city : ''}</p>
             </div>
             <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:16px">
-              📎 <strong>A copy of your signed contract is attached</strong> for your records.
+              📎 <strong>Your signed contract and original proposal are attached together as one document</strong> for your records. Please keep this for your files.
             </p>
             <p style="color:#888;font-size:12px;line-height:1.6">
               Questions? Reply to this email or call us at <strong>978-377-1784</strong>.

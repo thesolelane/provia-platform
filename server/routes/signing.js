@@ -386,15 +386,28 @@ router.post('/api/signing/signed/:token', async (req, res) => {
       message: `🎉 Contract signed by ${signer_name}`
     });
 
-    // Email signed confirmation to customer — attach signed contract PDF
+    // Email signed confirmation to customer — attach merged proposal + signed contract PDF
     try {
       if (job?.customer_email) {
         const signedWhen = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/New_York' });
+        const { mergePDFs } = require('../services/pdfMergeService');
+        const safeName = (job.customer_name || job.id).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+        let mergedPdfPath = null;
+        let mergedPdfName = `Preferred-Builders-Signed-Contract-${safeName}.pdf`;
+        try {
+          mergedPdfPath = await mergePDFs(
+            [job.proposal_pdf_path, job.contract_pdf_path],
+            `pb-signed-${job.id}.pdf`
+          );
+        } catch (mergeErr) {
+          console.warn('[MergePDF] Merge failed, falling back to contract only:', mergeErr.message);
+          mergedPdfPath = job.contract_pdf_path;
+        }
         await sendEmail({
           to: job.customer_email,
           subject: `Your Preferred Builders Contract is Signed — Copy Enclosed`,
-          attachmentPath: job.contract_pdf_path,
-          attachmentName: `Preferred-Builders-Signed-Contract-${(job.customer_name || job.id).replace(/\s+/g, '-')}.pdf`,
+          attachmentPath: mergedPdfPath,
+          attachmentName: mergedPdfName,
           html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
             <div style="background:#059669;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
               <div style="font-size:17px;font-weight:700">✅ Contract Signed — Preferred Builders General Services Inc.</div>
@@ -404,7 +417,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
               <p style="font-size:15px;color:#1B3A6B;font-weight:700;margin-bottom:12px">Hi ${job.customer_name || 'there'},</p>
               <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:16px">
                 Thank you — your construction contract with Preferred Builders General Services Inc. has been signed and is on file.
-                <strong>📎 A copy of your signed contract is attached to this email</strong> for your records. Please save it in a safe place.
+                <strong>📎 Your signed contract and original proposal are combined into one document and attached to this email</strong> for your records. Please save it in a safe place.
               </p>
               <div style="background:#F0FFF6;border-radius:8px;padding:16px 20px;margin-bottom:20px">
                 <p style="margin:0 0 8px 0;font-size:13px;color:#444"><strong>Project:</strong> ${job.project_address}${job.project_city ? ', ' + job.project_city : ''}</p>
