@@ -45,8 +45,8 @@ async function checkSmtp() {
 }
 
 async function checkTwilio() {
-  const sid   = process.env.TWILIO_ACCOUNT_SID   || process.env.TWILIO_LIVE_ACCOUNT_SID;
-  const token = process.env.TWILIO_AUTH_TOKEN     || process.env.TWILIO_LIVE_AUTH_TOKEN;
+  const sid   = process.env.TWILIO_LIVE_ACCOUNT_SID || process.env.TWILIO_ACCOUNT_SID;
+  const token = process.env.TWILIO_LIVE_AUTH_TOKEN  || process.env.TWILIO_AUTH_TOKEN;
   if (!sid)   return { ok: false, detail: 'TWILIO_ACCOUNT_SID not set' };
   if (!token) return { ok: false, detail: 'TWILIO_AUTH_TOKEN not set' };
   try {
