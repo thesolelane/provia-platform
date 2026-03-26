@@ -48,7 +48,7 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     return;
   }
 
-  const fromAddress = process.env.SMTP_USER || process.env.BOT_EMAIL || 'noreply@preferredbuilders.com';
+  const fromAddress = process.env.SMTP_USER || process.env.BOT_EMAIL || 'noreply@contactpreferred.com';
   const ownerEmails = getOwnerEmails();
   const replyToAddress = replyTo || (ownerEmails.length ? ownerEmails.join(', ') : undefined);
 
