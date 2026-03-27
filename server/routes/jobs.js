@@ -140,7 +140,8 @@ function finalizeJobVersioning(db, jobId, proposalData) {
 function mergeContactIntoProposal(db, jobId, proposalData) {
   try {
     const job = db.prepare(
-      'SELECT customer_name, customer_email, customer_phone, project_address, project_city, contact_id FROM jobs WHERE id = ?'
+      `SELECT customer_name, customer_email, customer_phone, project_address, project_city,
+              contact_id, pb_number, external_ref, quote_number FROM jobs WHERE id = ?`
     ).get(jobId);
     if (!job) return;
 
@@ -163,7 +164,12 @@ function mergeContactIntoProposal(db, jobId, proposalData) {
     proposalData.project.address = proposalData.project.address || contact?.address || job.project_address || '';
     proposalData.project.city    = proposalData.project.city    || contact?.city    || job.project_city    || '';
 
-    if (c.name) console.log(`[mergeContact] Job ${jobId}: customer set to "${c.name}"`);
+    // Fill missing quote number: Claude's extraction → job.quote_number → external_ref → pb_number
+    if (!proposalData.quoteNumber) {
+      proposalData.quoteNumber = job.quote_number || job.external_ref || job.pb_number || '';
+    }
+
+    if (c.name) console.log(`[mergeContact] Job ${jobId}: customer="${c.name}", quoteNumber="${proposalData.quoteNumber}"`);
   } catch (e) {
     console.warn('[mergeContactIntoProposal] Error:', e.message);
   }
