@@ -69,7 +69,33 @@ export default function Contacts({ token }) {
     setSelectedDocs(prev => prev.filter(d => d.id !== docId));
   };
 
+  const validateForm = () => {
+    const nameParts = form.name.trim().split(/\s+/);
+    if (!form.name.trim()) return 'Full name is required.';
+    if (nameParts.length < 2) return 'Please enter both first and last name.';
+
+    if (form.email) {
+      const emailOk = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(form.email.trim());
+      if (!emailOk) return 'Email address does not look right — check the format (e.g. name@gmail.com).';
+    }
+
+    if (form.phone) {
+      const phoneOk = /^[\d\s\(\)\-\+\.]{7,20}$/.test(form.phone.trim());
+      if (!phoneOk) return 'Phone number format is invalid.';
+    }
+
+    if (form.zip) {
+      const zipOk = /^\d{5}(-\d{4})?$/.test(form.zip.trim());
+      if (!zipOk) return 'ZIP code must be 5 digits (e.g. 01420).';
+    }
+
+    return null;
+  };
+
   const saveEdit = async () => {
+    const err = validateForm();
+    if (err) { showToast(err, 'error'); return; }
+
     const url = selected ? `/api/contacts/${selected.id}` : '/api/contacts';
     const method = selected ? 'PATCH' : 'POST';
     const res = await fetch(url, { method, headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify(form) });

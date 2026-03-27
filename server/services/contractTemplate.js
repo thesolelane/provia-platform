@@ -406,7 +406,7 @@ function adaptToContractSchema(data) {
   const pricing   = data.pricing   || {};
   const lineItems = data.lineItems || [];
   const jobRaw    = data.job       || {};
-  const today     = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const today     = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
 
   // Project type — prefer explicit field, fall back to trade-name inference
   const allTrades = lineItems.map(i => (i.trade || '').toLowerCase()).join(' ');

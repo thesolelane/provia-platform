@@ -119,7 +119,7 @@ ${referenceLog.map(r =>
   `| ${r.ref} | ${r.date.substring(0, 12).padEnd(12)} | ${r.value.padEnd(12)} | ${r.type.substring(0, 20).padEnd(20)} | ${r.title} |`
 ).join('\n')}
 
-*Assessment generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}*`;
+*Assessment generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' })}*`;
 
   // Save (upsert) assessment report
   const existing = db.prepare(

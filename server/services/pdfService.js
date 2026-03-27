@@ -204,7 +204,7 @@ function buildProposalHTML(data) {
   <div class="cover-meta">
     Prepared for: <strong>${customer.name || ''}</strong><br>
     Quote #: <strong>${quoteNum}</strong><br>
-    Date: <strong>${new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'})}</strong><br>
+    Date: <strong>${new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric',timeZone:'America/New_York'})}</strong><br>
     Valid Until: <strong>${validUntil}</strong>
   </div>
   <div class="cover-badge">PROPOSAL — NOT A CONTRACT</div>
@@ -238,7 +238,7 @@ function buildProposalHTML(data) {
     <div class="item label-cell">Quote Number</div>
     <div class="item value-cell">${quoteNum || '—'}</div>
     <div class="item label-cell">Date Prepared</div>
-    <div class="item value-cell">${new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'})}</div>
+    <div class="item value-cell">${new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric',timeZone:'America/New_York'})}</div>
     <div class="item label-cell">Valid Until</div>
     <div class="item value-cell">${validUntil || '—'}</div>
     <div class="item label-cell">Stretch Code Town</div>
@@ -317,7 +317,7 @@ function buildContractHTML(data) {
   const fmt = (n) => n ? `$${Number(n).toLocaleString()}` : '$0';
 
   const quoteNum   = data.quoteNumber || '—';
-  const today      = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const today      = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
   const total      = pricing.totalContractPrice || data.totalValue || 0;
   const deposit    = pricing.depositAmount || data.depositAmount || 0;
   const depositPct = pricing.depositPercent || 33;
