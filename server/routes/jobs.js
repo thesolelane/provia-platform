@@ -606,6 +606,8 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
   const pdfParse = require('pdf-parse');
   const Anthropic = require('@anthropic-ai/sdk');
   const fs = require('fs');
+  const path = require('path');
+  const { v4: uuidv4 } = require('uuid');
 
   if (!req.files || !Object.keys(req.files).length) {
     return res.status(400).json({ error: 'No files uploaded' });
@@ -621,11 +623,23 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
     else allFiles.push(f);
   }
 
+  // Create a temp folder to persist the files until job is created
+  const tempId = uuidv4();
+  const tempDir = path.join(__dirname, '../uploads/plans', `temp_${tempId}`);
+  fs.mkdirSync(tempDir, { recursive: true });
+
   const extractedParts = [];
+  const savedFiles = [];
 
   for (const file of allFiles) {
     try {
       const fileBuffer = file.tempFilePath ? fs.readFileSync(file.tempFilePath) : file.data;
+
+      // Save file to temp dir (sanitize filename)
+      const safeName = file.name.replace(/[^a-zA-Z0-9._\-]/g, '_');
+      const destPath = path.join(tempDir, safeName);
+      fs.writeFileSync(destPath, fileBuffer);
+      savedFiles.push(safeName);
 
       if (file.mimetype === 'application/pdf') {
         const parsed = await pdfParse(fileBuffer);
@@ -642,15 +656,13 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
           messages: [{
             role: 'user',
             content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: file.mimetype, data: base64 }
-              },
+              { type: 'image', source: { type: 'base64', media_type: file.mimetype, data: base64 } },
               {
                 type: 'text',
-                text: `This is a construction document — it may be a blueprint, floor plan, building plan, sketch, or site photo.
+                text: `This is a construction document — blueprint, floor plan, building plan, sketch, or site photo.
 
-Please extract and describe ALL technically relevant information you can see:
+Extract ALL technically relevant information:
+- Project address or job site address (street number, street name, city, state) if visible anywhere on the document
 - Room names and dimensions
 - Square footage, linear footage, area measurements
 - Materials called out (lumber sizes, concrete, tile, roofing type, etc.)
@@ -659,7 +671,7 @@ Please extract and describe ALL technically relevant information you can see:
 - Any scope notes or annotations written on the plans
 - Quantities and specifications if labeled
 
-Format as a clear, detailed construction scope description. Do NOT include any personal information (names, addresses of people, phone numbers). Focus only on the technical and physical scope of the work visible in this document.`
+Format as a clear, detailed construction scope description. Include the project address at the very top if found, labeled "PROJECT ADDRESS: [address]". Do NOT include owner/client personal information (names, phone numbers, email). Focus on the technical scope.`
               }
             ]
           }]
@@ -676,10 +688,40 @@ Format as a clear, detailed construction scope description. Do NOT include any p
   }
 
   if (!extractedParts.length) {
+    // Clean up temp dir if nothing extracted
+    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
     return res.status(400).json({ error: 'No readable content found in the uploaded files.' });
   }
 
-  res.json({ extractedText: extractedParts.join('\n\n') });
+  const allExtractedText = extractedParts.join('\n\n');
+
+  // Ask Claude to pull out the project address from all extracted text
+  let extractedAddress = null;
+  try {
+    const addrRes = await anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 200,
+      temperature: 0,
+      messages: [{
+        role: 'user',
+        content: `From the following construction document text, extract the PROJECT ADDRESS (job site address, not the owner's mailing address). Return ONLY a JSON object like: {"street":"123 Main St","city":"Boston","state":"MA","zip":"02101"} — or {"street":""} if no address is found. No explanation, just JSON.\n\n${allExtractedText.slice(0, 3000)}`
+      }]
+    });
+    const raw = addrRes.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(raw);
+    if (parsed.street && parsed.street.length > 3) {
+      extractedAddress = parsed;
+    }
+  } catch (e) {
+    console.warn('[extract-from-files] Address extraction failed:', e.message);
+  }
+
+  res.json({
+    extractedText: allExtractedText,
+    extractedAddress,
+    tempId,
+    savedFiles
+  });
 });
 
 // POST upload PDF/image as a new job estimate
@@ -1214,8 +1256,10 @@ router.post('/wizard/questions', requireAuth, async (req, res) => {
 // POST wizard/submit — resolve line items from Q&A, create job, kick off processing
 router.post('/wizard/submit', requireAuth, async (req, res) => {
   const { v4: uuidv4 } = require('uuid');
+  const fs = require('fs');
+  const path = require('path');
   const db = getDb();
-  const { customerName, customerEmail, customerPhone, projectAddress, scopeText, qaAnswers, budgetTarget } = req.body;
+  const { customerName, customerEmail, customerPhone, projectAddress, scopeText, qaAnswers, budgetTarget, plansTempId } = req.body;
 
   if (!scopeText || scopeText.trim().length < 10) {
     return res.status(400).json({ error: 'Scope text is required.' });
@@ -1270,6 +1314,29 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     const qNum  = generateQuoteNumber(db);
     db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
   } catch (e) { console.warn('[Wizard] PB/Quote number generation failed:', e.message); }
+
+  // Move uploaded plan files from temp dir to permanent job folder
+  if (plansTempId) {
+    try {
+      const tempDir = path.join(__dirname, '../uploads/plans', `temp_${plansTempId}`);
+      const jobDir  = path.join(__dirname, '../uploads/plans', jobId);
+      if (fs.existsSync(tempDir)) {
+        fs.mkdirSync(jobDir, { recursive: true });
+        const files = fs.readdirSync(tempDir);
+        const movedPaths = [];
+        for (const fname of files) {
+          fs.renameSync(path.join(tempDir, fname), path.join(jobDir, fname));
+          movedPaths.push(`plans/${jobId}/${fname}`);
+        }
+        fs.rmdirSync(tempDir);
+        // Store plan paths in attachments column (merge with any existing)
+        let existing = [];
+        try { existing = JSON.parse(db.prepare('SELECT attachments FROM jobs WHERE id = ?').get(jobId)?.attachments || '[]'); } catch {}
+        db.prepare('UPDATE jobs SET attachments = ? WHERE id = ?').run(JSON.stringify([...existing, ...movedPaths]), jobId);
+        console.log(`[Wizard] Saved ${movedPaths.length} plan file(s) for job ${jobId}`);
+      }
+    } catch (e) { console.warn('[Wizard] Plan file move failed:', e.message); }
+  }
 
   res.json({ jobId, status: 'received', message: 'Wizard submission received. Processing estimate...' });
 

@@ -346,6 +346,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
 
   const [attachedFiles, setAttachedFiles] = useState([]);
   const [extractingFiles, setExtractingFiles] = useState(false);
+  const [plansTempId, setPlansTempId] = useState(null);
   const fileInputRef = useRef(null);
 
   const [suggestions, setSuggestions] = useState([]);
@@ -408,7 +409,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
 
   const canNext = () => {
     if (step === 0) return contact.name.trim().length > 0;
-    if (step === 1) return address.street.trim().length > 0 && address.city.trim().length > 0;
+    if (step === 1) return true;
     if (step === 2) return scope.trim().length >= 20 || attachedFiles.length > 0;
     return true;
   };
@@ -429,12 +430,29 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           body: fd,
         });
         if (extractRes.ok) {
-          const { extractedText } = await extractRes.json();
+          const { extractedText, extractedAddress, tempId } = await extractRes.json();
+          if (tempId) setPlansTempId(tempId);
           if (extractedText) {
             finalScope = scope.trim()
               ? `${scope.trim()}\n\n--- EXTRACTED FROM UPLOADED FILES ---\n${extractedText}`
               : extractedText;
             setScope(finalScope);
+          }
+          // Auto-fill address from plans if fields are empty or incomplete
+          if (extractedAddress?.street) {
+            const addrEmpty = !address.street.trim() && !address.city.trim();
+            const addrIncomplete = !address.street.trim() || !address.city.trim();
+            if (addrEmpty || addrIncomplete) {
+              setAddress(prev => ({
+                street: extractedAddress.street || prev.street,
+                city:   extractedAddress.city   || prev.city,
+                state:  extractedAddress.state  || prev.state,
+                zip:    extractedAddress.zip    || prev.zip,
+              }));
+              showToast(`Address found in plans: ${extractedAddress.street}, ${extractedAddress.city}`, 'success');
+            }
+          } else if (!address.street.trim() || !address.city.trim()) {
+            showToast('No address found in plans — please fill in the job address on step 2.', 'warning');
           }
         } else {
           const err = await extractRes.json();
@@ -484,6 +502,11 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   };
 
   const submit = async () => {
+    if (!address.street.trim() || !address.city.trim()) {
+      showToast('Job address is required — please go back and fill in the street and city.', 'error');
+      setStep(1);
+      return;
+    }
     setBusy(true);
     try {
       const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
@@ -498,6 +521,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           scopeText: scope,
           qaAnswers: wizardAnswers,
           budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null,
+          plansTempId: plansTempId || null,
         }),
       });
       const data = await res.json();
@@ -634,8 +658,11 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
               {/* Step 1 — Job Address */}
               {step === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <p style={{ margin: '0 0 4px', fontSize: 11, color: '#888', background: '#f8faff', border: '1px solid #dde4f5', borderRadius: 6, padding: '7px 10px' }}>
+                    💡 You can skip this if you're uploading plans or blueprints in the next step — the address will be read from the documents automatically.
+                  </p>
                   <div>
-                    <label style={labelStyle}>Street *</label>
+                    <label style={labelStyle}>Street</label>
                     <input autoFocus value={address.street} onChange={e => setAddress(p => ({ ...p, street: e.target.value }))} placeholder="123 Main St" style={inputStyle} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
