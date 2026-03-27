@@ -338,7 +338,7 @@ export default function JobDetail({ token }) {
   };
 
   return (
-    <div style={{ padding: 32 }}>
+    <div className="pb-page">
       {/* Back */}
       <button onClick={() => navigate('/')}
         style={{ background: 'none', border: 'none', color: BLUE, cursor: 'pointer', fontSize: 13, marginBottom: 16 }}>
@@ -752,7 +752,7 @@ export default function JobDetail({ token }) {
       })()}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '2px solid #eee', flexWrap: 'wrap' }}>
+      <div className="pb-tabs" style={{ marginBottom: 16, borderBottom: '2px solid #eee' }}>
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding: '8px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12,

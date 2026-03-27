@@ -15,6 +15,30 @@
       * { box-sizing: border-box; }
       body { margin: 0; font-family: Arial, sans-serif; background: #f4f6fb; }
       #root { min-height: 100vh; }
+
+      /* ── Responsive utilities ── */
+      .pb-page { padding: 32px; }
+      .pb-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+      .pb-stats-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+      .pb-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .pb-tabs { display: flex; gap: 4px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .pb-tabs::-webkit-scrollbar { display: none; }
+      .pb-modal-inner { width: 600px; max-width: 96vw; }
+      .pb-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+      @media (max-width: 1024px) {
+        .pb-stats-grid   { grid-template-columns: repeat(2, 1fr); }
+        .pb-stats-grid-5 { grid-template-columns: repeat(3, 1fr); }
+      }
+
+      @media (max-width: 640px) {
+        .pb-page         { padding: 16px; }
+        .pb-stats-grid   { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .pb-stats-grid-5 { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .pb-card-grid    { grid-template-columns: 1fr; }
+        .pb-modal-inner  { width: 96vw; padding: 16px !important; }
+        table td, table th { font-size: 12px !important; padding: 6px 8px !important; }
+      }
     </style>
   </head>
   <body>

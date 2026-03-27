@@ -207,14 +207,14 @@ export default function Dashboard({ token }) {
   if (loading) return <div style={{ padding: 40, color: '#888' }}>Loading...</div>;
 
   return (
-    <div style={{ padding: 32 }}>
+    <div className="pb-page">
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 'bold', color: '#1B3A6B', margin: 0 }}>Dashboard</h1>
+          <h1 style={{ fontSize: 22, fontWeight: 'bold', color: '#1B3A6B', margin: 0 }}>Dashboard</h1>
           <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Preferred Builders AI Contract System</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button
             onClick={() => setShowWizard(true)}
             style={{ background: '#1B3A6B', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
@@ -232,7 +232,7 @@ export default function Dashboard({ token }) {
 
       {/* Stats cards */}
       {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+        <div className="pb-stats-grid" style={{ marginBottom: 28 }}>
           {[
             { label: 'Total Jobs (YTD)', value: stats.total, icon: '📋' },
             { label: 'Quotes Done (YTD)', value: stats.thisMonth?.count || 0, icon: '📅' },
@@ -249,8 +249,8 @@ export default function Dashboard({ token }) {
       )}
 
       {/* Jobs table */}
-      <div style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="pb-table-wrap" style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
           <thead>
             <tr style={{ background: '#1B3A6B' }}>
               {['PB Number', 'Customer', 'Address', 'Value', 'Status', 'Date', ''].map(h => (
