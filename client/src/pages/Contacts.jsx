@@ -76,7 +76,7 @@ export default function Contacts({ token }) {
 
     if (form.email) {
       const emailOk = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(form.email.trim());
-      if (!emailOk) return 'Email address does not look right — check the format (e.g. name@gmail.com).';
+      if (!emailOk) return 'Email address does not look right — check the format (e.g. name@gmail.com, name@company.net, name@domain.io).';
     }
 
     if (form.phone) {
