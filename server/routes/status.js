@@ -186,6 +186,49 @@ router.post('/email-test', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/status/signing-receipts — full read/sign receipt log
+router.get('/signing-receipts', requireAuth, async (req, res) => {
+  if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const db = getDb();
+    const rows = db.prepare(`
+      SELECT
+        ss.id,
+        ss.job_id,
+        ss.doc_type,
+        ss.status,
+        ss.email_sent_at,
+        ss.opened_at,
+        ss.opened_ip,
+        ss.signed_at,
+        ss.signed_ip,
+        ss.signer_name,
+        ss.created_at,
+        j.customer_name,
+        j.customer_email,
+        j.project_address,
+        j.project_city
+      FROM signing_sessions ss
+      LEFT JOIN jobs j ON j.id = ss.job_id
+      ORDER BY ss.created_at DESC
+      LIMIT 200
+    `).all();
+
+    const stats = {
+      total:   rows.length,
+      sent:    rows.filter(r => r.status === 'sent').length,
+      opened:  rows.filter(r => r.opened_at).length,
+      signed:  rows.filter(r => r.status === 'signed').length,
+      openRate: rows.length ? Math.round((rows.filter(r => r.opened_at).length / rows.length) * 100) : 0,
+      signRate: rows.length ? Math.round((rows.filter(r => r.status === 'signed').length / rows.length) * 100) : 0,
+    };
+
+    res.json({ receipts: rows, stats });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/status — admin and system_admin only
 router.get('/', requireAuth, async (req, res) => {
   if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });

@@ -181,6 +181,9 @@ async function start() {
     const { startKeepAlive } = require('./services/keepAlive');
     startKeepAlive(PORT);
 
+    const { startStatusScheduler } = require('./services/statusScheduler');
+    startStatusScheduler();
+
     const { startPolling } = require('./services/whatsappPoller');
     const { handleIncomingWhatsApp } = require('./routes/webhookWhatsapp');
     if (process.env.DISABLE_WHATSAPP_POLLER !== 'true') {

@@ -27,6 +27,8 @@ export default function Settings({ token, userRole }) {
   const [emailLog, setEmailLog]         = useState(null);
   const [emailLogLoading, setEmailLogLoading] = useState(false);
   const [emailPreview, setEmailPreview] = useState(null);
+  const [signingReceipts, setSigningReceipts] = useState(null);
+  const [signingLoading, setSigningLoading]   = useState(false);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   // Auto-load email log when the tab is opened for the first time
