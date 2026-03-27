@@ -601,6 +601,87 @@ router.post('/:id/send-to-customer', requireAuth, requireRole('admin', 'pm', 'sy
   }
 });
 
+// POST extract text from uploaded images/PDFs (for wizard file attachments)
+router.post('/extract-from-files', requireAuth, async (req, res) => {
+  const pdfParse = require('pdf-parse');
+  const Anthropic = require('@anthropic-ai/sdk');
+  const fs = require('fs');
+
+  if (!req.files || !Object.keys(req.files).length) {
+    return res.status(400).json({ error: 'No files uploaded' });
+  }
+
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  // Collect all files whether sent as single file or array
+  const allFiles = [];
+  for (const key of Object.keys(req.files)) {
+    const f = req.files[key];
+    if (Array.isArray(f)) allFiles.push(...f);
+    else allFiles.push(f);
+  }
+
+  const extractedParts = [];
+
+  for (const file of allFiles) {
+    try {
+      const fileBuffer = file.tempFilePath ? fs.readFileSync(file.tempFilePath) : file.data;
+
+      if (file.mimetype === 'application/pdf') {
+        const parsed = await pdfParse(fileBuffer);
+        const text = parsed.text.trim();
+        if (text.length > 20) {
+          extractedParts.push(`[From PDF: ${file.name}]\n${text}`);
+        }
+      } else if (file.mimetype.startsWith('image/')) {
+        const base64 = fileBuffer.toString('base64');
+        const response = await anthropic.messages.create({
+          model: 'claude-opus-4-5',
+          max_tokens: 4000,
+          temperature: 0,
+          messages: [{
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: file.mimetype, data: base64 }
+              },
+              {
+                type: 'text',
+                text: `This is a construction document — it may be a blueprint, floor plan, building plan, sketch, or site photo.
+
+Please extract and describe ALL technically relevant information you can see:
+- Room names and dimensions
+- Square footage, linear footage, area measurements
+- Materials called out (lumber sizes, concrete, tile, roofing type, etc.)
+- Trade work visible (electrical panels, plumbing fixtures, HVAC equipment, etc.)
+- Structural elements (beams, walls, footings, etc.)
+- Any scope notes or annotations written on the plans
+- Quantities and specifications if labeled
+
+Format as a clear, detailed construction scope description. Do NOT include any personal information (names, addresses of people, phone numbers). Focus only on the technical and physical scope of the work visible in this document.`
+              }
+            ]
+          }]
+        });
+        const extracted = response.content[0].text.trim();
+        if (extracted.length > 20) {
+          extractedParts.push(`[From Image: ${file.name}]\n${extracted}`);
+        }
+      }
+    } catch (err) {
+      console.error(`[extract-from-files] Failed on ${file.name}:`, err.message);
+      extractedParts.push(`[Could not read: ${file.name}]`);
+    }
+  }
+
+  if (!extractedParts.length) {
+    return res.status(400).json({ error: 'No readable content found in the uploaded files.' });
+  }
+
+  res.json({ extractedText: extractedParts.join('\n\n') });
+});
+
 // POST upload PDF/image as a new job estimate
 router.post('/upload-estimate', requireAuth, async (req, res) => {
   const { v4: uuidv4 } = require('uuid');

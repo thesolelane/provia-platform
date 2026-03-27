@@ -344,6 +344,10 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   const [wizardAnswers, setWizardAnswers] = useState([]);
   const [aiStepInserted, setAiStepInserted] = useState(false);
 
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const [extractingFiles, setExtractingFiles] = useState(false);
+  const fileInputRef = useRef(null);
+
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestTimeout = useRef(null);
@@ -405,18 +409,49 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   const canNext = () => {
     if (step === 0) return contact.name.trim().length > 0;
     if (step === 1) return address.street.trim().length > 0 && address.city.trim().length > 0;
-    if (step === 2) return scope.trim().length >= 20;
+    if (step === 2) return scope.trim().length >= 20 || attachedFiles.length > 0;
     return true;
   };
 
   const handleNextFromScope = async () => {
     setFetchingQuestions(true);
+
+    // If files are attached, extract text from them first and append to scope
+    let finalScope = scope;
+    if (attachedFiles.length > 0) {
+      setExtractingFiles(true);
+      try {
+        const fd = new FormData();
+        attachedFiles.forEach((f, i) => fd.append(`file_${i}`, f));
+        const extractRes = await fetch('/api/jobs/extract-from-files', {
+          method: 'POST',
+          headers,
+          body: fd,
+        });
+        if (extractRes.ok) {
+          const { extractedText } = await extractRes.json();
+          if (extractedText) {
+            finalScope = scope.trim()
+              ? `${scope.trim()}\n\n--- EXTRACTED FROM UPLOADED FILES ---\n${extractedText}`
+              : extractedText;
+            setScope(finalScope);
+          }
+        } else {
+          const err = await extractRes.json();
+          showToast('Could not read attached files: ' + (err.error || 'Unknown error'), 'warning');
+        }
+      } catch {
+        showToast('File extraction failed — proceeding with typed scope only.', 'warning');
+      }
+      setExtractingFiles(false);
+    }
+
     try {
       const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
       const res = await fetch('/api/jobs/wizard/questions', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scopeText: scope, projectAddress, budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null }),
+        body: JSON.stringify({ scopeText: finalScope, projectAddress, budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -629,12 +664,89 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
                   </p>
                   <textarea
                     autoFocus
-                    rows={8}
+                    rows={6}
                     value={scope}
                     onChange={e => setScope(e.target.value)}
                     placeholder={`e.g. Kitchen remodel — install new cabinets, countertops, tile backsplash\nNew LVP flooring throughout main level\nBathroom: new vanity, toilet, shower tile`}
                     style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
                   />
+
+                  {/* File attachment area */}
+                  <div style={{ marginTop: 14 }}>
+                    <label style={labelStyle}>
+                      Attach Plans / Blueprints
+                      <span style={{ fontWeight: 400, textTransform: 'none', color: '#999' }}> (optional — images or PDFs)</span>
+                    </label>
+                    <p style={{ fontSize: 11, color: '#888', margin: '0 0 8px' }}>
+                      Upload building plans, blueprints, sketches, or photos — AI will read them and pull measurements, materials, and scope details automatically.
+                    </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept="image/*,.pdf"
+                      style={{ display: 'none' }}
+                      onChange={e => {
+                        const newFiles = Array.from(e.target.files || []);
+                        setAttachedFiles(prev => {
+                          const names = new Set(prev.map(f => f.name));
+                          return [...prev, ...newFiles.filter(f => !names.has(f.name))];
+                        });
+                        e.target.value = '';
+                      }}
+                    />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#1B3A6B'; e.currentTarget.style.background = '#f0f4ff'; }}
+                      onDragLeave={e => { e.currentTarget.style.borderColor = '#c5d0e8'; e.currentTarget.style.background = '#f8faff'; }}
+                      onDrop={e => {
+                        e.preventDefault();
+                        e.currentTarget.style.borderColor = '#c5d0e8';
+                        e.currentTarget.style.background = '#f8faff';
+                        const dropped = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
+                        setAttachedFiles(prev => {
+                          const names = new Set(prev.map(f => f.name));
+                          return [...prev, ...dropped.filter(f => !names.has(f.name))];
+                        });
+                      }}
+                      style={{
+                        border: '2px dashed #c5d0e8', borderRadius: 8, background: '#f8faff',
+                        padding: '14px 16px', cursor: 'pointer', textAlign: 'center',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <div style={{ fontSize: 22, marginBottom: 4 }}>📎</div>
+                      <div style={{ fontSize: 12, color: '#555', fontWeight: 600 }}>Click or drag files here</div>
+                      <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>JPG, PNG, PDF · Multiple files OK</div>
+                    </div>
+
+                    {attachedFiles.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                        {attachedFiles.map((f, i) => (
+                          <div key={i} style={{
+                            display: 'flex', alignItems: 'center', gap: 5,
+                            background: '#e8f0fe', borderRadius: 20, padding: '4px 10px',
+                            fontSize: 11, color: '#1B3A6B', fontWeight: 600,
+                          }}>
+                            <span>{f.type.startsWith('image/') ? '🖼️' : '📄'}</span>
+                            <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                            <button
+                              onClick={e => { e.stopPropagation(); setAttachedFiles(prev => prev.filter((_, j) => j !== i)); }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', fontSize: 13, lineHeight: 1, padding: 0 }}
+                            >×</button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {extractingFiles && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: '#1B3A6B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid #1B3A6B', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                        Reading files…
+                      </div>
+                    )}
+                  </div>
+
                   <div style={{ marginTop: 14 }}>
                     <label style={labelStyle}>Budget Target <span style={{ fontWeight: 400, textTransform: 'none', color: '#999' }}>(optional — soft target, AI can go ±8%)</span></label>
                     <div style={{ position: 'relative' }}>
@@ -668,16 +780,21 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
               {step === 2 ? (
                 <button
                   onClick={handleNextFromScope}
-                  disabled={fetchingQuestions || !canNext()}
+                  disabled={fetchingQuestions || extractingFiles || !canNext()}
                   style={{
                     padding: '10px 24px', borderRadius: 6, border: 'none',
-                    background: fetchingQuestions || !canNext() ? '#c5ccd8' : '#1B3A6B',
+                    background: fetchingQuestions || extractingFiles || !canNext() ? '#c5ccd8' : '#1B3A6B',
                     color: 'white', fontWeight: 700, fontSize: 13,
-                    cursor: fetchingQuestions || !canNext() ? 'not-allowed' : 'pointer',
+                    cursor: fetchingQuestions || extractingFiles || !canNext() ? 'not-allowed' : 'pointer',
                     display: 'flex', alignItems: 'center', gap: 8,
                   }}
                 >
-                  {fetchingQuestions ? (
+                  {extractingFiles ? (
+                    <>
+                      <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 14 }}>⟳</span>
+                      Reading files...
+                    </>
+                  ) : fetchingQuestions ? (
                     <>
                       <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 14 }}>⟳</span>
                       AI is thinking...
