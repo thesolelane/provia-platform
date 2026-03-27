@@ -273,6 +273,18 @@ function generatePBNumber(db) {
   return assign();
 }
 
+// Generates next sequential customer-facing quote number (1001, 1002, …) — race-safe
+function generateQuoteNumber(db) {
+  const assign = db.transaction(() => {
+    db.prepare('INSERT OR IGNORE INTO quote_auto_counter (id, next_seq) VALUES (1, 1001)').run();
+    const row = db.prepare('SELECT next_seq FROM quote_auto_counter WHERE id = 1').get();
+    const seq = row.next_seq;
+    db.prepare('UPDATE quote_auto_counter SET next_seq = next_seq + 1 WHERE id = 1').run();
+    return String(seq);
+  });
+  return assign();
+}
+
 // Extract external estimate/quote number from raw estimate text (e.g. Hearth/Wave ref)
 function extractExternalRef(text) {
   if (!text) return null;
@@ -648,12 +660,13 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)`
   ).run(jobId, customerName, customerEmail, customerPhone, projectAddress, fullEstimate, uploadedBy, contactRef?.id || null);
 
-  // Assign PB number immediately on job creation
+  // Assign PB number + auto quote number immediately on job creation
   try {
     const pbNum = generatePBNumber(db);
     const extRef = extractExternalRef(rawText);
-    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ? WHERE id = ?').run(pbNum, extRef, jobId);
-  } catch (e) { console.warn('[Upload] PB number generation failed:', e.message); }
+    const qNum  = generateQuoteNumber(db);
+    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
+  } catch (e) { console.warn('[Upload] PB/Quote number generation failed:', e.message); }
 
   res.json({ jobId, status: 'received', message: 'File uploaded. Processing estimate...' });
 
@@ -724,12 +737,13 @@ router.post('/wizard', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'processing', ?, ?)
   `).run(jobId, contactName, contactEmail, contactPhone, projectAddress, scopeText, wizardBy, contactRef?.id || null);
 
-  // Assign PB number immediately on job creation
+  // Assign PB number + auto quote number immediately on job creation
   try {
     const pbNum = generatePBNumber(db);
     const extRef = extractExternalRef(scopeText);
-    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ? WHERE id = ?').run(pbNum, extRef, jobId);
-  } catch (e) { console.warn('[Wizard] PB number generation failed:', e.message); }
+    const qNum  = generateQuoteNumber(db);
+    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
+  } catch (e) { console.warn('[Wizard] PB/Quote number generation failed:', e.message); }
 
   notifyClients('job_updated', { jobId, status: 'processing' });
   res.json({ jobId, status: 'processing', message: 'Job created. Processing estimate...' });
@@ -804,12 +818,13 @@ router.post('/manual', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
   `).run(jobId, customerName, customerEmail, customerPhone, projectAddress, estimateText, manualBy, contactRef?.id || null);
 
-  // Assign PB number immediately on job creation
+  // Assign PB number + auto quote number immediately on job creation
   try {
     const pbNum = generatePBNumber(db);
     const extRef = extractExternalRef(estimateText);
-    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ? WHERE id = ?').run(pbNum, extRef, jobId);
-  } catch (e) { console.warn('[Manual] PB number generation failed:', e.message); }
+    const qNum  = generateQuoteNumber(db);
+    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
+  } catch (e) { console.warn('[Manual] PB/Quote number generation failed:', e.message); }
 
   res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
 
@@ -1125,12 +1140,13 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
   `).run(jobId, customerName || '', customerEmail || '', customerPhone || '', projectAddress || '', rawEstimateData, submittedBy, contactRef?.id || null);
 
-  // Assign PB number immediately on job creation
+  // Assign PB number + auto quote number immediately on job creation
   try {
     const pbNum = generatePBNumber(db);
     const extRef = extractExternalRef(scopeText);
-    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ? WHERE id = ?').run(pbNum, extRef, jobId);
-  } catch (e) { console.warn('[Wizard] PB number generation failed:', e.message); }
+    const qNum  = generateQuoteNumber(db);
+    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
+  } catch (e) { console.warn('[Wizard] PB/Quote number generation failed:', e.message); }
 
   res.json({ jobId, status: 'received', message: 'Wizard submission received. Processing estimate...' });
 

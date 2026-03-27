@@ -358,6 +358,29 @@ async function initDatabase() {
     )
   `);
 
+  // Sequential customer-facing quote number counter (1001, 1002, ...)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS quote_auto_counter (
+      id       INTEGER PRIMARY KEY DEFAULT 1,
+      next_seq INTEGER NOT NULL DEFAULT 1001
+    )
+  `);
+  db.prepare('INSERT OR IGNORE INTO quote_auto_counter (id, next_seq) VALUES (1, 1001)').run();
+
+  // Migration: advance counter past any existing numeric quote numbers already in the DB
+  {
+    const maxRow = db.prepare(
+      `SELECT MAX(CAST(quote_number AS INTEGER)) AS mx FROM jobs
+       WHERE quote_number IS NOT NULL AND quote_number GLOB '[0-9]*' AND LENGTH(quote_number) <= 6`
+    ).get();
+    if (maxRow?.mx) {
+      const needed = maxRow.mx + 1;
+      db.prepare(
+        `UPDATE quote_auto_counter SET next_seq = MAX(next_seq, ?) WHERE id = 1`
+      ).run(needed);
+    }
+  }
+
   // Migration: add new columns to payments tables if missing (check each individually)
   const addColIfMissing = (table, col, def) => {
     try { db.prepare(`SELECT ${col} FROM ${table} LIMIT 1`).get(); } catch {
