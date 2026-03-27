@@ -135,6 +135,40 @@ function finalizeJobVersioning(db, jobId, proposalData) {
   console.log(`[Versioning] Job ${jobId}: quote ${rawQuoteNum} → version ${version} (${versionedDisplay})`);
 }
 
+// Helper: merge the job's stored PII (name/email/phone) back into proposalData.customer
+// Must be called after processEstimate and BEFORE generatePDF — Claude never sees PII.
+function mergeContactIntoProposal(db, jobId, proposalData) {
+  try {
+    const job = db.prepare(
+      'SELECT customer_name, customer_email, customer_phone, project_address, project_city, contact_id FROM jobs WHERE id = ?'
+    ).get(jobId);
+    if (!job) return;
+
+    let contact = null;
+    if (job.contact_id) {
+      contact = db.prepare(
+        'SELECT name, email, phone, address, city, state FROM contacts WHERE id = ?'
+      ).get(job.contact_id);
+    }
+
+    if (!proposalData.customer) proposalData.customer = {};
+    const c = proposalData.customer;
+
+    // Fill any blank field from contact record first, then fall back to job columns
+    c.name  = c.name  || contact?.name  || job.customer_name  || '';
+    c.email = c.email || contact?.email || job.customer_email || '';
+    c.phone = c.phone || contact?.phone || job.customer_phone || '';
+
+    if (!proposalData.project) proposalData.project = {};
+    proposalData.project.address = proposalData.project.address || contact?.address || job.project_address || '';
+    proposalData.project.city    = proposalData.project.city    || contact?.city    || job.project_city    || '';
+
+    if (c.name) console.log(`[mergeContact] Job ${jobId}: customer set to "${c.name}"`);
+  } catch (e) {
+    console.warn('[mergeContactIntoProposal] Error:', e.message);
+  }
+}
+
 // Helper: save proposal, backfill job columns, and upsert contact record
 function saveProposalReady(db, proposalData, pdfPath, jobId) {
   const c = proposalData.customer || {};
@@ -451,6 +485,7 @@ router.post('/:id/generate-proposal', requireAuth, requireRole('admin', 'pm', 's
 
   try {
     const proposalData = JSON.parse(job.proposal_data);
+    mergeContactIntoProposal(db, job.id, proposalData);
     const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
     saveProposalReady(db, proposalData, pdfPath, job.id);
     logAudit(job.id, 'proposal_generated', 'Proposal PDF generated after line item review', req.session?.name || 'admin');
@@ -473,6 +508,7 @@ router.post('/:id/approve', requireAuth, requireRole('admin', 'pm', 'system_admi
 
     const { generateContract } = require('../services/claudeService');
     const proposalData = JSON.parse(job.proposal_data);
+    mergeContactIntoProposal(db, job.id, proposalData);
 
     // Inject owner address from contact record if not already in proposal data
     if (!proposalData.customer) proposalData.customer = {};
@@ -621,6 +657,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
       const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedText, contactId: contactRef?.id, projectAddress });
       const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
+      mergeContactIntoProposal(db, jobId, proposalData);
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         finalizeJobVersioning(db, jobId, proposalData);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
@@ -703,6 +740,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
 
       const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedScope, contactId: contactRef?.id, projectAddress });
       const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
+      mergeContactIntoProposal(db, jobId, proposalData);
       console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
@@ -781,6 +819,7 @@ router.post('/manual', requireAuth, async (req, res) => {
         : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`;
       const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedScope, contactId: contactRef?.id, projectAddress });
       const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
+      mergeContactIntoProposal(db, jobId, proposalData);
       console.log(`[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
@@ -847,6 +886,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
             `${rawEstimate}\n\nCLARIFICATION ANSWERS:\n${answersText}`,
             job.id, 'en', db, job.project_address || null, priorCtx
           );
+          mergeContactIntoProposal(db, job.id, proposalData);
 
           finalizeJobVersioning(db, job.id, proposalData);
           const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
@@ -1095,6 +1135,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
       const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedScope, contactId: contactRef?.id, projectAddress });
       const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
+      mergeContactIntoProposal(db, jobId, proposalData);
       console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
@@ -1169,6 +1210,7 @@ router.post('/:id/reprocess', requireAuth, requireRole('admin', 'pm', 'system_ad
       const fullEstimate = `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${job.raw_estimate_data}`;
       const { context: priorCtx } = findPriorQuoteContext(db, { rawText: job.raw_estimate_data, contactId: job.contact_id, projectAddress: job.project_address });
       const proposalData = await processEstimate(fullEstimate, job.id, 'en', db, job.project_address || null, priorCtx);
+      mergeContactIntoProposal(db, job.id, proposalData);
       console.log(`[Reprocess Job ${job.id}] Claude returned. readyToGenerate=${proposalData.readyToGenerate}`);
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
