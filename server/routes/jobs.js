@@ -155,10 +155,11 @@ function mergeContactIntoProposal(db, jobId, proposalData) {
     if (!proposalData.customer) proposalData.customer = {};
     const c = proposalData.customer;
 
-    // Fill any blank field from contact record first, then fall back to job columns
-    c.name  = c.name  || contact?.name  || job.customer_name  || '';
-    c.email = c.email || contact?.email || job.customer_email || '';
-    c.phone = c.phone || contact?.phone || job.customer_phone || '';
+    // Contact/job record is authoritative for PII — Claude never sees real names
+    // so always prefer the stored record over whatever Claude may have extracted
+    c.name  = contact?.name  || job.customer_name  || c.name  || '';
+    c.email = contact?.email || job.customer_email || c.email || '';
+    c.phone = contact?.phone || job.customer_phone || c.phone || '';
 
     if (!proposalData.project) proposalData.project = {};
     proposalData.project.address = proposalData.project.address || contact?.address || job.project_address || '';
