@@ -66,6 +66,9 @@ export default function JobDetail({ token }) {
   const [marginLoading, setMarginLoading] = useState(false);
   const [pipelineCtx, setPipelineCtx] = useState(null);
   const [followUpTask, setFollowUpTask] = useState(null); // null | 'creating' | 'error' | taskObject
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const [customerDraft, setCustomerDraft]     = useState({ name: '', email: '', phone: '' });
+  const [savingCustomer, setSavingCustomer]   = useState(false);
 
   const load = () => {
     fetch(`/api/jobs/${id}`, { headers: { 'x-auth-token': token } })

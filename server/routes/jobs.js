@@ -959,6 +959,34 @@ router.patch('/:id/notes', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
+// PATCH /:id/customer — update customer name/email/phone directly on an existing job
+router.patch('/:id/customer', requireAuth, requireRole('admin', 'pm', 'system_admin'), (req, res) => {
+  const db = getDb();
+  const { name, email, phone } = req.body;
+  const job = db.prepare('SELECT id, contact_id FROM jobs WHERE id = ?').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  db.prepare(`UPDATE jobs SET
+    customer_name  = COALESCE(NULLIF(?, ''), customer_name),
+    customer_email = COALESCE(NULLIF(?, ''), customer_email),
+    customer_phone = COALESCE(NULLIF(?, ''), customer_phone),
+    updated_at = CURRENT_TIMESTAMP
+  WHERE id = ?`).run(name || '', email || '', phone || '', job.id);
+
+  // Also update the linked contact record if one exists
+  if (job.contact_id) {
+    db.prepare(`UPDATE contacts SET
+      name  = COALESCE(NULLIF(?, ''), name),
+      email = COALESCE(NULLIF(?, ''), email),
+      phone = COALESCE(NULLIF(?, ''), phone),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?`).run(name || '', email || '', phone || '', job.contact_id);
+  }
+
+  logAudit(job.id, 'customer_info_updated', `Customer info updated by admin`, req.session?.name || 'admin');
+  res.json({ success: true });
+});
+
 // SSE endpoint — dashboard subscribes here to receive instant push notifications when a job status changes
 router.get('/events', requireAuth, (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
