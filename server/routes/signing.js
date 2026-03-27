@@ -41,7 +41,7 @@ function signingPageHTML({ docType, job, session, base }) {
     <div style="text-align:center;padding:60px 20px">
       <div style="font-size:64px;margin-bottom:20px">✅</div>
       <h2 style="color:#1B3A6B;margin-bottom:10px">Already Signed</h2>
-      <p style="color:#555;font-size:14px">This document was signed on ${new Date(session.signed_at).toLocaleString()}.<br>Thank you!</p>
+      <p style="color:#555;font-size:14px">This document was signed on ${new Date(session.signed_at).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/New_York' })}.<br>Thank you!</p>
     </div>`;
 
   const formHTML = `
@@ -286,7 +286,7 @@ router.post('/api/signing/opened/:token', (req, res) => {
     logAudit(session.job_id, `${session.doc_type}_opened`, `${docLabel} opened by customer (IP: ${ip})`, 'customer');
     notifyClients('job_updated', {
       jobId: session.job_id, event: `${session.doc_type}_opened`,
-      message: `📬 ${job?.customer_name || 'Customer'} opened the ${docLabel.toLowerCase()} — ${new Date().toLocaleString()}`
+      message: `📬 ${job?.customer_name || 'Customer'} opened the ${docLabel.toLowerCase()} — ${new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/New_York' })}`
     });
 
     // Email owners on first open

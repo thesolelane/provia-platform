@@ -31,7 +31,7 @@ function validateAmount(amount) {
 }
 
 function currentTime() {
-  return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).slice(0, 5);
+  return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' }).slice(0, 5);
 }
 
 router.get('/summary/:jobId', requireAuth, (req, res) => {

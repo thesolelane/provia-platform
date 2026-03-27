@@ -446,7 +446,7 @@ function applyPricing(data, rates, settings) {
   // Always set validUntil to today + 15 days — every generated proposal is valid for 15 days from generation
   const validDate = new Date();
   validDate.setDate(validDate.getDate() + 15);
-  data.validUntil = validDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  data.validUntil = validDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
 
   const items = data.lineItems || [];
   const markupMultiplier = (1 + rates.subOandP) * (1 + rates.gcOandP) * (1 + rates.contingency);
