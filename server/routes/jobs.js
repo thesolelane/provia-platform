@@ -151,15 +151,28 @@ function mergeContactIntoProposal(db, jobId, proposalData) {
         'SELECT name, email, phone, address, city, state FROM contacts WHERE id = ?'
       ).get(job.contact_id);
     }
+    // Fallback: older jobs may not have contact_id set — look up by email or phone
+    if (!contact && job.customer_email) {
+      contact = db.prepare(
+        'SELECT name, email, phone, address, city, state FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1'
+      ).get(job.customer_email);
+    }
+    if (!contact && job.customer_phone) {
+      contact = db.prepare(
+        'SELECT name, email, phone, address, city, state FROM contacts WHERE phone = ? LIMIT 1'
+      ).get(job.customer_phone);
+    }
 
     if (!proposalData.customer) proposalData.customer = {};
     const c = proposalData.customer;
 
     // Contact/job record is authoritative for PII — Claude never sees real names
-    // so always prefer the stored record over whatever Claude may have extracted
-    c.name  = contact?.name  || job.customer_name  || c.name  || '';
-    c.email = contact?.email || job.customer_email || c.email || '';
-    c.phone = contact?.phone || job.customer_phone || c.phone || '';
+    // so always prefer the stored record over whatever Claude may have extracted.
+    // Treat whitespace-only strings as empty so they don't block the fallback.
+    const clean = (v) => (typeof v === 'string' ? v.trim() : '') || '';
+    c.name  = clean(contact?.name)  || clean(job.customer_name)  || clean(c.name)  || '';
+    c.email = clean(contact?.email) || clean(job.customer_email) || clean(c.email) || '';
+    c.phone = clean(contact?.phone) || clean(job.customer_phone) || clean(c.phone) || '';
 
     if (!proposalData.project) proposalData.project = {};
     proposalData.project.address = proposalData.project.address || contact?.address || job.project_address || '';
