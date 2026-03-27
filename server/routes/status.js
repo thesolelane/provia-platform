@@ -206,7 +206,7 @@ router.get('/', requireAuth, async (req, res) => {
     services: {
       database: { label: 'Database (SQLite)',     ...database },
       claude:   { label: 'Claude AI (Anthropic)', ...claude   },
-      resend:   { label: 'Email (Google SMTP)',     ...resend   },
+      resend:   { label: 'Email (SMTP)',              ...resend   },
       twilio:   { label: 'Twilio SMS',             ...twilio   },
       whatsapp: { label: 'WhatsApp (Twilio)',      ...whatsapp },
       calendar: { label: 'Google Calendar',        ...calendar },

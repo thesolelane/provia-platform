@@ -7,6 +7,9 @@
 .env.local
 .env.production
 
+# Local PM2 config with real credentials — stays on each machine, never committed
+ecosystem.local.js
+
 # Database — lives in /data, backed up separately
 data/*.db
 data/*.db-shm
