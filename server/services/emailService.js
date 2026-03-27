@@ -8,21 +8,18 @@ function getOwnerEmails() {
   return raw.split(',').map(e => e.trim()).filter(Boolean);
 }
 
-let transporter;
 function getTransporter() {
-  if (!transporter && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.contactpreferred.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      tls: { rejectUnauthorized: false },
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
-  }
-  return transporter;
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'smtp.contactpreferred.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false,
+    tls: { rejectUnauthorized: false },
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS
+    }
+  });
 }
 
 function logEmail(db, { messageId, to, subject, emailType, jobId }) {

@@ -12,8 +12,7 @@ const ENV_PATH = path.resolve(__dirname, '../../.env');
 const MANAGED_KEYS = [
   { key: 'ANTHROPIC_API_KEY',       label: 'Claude AI API Key',          group: 'AI' },
   { key: 'RESEND_API_KEY',           label: 'Resend API Key',              group: 'Email' },
-  { key: 'BOT_EMAIL',               label: 'Bot From Email',              group: 'Email',    noMask: true },
-  { key: 'PB_FROM_EMAIL',           label: 'PB From Email',               group: 'Email',    noMask: true },
+  { key: 'BOT_EMAIL',               label: 'Sender Email (fallback)',      group: 'Email',    noMask: true },
   { key: 'SMTP_HOST',               label: 'SMTP Host',                   group: 'Email',    noMask: true },
   { key: 'SMTP_PORT',               label: 'SMTP Port',                   group: 'Email',    noMask: true },
   { key: 'SMTP_USER',               label: 'SMTP Username',               group: 'Email',    noMask: true },
