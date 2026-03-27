@@ -48,7 +48,8 @@ router.get('/', requireAuth, (req, res) => {
 
   const emails = db.prepare(`
     SELECT id, message_id, to_address, subject, email_type, job_id,
-           sent_at, opened_at, opened_count
+           sent_at, opened_at, opened_count,
+           CASE WHEN html_body IS NOT NULL THEN 1 ELSE 0 END as has_preview
     FROM email_log
     ORDER BY sent_at DESC LIMIT ?
   `).all(limit);
@@ -66,6 +67,20 @@ router.get('/', requireAuth, (req, res) => {
     byMonth,
     emails,
   });
+});
+
+// GET /api/email-log/:id/preview — return stored html_body for a single email
+router.get('/:id/preview', requireAuth, (req, res) => {
+  try {
+    const db  = getDb();
+    const row = db.prepare('SELECT html_body FROM email_log WHERE id = ?').get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    if (!row.html_body) return res.status(410).json({ error: 'Preview not available — wiped after contract signing' });
+    res.setHeader('Content-Type', 'text/html');
+    res.send(row.html_body);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // GET /api/email-log/diag — quick table diagnostic

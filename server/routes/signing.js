@@ -381,6 +381,8 @@ router.post('/api/signing/signed/:token', async (req, res) => {
   } else {
     db.prepare("UPDATE jobs SET status = 'contract_signed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(session.job_id);
     logAudit(session.job_id, 'contract_signed', `Contract signed by ${signer_name} (IP: ${ip})`, 'customer');
+    // Auto-wipe stored email HTML previews for this job now that contract is signed
+    try { db.prepare("UPDATE email_log SET html_body = NULL WHERE job_id = ?").run(session.job_id); } catch (_) {}
     notifyClients('job_updated', {
       jobId: session.job_id, status: 'contract_signed',
       message: `🎉 Contract signed by ${signer_name}`

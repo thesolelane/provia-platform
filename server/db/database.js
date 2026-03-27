@@ -392,6 +392,9 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_email_log_sent_at ON email_log(sent_at)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_email_log_job_id  ON email_log(job_id)`);
 
+  // Migration: add html_body column for email preview (auto-wiped on contract signing)
+  try { db.exec(`ALTER TABLE email_log ADD COLUMN html_body TEXT`); } catch (_) {}
+
   // Field photos — standalone camera inbox with GPS grouping
   db.exec(`
     CREATE TABLE IF NOT EXISTS field_photos (

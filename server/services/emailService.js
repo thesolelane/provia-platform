@@ -22,13 +22,13 @@ function getTransporter() {
   });
 }
 
-function logEmail(db, { messageId, to, subject, emailType, jobId }) {
+function logEmail(db, { messageId, to, subject, emailType, jobId, htmlBody }) {
   try {
     if (!db) { console.error('[EmailLog] No db instance — skipping log'); return; }
     const toAddress = Array.isArray(to) ? to.join(', ') : (to || 'unknown');
     db.prepare(
-      'INSERT INTO email_log (message_id, to_address, subject, email_type, job_id) VALUES (?, ?, ?, ?, ?)'
-    ).run(messageId || null, toAddress, subject || null, emailType || 'general', jobId || null);
+      'INSERT INTO email_log (message_id, to_address, subject, email_type, job_id, html_body) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(messageId || null, toAddress, subject || null, emailType || 'general', jobId || null, htmlBody || null);
     console.log(`[EmailLog] Logged: type=${emailType} to=${toAddress}`);
   } catch (e) {
     console.error('[EmailLog] Failed to log email:', e.message, '| type:', emailType, '| to:', to);
@@ -103,7 +103,9 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
       try { dbInstance = require('../db/database').getDb(); }
       catch (dbErr) { console.error('[EmailLog] Could not get DB instance:', dbErr.message); }
     }
-    logEmail(dbInstance, { messageId, to, subject, emailType, jobId });
+    // Store original html (before pixel injection) — wiped automatically on contract signing
+    const htmlBody = emailType === 'system_alert' ? null : (html || null);
+    logEmail(dbInstance, { messageId, to, subject, emailType, jobId, htmlBody });
     return { id: messageId };
   } catch (err) {
     console.error('Email send failed:', err.message);

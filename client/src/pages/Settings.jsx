@@ -26,6 +26,7 @@ export default function Settings({ token, userRole }) {
   const [statusError, setStatusError]   = useState(null);
   const [emailLog, setEmailLog]         = useState(null);
   const [emailLogLoading, setEmailLogLoading] = useState(false);
+  const [emailPreview, setEmailPreview] = useState(null);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   // Auto-load email log when the tab is opened for the first time
@@ -613,6 +614,7 @@ export default function Settings({ token, userRole }) {
                   <th style={{ padding: '8px 10px', textAlign: 'left', color: '#555' }}>Subject</th>
                   <th style={{ padding: '8px 10px', textAlign: 'left', color: '#555' }}>Type</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center', color: '#555' }}>Opened</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'center', color: '#555' }}>Preview</th>
                 </tr>
               </thead>
               <tbody>
@@ -633,10 +635,18 @@ export default function Settings({ token, userRole }) {
                         ? <span title={`Opened ${e.opened_count}x — first: ${new Date(e.opened_at).toLocaleString()}`} style={{ color: '#2E7D32', fontWeight: 'bold' }}>✅ {e.opened_count}×</span>
                         : <span style={{ color: '#aaa' }}>—</span>}
                     </td>
+                    <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                      {e.has_preview
+                        ? <button onClick={() => setEmailPreview({ id: e.id, subject: e.subject })}
+                            style={{ background: BLUE, color: 'white', border: 'none', borderRadius: 6, padding: '3px 10px', fontSize: 11, cursor: 'pointer' }}>
+                            👁 View
+                          </button>
+                        : <span style={{ color: '#ccc', fontSize: 11 }}>—</span>}
+                    </td>
                   </tr>
                 ))}
                 {emails.length === 0 && (
-                  <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: '#aaa' }}>No emails logged yet</td></tr>
+                  <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#aaa' }}>No emails logged yet</td></tr>
                 )}
               </tbody>
             </table>
@@ -839,6 +849,29 @@ export default function Settings({ token, userRole }) {
         {activeTab === 'Secrets' && renderSecrets()}
         {activeTab === 'Status' && renderStatus()}
       </div>
+
+      {/* Email preview modal */}
+      {emailPreview && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          onClick={() => setEmailPreview(null)}>
+          <div style={{ background: 'white', borderRadius: 10, width: '80vw', maxWidth: 720, height: '80vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontWeight: 'bold', color: BLUE, fontSize: 14 }}>📧 Email Preview</div>
+                <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{emailPreview.subject}</div>
+              </div>
+              <button onClick={() => setEmailPreview(null)}
+                style={{ background: '#eee', border: 'none', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>✕ Close</button>
+            </div>
+            <iframe
+              src={`/api/email-log/${emailPreview.id}/preview?token=${encodeURIComponent(token)}`}
+              title="Email Preview"
+              style={{ flex: 1, border: 'none', width: '100%' }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
