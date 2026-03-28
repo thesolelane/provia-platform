@@ -816,9 +816,16 @@ export default function Settings({ token, userRole }) {
           background: allOk ? '#f0fdf4' : '#fff8f0',
           border: `1px solid ${allOk ? '#bbf7d0' : ORANGE}`
         }}>
-          <span style={{ fontSize: 14, fontWeight: 'bold', color: allOk ? GREEN_C : ORANGE }}>
-            {allOk ? '✅ All systems operational' : `⚠️ ${okCount} of ${services.length} services OK`}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 14, fontWeight: 'bold', color: allOk ? GREEN_C : ORANGE }}>
+              {allOk ? '✅ All systems operational' : `⚠️ ${okCount} of ${services.length} services OK`}
+            </span>
+            {statusData.version && (
+              <span style={{ fontSize: 11, fontWeight: 700, background: BLUE, color: 'white', borderRadius: 12, padding: '2px 10px', letterSpacing: 0.5 }}>
+                v{statusData.version}
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <span style={{ fontSize: 11, color: '#888' }}>
               Checked: {new Date(statusData.checkedAt).toLocaleTimeString()}

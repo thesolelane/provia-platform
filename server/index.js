@@ -127,7 +127,7 @@ app.get('/api/blank-contract', requireAuth, async (req, res) => {
 
 // ── HEALTH CHECK ─────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), version: '1.4.0' });
 });
 
 // ── API ROUTES ────────────────────────────────────────────────

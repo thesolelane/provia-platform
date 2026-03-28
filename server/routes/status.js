@@ -333,6 +333,7 @@ router.get('/', requireAuth, async (req, res) => {
   ]);
 
   res.json({
+    version: '1.4.0',
     checkedAt: new Date().toISOString(),
     services: {
       database: { label: 'Database (SQLite)',     ...database },
