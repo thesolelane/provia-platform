@@ -382,6 +382,32 @@ router.patch('/:id/takeoff', requireAuth, (req, res) => {
   res.json({ success: true });
 });
 
+// PATCH /:id/pass-through-responsibility — save who pays each pass-through cost before contract generation
+router.patch('/:id/pass-through-responsibility', requireAuth, requireRole('admin', 'pm', 'system_admin'), (req, res) => {
+  const db = getDb();
+  const job = db.prepare('SELECT id, proposal_data FROM jobs WHERE id = ? AND archived = 0').get(req.params.id);
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  const { permit_paid_by, engineer_paid_by, architect_paid_by } = req.body;
+  const VALID = ['pb', 'customer_direct'];
+  if (permit_paid_by    && !VALID.includes(permit_paid_by))    return res.status(400).json({ error: 'Invalid permit_paid_by' });
+  if (engineer_paid_by  && !VALID.includes(engineer_paid_by))  return res.status(400).json({ error: 'Invalid engineer_paid_by' });
+  if (architect_paid_by && !VALID.includes(architect_paid_by)) return res.status(400).json({ error: 'Invalid architect_paid_by' });
+
+  let proposal;
+  try { proposal = JSON.parse(job.proposal_data || '{}'); } catch { proposal = {}; }
+  if (!proposal.job) proposal.job = {};
+
+  if (permit_paid_by    !== undefined) proposal.job.permit_paid_by    = permit_paid_by;
+  if (engineer_paid_by  !== undefined) proposal.job.engineer_paid_by  = engineer_paid_by;
+  if (architect_paid_by !== undefined) proposal.job.architect_paid_by = architect_paid_by;
+
+  db.prepare('UPDATE jobs SET proposal_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(JSON.stringify(proposal), req.params.id);
+  logAudit(req.params.id, 'pass_through_responsibility_set', `Pass-through payment responsibility updated`, req.session?.name || 'user');
+  res.json({ success: true });
+});
+
 // GET archived jobs (must be before /:id route)
 router.get('/archived/list', requireAuth, (req, res) => {
   const db = getDb();

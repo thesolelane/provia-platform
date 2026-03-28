@@ -286,38 +286,46 @@ function selectPreConAdvances(job) {
   const advances = [];
 
   if (job.has_permit) {
+    const paidBy = job.permit_paid_by || 'pb';
     advances.push({
-      item:   'Building Permit Filing Fees',
-      detail: 'Actual municipal fee — paid directly to building department',
-      amount: job.permit_fee || '—'
+      item:    'Building Permit Filing Fees',
+      detail:  'Actual municipal fee — paid to building department',
+      amount:  job.permit_fee || '—',
+      paid_by: paidBy
     });
   }
   if (job.has_engineer) {
+    const paidBy = job.engineer_paid_by || 'pb';
     advances.push({
-      item:   'Engineering Fees',
-      detail: 'Structural, civil, or MEP engineering required for permit',
-      amount: job.engineer_fee || '—'
+      item:    'Engineering Fees',
+      detail:  'Structural, civil, or MEP engineering required for permit',
+      amount:  job.engineer_fee || '—',
+      paid_by: paidBy
     });
   }
   if (job.has_architect) {
+    const paidBy = job.architect_paid_by || 'pb';
     advances.push({
-      item:   'Architectural / Design Fees',
-      detail: 'Required for permit or design-build scope',
-      amount: job.architect_fee || '—'
+      item:    'Architectural / Design Fees',
+      detail:  'Required for permit or design-build scope',
+      amount:  job.architect_fee || '—',
+      paid_by: paidBy
     });
   }
   if (job.sub_deposits) {
     advances.push({
-      item:   'Subcontractor Mobilization Deposits',
-      detail: 'Documented deposits required before project start',
-      amount: job.sub_deposits || '—'
+      item:    'Subcontractor Mobilization Deposits',
+      detail:  'Documented deposits required before project start',
+      amount:  job.sub_deposits || '—',
+      paid_by: 'pb'
     });
   }
   if (job.special_order_deposits) {
     advances.push({
-      item:   'Special-Order / Long-Lead Material Deposits',
-      detail: 'Custom or non-returnable items per M.G.L. c. 142A §2',
-      amount: job.special_order_deposits || '—'
+      item:    'Special-Order / Long-Lead Material Deposits',
+      detail:  'Custom or non-returnable items per M.G.L. c. 142A §2',
+      amount:  job.special_order_deposits || '—',
+      paid_by: 'pb'
     });
   }
 

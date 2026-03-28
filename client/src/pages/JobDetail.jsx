@@ -70,6 +70,8 @@ export default function JobDetail({ token }) {
   const [editingCustomer, setEditingCustomer] = useState(false);
   const [customerDraft, setCustomerDraft]     = useState({ name: '', email: '', phone: '' });
   const [savingCustomer, setSavingCustomer]   = useState(false);
+  const [ptResp, setPtResp] = useState({ permit_paid_by: 'pb', engineer_paid_by: 'pb', architect_paid_by: 'pb' });
+  const [savingPt, setSavingPt] = useState(false);
 
   const load = () => {
     fetch(`/api/jobs/${id}`, { headers: { 'x-auth-token': token } })
@@ -82,6 +84,12 @@ export default function JobDetail({ token }) {
         setVersionHistory(data.versionHistory || []);
         setNote(data.job?.notes || '');
         setLoading(false);
+        const jobData = data.job?.proposal_data?.job || {};
+        setPtResp({
+          permit_paid_by:    jobData.permit_paid_by    || 'pb',
+          engineer_paid_by:  jobData.engineer_paid_by  || 'pb',
+          architect_paid_by: jobData.architect_paid_by || 'pb',
+        });
       })
       .catch(() => setLoading(false));
     fetch(`/api/signing/status/${id}`, { headers: { 'x-auth-token': token } })
@@ -156,6 +164,18 @@ export default function JobDetail({ token }) {
     if (res.ok) { load(); showToast('Contract generated'); }
     else        { showToast(data.error || 'Failed to generate contract', 'error'); }
     setActionLoading(false);
+  };
+
+  const savePtResp = async () => {
+    setSavingPt(true);
+    const res  = await fetch(`/api/jobs/${id}/pass-through-responsibility`, {
+      method: 'PATCH', headers,
+      body: JSON.stringify(ptResp)
+    });
+    const data = await res.json();
+    if (res.ok) { showToast('Payment responsibility saved'); load(); }
+    else        { showToast(data.error || 'Failed to save', 'error'); }
+    setSavingPt(false);
   };
 
   const sendContractForSigning = async () => {
@@ -431,6 +451,50 @@ export default function JobDetail({ token }) {
               {actionLoading ? '...' : '✅ Mark Proposal Approved'}
             </button>
           )}
+
+          {/* Pass-through responsibility panel — shown before Generate Contract */}
+          {job.status === 'proposal_approved' && !job.contract_pdf_path && (() => {
+            const pj = job.proposal_data?.job || {};
+            const hasAny = pj.has_permit || pj.has_engineer || pj.has_architect;
+            if (!hasAny) return null;
+            const RadioRow = ({ label, fee, field }) => (
+              <div style={{ padding: '10px 12px', borderBottom: '1px solid #fde68a', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 180, fontSize: 12, fontWeight: 600, color: '#78350f' }}>
+                  {label}
+                  {fee && <span style={{ fontWeight: 400, color: '#92400e', marginLeft: 6 }}>({fee})</span>}
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', color: ptResp[field] === 'pb' ? '#B45309' : '#555' }}>
+                  <input type="radio" name={field} value="pb"
+                    checked={ptResp[field] !== 'customer_direct'}
+                    onChange={() => setPtResp(p => ({ ...p, [field]: 'pb' }))} />
+                  PB fronts — Owner reimburses
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, cursor: 'pointer', color: ptResp[field] === 'customer_direct' ? '#166534' : '#555' }}>
+                  <input type="radio" name={field} value="customer_direct"
+                    checked={ptResp[field] === 'customer_direct'}
+                    onChange={() => setPtResp(p => ({ ...p, [field]: 'customer_direct' }))} />
+                  Owner pays vendor directly
+                </label>
+              </div>
+            );
+            return (
+              <div style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 8, padding: 0, width: '100%', marginBottom: 8 }}>
+                <div style={{ background: '#fef3c7', borderBottom: '1px solid #fbbf24', padding: '8px 12px', borderRadius: '8px 8px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontWeight: 'bold', fontSize: 12, color: '#92400e' }}>Pass-Through Cost Responsibility</span>
+                    <span style={{ fontSize: 11, color: '#78350f', marginLeft: 8 }}>— must be agreed before generating the contract</span>
+                  </div>
+                  <button onClick={savePtResp} disabled={savingPt}
+                    style={{ padding: '4px 12px', background: '#D97706', color: 'white', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 11, fontWeight: 'bold' }}>
+                    {savingPt ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+                {pj.has_permit    && <RadioRow label="Building Permit Fees"      fee={pj.permit_fee}    field="permit_paid_by"    />}
+                {pj.has_engineer  && <RadioRow label="Engineering Fees"          fee={pj.engineer_fee}  field="engineer_paid_by"  />}
+                {pj.has_architect && <RadioRow label="Architectural / Design Fees" fee={pj.architect_fee} field="architect_paid_by" />}
+              </div>
+            );
+          })()}
 
           {/* Generate contract (manual — after proposal approved, or if auto-gen failed) */}
           {['proposal_approved'].includes(job.status) && !job.contract_pdf_path && (

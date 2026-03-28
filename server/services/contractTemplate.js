@@ -252,20 +252,28 @@ function buildPreConTable(data) {
   const advances = selectPreConAdvances(data.job || {});
   if (!advances.length) return '';
 
-  const rows = advances.map(a => `
+  const rows = advances.map(a => {
+    const isPb     = a.paid_by !== 'customer_direct';
+    const respBadge = isPb
+      ? `<span style="background:#fffbeb;color:#92400e;border:1px solid #fbbf24;padding:1px 6px;border-radius:10px;font-size:7.5pt;font-weight:bold;white-space:nowrap;">PB Fronts → Owner Reimburses</span>`
+      : `<span style="background:#f0fdf4;color:#166534;border:1px solid #86efac;padding:1px 6px;border-radius:10px;font-size:7.5pt;font-weight:bold;white-space:nowrap;">Owner Pays Vendor Directly</span>`;
+    return `
     <tr>
       <td>${a.item}</td>
       <td style="font-size:8pt;color:#555">${a.detail}</td>
+      <td style="text-align:center">${respBadge}</td>
       <td style="text-align:right">${a.amount}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 
   return `
     <table class="data-table">
       <thead>
         <tr>
-          <th style="width:38%">Pre-Construction Advance Item</th>
+          <th style="width:32%">Pre-Construction Item</th>
           <th>Detail / Basis</th>
-          <th style="width:100px;text-align:right">Amount</th>
+          <th style="width:170px;text-align:center">Who Pays</th>
+          <th style="width:90px;text-align:right">Est. Amount</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
@@ -436,12 +444,15 @@ function adaptToContractSchema(data) {
     has_demo:         jobRaw.has_demo      !== undefined ? jobRaw.has_demo      : /demo|demolition/i.test(allTrades),
     has_framing:      jobRaw.has_framing   !== undefined ? jobRaw.has_framing   : /\bfram/i.test(allTrades),
     has_insulation:   jobRaw.has_insulation !== undefined ? jobRaw.has_insulation : /insul/i.test(allTrades),
-    has_permit:       jobRaw.has_permit    !== undefined ? jobRaw.has_permit    : /permit/i.test(allTrades),
-    permit_fee:       jobRaw.permit_fee    || '',
-    has_engineer:     jobRaw.has_engineer  || false,
-    engineer_fee:     jobRaw.engineer_fee  || '',
-    has_architect:    jobRaw.has_architect || false,
-    architect_fee:    jobRaw.architect_fee || '',
+    has_permit:        jobRaw.has_permit    !== undefined ? jobRaw.has_permit    : /permit/i.test(allTrades),
+    permit_fee:        jobRaw.permit_fee    || '',
+    permit_paid_by:    jobRaw.permit_paid_by    || 'pb',
+    has_engineer:      jobRaw.has_engineer  || false,
+    engineer_fee:      jobRaw.engineer_fee  || '',
+    engineer_paid_by:  jobRaw.engineer_paid_by  || 'pb',
+    has_architect:     jobRaw.has_architect || false,
+    architect_fee:     jobRaw.architect_fee || '',
+    architect_paid_by: jobRaw.architect_paid_by || 'pb',
     sub_deposits:     jobRaw.sub_deposits  || null,
     special_order_deposits: jobRaw.special_order_deposits || null,
     trades: {
@@ -650,7 +661,7 @@ ${clauseHTML('3.2', `The Contract Price shall be paid in installments upon compl
 
 ${buildPaymentTable(data)}
 
-${clauseHTML('3.3', `<strong>Pre-Construction Advances — Invoice 1 Itemization.</strong> The first invoice shall separately identify and itemize the Contract Deposit and any Pre-Construction Advances. Pre-Construction Advances are pass-through funds for documented, third-party, project-required costs including: (a) municipal building permit fees; (b) required engineering or architectural fees; (c) required subcontractor mobilization deposits; and (d) deposits for special-order or long-lead materials per M.G.L. c. 142A §2. Pre-Construction Advances are supported by actual invoices or fee schedules and are not subject to the 1/3 deposit cap as they represent documented pass-through costs rather than contractor compensation.`)}
+${clauseHTML('3.3', `<strong>Pass-Through Costs — Payment Responsibility.</strong> This project includes one or more pass-through costs (permits, engineering, architectural fees) that are third-party expenses required by law or code, not contractor compensation, and are not subject to markup. The table below, agreed upon by both parties at signing, establishes who is financially responsible for each item. Two arrangements are used: <strong>(a) PB Fronts → Owner Reimburses:</strong> Contractor advances the cost on Owner's behalf and itemizes it on Invoice 1 as a Pre-Construction Advance. Owner reimburses Contractor within five (5) business days. <strong>(b) Owner Pays Vendor Directly:</strong> Owner writes the check directly to the municipality or third-party vendor. Contractor will confirm receipt of payment or documentation before the related work commences. Items paid directly by Owner shall not appear on any PB invoice.`)}
 
 ${buildPreConTable(data)}
 
@@ -689,9 +700,13 @@ ${clauseHTML('6.4', `Owner shall submit all material selections, finish choices,
 <div class="article-heading">Article VII — Permits &amp; Inspections</div>
 
 ${clauseHTML('7.1', `Contractor shall apply for and obtain all building permits required for the Work from the applicable municipal building department. Contractor shall schedule and pass all required inspections.`)}
-${clauseHTML('7.2', `Permit fees and inspection charges are ${job.has_permit
-  ? 'included in or separately itemized on Invoice 1 as a Pre-Construction Advance. Contractor shall pay permit and inspection fees directly to the issuing authority and document actual costs. Any overage or underage from the estimated permit fee shall be reflected as a credit or additional charge on the next applicable invoice'
-  : 'not included in the Contract Price and shall be billed as a pass-through cost on the applicable invoice. Pass-through costs are charged at Contractor\'s actual cost, without markup, and shall be clearly identified as a separate line item on the invoice'}. See Article III, Clause 3.3.`)}
+${clauseHTML('7.2', `Permit fees and inspection charges are ${
+  !job.has_permit
+    ? 'not applicable to this scope of work per the parties\' mutual determination at signing. Should a permit later be required due to a Change Order or code determination, permit fees shall be billed as a pass-through cost at actual cost without markup. See Article III, Clause 3.3.'
+    : job.permit_paid_by === 'customer_direct'
+      ? 'the responsibility of Owner, who agrees to pay the applicable municipal building department directly. Owner shall provide Contractor with written confirmation of payment and a copy of the issued permit before Contractor commences permitted work. Permit fees shall not appear on any Contractor invoice.'
+      : 'itemized on Invoice 1 as a Pre-Construction Advance per Article III, Clause 3.3. Contractor shall pay permit fees directly to the issuing authority and document actual costs. Any overage or underage from the estimated permit fee shall be reflected as a credit or additional charge on the next applicable invoice.'
+}`)}
 ${clauseHTML('7.3', `Owner shall not contact the building department to modify, expand, or otherwise change any permit application without prior written consent of Contractor.`)}
 
 <!-- ARTICLE VIII -->
