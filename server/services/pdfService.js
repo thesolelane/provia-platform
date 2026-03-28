@@ -219,6 +219,7 @@ function buildProposalHTML(data) {
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0 16px;">
     <div style="background:${LIGHT_BLUE};border-left:4px solid ${BRAND_BLUE};padding:12px 16px;border-radius:2px;">
       <div style="font-size:9pt;font-weight:bold;color:${BRAND_BLUE};margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px;">Customer</div>
+      ${customer.pb_customer_number ? `<div style="font-family:monospace;font-size:8.5pt;background:#1B3A6B22;color:${BRAND_BLUE};padding:2px 7px;border-radius:3px;display:inline-block;margin-bottom:5px;font-weight:bold;letter-spacing:0.5px;">${customer.pb_customer_number}</div>` : ''}
       <div style="font-size:13pt;font-weight:bold;color:#1a1a1a;margin-bottom:4px;">${customer.name || '—'}</div>
       ${customer.phone ? `<div style="font-size:10pt;color:#333;">📞 ${customer.phone}</div>` : ''}
       ${customer.email ? `<div style="font-size:10pt;color:#333;">✉️ ${customer.email}</div>` : ''}
@@ -448,6 +449,7 @@ function buildContractHTML(data) {
   <div class="party-box">
     <div class="party-box-header orange">Owner</div>
     <div class="party-box-body">
+      ${customer.pb_customer_number ? `<div style="font-family:monospace;font-size:8pt;background:#fff3e0;color:#E07B2A;padding:1px 6px;border-radius:3px;display:inline-block;margin-bottom:4px;font-weight:bold;">${customer.pb_customer_number}</div><br>` : ''}
       <strong>${customer.name || '—'}</strong><br>
       ${project.address || ''}<br>
       ${[project.city, project.state].filter(Boolean).join(', ')}<br>
@@ -1867,4 +1869,30 @@ async function generateBlankContractDocx() {
   return buffer;
 }
 
-module.exports = { generatePDF, generateBlankContractDocx };
+async function generatePDFFromHTML(html, filenameBase) {
+  const filename = `${filenameBase}_${Date.now()}.pdf`;
+  const outputPath = path.join(OUTPUT_DIR, filename);
+
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    executablePath: CHROMIUM_PATH,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.pdf({
+      path: outputPath,
+      format: 'Letter',
+      margin: { top: '0.5in', right: '0.75in', bottom: '0.5in', left: '0.75in' },
+      printBackground: true,
+    });
+  } finally {
+    await browser.close();
+  }
+
+  return outputPath;
+}
+
+module.exports = { generatePDF, generatePDFFromHTML, generateBlankContractDocx };

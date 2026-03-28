@@ -437,6 +437,116 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_field_photos_job_id ON field_photos(job_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_field_photos_location_label ON field_photos(location_label)`);
 
+  // ── Customer Activity Log ────────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS customer_activity_log (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_number TEXT,
+      job_id        TEXT,
+      event_type    TEXT NOT NULL,
+      description   TEXT NOT NULL,
+      document_ref  TEXT,
+      recorded_by   TEXT,
+      created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_cal_customer_number ON customer_activity_log(customer_number)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_cal_job_id ON customer_activity_log(job_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_cal_created_at ON customer_activity_log(created_at)`);
+
+  // ── Invoices ─────────────────────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS invoices (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id          TEXT NOT NULL,
+      invoice_number  TEXT NOT NULL,
+      invoice_type    TEXT NOT NULL DEFAULT 'contract_invoice',
+      status          TEXT NOT NULL DEFAULT 'draft',
+      amount          REAL NOT NULL DEFAULT 0,
+      amount_paid     REAL NOT NULL DEFAULT 0,
+      line_items      TEXT,
+      notes           TEXT,
+      pdf_path        TEXT,
+      issued_at       DATETIME,
+      paid_at         DATETIME,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+    )
+  `);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_invoices_job_id ON invoices(job_id)`);
+
+  // ── Invoice sequence counters per job ────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS invoice_counters (
+      job_id           TEXT PRIMARY KEY,
+      contract_seq     INTEGER NOT NULL DEFAULT 0,
+      pass_through_seq INTEGER NOT NULL DEFAULT 0,
+      co_seq           INTEGER NOT NULL DEFAULT 0,
+      dept_seq         INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+    )
+  `);
+  // Migration: add co_seq column if missing (separates change-order seq from dept_seq)
+  addColIfMissing('invoice_counters', 'co_seq', 'INTEGER NOT NULL DEFAULT 0');
+
+  // ── Migration: add payment_class and dept_code to payments_made ──────────────
+  addColIfMissing('payments_made', 'payment_class', "TEXT NOT NULL DEFAULT 'cost_of_revenue'");
+  addColIfMissing('payments_made', 'dept_code', 'TEXT');
+  addColIfMissing('payments_made', 'is_pass_through', "INTEGER NOT NULL DEFAULT 0");
+  addColIfMissing('payments_made', 'line_item_ref', 'TEXT');
+
+  // ── Migration: add payment_class and invoice link to payments_received ────────
+  addColIfMissing('payments_received', 'payment_class', "TEXT NOT NULL DEFAULT 'contract'");
+  addColIfMissing('payments_received', 'is_pass_through_reimbursement', "INTEGER NOT NULL DEFAULT 0");
+  addColIfMissing('payments_received', 'invoice_id', 'INTEGER');
+  addColIfMissing('payments_received', 'line_item_ref', 'TEXT');
+
+  // ── Migration: add pb_customer_number to contacts (new format: PB-C-XXXX) ────
+  // The existing customer_number column uses PB-C-YEAR-NNNN format.
+  // We add pb_customer_number as a simpler sequential PB-C-XXXX identifier.
+  try { db.prepare("SELECT pb_customer_number FROM contacts LIMIT 1").get(); } catch {
+    db.exec("ALTER TABLE contacts ADD COLUMN pb_customer_number TEXT");
+  }
+
+  // Backfill pb_customer_number for contacts missing it
+  {
+    const untagged = db.prepare("SELECT id FROM contacts WHERE pb_customer_number IS NULL OR pb_customer_number = '' ORDER BY id ASC").all();
+    const lastRow = db.prepare("SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1").get();
+    let seq = 1;
+    if (lastRow?.pb_customer_number) {
+      const parts = lastRow.pb_customer_number.split('-');
+      const lastSeq = parseInt(parts[parts.length - 1]);
+      if (!isNaN(lastSeq)) seq = lastSeq + 1;
+    }
+    const setPN = db.prepare("UPDATE contacts SET pb_customer_number = ? WHERE id = ?");
+    for (const row of untagged) {
+      setPN.run('PB-C-' + String(seq).padStart(4, '0'), row.id);
+      seq++;
+    }
+  }
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_pb_customer_number ON contacts(pb_customer_number)`);
+
+  // ── pb_customer_counter: simple sequential counter for new contacts ───────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pb_customer_counter (
+      id       INTEGER PRIMARY KEY DEFAULT 1,
+      next_seq INTEGER NOT NULL DEFAULT 1
+    )
+  `);
+  db.prepare('INSERT OR IGNORE INTO pb_customer_counter (id, next_seq) VALUES (1, 1)').run();
+  {
+    const lastPN = db.prepare("SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1").get();
+    if (lastPN?.pb_customer_number) {
+      const parts = lastPN.pb_customer_number.split('-');
+      const lastSeq = parseInt(parts[parts.length - 1]);
+      if (!isNaN(lastSeq)) {
+        db.prepare('UPDATE pb_customer_counter SET next_seq = MAX(next_seq, ?) WHERE id = 1').run(lastSeq + 1);
+      }
+    }
+  }
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();

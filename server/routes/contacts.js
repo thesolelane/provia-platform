@@ -78,11 +78,22 @@ router.post('/', requireAuth, (req, res) => {
   const db = getDb();
   const { name, email, phone, address, city, state, zip, customer_type, notes } = req.body;
   if (!name && !email) return res.status(400).json({ error: 'Name or email is required' });
+
+  // Auto-assign pb_customer_number
+  let pbCustomerNumber = null;
+  try {
+    const counter = db.prepare('SELECT next_seq FROM pb_customer_counter WHERE id = 1').get();
+    const seq = counter ? counter.next_seq : 1;
+    pbCustomerNumber = 'PB-C-' + String(seq).padStart(4, '0');
+    db.prepare('UPDATE pb_customer_counter SET next_seq = ? WHERE id = 1').run(seq + 1);
+  } catch (e) { console.warn('[Contact] pb_customer_number gen failed:', e.message); }
+
   const result = db.prepare(
-    `INSERT INTO contacts (name, email, phone, address, city, state, zip, customer_type, notes, source)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')`
-  ).run(name||null, email||null, phone||null, address||null, city||null, state||null, zip||null, customer_type||'residential', notes||null);
-  res.json({ success: true, id: result.lastInsertRowid });
+    `INSERT INTO contacts (name, email, phone, address, city, state, zip, customer_type, notes, source, pb_customer_number)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)`
+  ).run(name||null, email||null, phone||null, address||null, city||null, state||null, zip||null, customer_type||'residential', notes||null, pbCustomerNumber);
+  const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
+  res.json({ success: true, id: result.lastInsertRowid, contact });
 });
 
 // PATCH update contact

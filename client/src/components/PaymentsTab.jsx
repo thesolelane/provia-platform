@@ -6,9 +6,13 @@ const BLUE   = '#1B3A6B';
 const ORANGE = '#E07B2A';
 const GREEN  = '#2E7D32';
 const RED    = '#C62828';
+const TEAL   = '#0D9488';
+const PURPLE = '#7C3AED';
 
 const PAYMENT_TYPES = ['deposit', 'progress', 'final', 'other'];
 const CATEGORIES    = ['subcontractor', 'material', 'permit', 'other'];
+
+const PASS_THROUGH_CATS = ['permit', 'engineer', 'architect', 'designer'];
 
 const fmt = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
@@ -16,41 +20,43 @@ const fmtDate = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US',
 function today() { return new Date().toISOString().slice(0, 10); }
 function nowTime() { return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).slice(0, 5); }
 
-const EMPTY_IN  = { customer_name: '', check_number: '', amount: '', date_received: today(), time_received: nowTime(), payment_type: 'deposit', credit_debit: 'credit', notes: '' };
-const EMPTY_OUT = { payee_name: '', check_number: '', amount: '', date_paid: today(), time_paid: nowTime(), category: 'subcontractor', credit_debit: 'debit', notes: '' };
+const EMPTY_IN  = { customer_name: '', check_number: '', amount: '', date_received: today(), time_received: nowTime(), payment_type: 'deposit', credit_debit: 'credit', notes: '', is_pass_through_reimbursement: false };
+const EMPTY_OUT = { payee_name: '', check_number: '', amount: '', date_paid: today(), time_paid: nowTime(), category: 'subcontractor', credit_debit: 'debit', notes: '', payment_class: 'cost_of_revenue' };
+const EMPTY_INV = { invoice_type: 'contract_invoice', amount: '', notes: '' };
 
 const inputStyle = {
-  width: '100%',
-  padding: '8px 10px',
-  border: '1.5px solid #C8D4E4',
-  borderRadius: 6,
-  fontSize: 13,
-  boxSizing: 'border-box',
+  width: '100%', padding: '8px 10px', border: '1.5px solid #C8D4E4', borderRadius: 6, fontSize: 13, boxSizing: 'border-box',
 };
 
 export default function PaymentsTab({ jobId, token, job }) {
   const [received, setReceived]   = useState([]);
   const [made, setMade]           = useState([]);
+  const [invoices, setInvoices]   = useState([]);
   const [summary, setSummary]     = useState({ total_received: 0, total_paid_out: 0, balance: 0 });
   const [loading, setLoading]     = useState(true);
   const [showIn, setShowIn]       = useState(false);
   const [showOut, setShowOut]     = useState(false);
+  const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   const [formIn, setFormIn]       = useState({ ...EMPTY_IN, customer_name: job?.customer_name || '' });
   const [formOut, setFormOut]     = useState(EMPTY_OUT);
+  const [formInv, setFormInv]     = useState(EMPTY_INV);
   const [saving, setSaving]       = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch(`/api/payments/job/${jobId}`, { headers: { 'x-auth-token': token } })
-      .then(r => r.json())
-      .then(data => {
-        setReceived(data.received || []);
-        setMade(data.made || []);
-        setSummary(data.summary || { total_received: 0, total_paid_out: 0, balance: 0 });
-        setLoading(false);
-      });
+    Promise.all([
+      fetch(`/api/payments/job/${jobId}`, { headers: { 'x-auth-token': token } }).then(r => r.json()),
+      fetch(`/api/invoices/job/${jobId}`,  { headers: { 'x-auth-token': token } }).then(r => r.json()),
+    ]).then(([payData, invData]) => {
+      setReceived(payData.received || []);
+      setMade(payData.made || []);
+      setSummary(payData.summary || { total_received: 0, total_paid_out: 0, balance: 0 });
+      setInvoices(invData.invoices || []);
+      setLoading(false);
+    });
   }, [jobId, token]);
 
   useEffect(() => { load(); }, [load]);
@@ -68,9 +74,7 @@ export default function PaymentsTab({ jobId, token, job }) {
       setSummary(data.summary);
       load();
       showToast('Check recorded');
-    } else {
-      showToast(data.error || 'Failed to save', 'error');
-    }
+    } else { showToast(data.error || 'Failed to save', 'error'); }
     setSaving(false);
   };
 
@@ -88,10 +92,34 @@ export default function PaymentsTab({ jobId, token, job }) {
       setSummary(data.summary);
       load();
       showToast('Payment recorded');
-    } else {
-      showToast(data.error || 'Failed to save', 'error');
-    }
+    } else { showToast(data.error || 'Failed to save', 'error'); }
     setSaving(false);
+  };
+
+  const submitInvoice = async () => {
+    if (!formInv.amount) return showToast('Enter an invoice amount', 'error');
+    setSaving(true);
+    const res  = await fetch(`/api/invoices/job/${jobId}`, { method: 'POST', headers, body: JSON.stringify(formInv) });
+    const data = await res.json();
+    if (res.ok) {
+      setFormInv(EMPTY_INV);
+      setShowInvoiceForm(false);
+      load();
+      showToast('Invoice created: ' + data.invoice.invoice_number);
+    } else { showToast(data.error || 'Failed to create invoice', 'error'); }
+    setSaving(false);
+  };
+
+  const markInvoice = async (inv, status) => {
+    const res  = await fetch(`/api/invoices/${inv.id}`, { method: 'PATCH', headers, body: JSON.stringify({ status }) });
+    if (res.ok) { load(); showToast(`Invoice marked ${status}`); }
+    else { const d = await res.json(); showToast(d.error || 'Failed', 'error'); }
+  };
+
+  const deleteInvoice = async (inv) => {
+    if (!await showConfirm(`Delete invoice ${inv.invoice_number}?`)) return;
+    const res  = await fetch(`/api/invoices/${inv.id}`, { method: 'DELETE', headers });
+    if (res.ok) { load(); showToast('Invoice deleted'); }
   };
 
   const deleteReceived = async (p) => {
@@ -110,18 +138,45 @@ export default function PaymentsTab({ jobId, token, job }) {
     else showToast(data.error || 'Failed to delete', 'error');
   };
 
+  const categoryChanged = (cat) => {
+    const isPassThrough = PASS_THROUGH_CATS.includes(cat) || cat === 'permit';
+    setFormOut(p => ({ ...p, category: cat, payment_class: isPassThrough ? 'pass_through' : 'cost_of_revenue' }));
+  };
+
   if (loading) return <div style={{ color: '#888', padding: 20 }}>Loading payments...</div>;
+
+  const contractInvoices    = invoices.filter(i => i.invoice_type === 'contract_invoice');
+  const passThroughInvoices = invoices.filter(i => i.invoice_type === 'pass_through_invoice');
+  const changeOrders        = invoices.filter(i => i.invoice_type === 'change_order');
+
+  const contractReceived  = received.filter(r => !r.is_pass_through_reimbursement);
+  const ptReceived        = received.filter(r => r.is_pass_through_reimbursement);
+  const contractPaid      = made.filter(m => m.payment_class === 'cost_of_revenue');
+  const ptPaid            = made.filter(m => m.payment_class === 'pass_through' || m.is_pass_through);
+
+  const totalContractReceived = contractReceived.reduce((s, r) => s + (r.credit_debit === 'debit' ? -1 : 1) * Number(r.amount || 0), 0);
+  const totalPtReceived       = ptReceived.reduce((s, r)  => s + (r.credit_debit === 'debit' ? -1 : 1) * Number(r.amount || 0), 0);
+  const totalContractPaid     = contractPaid.reduce((s, m) => s + (m.credit_debit === 'credit' ? -1 : 1) * Number(m.amount || 0), 0);
+  const totalPtPaid           = ptPaid.reduce((s, m)       => s + (m.credit_debit === 'credit' ? -1 : 1) * Number(m.amount || 0), 0);
+  const grossMargin           = totalContractReceived - totalContractPaid;
+  const ptBalance             = totalPtPaid - totalPtReceived;
+  const totalCOValue          = changeOrders.reduce((s, co) => s + Number(co.amount || 0), 0);
+  const totalCOPaid           = changeOrders.filter(co => co.status === 'paid').reduce((s, co) => s + Number(co.amount_paid || co.amount || 0), 0);
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h3 style={{ color: BLUE, margin: 0 }}>Payment Tracking</h3>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setShowIn(true); setShowOut(false); }}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={() => { setShowInvoiceForm(true); setShowIn(false); setShowOut(false); }}
+            style={{ padding: '8px 14px', background: TEAL, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
+            + Invoice
+          </button>
+          <button onClick={() => { setShowIn(true); setShowOut(false); setShowInvoiceForm(false); }}
             style={{ padding: '8px 14px', background: GREEN, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
             + Check Received
           </button>
-          <button onClick={() => { setShowOut(true); setShowIn(false); }}
+          <button onClick={() => { setShowOut(true); setShowIn(false); setShowInvoiceForm(false); }}
             style={{ padding: '8px 14px', background: RED, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
             + Check Paid Out
           </button>
@@ -134,6 +189,40 @@ export default function PaymentsTab({ jobId, token, job }) {
         <SummaryCard label="Balance"        value={fmt(summary.balance)}        color={summary.balance >= 0 ? BLUE : RED} />
       </div>
 
+      {/* Invoice Form */}
+      {showInvoiceForm && (
+        <div style={{ background: '#f0f9ff', border: `1px solid ${TEAL}40`, borderRadius: 8, padding: 16, marginBottom: 16 }}>
+          <div style={{ fontWeight: 'bold', color: TEAL, marginBottom: 12, fontSize: 13 }}>Create Invoice</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, marginBottom: 10 }}>
+            <Field label="Invoice Type">
+              <select value={formInv.invoice_type} onChange={e => setFormInv(p => ({ ...p, invoice_type: e.target.value }))} style={inputStyle}>
+                <option value="contract_invoice">Contract Invoice</option>
+                <option value="pass_through_invoice">Pass-Through Invoice</option>
+                <option value="change_order">Change Order</option>
+              </select>
+            </Field>
+            <Field label="Amount *">
+              <input type="number" step="0.01" min="0" value={formInv.amount} onChange={e => setFormInv(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" style={inputStyle} />
+            </Field>
+            <Field label="Notes">
+              <input value={formInv.notes} onChange={e => setFormInv(p => ({ ...p, notes: e.target.value }))} placeholder="Optional" style={inputStyle} />
+            </Field>
+          </div>
+          {formInv.invoice_type === 'pass_through_invoice' && (
+            <div style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#92400e' }}>
+              Pass-through invoices are NOT counted as income. They bill the customer for reimbursement of costs paid on their behalf (permits, engineers, etc.).
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={submitInvoice} disabled={saving} style={{ padding: '8px 16px', background: TEAL, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
+              {saving ? 'Creating...' : 'Create Invoice'}
+            </button>
+            <button onClick={() => setShowInvoiceForm(false)} style={{ padding: '8px 12px', background: 'none', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#888' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Check Received Form */}
       {showIn && (
         <div style={{ background: '#f0fdf4', border: `1px solid ${GREEN}40`, borderRadius: 8, padding: 16, marginBottom: 16 }}>
           <div style={{ fontWeight: 'bold', color: GREEN, marginBottom: 12, fontSize: 13 }}>Record Check Received (Credit)</div>
@@ -168,6 +257,12 @@ export default function PaymentsTab({ jobId, token, job }) {
               <input value={formIn.notes} onChange={e => setFormIn(p => ({ ...p, notes: e.target.value }))} placeholder="Optional" style={inputStyle} />
             </Field>
           </div>
+          <Field label="">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, cursor: 'pointer', marginBottom: 10 }}>
+              <input type="checkbox" checked={formIn.is_pass_through_reimbursement} onChange={e => setFormIn(p => ({ ...p, is_pass_through_reimbursement: e.target.checked }))} />
+              <span>This is a <strong>pass-through reimbursement</strong> (permit, engineer, etc.) — will NOT be counted as income</span>
+            </label>
+          </Field>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={submitIn} disabled={saving} style={{ padding: '8px 16px', background: GREEN, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
               {saving ? 'Saving...' : 'Save'}
@@ -177,6 +272,7 @@ export default function PaymentsTab({ jobId, token, job }) {
         </div>
       )}
 
+      {/* Check Paid Out Form */}
       {showOut && (
         <div style={{ background: '#fff5f5', border: `1px solid ${RED}40`, borderRadius: 8, padding: 16, marginBottom: 16 }}>
           <div style={{ fontWeight: 'bold', color: RED, marginBottom: 12, fontSize: 13 }}>Record Check Paid Out (Debit)</div>
@@ -196,9 +292,24 @@ export default function PaymentsTab({ jobId, token, job }) {
             <Field label="Time">
               <input type="time" value={formOut.time_paid} onChange={e => setFormOut(p => ({ ...p, time_paid: e.target.value }))} style={inputStyle} />
             </Field>
-            <Field label="Category">
-              <select value={formOut.category} onChange={e => setFormOut(p => ({ ...p, category: e.target.value }))} style={inputStyle}>
+            <Field label="Department / Trade">
+              <select value={formOut.category} onChange={e => categoryChanged(e.target.value)} style={inputStyle}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
+                {(job?.proposal_data?.lineItems || [])
+                  .map(li => (li.trade || '').toLowerCase().trim())
+                  .filter(t => t && !CATEGORIES.includes(t) && !['permit','engineer','architect','designer'].includes(t))
+                  .filter((t, i, arr) => arr.indexOf(t) === i)
+                  .map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)
+                }
+                <option value="engineer">Engineer</option>
+                <option value="architect">Architect</option>
+                <option value="designer">Design Professional</option>
+              </select>
+            </Field>
+            <Field label="Payment Class">
+              <select value={formOut.payment_class} onChange={e => setFormOut(p => ({ ...p, payment_class: e.target.value }))} style={inputStyle}>
+                <option value="cost_of_revenue">Cost of Revenue</option>
+                <option value="pass_through">Pass-Through</option>
               </select>
             </Field>
             <Field label="Credit / Debit">
@@ -211,6 +322,11 @@ export default function PaymentsTab({ jobId, token, job }) {
               <input value={formOut.notes} onChange={e => setFormOut(p => ({ ...p, notes: e.target.value }))} placeholder="Optional" style={inputStyle} />
             </Field>
           </div>
+          {formOut.payment_class === 'pass_through' && (
+            <div style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#92400e' }}>
+              Pass-through: This will NOT be counted as income or included in margin calculations. It will be tracked separately and billed to the customer for reimbursement.
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={submitOut} disabled={saving} style={{ padding: '8px 16px', background: RED, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
               {saving ? 'Saving...' : 'Save'}
@@ -220,6 +336,30 @@ export default function PaymentsTab({ jobId, token, job }) {
         </div>
       )}
 
+      {/* Invoices Section */}
+      {invoices.length > 0 && (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontWeight: 'bold', color: TEAL, fontSize: 13, marginBottom: 10 }}>Invoices</div>
+
+          {contractInvoices.length > 0 && (
+            <InvoiceGroup label="Contract Invoices" invoices={contractInvoices} color={BLUE} onMark={markInvoice} onDelete={deleteInvoice} token={token} job={job} />
+          )}
+          {passThroughInvoices.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <div style={{ fontSize: 12, fontWeight: 'bold', color: ORANGE }}>Pass-Through Invoices</div>
+                <span style={{ fontSize: 10, background: '#fffbeb', color: '#92400e', border: '1px solid #fbbf24', padding: '1px 6px', borderRadius: 10, fontWeight: 'bold' }}>NOT INCOME</span>
+              </div>
+              <InvoiceGroup label="" invoices={passThroughInvoices} color={ORANGE} onMark={markInvoice} onDelete={deleteInvoice} token={token} job={job} />
+            </div>
+          )}
+          {changeOrders.length > 0 && (
+            <InvoiceGroup label="Change Orders" invoices={changeOrders} color={PURPLE} onMark={markInvoice} onDelete={deleteInvoice} token={token} job={job} />
+          )}
+        </div>
+      )}
+
+      {/* Checks Received */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontWeight: 'bold', color: GREEN, fontSize: 13, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
           Checks Received
@@ -232,18 +372,24 @@ export default function PaymentsTab({ jobId, token, job }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#f0fdf4' }}>
-                  {['Date & Time', 'From', 'Check #', 'Type', 'Cr/Dr', 'Amount', 'Recorded By', 'Notes', ''].map(h => (
+                  {['Date & Time', 'From', 'Check #', 'Type', 'Class', 'Cr/Dr', 'Amount', 'Recorded By', 'Notes', ''].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, color: '#888', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {received.map(p => (
-                  <tr key={p.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <tr key={p.id} style={{ borderBottom: '1px solid #f0f0f0', background: p.is_pass_through_reimbursement ? '#fffef0' : 'white' }}>
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{fmtDate(p.date_received)}{p.time_received && <span style={{ color: '#888', marginLeft: 6, fontSize: 11 }}>{p.time_received}</span>}</td>
                     <td style={{ padding: '8px 10px' }}>{p.customer_name || '—'}</td>
                     <td style={{ padding: '8px 10px', color: '#888' }}>{p.check_number || '—'}</td>
                     <td style={{ padding: '8px 10px' }}><TypeBadge type={p.payment_type} /></td>
+                    <td style={{ padding: '8px 10px' }}>
+                      {p.is_pass_through_reimbursement
+                        ? <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, background: '#fffbeb', color: '#92400e', fontWeight: 'bold', border: '1px solid #fbbf24' }}>Pass-Thru</span>
+                        : <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, background: '#e8f5e9', color: GREEN, fontWeight: 'bold' }}>Contract</span>
+                      }
+                    </td>
                     <td style={{ padding: '8px 10px' }}><CrDrBadge value={p.credit_debit} /></td>
                     <td style={{ padding: '8px 10px', fontWeight: 'bold', color: p.credit_debit === 'debit' ? RED : GREEN }}>{fmt(p.amount)}</td>
                     <td style={{ padding: '8px 10px', color: '#888', fontSize: 11 }}>{p.recorded_by || '—'}</td>
@@ -259,7 +405,8 @@ export default function PaymentsTab({ jobId, token, job }) {
         )}
       </div>
 
-      <div>
+      {/* Checks Paid Out */}
+      <div style={{ marginBottom: 24 }}>
         <div style={{ fontWeight: 'bold', color: RED, fontSize: 13, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
           Checks Paid Out
           <span style={{ fontSize: 12, fontWeight: 'normal', color: '#888' }}>({made.length})</span>
@@ -271,18 +418,25 @@ export default function PaymentsTab({ jobId, token, job }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ background: '#fff5f5' }}>
-                  {['Date & Time', 'To', 'Check #', 'Category', 'Cr/Dr', 'Amount', 'Recorded By', 'Notes', ''].map(h => (
+                  {['Date & Time', 'To', 'Dept Code', 'Check #', 'Category', 'Class', 'Cr/Dr', 'Amount', 'Recorded By', 'Notes', ''].map(h => (
                     <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 11, color: '#888', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {made.map(p => (
-                  <tr key={p.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <tr key={p.id} style={{ borderBottom: '1px solid #f0f0f0', background: (p.is_pass_through || p.payment_class === 'pass_through') ? '#fffef0' : 'white' }}>
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{fmtDate(p.date_paid)}{p.time_paid && <span style={{ color: '#888', marginLeft: 6, fontSize: 11 }}>{p.time_paid}</span>}</td>
                     <td style={{ padding: '8px 10px' }}>{p.payee_name}</td>
+                    <td style={{ padding: '8px 10px', fontSize: 10, color: '#666', fontFamily: 'monospace' }}>{p.dept_code || '—'}</td>
                     <td style={{ padding: '8px 10px', color: '#888' }}>{p.check_number || '—'}</td>
                     <td style={{ padding: '8px 10px' }}><CategoryBadge cat={p.category} /></td>
+                    <td style={{ padding: '8px 10px' }}>
+                      {(p.is_pass_through || p.payment_class === 'pass_through')
+                        ? <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, background: '#fffbeb', color: '#92400e', fontWeight: 'bold', border: '1px solid #fbbf24' }}>Pass-Thru</span>
+                        : <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, background: '#f0f4ff', color: BLUE, fontWeight: 'bold' }}>Revenue</span>
+                      }
+                    </td>
                     <td style={{ padding: '8px 10px' }}><CrDrBadge value={p.credit_debit} /></td>
                     <td style={{ padding: '8px 10px', fontWeight: 'bold', color: p.credit_debit === 'credit' ? GREEN : RED }}>{fmt(p.amount)}</td>
                     <td style={{ padding: '8px 10px', color: '#888', fontSize: 11 }}>{p.recorded_by || '—'}</td>
@@ -296,6 +450,121 @@ export default function PaymentsTab({ jobId, token, job }) {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Job Cost Breakdown */}
+      <div style={{ borderTop: '2px solid #eee', paddingTop: 16 }}>
+        <button
+          onClick={() => setShowBreakdown(!showBreakdown)}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: BLUE, fontWeight: 'bold', fontSize: 14, padding: 0, marginBottom: showBreakdown ? 16 : 0 }}
+        >
+          <span style={{ fontSize: 12 }}>{showBreakdown ? '▼' : '▶'}</span>
+          Job Cost Breakdown
+        </button>
+
+        {showBreakdown && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {/* Contract Revenue Section */}
+            <div style={{ background: '#f8faff', border: '1px solid #c8d4e4', borderRadius: 8, padding: 16 }}>
+              <div style={{ fontWeight: 'bold', color: BLUE, fontSize: 13, marginBottom: 12, borderBottom: '1px solid #dde8f5', paddingBottom: 8 }}>
+                Contract Revenue
+              </div>
+              <BreakdownRow label="Contract Value" value={fmt(job?.total_value || 0)} />
+              <BreakdownRow label="Received from Customer" value={fmt(totalContractReceived)} color={GREEN} />
+              <BreakdownRow label="Subcontractor / Material Costs" value={fmt(totalContractPaid)} color={RED} />
+              <div style={{ borderTop: '1px solid #dde8f5', marginTop: 8, paddingTop: 8 }}>
+                <BreakdownRow label="Gross Margin" value={fmt(grossMargin)} color={grossMargin >= 0 ? GREEN : RED} bold />
+                {job?.total_value > 0 && (
+                  <BreakdownRow label="Margin %" value={`${Math.round((grossMargin / (job.total_value || 1)) * 100)}%`} color={grossMargin >= 0 ? GREEN : RED} />
+                )}
+              </div>
+            </div>
+
+            {/* Pass-Through Section */}
+            <div style={{ background: '#fffef5', border: '1px solid #fbbf24', borderRadius: 8, padding: 16 }}>
+              <div style={{ fontWeight: 'bold', color: ORANGE, fontSize: 13, marginBottom: 4, borderBottom: '1px solid #fde68a', paddingBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                Pass-Through Costs
+                <span style={{ fontSize: 10, background: '#fffbeb', color: '#92400e', border: '1px solid #fbbf24', padding: '1px 6px', borderRadius: 10 }}>NOT IN MARGIN</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#92400e', marginBottom: 10 }}>Costs paid by PB on behalf of customer — billed back for reimbursement</div>
+              <BreakdownRow label="Paid by PB" value={fmt(totalPtPaid)} color={RED} />
+              <BreakdownRow label="Reimbursed by Customer" value={fmt(totalPtReceived)} color={GREEN} />
+              <div style={{ borderTop: '1px solid #fde68a', marginTop: 8, paddingTop: 8 }}>
+                <BreakdownRow label="Net Balance (owed to PB)" value={fmt(ptBalance)} color={ptBalance > 0 ? RED : GREEN} bold />
+              </div>
+            </div>
+
+            {/* Change Orders Section */}
+            {changeOrders.length > 0 && (
+              <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 8, padding: 16 }}>
+                <div style={{ fontWeight: 'bold', color: PURPLE, fontSize: 13, marginBottom: 8, borderBottom: '1px solid #e9d5ff', paddingBottom: 8 }}>
+                  Change Orders ({changeOrders.length})
+                </div>
+                <BreakdownRow label="Total CO Value" value={fmt(totalCOValue)} color={PURPLE} />
+                <BreakdownRow label="Paid CO Value" value={fmt(totalCOPaid)} color={PURPLE} />
+                <BreakdownRow label="Outstanding" value={fmt(totalCOValue - totalCOPaid)} color={totalCOValue - totalCOPaid > 0 ? RED : GREEN} bold />
+              </div>
+            )}
+
+            {/* Summary Row */}
+            <div style={{ gridColumn: 'span 2', background: '#f5f5f5', borderRadius: 8, padding: 12, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+              <SummaryItem label="All Received" value={fmt(summary.total_received)} color={GREEN} />
+              <SummaryItem label="All Paid Out" value={fmt(summary.total_paid_out)} color={RED} />
+              <SummaryItem label="Net Balance" value={fmt(summary.balance)} color={summary.balance >= 0 ? BLUE : RED} />
+              <SummaryItem label="Gross Margin" value={fmt(grossMargin)} color={grossMargin >= 0 ? GREEN : RED} />
+              {totalCOValue > 0 && <SummaryItem label="Change Order Total" value={fmt(totalCOValue)} color={PURPLE} />}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) {
+  const statusColor = { draft: '#888', sent: '#3B82F6', paid: '#2E7D32', void: '#C62828' };
+  const [emailing, setEmailing] = useState(null);
+
+  const emailInvoice = async (inv) => {
+    if (!job?.customer_email) return showToast('No customer email on file', 'error');
+    setEmailing(inv.id);
+    const res = await fetch(`/api/invoices/${inv.id}/email`, {
+      method: 'POST',
+      headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }
+    });
+    const d = await res.json();
+    if (res.ok) { showToast(`Invoice emailed to ${job.customer_email}`); onMark(inv, 'sent'); }
+    else showToast(d.error || 'Failed to email invoice', 'error');
+    setEmailing(null);
+  };
+
+  return (
+    <div>
+      {label && <div style={{ fontSize: 12, fontWeight: 'bold', color, marginBottom: 6 }}>{label}</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {invoices.map(inv => (
+          <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'white', border: `1px solid ${color}22`, borderRadius: 7, padding: '10px 14px', flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 'bold', color, minWidth: 160 }}>{inv.invoice_number}</div>
+            <div style={{ flex: 1, fontSize: 13, fontWeight: 'bold', minWidth: 80 }}>${Number(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+            <div>
+              <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: (statusColor[inv.status] || '#888') + '22', color: statusColor[inv.status] || '#888', fontWeight: 'bold' }}>
+                {inv.status?.toUpperCase()}
+              </span>
+            </div>
+            {inv.notes && <div style={{ fontSize: 11, color: '#888', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inv.notes}</div>}
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <a href={`/api/invoices/${inv.id}/pdf?token=${encodeURIComponent(token || '')}`} target="_blank" rel="noreferrer" style={{ fontSize: 10, padding: '3px 8px', background: '#1B3A6B11', color: '#1B3A6B', border: '1px solid #1B3A6B22', borderRadius: 4, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>View PDF</a>
+              {job?.customer_email && inv.status !== 'void' && (
+                <button onClick={() => emailInvoice(inv)} disabled={emailing === inv.id} style={{ fontSize: 10, padding: '3px 8px', background: '#f0fdf411', color: '#0D9488', border: '1px solid #0D948822', borderRadius: 4, cursor: 'pointer' }}>
+                  {emailing === inv.id ? 'Sending...' : 'Email'}
+                </button>
+              )}
+              {inv.status === 'draft' && <button onClick={() => onMark(inv, 'sent')} style={{ fontSize: 10, padding: '3px 8px', background: '#3B82F611', color: '#3B82F6', border: '1px solid #3B82F622', borderRadius: 4, cursor: 'pointer' }}>Mark Sent</button>}
+              {inv.status !== 'paid' && inv.status !== 'void' && <button onClick={() => onMark(inv, 'paid')} style={{ fontSize: 10, padding: '3px 8px', background: '#2E7D3211', color: '#2E7D32', border: '1px solid #2E7D3222', borderRadius: 4, cursor: 'pointer' }}>Mark Paid</button>}
+              <button onClick={() => onDelete(inv)} style={{ fontSize: 10, padding: '3px 8px', background: '#ff000011', color: '#C62828', border: '1px solid #ff000022', borderRadius: 4, cursor: 'pointer' }}>Delete</button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -319,13 +588,31 @@ function SummaryCard({ label, value, color }) {
   );
 }
 
+function SummaryItem({ label, value, color }) {
+  return (
+    <div>
+      <div style={{ fontSize: 10, color: '#888' }}>{label}</div>
+      <div style={{ fontSize: 16, fontWeight: 'bold', color }}>{value}</div>
+    </div>
+  );
+}
+
+function BreakdownRow({ label, value, color, bold }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13 }}>
+      <span style={{ color: '#555', fontWeight: bold ? 'bold' : 'normal' }}>{label}</span>
+      <span style={{ fontWeight: bold ? 'bold' : '500', color: color || '#333' }}>{value}</span>
+    </div>
+  );
+}
+
 const TYPE_COLORS = { deposit: '#3B82F6', progress: ORANGE, final: GREEN, other: '#888' };
 function TypeBadge({ type }) {
   const color = TYPE_COLORS[type] || '#888';
   return <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: color + '22', color, fontWeight: 'bold' }}>{type?.charAt(0).toUpperCase() + type?.slice(1)}</span>;
 }
 
-const CAT_COLORS = { subcontractor: '#7C3AED', material: ORANGE, permit: '#0D9488', other: '#888' };
+const CAT_COLORS = { subcontractor: PURPLE, material: ORANGE, permit: TEAL, other: '#888', engineer: '#0891b2', architect: '#6366f1', designer: '#ec4899' };
 function CategoryBadge({ cat }) {
   const color = CAT_COLORS[cat] || '#888';
   return <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: color + '22', color, fontWeight: 'bold' }}>{cat?.charAt(0).toUpperCase() + cat?.slice(1)}</span>;

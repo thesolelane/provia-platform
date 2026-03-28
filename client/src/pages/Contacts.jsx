@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
+import ActivityLog from '../components/ActivityLog';
 
 const SOURCE_LABELS = {
   bulk_import: 'Invoice Import',
@@ -308,10 +309,14 @@ export default function Contacts({ token }) {
               <div>
                 {/* Contact info display */}
                 <div style={{ background: '#f8f9ff', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                  {selected?.customer_number && (
-                    <div style={{ display: 'flex', gap: 12, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #e0e8ff' }}>
-                      <span style={{ fontSize: 11, color: '#888', width: 70, flexShrink: 0 }}>Client ID</span>
-                      <span style={{ fontSize: 13, fontWeight: '700', fontFamily: 'monospace', color: '#1B3A6B', letterSpacing: 1 }}>{selected.customer_number}</span>
+                  {(selected?.customer_number || selected?.pb_customer_number) && (
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 12, paddingBottom: 10, borderBottom: '1px solid #e0e8ff', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {selected?.pb_customer_number && (
+                        <span style={{ fontFamily: 'monospace', fontWeight: '800', fontSize: 14, color: '#1B3A6B', background: '#e0e8ff', padding: '3px 10px', borderRadius: 8, letterSpacing: 1 }}>{selected.pb_customer_number}</span>
+                      )}
+                      {selected?.customer_number && (
+                        <span style={{ fontFamily: 'monospace', fontSize: 11, color: '#888', background: '#f0f0f0', padding: '2px 8px', borderRadius: 6 }}>{selected.customer_number}</span>
+                      )}
                     </div>
                   )}
                   {[
@@ -468,6 +473,10 @@ export default function Contacts({ token }) {
                     </div>
                   )}
                 </div>
+
+                {selected?.pb_customer_number && (
+                  <ActivityLog customerNumber={selected.pb_customer_number} token={token} collapsed={false} />
+                )}
               </div>
             )}
           </div>

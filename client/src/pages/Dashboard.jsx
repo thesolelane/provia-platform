@@ -215,18 +215,24 @@ export default function Dashboard({ token }) {
           <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Preferred Builders AI Contract System</p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setShowWizard(true)}
-            style={{ background: '#1B3A6B', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
-          >
-            + Create Quote
-          </button>
-          <button
-            onClick={openNewJob}
-            style={{ background: 'white', color: '#1B3A6B', border: '1.5px solid #1B3A6B', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-          >
-            New Job
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <button
+              onClick={() => setShowWizard(true)}
+              style={{ background: '#1B3A6B', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              + Create Quote
+            </button>
+            <div style={{ fontSize: 10, color: '#888', marginTop: 3, textAlign: 'center' }}>AI Estimation Wizard</div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <button
+              onClick={openNewJob}
+              style={{ background: 'white', color: '#1B3A6B', border: '1.5px solid #1B3A6B', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+            >
+              New Job
+            </button>
+            <div style={{ fontSize: 10, color: '#888', marginTop: 3, textAlign: 'center' }}>Manual Entry</div>
+          </div>
         </div>
       </div>
 

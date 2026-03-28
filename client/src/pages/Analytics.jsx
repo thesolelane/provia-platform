@@ -4,6 +4,110 @@ const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
 const GREEN = '#2E7D32';
 const RED = '#C62828';
+const TEAL = '#0D9488';
+
+const EVENT_CONFIG = {
+  ESTIMATE_CREATED:         { label: 'Estimate Created',        color: '#3B82F6' },
+  ESTIMATE_APPROVED:        { label: 'Estimate Approved',       color: '#059669' },
+  CONTRACT_GENERATED:       { label: 'Contract Generated',      color: BLUE      },
+  CONTRACT_SIGNED:          { label: 'Contract Signed',         color: GREEN     },
+  INVOICE_ISSUED:           { label: 'Invoice Issued',          color: TEAL      },
+  PAYMENT_RECEIVED:         { label: 'Payment Received',        color: GREEN     },
+  PAYMENT_MADE:             { label: 'Payment Made',            color: RED       },
+  PASS_THROUGH_PAID:        { label: 'Pass-Through Paid',       color: ORANGE    },
+  PASS_THROUGH_REIMBURSED:  { label: 'Pass-Through Reimbursed', color: TEAL     },
+  CHANGE_ORDER_CREATED:     { label: 'Change Order',            color: '#7C3AED' },
+  JOB_COMPLETED:            { label: 'Job Completed',           color: GREEN     },
+  NOTE:                     { label: 'Note',                    color: '#888'    },
+};
+
+function fmtTs(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' ' +
+    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+function ActivityFeed({ token }) {
+  const [entries, setEntries]     = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [filterType, setFilter]   = useState('');
+  const [filterCustomer, setFilterCustomer] = useState('');
+  const [filterStaff, setFilterStaff]       = useState('');
+  const [filterFrom, setFilterFrom]         = useState('');
+  const [filterTo, setFilterTo]             = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams({ limit: 50 });
+    if (filterType)     params.set('event_type', filterType);
+    if (filterCustomer) params.set('customer_number', filterCustomer);
+    if (filterStaff)    params.set('recorded_by', filterStaff);
+    if (filterFrom)     params.set('date_from', filterFrom);
+    if (filterTo)       params.set('date_to', filterTo);
+    fetch(`/api/activity-log?${params}`, { headers: { 'x-auth-token': token } })
+      .then(r => r.json())
+      .then(d => { setEntries(d.entries || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [filterType, filterCustomer, filterStaff, filterFrom, filterTo, token]);
+
+  const inputSm = { fontSize: 11, padding: '4px 8px', border: '1px solid #ddd', borderRadius: 6, color: '#555' };
+
+  return (
+    <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', marginTop: 24 }}>
+      <div style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 'bold', color: BLUE, margin: '0 0 12px 0' }}>Company Activity Feed</h3>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <select value={filterType} onChange={e => setFilter(e.target.value)} style={inputSm}>
+            <option value="">All Events</option>
+            {Object.entries(EVENT_CONFIG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </select>
+          <input value={filterCustomer} onChange={e => setFilterCustomer(e.target.value)} placeholder="Customer # (PB-C-XXXX)" style={{ ...inputSm, width: 150 }} />
+          <input value={filterStaff} onChange={e => setFilterStaff(e.target.value)} placeholder="Staff name" style={{ ...inputSm, width: 120 }} />
+          <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} style={inputSm} title="From date" />
+          <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} style={inputSm} title="To date" />
+          {(filterType || filterCustomer || filterStaff || filterFrom || filterTo) && (
+            <button onClick={() => { setFilter(''); setFilterCustomer(''); setFilterStaff(''); setFilterFrom(''); setFilterTo(''); }}
+              style={{ fontSize: 11, padding: '4px 8px', background: '#fee2e2', color: RED, border: '1px solid #fecaca', borderRadius: 6, cursor: 'pointer' }}>
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+      {loading ? (
+        <div style={{ color: '#888', fontSize: 13 }}>Loading activity...</div>
+      ) : entries.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '32px 16px', color: '#aaa' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+          <div style={{ fontSize: 13 }}>No activity logged yet. Activity is recorded automatically as you use the system.</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflow: 'auto' }}>
+          {entries.map(e => {
+            const cfg = EVENT_CONFIG[e.event_type] || EVENT_CONFIG.NOTE;
+            return (
+              <div key={e.id} style={{ display: 'flex', gap: 12, padding: '8px 12px', background: cfg.color + '0d', borderRadius: 7, border: `1px solid ${cfg.color}22` }}>
+                <div style={{ flexShrink: 0, paddingTop: 2 }}>
+                  <span style={{ fontSize: 10, fontWeight: 'bold', color: cfg.color, border: `1px solid ${cfg.color}44`, padding: '2px 6px', borderRadius: 8, display: 'inline-block', whiteSpace: 'nowrap' }}>
+                    {cfg.label}
+                  </span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: '#333' }}>{e.description}</div>
+                  {e.customer_number && <div style={{ fontSize: 10, color: '#aaa', marginTop: 2, fontFamily: 'monospace' }}>{e.customer_number}</div>}
+                </div>
+                <div style={{ flexShrink: 0, textAlign: 'right' }}>
+                  <div style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>{fmtTs(e.created_at)}</div>
+                  {e.recorded_by && e.recorded_by !== 'system' && <div style={{ fontSize: 10, color: '#aaa' }}>{e.recorded_by}</div>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const LOSS_COLORS = {
   lost_price: '#E53935',
@@ -170,6 +274,8 @@ export default function Analytics({ token }) {
           </div>
         )}
       </div>
+
+      <ActivityFeed token={token} />
     </div>
   );
 }

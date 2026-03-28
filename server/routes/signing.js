@@ -5,6 +5,7 @@ const path     = require('path');
 const { getDb }      = require('../db/database');
 const { requireAuth } = require('../middleware/auth');
 const { logAudit }   = require('../services/auditService');
+const { logActivity } = require('./activityLog');
 const { sendEmail }  = require('../services/emailService');
 const { notifyClients } = require('../services/sseManager');
 
@@ -337,6 +338,10 @@ router.post('/api/signing/signed/:token', async (req, res) => {
       jobId: session.job_id, status: 'proposal_approved',
       message: `✅ Proposal signed by ${signer_name}`
     });
+    {
+      const contact = job?.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
+      logActivity({ customer_number: contact?.pb_customer_number || null, job_id: session.job_id, event_type: 'ESTIMATE_APPROVED', description: `Proposal approved & signed by ${signer_name}`, recorded_by: 'customer' });
+    }
 
     // Notify owners that proposal was signed
     setImmediate(async () => {
@@ -372,6 +377,10 @@ router.post('/api/signing/signed/:token', async (req, res) => {
         db.prepare("UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = 'contract_ready', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
           .run(JSON.stringify(contractData), contractPDF, session.job_id);
         logAudit(session.job_id, 'contract_auto_generated', 'Contract auto-generated after proposal approval', 'system');
+        try {
+          const contactRow = db.prepare('SELECT pb_customer_number FROM contacts WHERE id = (SELECT contact_id FROM jobs WHERE id = ?)').get(session.job_id);
+          logActivity({ customer_number: contactRow?.pb_customer_number || null, job_id: session.job_id, event_type: 'CONTRACT_GENERATED', description: 'Contract auto-generated and ready to send', recorded_by: 'system' });
+        } catch (_) {}
         notifyClients('job_updated', { jobId: session.job_id, status: 'contract_ready', message: '📋 Contract auto-generated and ready to send' });
       } catch (e) {
         console.error('[AutoContract]', e.message);
@@ -386,6 +395,152 @@ router.post('/api/signing/signed/:token', async (req, res) => {
     notifyClients('job_updated', {
       jobId: session.job_id, status: 'contract_signed',
       message: `🎉 Contract signed by ${signer_name}`
+    });
+    {
+      const contact = job?.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
+      logActivity({ customer_number: contact?.pb_customer_number || null, job_id: session.job_id, event_type: 'CONTRACT_SIGNED', description: `Contract signed by ${signer_name}`, recorded_by: 'customer' });
+    }
+    // Auto-create deposit invoice on contract sign and email to customer
+    setImmediate(async () => {
+      try {
+        const { nextInvoiceNumber } = require('./invoices');
+        const { generatePDFFromHTML } = require('../services/pdfService');
+
+        // Parse proposal_data for line items and pass-through fees
+        let proposalData = null;
+        try { proposalData = job?.proposal_data ? JSON.parse(job.proposal_data) : null; } catch {}
+
+        // Deposit = contract value EXCLUDING pass-through fees (permits/engineers/architects)
+        const parsePT = (str) => {
+          if (!str) return 0;
+          const n = parseFloat(String(str).replace(/[^0-9.]/g, ''));
+          return isNaN(n) ? 0 : n;
+        };
+        const ptPermit   = parsePT(proposalData?.job?.permit_fee);
+        const ptEngineer = parsePT(proposalData?.job?.engineer_fee);
+        const ptArchitect= parsePT(proposalData?.job?.architect_fee);
+        const totalPT    = ptPermit + ptEngineer + ptArchitect;
+        const contractValue = job?.total_value || proposalData?.pricing?.totalContractPrice || 0;
+        // ALWAYS exclude pass-through costs from the deposit basis — requirement is explicit
+        const contractValueExclPT = Math.max(0, contractValue - totalPT);
+        const depositPct = proposalData?.pricing?.depositPercent || 33;
+        // Never trust job.deposit_amount as it may include pass-throughs from legacy calc
+        const depositAmt = Math.round(contractValueExclPT * (depositPct / 100) * 100) / 100;
+
+        if (depositAmt > 0) {
+          const invNum = nextInvoiceNumber(db, session.job_id, 'contract_invoice', job?.quote_number);
+          // Create as DRAFT initially
+          const invResult = db.prepare(`
+            INSERT INTO invoices (job_id, invoice_number, invoice_type, status, amount, notes)
+            VALUES (?, ?, 'contract_invoice', 'draft', ?, 'Deposit invoice — auto-created on contract signing')
+          `).run(session.job_id, invNum, depositAmt);
+          const invId = invResult.lastInsertRowid;
+          const contact2 = job?.contact_id ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(job.contact_id) : null;
+          logActivity({ customer_number: contact2?.pb_customer_number || null, job_id: session.job_id, event_type: 'INVOICE_ISSUED', description: `Deposit invoice ${invNum} created — $${depositAmt.toLocaleString()}`, document_ref: invNum, recorded_by: 'system' });
+
+          // Build line-item rows HTML from proposal_data
+          const lineItems = proposalData?.lineItems || [];
+          const lineItemRowsHTML = lineItems.length > 0 ? `
+<div style="margin-bottom:20px">
+  <h3 style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px">Scope Summary (Contract Work)</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px">
+    <tr style="background:#f0f4ff"><th style="text-align:left;padding:6px 8px;font-size:10px;color:#888;font-weight:600">Trade / Scope</th><th style="text-align:right;padding:6px 8px;font-size:10px;color:#888;font-weight:600">Price</th></tr>
+    ${lineItems.filter(li => !['permit','engineer','architect','designer'].includes((li.trade||'').toLowerCase())).map(li => `
+    <tr style="border-bottom:1px solid #f0f0f0">
+      <td style="padding:6px 8px;color:#333">${li.trade || '—'}${li.description ? `<div style="font-size:10px;color:#888;margin-top:2px">${li.description}</div>` : ''}</td>
+      <td style="padding:6px 8px;text-align:right;font-weight:600">$${Number(li.finalPrice||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
+    </tr>`).join('')}
+  </table>
+</div>` : '';
+
+          const fmtAmt   = `$${Number(depositAmt).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+          const fmtTotal = contractValue ? `$${Number(contractValue).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—';
+          const fmtPT    = totalPT > 0 ? `$${Number(totalPT).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : null;
+          const fmtContractExclPT = totalPT > 0 ? `$${Number(contractValueExclPT).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : null;
+
+          const invoiceHTML = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  body{font-family:Arial,sans-serif;margin:0;padding:40px;color:#222}
+  .hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
+  h1{color:#1B3A6B;margin:0;font-size:20px} .sub{color:#888;font-size:12px;margin:3px 0}
+  hr{border:none;border-top:2px solid #E07B2A;margin:16px 0}
+  .lbl{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+  .val{font-size:14px;font-weight:600;margin-bottom:14px}
+  .box{background:#f8f9ff;border:2px solid #1B3A6B;border-radius:8px;padding:20px;text-align:center;margin:24px 0}
+  .amt{font-size:36px;font-weight:bold;color:#1B3A6B}
+  .ftr{margin-top:48px;padding-top:14px;border-top:1px solid #eee;font-size:10px;color:#aaa;text-align:center}
+  .cn{font-family:monospace;font-size:11px;background:#e0e8ff;color:#1B3A6B;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;font-weight:bold}
+</style></head><body>
+<div class="hdr">
+  <div><h1>PREFERRED BUILDERS</h1><p class="sub">General Services Inc.</p><p class="sub">978-377-1784 · Fitchburg, MA · License #CS-109171</p></div>
+  <div style="text-align:right">
+    <div style="font-size:18px;font-weight:bold;color:#1B3A6B">${invNum}</div>
+    <div class="sub">Deposit Invoice</div>
+    <div class="sub">Status: SENT</div>
+    <div class="sub">Issued: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+  </div>
+</div>
+<hr>
+<div class="lbl">Billed To</div>
+<div class="val">
+  ${contact2?.pb_customer_number ? `<span class="cn">${contact2.pb_customer_number}</span><br>` : ''}
+  ${contact2?.name || job.customer_name || '—'}<br>
+  ${job.customer_email || ''}${(job.customer_email && job.customer_phone) ? '<br>' : ''}
+  ${job.customer_phone || ''}
+</div>
+<div class="lbl">Project</div>
+<div class="val">${job.project_address || '—'}${job.project_city ? ', ' + job.project_city + ', MA' : ''}</div>
+${lineItemRowsHTML}
+<div class="lbl">Contract Value</div>
+<div class="val">${fmtTotal}${fmtPT ? ` <span style="font-size:12px;color:#888;font-weight:normal">(incl. ${fmtPT} pass-through costs billed separately)</span>` : ''}</div>
+${fmtContractExclPT ? `<div class="lbl">Deposit Basis (contract value excl. pass-throughs)</div><div class="val">${fmtContractExclPT}</div>` : ''}
+<div class="box">
+  <div class="sub">Deposit Amount Due (${depositPct}% of contract value)</div>
+  <div class="amt">${fmtAmt}</div>
+</div>
+<p style="font-size:13px;color:#555">Please make checks payable to <strong>Preferred Builders General Services Inc.</strong><br>Your project will be officially scheduled once your deposit is received.</p>
+<div class="ftr">Preferred Builders General Services Inc. · License #CS-109171 · HIC-197400 · 978-377-1784</div>
+</body></html>`;
+
+          // Generate PDF, email it, then mark sent on success
+          if (job?.customer_email) {
+            try {
+              const pdfPath = await generatePDFFromHTML(invoiceHTML, `invoice_${invNum.replace(/[^a-zA-Z0-9-]/g, '_')}`);
+              await sendEmail({
+                to: job.customer_email,
+                subject: `Deposit Invoice ${invNum} — Preferred Builders General Services Inc.`,
+                attachmentPath: pdfPath,
+                attachmentName: `${invNum}.pdf`,
+                html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto">
+                  <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
+                    <div style="font-size:16px;font-weight:700">Deposit Invoice — Preferred Builders General Services Inc.</div>
+                    <div style="font-size:11px;opacity:.8;margin-top:4px">License #CS-109171 · 978-377-1784</div>
+                  </div>
+                  <div style="background:white;padding:24px;border:1px solid #eee;border-top:none">
+                    <p style="font-size:14px;color:#1B3A6B;font-weight:700">Hi ${job.customer_name || 'there'},</p>
+                    <p style="font-size:13px;color:#444;line-height:1.7">Thank you for signing your contract with Preferred Builders! Your deposit invoice is attached to this email.</p>
+                    <div style="background:#f0f4ff;border-radius:8px;padding:16px;margin:16px 0">
+                      <p style="margin:0 0 6px;font-size:12px;color:#555"><strong>Invoice:</strong> ${invNum}</p>
+                      <p style="margin:0 0 6px;font-size:12px;color:#555"><strong>Project:</strong> ${job.project_address || '—'}</p>
+                      <p style="margin:0 0 6px;font-size:12px;color:#555"><strong>Contract Value:</strong> ${fmtTotal}</p>
+                      <p style="margin:0;font-size:15px;font-weight:bold;color:#1B3A6B"><strong>Deposit Due: ${fmtAmt}</strong></p>
+                    </div>
+                    <p style="font-size:13px;color:#444;line-height:1.7">Please make checks payable to <strong>Preferred Builders General Services Inc.</strong> Your project will be scheduled once your deposit is received.</p>
+                    <p style="font-size:12px;color:#888">Questions? Call us at 978-377-1784 or reply to this email.</p>
+                  </div>
+                </div>`,
+                text: `Hi ${job.customer_name || 'there'},\n\nYour deposit invoice (${invNum}) is attached. Deposit due: ${fmtAmt}\nProject: ${job.project_address}\n\nPlease make checks payable to Preferred Builders General Services Inc.\n\n— Preferred Builders\n978-377-1784`,
+                emailType: 'deposit_invoice',
+                jobId: session.job_id,
+                db
+              });
+              console.log(`[AutoDepositInvoice] Invoice ${invNum} emailed to ${job.customer_email}`);
+              // Mark sent only after successful email delivery
+              db.prepare("UPDATE invoices SET status = 'sent' WHERE id = ?").run(invId);
+            } catch (emailErr) { console.warn('[AutoDepositInvoice] Email/PDF failed:', emailErr.message); }
+          }
+        }
+      } catch (e) { console.warn('[AutoDepositInvoice]', e.message); }
     });
 
     // Email signed confirmation to customer — attach merged proposal + signed contract PDF

@@ -5,6 +5,7 @@ import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 import PhotosTab from '../components/PhotosTab';
 import PaymentsTab from '../components/PaymentsTab';
+import ActivityLog from '../components/ActivityLog';
 
 const BLUE   = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -862,7 +863,10 @@ export default function JobDetail({ token }) {
 
         {/* PAYMENTS */}
         {activeTab === 'payments' && (
-          <PaymentsTab jobId={id} token={token} job={job} />
+          <div>
+            <PaymentsTab jobId={id} token={token} job={job} />
+            <ActivityLog jobId={id} customerNumber={job?.contact?.pb_customer_number || null} token={token} collapsed={true} />
+          </div>
         )}
 
         {/* PHOTOS */}
@@ -878,6 +882,7 @@ export default function JobDetail({ token }) {
               <tbody>
                 {[
                   ['Customer', job.customer_name],
+                  ['Customer #', job.contact?.pb_customer_number || job.pb_customer_number || null],
                   ['Email', job.customer_email],
                   ['Phone', job.customer_phone],
                   ['Project Address', job.project_address],
@@ -894,7 +899,7 @@ export default function JobDetail({ token }) {
                   ['Quote #', job.quote_number ? `${job.quote_number}${job.version ? `/${job.version}` : ''}` : '—'],
                   ['Total Value', job.total_value ? `$${job.total_value.toLocaleString()}` : '—'],
                   ['Deposit', job.deposit_amount ? `$${job.deposit_amount.toLocaleString()}` : '—'],
-                ].map(([label, value]) => (
+                ].filter(([, v]) => v != null).map(([label, value]) => (
                   <tr key={label} style={{ borderBottom: '1px solid #f0f0f0' }}>
                     <td style={{ padding: '10px 0', fontSize: 12, color: '#888', width: 160 }}>{label}</td>
                     <td style={{ padding: '10px 0', fontSize: 13, color: '#222' }}>{value || '—'}</td>

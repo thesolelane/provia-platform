@@ -7,6 +7,7 @@ const { generatePDF } = require('../services/pdfService');
 const { sendWhatsApp } = require('../services/whatsappService');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
+const { logActivity } = require('./activityLog');
 const { tickQuoteCounter } = require('../services/assessmentService');
 const { addClient, removeClient, notifyClients } = require('../services/sseManager');
 
@@ -148,18 +149,18 @@ function mergeContactIntoProposal(db, jobId, proposalData) {
     let contact = null;
     if (job.contact_id) {
       contact = db.prepare(
-        'SELECT name, email, phone, address, city, state FROM contacts WHERE id = ?'
+        'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE id = ?'
       ).get(job.contact_id);
     }
     // Fallback: older jobs may not have contact_id set — look up by email or phone
     if (!contact && job.customer_email) {
       contact = db.prepare(
-        'SELECT name, email, phone, address, city, state FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1'
+        'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1'
       ).get(job.customer_email);
     }
     if (!contact && job.customer_phone) {
       contact = db.prepare(
-        'SELECT name, email, phone, address, city, state FROM contacts WHERE phone = ? LIMIT 1'
+        'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE phone = ? LIMIT 1'
       ).get(job.customer_phone);
     }
 
@@ -173,6 +174,8 @@ function mergeContactIntoProposal(db, jobId, proposalData) {
     c.name  = clean(contact?.name)  || clean(job.customer_name)  || clean(c.name)  || '';
     c.email = clean(contact?.email) || clean(job.customer_email) || clean(c.email) || '';
     c.phone = clean(contact?.phone) || clean(job.customer_phone) || clean(c.phone) || '';
+    // Always include pb_customer_number for traceability in proposal/contract PDFs
+    if (contact?.pb_customer_number) c.pb_customer_number = contact.pb_customer_number;
 
     if (!proposalData.project) proposalData.project = {};
     proposalData.project.address = proposalData.project.address || contact?.address || job.project_address || '';
@@ -307,6 +310,16 @@ function extractExternalRef(text) {
 }
 
 
+function generatePbCustomerNumber(db) {
+  try {
+    const counter = db.prepare('SELECT next_seq FROM pb_customer_counter WHERE id = 1').get();
+    const seq = counter ? counter.next_seq : 1;
+    const pbn = 'PB-C-' + String(seq).padStart(4, '0');
+    db.prepare('UPDATE pb_customer_counter SET next_seq = ? WHERE id = 1').run(seq + 1);
+    return pbn;
+  } catch (_) { return null; }
+}
+
 function findOrCreateContact(db, { name, email, phone, address, city, state }) {
   let contact = email
     ? db.prepare('SELECT * FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1').get(email)
@@ -333,14 +346,19 @@ function findOrCreateContact(db, { name, email, phone, address, city, state }) {
       db.prepare('UPDATE contacts SET customer_number = ? WHERE id = ?').run(csn, contact.id);
       contact.customer_number = csn;
     }
-    return { id: contact.id, csn: contact.customer_number };
+    if (!contact.pb_customer_number) {
+      const pbn = generatePbCustomerNumber(db);
+      if (pbn) { db.prepare('UPDATE contacts SET pb_customer_number = ? WHERE id = ?').run(pbn, contact.id); contact.pb_customer_number = pbn; }
+    }
+    return { id: contact.id, csn: contact.customer_number, pb_customer_number: contact.pb_customer_number };
   } else {
     const csn = generateCustomerSerial(db);
+    const pbn = generatePbCustomerNumber(db);
     const result = db.prepare(`
-      INSERT INTO contacts (name, email, phone, address, city, state, customer_number, source)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'estimate')`)
-      .run(name||'', email||'', phone||'', address||'', city||'', state||'MA', csn);
-    return { id: result.lastInsertRowid, csn };
+      INSERT INTO contacts (name, email, phone, address, city, state, customer_number, pb_customer_number, source)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'estimate')`)
+      .run(name||'', email||'', phone||'', address||'', city||'', state||'MA', csn, pbn);
+    return { id: result.lastInsertRowid, csn, pb_customer_number: pbn };
   }
 }
 
@@ -407,6 +425,12 @@ router.get('/:id', requireAuth, (req, res) => {
       `SELECT id, version, status, total_value, created_at, estimate_source, proposal_pdf_path
        FROM jobs WHERE quote_number = ? ORDER BY version ASC`
     ).all(job.quote_number);
+  }
+
+  // Attach contact data (including pb_customer_number) if linked
+  if (job.contact_id) {
+    const contact = db.prepare('SELECT id, name, email, phone, customer_number, pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id);
+    if (contact) job.contact = contact;
   }
 
   res.json({ job, conversations, clarifications, auditLog, versionHistory });
@@ -564,6 +588,10 @@ router.post('/:id/approve', requireAuth, requireRole('admin', 'pm', 'system_admi
       .run(JSON.stringify(contractData), contractPDF, 'contract_ready', job.id);
 
     logAudit(job.id, 'contract_generated', 'Contract approved via admin panel', 'admin');
+    try {
+      const contactRef2 = job.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
+      logActivity({ customer_number: contactRef2?.pb_customer_number || null, job_id: job.id, event_type: 'CONTRACT_GENERATED', description: `Contract generated for ${job.project_address || 'project'}`, recorded_by: req.session?.name || 'admin' });
+    } catch (_) {}
     res.json({ success: true, message: 'Contract generated', contractPDF: `/outputs/${require('path').basename(contractPDF)}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -805,6 +833,16 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
   } catch (e) { console.warn('[Upload] PB/Quote number generation failed:', e.message); }
 
+  try {
+    logActivity({
+      customer_number: contactRef?.pb_customer_number || null,
+      job_id: jobId,
+      event_type: 'ESTIMATE_CREATED',
+      description: `Estimate created via file upload for ${projectAddress || customerName}`,
+      recorded_by: req.session?.name || 'web:upload'
+    });
+  } catch (e) { console.warn('[Upload] logActivity failed:', e.message); }
+
   res.json({ jobId, status: 'received', message: 'File uploaded. Processing estimate...' });
 
   const { processEstimate } = require('../services/claudeService');
@@ -881,6 +919,16 @@ router.post('/wizard', requireAuth, async (req, res) => {
     const qNum  = generateQuoteNumber(db);
     db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
   } catch (e) { console.warn('[Wizard] PB/Quote number generation failed:', e.message); }
+
+  try {
+    logActivity({
+      customer_number: contactRef?.pb_customer_number || null,
+      job_id: jobId,
+      event_type: 'ESTIMATE_CREATED',
+      description: `Estimate created via wizard for ${projectAddress || contactName}`,
+      recorded_by: req.session?.name || 'web:wizard'
+    });
+  } catch (e) { console.warn('[Wizard] logActivity failed:', e.message); }
 
   notifyClients('job_updated', { jobId, status: 'processing' });
   res.json({ jobId, status: 'processing', message: 'Job created. Processing estimate...' });
@@ -964,6 +1012,16 @@ router.post('/manual', requireAuth, async (req, res) => {
   } catch (e) { console.warn('[Manual] PB/Quote number generation failed:', e.message); }
 
   res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
+
+  try {
+    logActivity({
+      customer_number: contactRef?.pb_customer_number || null,
+      job_id: jobId,
+      event_type: 'ESTIMATE_CREATED',
+      description: `New estimate created for ${customerName || 'unknown customer'} at ${projectAddress || 'unknown address'}`,
+      recorded_by: req.session?.name || 'staff'
+    });
+  } catch (_) {}
 
   const { processEstimate } = require('../services/claudeService');
   (async () => {
@@ -1074,8 +1132,15 @@ router.patch('/:id/notes', requireAuth, (req, res) => {
     if (!req.session || !allowed.includes(req.session.role)) {
       return res.status(403).json({ error: 'Insufficient permissions to change job status' });
     }
+    const prevJob = db.prepare('SELECT status, contact_id, project_address FROM jobs WHERE id = ?').get(req.params.id);
     db.prepare('UPDATE jobs SET notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(notes, status, req.params.id);
     logAudit(req.params.id, `status_changed_to_${status}`, `Status set to ${status} by admin`, 'admin');
+    if (status === 'complete' && prevJob?.status !== 'complete') {
+      try {
+        const contactRef3 = prevJob?.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(prevJob.contact_id) : null;
+        logActivity({ customer_number: contactRef3?.pb_customer_number || null, job_id: req.params.id, event_type: 'JOB_COMPLETED', description: `Job marked complete for ${prevJob?.project_address || 'project'}`, recorded_by: req.session?.name || 'admin' });
+      } catch (_) {}
+    }
   } else {
     db.prepare('UPDATE jobs SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(notes, req.params.id);
   }
@@ -1337,6 +1402,16 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
       }
     } catch (e) { console.warn('[Wizard] Plan file move failed:', e.message); }
   }
+
+  try {
+    logActivity({
+      customer_number: contactRef?.pb_customer_number || null,
+      job_id: jobId,
+      event_type: 'ESTIMATE_CREATED',
+      description: `Estimate created via wizard/submit for ${projectAddress || customerName}`,
+      recorded_by: req.session?.name || 'web:wizard'
+    });
+  } catch (e) { console.warn('[WizardSubmit] logActivity failed:', e.message); }
 
   res.json({ jobId, status: 'received', message: 'Wizard submission received. Processing estimate...' });
 
