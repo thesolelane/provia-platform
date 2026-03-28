@@ -1088,11 +1088,16 @@ export default function Settings({ token, userRole }) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="pb-tabs" style={{ marginBottom: 24, borderBottom: '2px solid #eee' }}>
+      {/* Tabs — horizontally scrollable on mobile */}
+      <div className="pb-tabs" style={{
+        marginBottom: 24, borderBottom: '2px solid #eee',
+        display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch',
+        scrollbarWidth: 'none', msOverflowStyle: 'none',
+      }}>
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             style={{ padding: '10px 16px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13,
+              whiteSpace: 'nowrap', flexShrink: 0,
               fontWeight: activeTab === tab ? 'bold' : 'normal',
               color: activeTab === tab ? BLUE : '#888',
               borderBottom: activeTab === tab ? `2px solid ${BLUE}` : '2px solid transparent',

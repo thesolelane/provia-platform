@@ -312,7 +312,7 @@ export default function Dashboard({ token }) {
       {/* Archived jobs modal */}
       {showArchived && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 600, maxHeight: '80vh', overflow: 'auto' }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: 24, width: 600, maxWidth: '95vw', maxHeight: '85vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ color: '#1B3A6B', margin: 0 }}>Archived Jobs</h2>
               <button onClick={() => setShowArchived(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>×</button>
@@ -365,7 +365,7 @@ export default function Dashboard({ token }) {
       {/* Archive Outcome Modal */}
       {archiveModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 28, width: 440, maxHeight: '80vh', overflow: 'auto' }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: 24, width: 440, maxWidth: '95vw', maxHeight: '85vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <h3 style={{ color: '#1B3A6B', margin: 0, fontSize: 18 }}>Archive Job</h3>
               <button onClick={() => setArchiveModal(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>×</button>
@@ -450,7 +450,7 @@ export default function Dashboard({ token }) {
       {/* New Job modal (quick paste/upload fallback) */}
       {showManual && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 580, maxHeight: '92vh', overflow: 'auto' }}>
+          <div style={{ background: 'white', borderRadius: 12, padding: 24, width: 580, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <h2 style={{ color: '#1B3A6B', margin: 0, fontSize: 20 }}>New Job</h2>
               <button onClick={() => setShowManual(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888' }}>×</button>
