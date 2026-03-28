@@ -10,15 +10,17 @@ function getOwnerEmails() {
 
 function getTransporter() {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) return null;
+  // .trim() guards against Windows CRLF line endings adding \r to env values
+  const smtpHost = (process.env.SMTP_HOST || 'smtp.contactpreferred.com').trim();
+  const smtpPort = parseInt((process.env.SMTP_PORT || '587').trim(), 10);
+  const smtpUser = process.env.SMTP_USER.trim();
+  const smtpPass = process.env.SMTP_PASS.trim();
   return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.contactpreferred.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
+    host: smtpHost,
+    port: smtpPort,
     secure: false,
     tls: { rejectUnauthorized: false },
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
-    }
+    auth: { user: smtpUser, pass: smtpPass }
   });
 }
 

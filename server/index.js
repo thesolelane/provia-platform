@@ -4,6 +4,15 @@
 // ============================================================
 
 require('dotenv').config();
+
+// Strip Windows CRLF \r characters from all env var values — Notepad saves
+// .env files with CRLF line endings which add invisible \r to every value.
+for (const key of Object.keys(process.env)) {
+  if (typeof process.env[key] === 'string') {
+    process.env[key] = process.env[key].replace(/\r/g, '').trim();
+  }
+}
+
 require('./services/errorLogger'); // must load early to capture all errors
 const express = require('express');
 const cors = require('cors');
