@@ -186,6 +186,46 @@ router.post('/email-test', requireAuth, async (req, res) => {
   }
 });
 
+// GET /api/status/schedule — get current report schedule settings
+router.get('/schedule', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const intervalHours = parseInt(db.prepare("SELECT value FROM settings WHERE key = 'status.reportIntervalHours'").get()?.value || '24', 10);
+    const hourOfDay     = parseInt(db.prepare("SELECT value FROM settings WHERE key = 'status.reportHourOfDay'").get()?.value  || '-1', 10);
+    res.json({ intervalHours, hourOfDay });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/status/schedule — update report schedule and reschedule immediately
+router.post('/schedule', requireAuth, (req, res) => {
+  if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const { intervalHours, hourOfDay } = req.body;
+    const db = getDb();
+    if (intervalHours !== undefined) {
+      const val = Math.min(Math.max(1, parseInt(intervalHours, 10)), 168);
+      db.prepare("UPDATE settings SET value = ? WHERE key = 'status.reportIntervalHours'").run(String(val));
+    }
+    if (hourOfDay !== undefined) {
+      const val = parseInt(hourOfDay, 10);
+      db.prepare("UPDATE settings SET value = ? WHERE key = 'status.reportHourOfDay'").run(String(val));
+    }
+    const { rescheduleStatusReports } = require('../services/statusScheduler');
+    rescheduleStatusReports();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/status/send-now — trigger an immediate report
+router.post('/send-now', requireAuth, async (req, res) => {
+  if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const { sendStatusReport } = require('../services/statusScheduler');
+    res.json({ ok: true, message: 'Report sending in background' });
+    sendStatusReport();
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/status/signing-receipts — full read/sign receipt log
 router.get('/signing-receipts', requireAuth, async (req, res) => {
   if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });

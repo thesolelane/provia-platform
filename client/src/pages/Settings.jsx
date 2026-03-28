@@ -29,12 +29,20 @@ export default function Settings({ token, userRole }) {
   const [emailPreview, setEmailPreview] = useState(null);
   const [signingReceipts, setSigningReceipts] = useState(null);
   const [signingLoading, setSigningLoading]   = useState(false);
+  const [reportSchedule, setReportSchedule]   = useState(null);
+  const [scheduleSaving, setScheduleSaving]   = useState(false);
+  const [scheduleSaved,  setScheduleSaved]    = useState(false);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   // Auto-load email log when the tab is opened for the first time
   useEffect(() => {
     if (activeTab === 'Email Log' && !emailLog && !emailLogLoading) {
       loadEmailLog();
+    }
+    if (activeTab === 'Status' && !reportSchedule) {
+      fetch('/api/status/schedule', { headers: { 'x-auth-token': token } })
+        .then(r => r.json()).then(data => { if (!data.error) setReportSchedule(data); })
+        .catch(() => {});
     }
   }, [activeTab]);
 
@@ -799,6 +807,63 @@ export default function Settings({ token, userRole }) {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+
+        {/* ── Report Schedule ── */}
+        <div style={{ marginTop: 28, background: '#F3F6FC', borderRadius: 10, padding: '18px 20px', border: '1px solid #dce3f3' }}>
+          <div style={{ fontSize: 14, fontWeight: 'bold', color: BLUE, marginBottom: 14 }}>📅 Auto-Report Schedule</div>
+          {reportSchedule ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
+              <div>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Send every</div>
+                <select
+                  value={reportSchedule.intervalHours}
+                  onChange={e => setReportSchedule(s => ({ ...s, intervalHours: parseInt(e.target.value) }))}
+                  style={{ padding: '7px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13 }}>
+                  {[1,2,4,6,8,12,24,48,72,168].map(h => (
+                    <option key={h} value={h}>{h === 1 ? '1 hour' : h === 168 ? '1 week' : `${h} hours`}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>At specific hour (ET)</div>
+                <select
+                  value={reportSchedule.hourOfDay}
+                  onChange={e => setReportSchedule(s => ({ ...s, hourOfDay: parseInt(e.target.value) }))}
+                  style={{ padding: '7px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13 }}>
+                  <option value={-1}>— use interval only —</option>
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h-12}:00 PM`}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  disabled={scheduleSaving}
+                  onClick={async () => {
+                    setScheduleSaving(true);
+                    try {
+                      await fetch('/api/status/schedule', { method: 'POST', headers, body: JSON.stringify(reportSchedule) });
+                      setScheduleSaved(true);
+                      setTimeout(() => setScheduleSaved(false), 2500);
+                    } finally { setScheduleSaving(false); }
+                  }}
+                  style={{ padding: '7px 18px', background: scheduleSaved ? '#2E7D32' : BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>
+                  {scheduleSaved ? '✅ Saved' : scheduleSaving ? '...' : 'Save Schedule'}
+                </button>
+                <button
+                  onClick={async () => {
+                    await fetch('/api/status/send-now', { method: 'POST', headers });
+                    alert('Report sending now — check your email in a moment.');
+                  }}
+                  style={{ padding: '7px 18px', background: 'white', color: BLUE, border: `1.5px solid ${BLUE}`, borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>
+                  ▶ Send Now
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: '#888' }}>Loading schedule…</div>
           )}
         </div>
       </div>

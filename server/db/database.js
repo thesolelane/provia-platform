@@ -505,6 +505,9 @@ function seedDefaultSettings() {
     // Google Calendar
     { key: 'gcal.calendarId',        value: 'primary', category:'calendar', label:'Google Calendar ID' },
     { key: 'gcal.enabled',           value: 'true',    category:'calendar', label:'Auto-add tasks to Google Calendar' },
+    // Status report schedule
+    { key: 'status.reportIntervalHours', value: '24', category:'status', label:'Status Report Interval (hours)' },
+    { key: 'status.reportHourOfDay',     value: '-1', category:'status', label:'Status Report Hour of Day (-1 = use interval only)' },
   ];
 
   const insert = db.prepare(`

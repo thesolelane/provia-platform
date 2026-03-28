@@ -218,27 +218,78 @@ async function sendStatusReport() {
   }
 }
 
-// ── Start scheduler ───────────────────────────────────────────────────────────
+// ── Scheduler state ───────────────────────────────────────────────────────────
 
-function startStatusScheduler() {
-  if (schedulerInterval) return;
+let nextReportTimeout = null; // setTimeout handle for the next report
 
-  const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-  // Run once at startup after a short delay (let server finish booting)
-  setTimeout(sendStatusReport, 30 * 1000);
-
-  // Then every 24 hours
-  schedulerInterval = setInterval(sendStatusReport, INTERVAL_MS);
-
-  console.log('📊 Daily status report scheduled (every 24h, first run in 30s)');
-}
-
-function stopStatusScheduler() {
-  if (schedulerInterval) {
-    clearInterval(schedulerInterval);
-    schedulerInterval = null;
+function getScheduleSettings() {
+  try {
+    const { getDb } = require('../db/database');
+    const db = getDb();
+    const intervalRow = db.prepare("SELECT value FROM settings WHERE key = 'status.reportIntervalHours'").get();
+    const hourRow     = db.prepare("SELECT value FROM settings WHERE key = 'status.reportHourOfDay'").get();
+    const intervalHours = Math.max(1, parseInt(intervalRow?.value || '24', 10));
+    const hourOfDay     = parseInt(hourRow?.value || '-1', 10); // -1 = disabled
+    return { intervalHours, hourOfDay };
+  } catch {
+    return { intervalHours: 24, hourOfDay: -1 };
   }
 }
 
-module.exports = { startStatusScheduler, stopStatusScheduler, runAllChecks };
+function scheduleNext() {
+  if (nextReportTimeout) clearTimeout(nextReportTimeout);
+
+  const { intervalHours, hourOfDay } = getScheduleSettings();
+  let delayMs;
+
+  if (hourOfDay >= 0 && hourOfDay <= 23) {
+    // Schedule for next occurrence of that specific hour (ET)
+    const now = new Date();
+    const etStr = now.toLocaleString('en-US', { timeZone: 'America/New_York', hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const [datePart, timePart] = etStr.split(', ');
+    const [m, d, y] = datePart.split('/');
+    const etNow = new Date(`${y}-${m}-${d}T${timePart}-05:00`);
+    const target = new Date(etNow);
+    target.setHours(hourOfDay, 0, 0, 0);
+    if (target <= etNow) target.setDate(target.getDate() + 1); // push to tomorrow if already past
+    delayMs = target - etNow;
+    console.log(`📊 Next status report scheduled for ${hourOfDay}:00 ET (in ${Math.round(delayMs / 60000)} min)`);
+  } else {
+    delayMs = intervalHours * 60 * 60 * 1000;
+    console.log(`📊 Next status report in ${intervalHours}h`);
+  }
+
+  nextReportTimeout = setTimeout(async () => {
+    await sendStatusReport();
+    scheduleNext(); // reschedule after each run
+  }, delayMs);
+}
+
+// ── Start / stop ──────────────────────────────────────────────────────────────
+
+function startStatusScheduler() {
+  if (nextReportTimeout) return;
+  const { intervalHours } = getScheduleSettings();
+  console.log(`📊 Daily status report scheduled (every ${intervalHours}h, first run in 30s)`);
+  // First run 30 seconds after boot, then reschedule based on settings
+  nextReportTimeout = setTimeout(async () => {
+    await sendStatusReport();
+    scheduleNext();
+  }, 30 * 1000);
+}
+
+function stopStatusScheduler() {
+  if (nextReportTimeout) {
+    clearTimeout(nextReportTimeout);
+    nextReportTimeout = null;
+  }
+}
+
+// Call this after changing settings so the new schedule takes effect immediately
+function rescheduleStatusReports() {
+  stopStatusScheduler();
+  scheduleNext();
+}
+
+module.exports = { startStatusScheduler, stopStatusScheduler, rescheduleStatusReports, runAllChecks, sendStatusReport };
