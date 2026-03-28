@@ -226,6 +226,54 @@ router.post('/send-now', requireAuth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/status/backup — list backups + last run info
+router.get('/backup', requireAuth, (req, res) => {
+  if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const { listBackups, formatBytes } = require('../services/backupService');
+    const db = getDb();
+    const lastRanAt     = db.prepare("SELECT value FROM settings WHERE key = 'backup.lastRanAt'").get()?.value     || null;
+    const lastFile      = db.prepare("SELECT value FROM settings WHERE key = 'backup.lastFile'").get()?.value      || null;
+    const intervalHours = parseInt(db.prepare("SELECT value FROM settings WHERE key = 'backup.intervalHours'").get()?.value || '24', 10);
+    const customPath    = db.prepare("SELECT value FROM settings WHERE key = 'backup.customPath'").get()?.value    || '';
+    const backups       = listBackups().reverse().map(b => ({ file: b.file, size: formatBytes(b.size), date: b.mtime }));
+    res.json({ lastRanAt, lastFile, intervalHours, customPath, backups, count: backups.length });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/status/backup — trigger manual backup
+router.post('/backup', requireAuth, async (req, res) => {
+  if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const { runBackup } = require('../services/backupService');
+    const result = await runBackup();
+    res.json(result);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/status/backup/schedule — update backup interval and/or custom path
+router.post('/backup/schedule', requireAuth, (req, res) => {
+  if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });
+  try {
+    const { intervalHours, customPath } = req.body;
+    const db = getDb();
+    if (intervalHours !== undefined) {
+      const val = Math.min(Math.max(1, parseInt(intervalHours, 10)), 168);
+      db.prepare("UPDATE settings SET value = ? WHERE key = 'backup.intervalHours'").run(String(val));
+    }
+    if (customPath !== undefined) {
+      db.prepare(`
+        INSERT INTO settings (key, value, category, label)
+        VALUES ('backup.customPath', ?, 'backup', 'Custom Backup Folder Path')
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+      `).run(customPath.trim());
+    }
+    const { rescheduleBackups } = require('../services/backupService');
+    rescheduleBackups();
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/status/signing-receipts — full read/sign receipt log
 router.get('/signing-receipts', requireAuth, async (req, res) => {
   if (!['system_admin', 'admin'].includes(req.session?.role)) return res.status(403).json({ error: 'Admin only' });

@@ -32,6 +32,9 @@ export default function Settings({ token, userRole }) {
   const [reportSchedule, setReportSchedule]   = useState(null);
   const [scheduleSaving, setScheduleSaving]   = useState(false);
   const [scheduleSaved,  setScheduleSaved]    = useState(false);
+  const [backupInfo,     setBackupInfo]       = useState(null);
+  const [backupRunning,  setBackupRunning]    = useState(false);
+  const [backupMsg,      setBackupMsg]        = useState(null);
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   // Auto-load email log when the tab is opened for the first time
@@ -42,6 +45,9 @@ export default function Settings({ token, userRole }) {
     if (activeTab === 'Status' && !reportSchedule) {
       fetch('/api/status/schedule', { headers: { 'x-auth-token': token } })
         .then(r => r.json()).then(data => { if (!data.error) setReportSchedule(data); })
+        .catch(() => {});
+      fetch('/api/status/backup', { headers: { 'x-auth-token': token } })
+        .then(r => r.json()).then(data => { if (!data.error) setBackupInfo(data); })
         .catch(() => {});
     }
   }, [activeTab]);
@@ -810,8 +816,85 @@ export default function Settings({ token, userRole }) {
           )}
         </div>
 
-        {/* ── Report Schedule ── */}
+        {/* ── Backup ── */}
         <div style={{ marginTop: 28, background: '#F3F6FC', borderRadius: 10, padding: '18px 20px', border: '1px solid #dce3f3' }}>
+          <div style={{ fontSize: 14, fontWeight: 'bold', color: BLUE, marginBottom: 14 }}>💾 Database Backups</div>
+          {backupInfo ? (
+            <div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 14, alignItems: 'flex-end' }}>
+                <div>
+                  <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Back up every</div>
+                  <select
+                    value={backupInfo.intervalHours}
+                    onChange={e => setBackupInfo(s => ({ ...s, intervalHours: parseInt(e.target.value) }))}
+                    style={{ padding: '7px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13 }}>
+                    {[1,2,4,6,8,12,24,48,72,168].map(h => (
+                      <option key={h} value={h}>{h === 1 ? '1 hour' : h === 168 ? '1 week' : `${h} hours`}</option>
+                    ))}
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={async () => {
+                      await fetch('/api/status/backup/schedule', { method: 'POST', headers, body: JSON.stringify({ intervalHours: backupInfo.intervalHours, customPath: backupInfo.customPath }) });
+                      setBackupMsg('✅ Schedule saved');
+                      setTimeout(() => setBackupMsg(null), 2500);
+                    }}
+                    style={{ padding: '7px 16px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>
+                    Save
+                  </button>
+                  <button
+                    disabled={backupRunning}
+                    onClick={async () => {
+                      setBackupRunning(true); setBackupMsg('⏳ Running backup…');
+                      try {
+                        const r = await fetch('/api/status/backup', { method: 'POST', headers });
+                        const d = await r.json();
+                        if (d.ok) {
+                          setBackupMsg(`✅ Saved: ${d.file} (${d.dbSize}) — ${d.totalBackups} backups on disk`);
+                          const r2 = await fetch('/api/status/backup', { headers: { 'x-auth-token': token } });
+                          const d2 = await r2.json();
+                          if (!d2.error) setBackupInfo(d2);
+                        } else { setBackupMsg(`❌ ${d.error}`); }
+                      } finally { setBackupRunning(false); }
+                    }}
+                    style={{ padding: '7px 16px', background: 'white', color: BLUE, border: `1.5px solid ${BLUE}`, borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>
+                    {backupRunning ? '⏳ Backing up…' : '▶ Back Up Now'}
+                  </button>
+                </div>
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Backup folder path <span style={{ color: '#bbb' }}>(leave blank to use default: data/backups inside app folder)</span></div>
+                <input
+                  type="text"
+                  value={backupInfo.customPath || ''}
+                  onChange={e => setBackupInfo(s => ({ ...s, customPath: e.target.value }))}
+                  placeholder={`e.g. C:\\Users\\theso\\Desktop\\PB_Backups`}
+                  style={{ width: '100%', padding: '7px 12px', border: '1px solid #ccc', borderRadius: 6, fontSize: 13, boxSizing: 'border-box', fontFamily: 'monospace' }}
+                />
+              </div>
+              {backupMsg && <div style={{ fontSize: 13, color: '#2E7D32', marginBottom: 10, marginTop: 10 }}>{backupMsg}</div>}
+              <div style={{ display: 'flex', gap: 20, fontSize: 12, color: '#555', marginBottom: 10, marginTop: 12 }}>
+                <span>📦 <strong>{backupInfo.count}</strong> backups stored (max 14)</span>
+                {backupInfo.lastRanAt && <span>🕐 Last: {new Date(backupInfo.lastRanAt).toLocaleString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
+              </div>
+              {backupInfo.backups?.length > 0 && (
+                <div style={{ maxHeight: 140, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {backupInfo.backups.map((b, i) => (
+                    <div key={i} style={{ fontSize: 11, color: '#555', fontFamily: 'monospace', padding: '4px 8px', background: 'white', borderRadius: 4, border: '1px solid #e5e7eb' }}>
+                      {b.file} — {b.size}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ fontSize: 13, color: '#888' }}>Loading backup info…</div>
+          )}
+        </div>
+
+        {/* ── Report Schedule ── */}
+        <div style={{ marginTop: 16, background: '#F3F6FC', borderRadius: 10, padding: '18px 20px', border: '1px solid #dce3f3' }}>
           <div style={{ fontSize: 14, fontWeight: 'bold', color: BLUE, marginBottom: 14 }}>📅 Auto-Report Schedule</div>
           {reportSchedule ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>

@@ -508,6 +508,11 @@ function seedDefaultSettings() {
     // Status report schedule
     { key: 'status.reportIntervalHours', value: '24', category:'status', label:'Status Report Interval (hours)' },
     { key: 'status.reportHourOfDay',     value: '-1', category:'status', label:'Status Report Hour of Day (-1 = use interval only)' },
+    // Backup schedule
+    { key: 'backup.intervalHours', value: '24', category:'backup', label:'Backup Interval (hours)' },
+    { key: 'backup.lastRanAt',     value: '',   category:'backup', label:'Last Backup Timestamp' },
+    { key: 'backup.lastFile',      value: '',   category:'backup', label:'Last Backup Filename' },
+    { key: 'backup.customPath',    value: '',   category:'backup', label:'Custom Backup Folder Path (leave blank for default)' },
   ];
 
   const insert = db.prepare(`

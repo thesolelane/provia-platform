@@ -213,6 +213,9 @@ async function start() {
     const { startStatusScheduler } = require('./services/statusScheduler');
     startStatusScheduler();
 
+    const { startBackupScheduler } = require('./services/backupService');
+    startBackupScheduler();
+
     const { startPolling } = require('./services/whatsappPoller');
     const { handleIncomingWhatsApp } = require('./routes/webhookWhatsapp');
     if (process.env.DISABLE_WHATSAPP_POLLER !== 'true') {
