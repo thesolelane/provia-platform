@@ -35,8 +35,11 @@ const PORT = process.env.PORT || 3001;
 // ── SECURITY MIDDLEWARE ───────────────────────────────────────
 app.disable('x-powered-by'); // hide framework fingerprint
 app.use(helmet({
-  contentSecurityPolicy: false,   // React handles its own; enabling would break the UI
-  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false,        // React handles its own; enabling would break the UI
+  crossOriginEmbedderPolicy: false,    // required for Puppeteer/PDF generation
+  crossOriginOpenerPolicy: false,      // required for Replit preview iframe
+  crossOriginResourcePolicy: false,    // required for Replit preview iframe
+  frameguard: false,                   // allow Replit preview iframe (removes X-Frame-Options)
 }));
 app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : '*' }));
 app.use(express.json({ limit: '50mb' }));
