@@ -13,11 +13,17 @@ const path = require('path');
 const { initDatabase } = require('./db/database');
 const { requireAuth } = require('./middleware/auth');
 const rateLimit = require('express-rate-limit');
+const helmet   = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ── MIDDLEWARE ────────────────────────────────────────────────
+// ── SECURITY MIDDLEWARE ───────────────────────────────────────
+app.disable('x-powered-by'); // hide framework fingerprint
+app.use(helmet({
+  contentSecurityPolicy: false,   // React handles its own; enabling would break the UI
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : '*' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -59,6 +65,19 @@ app.use((req, res, next) => {
 
 // ── RATE LIMITING ─────────────────────────────────────────────
 app.set('trust proxy', 1);
+
+// Broad API limiter — 300 requests per minute per IP (protects against scanning/scraping)
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  message: { error: 'Too many requests. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === '/health', // don't limit keep-alive pings
+});
+app.use('/api/', apiLimiter);
+
+// Strict login limiter — 10 attempts per 15 minutes
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -67,6 +86,16 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use('/api/auth/login', loginLimiter);
+
+// Webhook limiter — 60 calls per minute (Resend/Twilio webhooks)
+const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: { error: 'Webhook rate limit exceeded.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/webhook/', webhookLimiter);
 
 // ── BLANK CONTRACT DOWNLOAD ───────────────────────────────────
 app.get('/api/blank-contract', requireAuth, async (req, res) => {
