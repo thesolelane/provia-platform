@@ -21,7 +21,7 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function nowTime() { return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }).slice(0, 5); }
 
 const EMPTY_IN  = { customer_name: '', check_number: '', amount: '', date_received: today(), time_received: nowTime(), payment_type: 'deposit', credit_debit: 'credit', notes: '', is_pass_through_reimbursement: false };
-const EMPTY_OUT = { payee_name: '', check_number: '', amount: '', date_paid: today(), time_paid: nowTime(), category: 'subcontractor', credit_debit: 'debit', notes: '', payment_class: 'cost_of_revenue' };
+const EMPTY_OUT = { payee_name: '', check_number: '', amount: '', date_paid: today(), time_paid: nowTime(), category: 'subcontractor', credit_debit: 'debit', notes: '', payment_class: 'cost_of_revenue', paid_by: 'pb' };
 const EMPTY_INV = { invoice_type: 'contract_invoice', amount: '', notes: '' };
 
 const inputStyle = {
@@ -140,7 +140,7 @@ export default function PaymentsTab({ jobId, token, job }) {
 
   const categoryChanged = (cat) => {
     const isPassThrough = PASS_THROUGH_CATS.includes(cat) || cat === 'permit';
-    setFormOut(p => ({ ...p, category: cat, payment_class: isPassThrough ? 'pass_through' : 'cost_of_revenue' }));
+    setFormOut(p => ({ ...p, category: cat, payment_class: isPassThrough ? 'pass_through' : 'cost_of_revenue', paid_by: 'pb' }));
   };
 
   if (loading) return <div style={{ color: '#888', padding: 20 }}>Loading payments...</div>;
@@ -150,16 +150,18 @@ export default function PaymentsTab({ jobId, token, job }) {
   const changeOrders        = invoices.filter(i => i.invoice_type === 'change_order');
 
   const contractReceived  = received.filter(r => !r.is_pass_through_reimbursement);
-  const ptReceived        = received.filter(r => r.is_pass_through_reimbursement);
-  const contractPaid      = made.filter(m => m.payment_class === 'cost_of_revenue');
-  const ptPaid            = made.filter(m => m.payment_class === 'pass_through' || m.is_pass_through);
+  const ptReceived             = received.filter(r => r.is_pass_through_reimbursement);
+  const contractPaid           = made.filter(m => m.payment_class === 'cost_of_revenue');
+  const ptPaid                 = made.filter(m => (m.payment_class === 'pass_through' || m.is_pass_through) && m.paid_by !== 'customer_direct');
+  const ptPaidDirectByCustomer = made.filter(m => (m.payment_class === 'pass_through' || m.is_pass_through) && m.paid_by === 'customer_direct');
 
-  const totalContractReceived = contractReceived.reduce((s, r) => s + (r.credit_debit === 'debit' ? -1 : 1) * Number(r.amount || 0), 0);
-  const totalPtReceived       = ptReceived.reduce((s, r)  => s + (r.credit_debit === 'debit' ? -1 : 1) * Number(r.amount || 0), 0);
-  const totalContractPaid     = contractPaid.reduce((s, m) => s + (m.credit_debit === 'credit' ? -1 : 1) * Number(m.amount || 0), 0);
-  const totalPtPaid           = ptPaid.reduce((s, m)       => s + (m.credit_debit === 'credit' ? -1 : 1) * Number(m.amount || 0), 0);
-  const grossMargin           = totalContractReceived - totalContractPaid;
-  const ptBalance             = totalPtPaid - totalPtReceived;
+  const totalContractReceived    = contractReceived.reduce((s, r) => s + (r.credit_debit === 'debit' ? -1 : 1) * Number(r.amount || 0), 0);
+  const totalPtReceived          = ptReceived.reduce((s, r)  => s + (r.credit_debit === 'debit' ? -1 : 1) * Number(r.amount || 0), 0);
+  const totalContractPaid        = contractPaid.reduce((s, m) => s + (m.credit_debit === 'credit' ? -1 : 1) * Number(m.amount || 0), 0);
+  const totalPtPaid              = ptPaid.reduce((s, m)       => s + (m.credit_debit === 'credit' ? -1 : 1) * Number(m.amount || 0), 0);
+  const totalPtDirectByCustomer  = ptPaidDirectByCustomer.reduce((s, m) => s + Number(m.amount || 0), 0);
+  const grossMargin              = totalContractReceived - totalContractPaid;
+  const ptBalance                = totalPtPaid - totalPtReceived; // only PB-fronted costs vs reimbursements
   const totalCOValue          = changeOrders.reduce((s, co) => s + Number(co.amount || 0), 0);
   const totalCOPaid           = changeOrders.filter(co => co.status === 'paid').reduce((s, co) => s + Number(co.amount_paid || co.amount || 0), 0);
 
@@ -323,8 +325,21 @@ export default function PaymentsTab({ jobId, token, job }) {
             </Field>
           </div>
           {formOut.payment_class === 'pass_through' && (
-            <div style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#92400e' }}>
-              Pass-through: This will NOT be counted as income or included in margin calculations. It will be tracked separately and billed to the customer for reimbursement.
+            <div style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '10px 12px', marginBottom: 10, fontSize: 12, color: '#92400e' }}>
+              <div style={{ fontWeight: 'bold', marginBottom: 8 }}>Who is paying this cost?</div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, cursor: 'pointer' }}>
+                <input type="radio" name="paid_by" value="pb" checked={formOut.paid_by !== 'customer_direct'} onChange={() => setFormOut(p => ({ ...p, paid_by: 'pb' }))} />
+                <span><strong>PB paid on behalf of customer</strong> — PB fronts the cost, customer reimburses PB</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <input type="radio" name="paid_by" value="customer_direct" checked={formOut.paid_by === 'customer_direct'} onChange={() => setFormOut(p => ({ ...p, paid_by: 'customer_direct' }))} />
+                <span><strong>Customer paid directly</strong> — Customer wrote check directly to municipality / vendor. No reimbursement to PB needed.</span>
+              </label>
+              <div style={{ marginTop: 8, fontSize: 11, color: '#b45309' }}>
+                {formOut.paid_by === 'customer_direct'
+                  ? 'This will be recorded for tracking only — it will NOT appear as a PB expense or affect your cash flow.'
+                  : 'This will NOT be counted as income or included in margin calculations. A pass-through invoice will track reimbursement.'}
+              </div>
             </div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
@@ -433,7 +448,9 @@ export default function PaymentsTab({ jobId, token, job }) {
                     <td style={{ padding: '8px 10px' }}><CategoryBadge cat={p.category} /></td>
                     <td style={{ padding: '8px 10px' }}>
                       {(p.is_pass_through || p.payment_class === 'pass_through')
-                        ? <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, background: '#fffbeb', color: '#92400e', fontWeight: 'bold', border: '1px solid #fbbf24' }}>Pass-Thru</span>
+                        ? p.paid_by === 'customer_direct'
+                          ? <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, background: '#f0fdf4', color: '#166534', fontWeight: 'bold', border: '1px solid #86efac' }}>Cust. Paid Direct</span>
+                          : <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, background: '#fffbeb', color: '#92400e', fontWeight: 'bold', border: '1px solid #fbbf24' }}>Pass-Thru</span>
                         : <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 8, background: '#f0f4ff', color: BLUE, fontWeight: 'bold' }}>Revenue</span>
                       }
                     </td>
@@ -486,11 +503,14 @@ export default function PaymentsTab({ jobId, token, job }) {
                 Pass-Through Costs
                 <span style={{ fontSize: 10, background: '#fffbeb', color: '#92400e', border: '1px solid #fbbf24', padding: '1px 6px', borderRadius: 10 }}>NOT IN MARGIN</span>
               </div>
-              <div style={{ fontSize: 11, color: '#92400e', marginBottom: 10 }}>Costs paid by PB on behalf of customer — billed back for reimbursement</div>
-              <BreakdownRow label="Paid by PB" value={fmt(totalPtPaid)} color={RED} />
+              <div style={{ fontSize: 11, color: '#92400e', marginBottom: 10 }}>Permits, engineers, architects, design professionals — not counted in revenue or margin</div>
+              <BreakdownRow label="PB fronted on customer's behalf" value={fmt(totalPtPaid)} color={RED} />
               <BreakdownRow label="Reimbursed by Customer" value={fmt(totalPtReceived)} color={GREEN} />
+              {totalPtDirectByCustomer > 0 && (
+                <BreakdownRow label="Customer paid vendor directly" value={fmt(totalPtDirectByCustomer)} color={'#166534'} />
+              )}
               <div style={{ borderTop: '1px solid #fde68a', marginTop: 8, paddingTop: 8 }}>
-                <BreakdownRow label="Net Balance (owed to PB)" value={fmt(ptBalance)} color={ptBalance > 0 ? RED : GREEN} bold />
+                <BreakdownRow label="Net Balance (PB still owed)" value={fmt(ptBalance)} color={ptBalance > 0 ? RED : GREEN} bold />
               </div>
             </div>
 

@@ -496,6 +496,8 @@ async function initDatabase() {
   addColIfMissing('payments_made', 'dept_code', 'TEXT');
   addColIfMissing('payments_made', 'is_pass_through', "INTEGER NOT NULL DEFAULT 0");
   addColIfMissing('payments_made', 'line_item_ref', 'TEXT');
+  // 'pb' = PB fronted the cost (default); 'customer_direct' = customer wrote check directly to vendor/municipality
+  addColIfMissing('payments_made', 'paid_by', "TEXT NOT NULL DEFAULT 'pb'");
 
   // ── Migration: add payment_class and invoice link to payments_received ────────
   addColIfMissing('payments_received', 'payment_class', "TEXT NOT NULL DEFAULT 'contract'");

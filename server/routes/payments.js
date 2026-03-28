@@ -263,7 +263,7 @@ router.post('/received', requireAuth, (req, res) => {
 
 router.post('/made', requireAuth, (req, res) => {
   const db = getDb();
-  const { job_id, payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, notes, payment_class, dept_code } = req.body;
+  const { job_id, payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, notes, payment_class, dept_code, paid_by } = req.body;
   if (!job_id)     return res.status(400).json({ error: 'job_id is required' });
   if (!payee_name) return res.status(400).json({ error: 'payee_name is required' });
   if (!date_paid)  return res.status(400).json({ error: 'date_paid is required' });
@@ -277,6 +277,7 @@ router.post('/made', requireAuth, (req, res) => {
   const pClass  = VALID_PAYMENT_CLASS_OUT.includes(payment_class) ? payment_class :
                   (cat === 'permit' ? 'pass_through' : 'cost_of_revenue');
   const isPassThrough = pClass === 'pass_through' ? 1 : 0;
+  const paidBy  = (paid_by === 'customer_direct') ? 'customer_direct' : 'pb';
 
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(job_id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
@@ -293,19 +294,23 @@ router.post('/made', requireAuth, (req, res) => {
   }
 
   const info = db.prepare(`
-    INSERT INTO payments_made (job_id, payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, recorded_by, notes, payment_class, dept_code, is_pass_through)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(job_id, payee_name.trim(), check_number || null, parsedAmount, date_paid, timeVal, cat, crDr, recorder, notes || null, pClass, deptCodeVal, isPassThrough);
+    INSERT INTO payments_made (job_id, payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, recorded_by, notes, payment_class, dept_code, is_pass_through, paid_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(job_id, payee_name.trim(), check_number || null, parsedAmount, date_paid, timeVal, cat, crDr, recorder, notes || null, pClass, deptCodeVal, isPassThrough, paidBy);
 
   const payment = db.prepare('SELECT * FROM payments_made WHERE id = ?').get(info.lastInsertRowid);
-  logAudit(job_id, 'payment_made', `Check paid to ${payee_name}: $${amount} (${category || 'subcontractor'}, ${credit_debit || 'debit'}) recorded by ${recorder}`, recorder);
+  const paidByLabel = paidBy === 'customer_direct' ? 'paid directly by customer' : `paid by PB`;
+  logAudit(job_id, 'payment_made', `${payee_name}: $${amount} (${cat}, ${paidByLabel}) recorded by ${recorder}`, recorder);
 
   const contact = job.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
+  const activityDesc = paidBy === 'customer_direct'
+    ? `Customer paid directly to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''} — no PB reimbursement needed`
+    : `${isPassThrough ? 'Pass-through cost' : 'Payment'} to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''}`;
   logActivity({
     customer_number: contact?.pb_customer_number || null,
     job_id,
     event_type: isPassThrough ? 'PASS_THROUGH_PAID' : 'PAYMENT_MADE',
-    description: `${isPassThrough ? 'Pass-through cost' : 'Payment'} to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''}`,
+    description: activityDesc,
     document_ref: deptCodeVal || null,
     recorded_by: recorder
   });
@@ -354,20 +359,21 @@ router.patch('/made/:id', requireAuth, (req, res) => {
   const row = db.prepare('SELECT * FROM payments_made WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Payment not found' });
 
-  const { payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, notes } = req.body;
+  const { payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, notes, paid_by } = req.body;
 
   let parsedAmt = row.amount;
   if (amount !== undefined) {
     parsedAmt = validateAmount(amount);
     if (parsedAmt === null) return res.status(400).json({ error: 'amount must be a positive number' });
   }
-  const cat  = category !== undefined ? ((category && typeof category === 'string' && category.trim()) ? category.trim().toLowerCase() : row.category) : row.category;
-  const crDr = credit_debit !== undefined ? (VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : row.credit_debit) : row.credit_debit;
+  const cat    = category !== undefined ? ((category && typeof category === 'string' && category.trim()) ? category.trim().toLowerCase() : row.category) : row.category;
+  const crDr   = credit_debit !== undefined ? (VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : row.credit_debit) : row.credit_debit;
+  const paidBy = paid_by !== undefined ? ((paid_by === 'customer_direct') ? 'customer_direct' : 'pb') : (row.paid_by || 'pb');
 
   db.prepare(`
     UPDATE payments_made SET
       payee_name = ?, check_number = ?, amount = ?, date_paid = ?, time_paid = ?,
-      category = ?, credit_debit = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
+      category = ?, credit_debit = ?, notes = ?, paid_by = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(
     payee_name    ?? row.payee_name,
@@ -378,6 +384,7 @@ router.patch('/made/:id', requireAuth, (req, res) => {
     cat,
     crDr,
     notes         ?? row.notes,
+    paidBy,
     row.id
   );
 
