@@ -7,7 +7,7 @@ const { logActivity } = require('./activityLog');
 const { sendEmail }   = require('../services/emailService');
 const { generatePDFFromHTML } = require('../services/pdfService');
 
-const VALID_TYPES   = ['contract_invoice', 'pass_through_invoice', 'change_order'];
+const VALID_TYPES   = ['contract_invoice', 'pass_through_invoice', 'change_order', 'combined_invoice'];
 const VALID_STATUSES = ['draft', 'sent', 'paid', 'void'];
 
 function getOrCreateCounters(db, jobId) {
@@ -65,14 +65,47 @@ router.post('/job/:jobId', requireAuth, (req, res) => {
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
   const { invoice_type, amount, notes, line_items } = req.body;
-  const invType = VALID_TYPES.includes(invoice_type) ? invoice_type : 'contract_invoice';
+
+  // ── Compute amounts from line items if provided ──────────────────────────
+  let items = Array.isArray(line_items) && line_items.length ? line_items : null;
+  let contractAmt    = 0;
+  let passThroughAmt = 0;
+  let totalAmt       = parseFloat(amount) || 0;
+
+  if (items) {
+    items = items.map(li => ({
+      description: String(li.description || '').trim(),
+      amount:      parseFloat(li.amount) || 0,
+      type:        ['contract', 'pass_through'].includes(li.type) ? li.type : 'contract',
+    })).filter(li => li.description || li.amount);
+
+    for (const li of items) {
+      if (li.type === 'pass_through') passThroughAmt += li.amount;
+      else                            contractAmt    += li.amount;
+    }
+    totalAmt = contractAmt + passThroughAmt;
+  }
+
+  // Auto-determine invoice type from line item composition
+  let invType = VALID_TYPES.includes(invoice_type) ? invoice_type : 'contract_invoice';
+  if (items && items.length) {
+    const hasContract = items.some(li => li.type === 'contract');
+    const hasPT       = items.some(li => li.type === 'pass_through');
+    if      (hasContract && hasPT) invType = 'combined_invoice';
+    else if (hasPT)                invType = 'pass_through_invoice';
+    else                           invType = 'contract_invoice';
+  }
 
   const invNum = nextInvoiceNumber(db, jobId, invType, job.quote_number);
 
   const info = db.prepare(`
-    INSERT INTO invoices (job_id, invoice_number, invoice_type, status, amount, line_items, notes)
-    VALUES (?, ?, ?, 'draft', ?, ?, ?)
-  `).run(jobId, invNum, invType, parseFloat(amount) || 0, line_items ? JSON.stringify(line_items) : null, notes || null);
+    INSERT INTO invoices
+      (job_id, invoice_number, invoice_type, status, amount, contract_amount, pass_through_amount, line_items, notes)
+    VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?)
+  `).run(
+    jobId, invNum, invType, totalAmt, contractAmt, passThroughAmt,
+    items ? JSON.stringify(items) : null, notes || null
+  );
 
   const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(info.lastInsertRowid);
 
@@ -83,7 +116,7 @@ router.post('/job/:jobId', requireAuth, (req, res) => {
     customer_number: contact?.pb_customer_number || null,
     job_id: jobId,
     event_type: 'INVOICE_ISSUED',
-    description: `Invoice ${invNum} created (${invType.replace(/_/g, ' ')}) — $${Number(amount || 0).toLocaleString()}`,
+    description: `Invoice ${invNum} created (${invType.replace(/_/g, ' ')}) — $${totalAmt.toLocaleString()}`,
     document_ref: invNum,
     recorded_by: recorder
   });
@@ -157,45 +190,86 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
     let proposalData = null;
     try { proposalData = job?.proposal_data ? JSON.parse(job.proposal_data) : null; } catch {}
 
-    const typeLabels = { contract_invoice: 'Contract Invoice', pass_through_invoice: 'Pass-Through Invoice', change_order: 'Change Order' };
+    const typeLabels = {
+      contract_invoice: 'Contract Invoice', pass_through_invoice: 'Pass-Through Invoice',
+      change_order: 'Change Order', combined_invoice: 'Invoice'
+    };
     const typeLabel  = typeLabels[inv.invoice_type] || 'Invoice';
-    const isPT = inv.invoice_type === 'pass_through_invoice';
+    const isPT       = inv.invoice_type === 'pass_through_invoice';
+    const isCombined = inv.invoice_type === 'combined_invoice';
+    const fmt        = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
-    // Build line items section for contract invoices
-    const lineItems = proposalData?.lineItems || [];
-    const contractLineItemsHTML = (!isPT && lineItems.length > 0) ? `
-<div class="section">
-  <h3>Scope of Work — Line Items</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:12px">
-    <tr style="background:#f0f4ff"><th style="text-align:left;padding:6px 8px;font-size:10px;color:#555;font-weight:600">Trade / Description</th><th style="text-align:right;padding:6px 8px;font-size:10px;color:#555;font-weight:600">Price</th></tr>
-    ${lineItems.filter(li => !['permit','engineer','architect','designer'].includes((li.trade||'').toLowerCase())).map(li => `
-    <tr style="border-bottom:1px solid #f0f0f0">
-      <td style="padding:7px 8px;color:#333;font-size:12px">${li.trade || '—'}${li.description ? `<br><span style="font-size:10px;color:#888">${li.description}</span>` : ''}</td>
-      <td style="padding:7px 8px;text-align:right;font-weight:600;font-size:12px">$${Number(li.finalPrice||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-    </tr>`).join('')}
-    <tr style="background:#f8f9ff;border-top:2px solid #1B3A6B">
-      <td style="padding:8px;font-weight:bold;font-size:12px">Total Contract Value</td>
-      <td style="padding:8px;text-align:right;font-weight:bold;font-size:13px;color:#1B3A6B">$${Number(proposalData?.pricing?.totalContractPrice||job?.total_value||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-    </tr>
-  </table>
-</div>` : '';
+    // Parse stored line items (from the new multi-line system)
+    let storedItems = [];
+    try { storedItems = inv.line_items ? JSON.parse(inv.line_items) : []; } catch {}
 
-    // Build pass-through itemized section
-    const parsePTFee = (str) => { if (!str) return 0; const n = parseFloat(String(str).replace(/[^0-9.]/g,'')); return isNaN(n) ? 0 : n; };
-    const ptItems = [];
-    if (proposalData?.job?.has_permit && proposalData?.job?.permit_fee)   ptItems.push({ label: 'Building Permit', amount: parsePTFee(proposalData.job.permit_fee) });
-    if (proposalData?.job?.has_engineer && proposalData?.job?.engineer_fee) ptItems.push({ label: 'Engineering Fee', amount: parsePTFee(proposalData.job.engineer_fee) });
-    if (proposalData?.job?.has_architect && proposalData?.job?.architect_fee) ptItems.push({ label: 'Architect Fee', amount: parsePTFee(proposalData.job.architect_fee) });
-    const ptLineItemsHTML = (isPT && ptItems.length > 0) ? `
-<div class="section">
-  <h3>Pass-Through Cost Breakdown</h3>
-  <table style="width:100%;border-collapse:collapse;font-size:12px">
-    <tr style="background:#fffbeb"><th style="text-align:left;padding:6px 8px;font-size:10px;color:#92400e;font-weight:600">Cost Item</th><th style="text-align:right;padding:6px 8px;font-size:10px;color:#92400e;font-weight:600">Amount</th></tr>
-    ${ptItems.map(pt => `<tr style="border-bottom:1px solid #fef3c7"><td style="padding:7px 8px;color:#333">${pt.label}</td><td style="padding:7px 8px;text-align:right;font-weight:600">$${pt.amount.toLocaleString('en-US',{minimumFractionDigits:2})}</td></tr>`).join('')}
-    <tr style="background:#fef3c7;border-top:2px solid #f59e0b"><td style="padding:8px;font-weight:bold">Total Reimbursement</td><td style="padding:8px;text-align:right;font-weight:bold;color:#92400e">$${ptItems.reduce((s,p)=>s+p.amount,0).toLocaleString('en-US',{minimumFractionDigits:2})}</td></tr>
-  </table>
-  <p style="font-size:11px;color:#92400e;margin:8px 0 0">These are third-party costs paid by Preferred Builders on your behalf and billed for direct reimbursement only. They are not revenue to Preferred Builders.</p>
-</div>` : '';
+    // Build itemized line items HTML (new multi-line system)
+    const buildLineItemsHTML = () => {
+      if (!storedItems.length) return '';
+      const contractItems = storedItems.filter(li => li.type !== 'pass_through');
+      const ptItems       = storedItems.filter(li => li.type === 'pass_through');
+      const contractTotal = contractItems.reduce((s, li) => s + (li.amount || 0), 0);
+      const ptTotal       = ptItems.reduce((s, li) => s + (li.amount || 0), 0);
+      const grandTotal    = contractTotal + ptTotal;
+
+      let html = `<div class="section"><h3>Invoice Line Items</h3>
+<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <tr style="background:#1B3A6B;color:white">
+    <th style="text-align:left;padding:7px 10px;font-size:10px">#</th>
+    <th style="text-align:left;padding:7px 10px;font-size:10px">Description</th>
+    <th style="text-align:center;padding:7px 10px;font-size:10px">Type</th>
+    <th style="text-align:right;padding:7px 10px;font-size:10px">Amount</th>
+  </tr>`;
+
+      storedItems.forEach((li, i) => {
+        const isPtRow = li.type === 'pass_through';
+        const typeBadge = isPtRow
+          ? `<span style="background:#fffbeb;color:#92400e;border:1px solid #fbbf24;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:bold">Pass-Through</span>`
+          : `<span style="background:#f0f4ff;color:#1B3A6B;border:1px solid #93c5fd;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:bold">Contract</span>`;
+        const rowBg = isPtRow ? '#fffef5' : '#ffffff';
+        html += `<tr style="background:${rowBg};border-bottom:1px solid #eee">
+    <td style="padding:7px 10px;color:#888;font-size:11px">${i + 1}</td>
+    <td style="padding:7px 10px;color:#222;font-size:12px">${li.description || '—'}</td>
+    <td style="padding:7px 10px;text-align:center">${typeBadge}</td>
+    <td style="padding:7px 10px;text-align:right;font-weight:600;font-size:12px">$${fmt(li.amount)}</td>
+  </tr>`;
+      });
+
+      if (contractItems.length && ptItems.length) {
+        html += `<tr style="background:#f8f9ff;border-top:1px solid #ddd">
+    <td colspan="3" style="padding:7px 10px;font-size:11px;color:#1B3A6B;font-weight:600">Contract Subtotal (Revenue to PB)</td>
+    <td style="padding:7px 10px;text-align:right;font-weight:700;color:#1B3A6B;font-size:12px">$${fmt(contractTotal)}</td>
+  </tr>
+  <tr style="background:#fffef5;border-top:1px solid #fde68a">
+    <td colspan="3" style="padding:7px 10px;font-size:11px;color:#92400e;font-weight:600">Pass-Through Subtotal <span style="font-weight:400;font-size:10px">(reimbursement only — not PB income)</span></td>
+    <td style="padding:7px 10px;text-align:right;font-weight:700;color:#92400e;font-size:12px">$${fmt(ptTotal)}</td>
+  </tr>`;
+      } else if (ptItems.length) {
+        html += `<tr style="background:#fef3c7;border-top:2px solid #f59e0b">
+    <td colspan="3" style="padding:8px 10px;font-weight:bold;font-size:12px">Total Reimbursement</td>
+    <td style="padding:8px 10px;text-align:right;font-weight:bold;color:#92400e;font-size:13px">$${fmt(ptTotal)}</td>
+  </tr>`;
+      } else {
+        html += `<tr style="background:#f8f9ff;border-top:2px solid #1B3A6B">
+    <td colspan="3" style="padding:8px 10px;font-weight:bold;font-size:12px">Subtotal</td>
+    <td style="padding:8px 10px;text-align:right;font-weight:bold;color:#1B3A6B;font-size:13px">$${fmt(contractTotal)}</td>
+  </tr>`;
+      }
+
+      if (contractItems.length && ptItems.length) {
+        html += `<tr style="background:#1B3A6B;color:white">
+    <td colspan="3" style="padding:10px;font-weight:bold;font-size:13px">TOTAL DUE</td>
+    <td style="padding:10px;text-align:right;font-weight:bold;font-size:16px">$${fmt(grandTotal)}</td>
+  </tr>`;
+      }
+
+      html += `</table>`;
+      if (ptItems.length) {
+        html += `<p style="font-size:11px;color:#92400e;margin:8px 0 0;background:#fffbeb;padding:8px 12px;border-radius:4px;border-left:3px solid #f59e0b">⚠️ Pass-through line items are third-party costs billed for direct reimbursement only. They are <strong>not income to Preferred Builders</strong>.</p>`;
+      }
+      html += `</div>`;
+      return html;
+    };
 
     const html = `<!DOCTYPE html>
 <html>
@@ -233,7 +307,7 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
 </div>
 <hr class="divider">
 
-${isPT ? `<div class="pt-notice"><strong>PASS-THROUGH COST — NOT A REVENUE ITEM</strong><br>This invoice covers costs paid by Preferred Builders on behalf of the customer (permits, engineers, consultants, etc.) and is billed for direct reimbursement only.</div>` : ''}
+${(isPT || isCombined) ? `<div class="pt-notice"><strong>${isCombined ? 'COMBINED INVOICE — CONTAINS PASS-THROUGH ITEMS' : 'PASS-THROUGH COST — NOT A REVENUE ITEM'}</strong><br>${isCombined ? 'This invoice includes both contract charges (revenue to Preferred Builders) and pass-through reimbursement costs (not income to PB). Totals are broken out below.' : 'This invoice covers costs paid by Preferred Builders on behalf of the customer (permits, engineers, consultants, etc.) and is billed for direct reimbursement only.'}</div>` : ''}
 
 ${contact || job ? `<div class="section">
   <h3>Billed To</h3>
@@ -250,14 +324,19 @@ ${job ? `<div class="section">
   ${job.project_address || ''}${job.project_city ? ', ' + job.project_city + ', MA' : ''}
 </div>` : ''}
 
-${contractLineItemsHTML}
-${ptLineItemsHTML}
+${buildLineItemsHTML()}
 
-<div class="amount-box">
+${!storedItems.length ? `<div class="amount-box">
   <div class="lbl">Invoice Amount</div>
-  <div class="amt">$${Number(inv.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-  ${inv.amount_paid > 0 ? `<div class="lbl" style="margin-top:8px;color:#2E7D32">Paid: $${Number(inv.amount_paid).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>` : ''}
-</div>
+  <div class="amt">$${fmt(inv.amount)}</div>
+  ${inv.amount_paid > 0 ? `<div class="lbl" style="margin-top:8px;color:#2E7D32">Paid: $${fmt(inv.amount_paid)}</div>` : ''}
+</div>` : `<div class="amount-box" style="border-color:${isCombined ? '#E07B2A' : (isPT ? '#f59e0b' : '#1B3A6B')}">
+  ${isCombined && inv.contract_amount > 0 ? `<div style="font-size:13px;color:#555;margin-bottom:4px">Contract Charges: <strong style="color:#1B3A6B">$${fmt(inv.contract_amount)}</strong></div>` : ''}
+  ${isCombined && inv.pass_through_amount > 0 ? `<div style="font-size:13px;color:#555;margin-bottom:8px">Pass-Through Costs: <strong style="color:#92400e">$${fmt(inv.pass_through_amount)}</strong></div>` : ''}
+  <div class="lbl">Total Due</div>
+  <div class="amt" style="color:${isCombined ? '#E07B2A' : (isPT ? '#92400e' : '#1B3A6B')}">$${fmt(inv.amount)}</div>
+  ${inv.amount_paid > 0 ? `<div class="lbl" style="margin-top:8px;color:#2E7D32">Paid: $${fmt(inv.amount_paid)}</div>` : ''}
+</div>`}
 
 ${inv.notes ? `<div class="section"><h3>Notes</h3><p style="font-size:13px">${inv.notes}</p></div>` : ''}
 

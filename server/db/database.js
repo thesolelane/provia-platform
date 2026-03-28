@@ -549,6 +549,14 @@ async function initDatabase() {
     }
   }
 
+  // ── Migration: invoice line-item split columns ────────────────────────────
+  try { db.prepare('SELECT contract_amount FROM invoices LIMIT 1').get(); } catch {
+    db.exec('ALTER TABLE invoices ADD COLUMN contract_amount REAL NOT NULL DEFAULT 0');
+  }
+  try { db.prepare('SELECT pass_through_amount FROM invoices LIMIT 1').get(); } catch {
+    db.exec('ALTER TABLE invoices ADD COLUMN pass_through_amount REAL NOT NULL DEFAULT 0');
+  }
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();

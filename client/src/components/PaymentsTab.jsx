@@ -22,7 +22,8 @@ function nowTime() { return new Date().toLocaleTimeString('en-US', { hour: '2-di
 
 const EMPTY_IN  = { customer_name: '', check_number: '', amount: '', date_received: today(), time_received: nowTime(), payment_type: 'deposit', credit_debit: 'credit', notes: '', is_pass_through_reimbursement: false };
 const EMPTY_OUT = { payee_name: '', check_number: '', amount: '', date_paid: today(), time_paid: nowTime(), category: 'subcontractor', credit_debit: 'debit', notes: '', payment_class: 'cost_of_revenue', paid_by: 'pb' };
-const EMPTY_INV = { invoice_type: 'contract_invoice', amount: '', notes: '' };
+const EMPTY_LINE = { description: '', amount: '', type: 'contract' };
+const EMPTY_INV  = { notes: '', line_items: [{ ...EMPTY_LINE }] };
 
 const inputStyle = {
   width: '100%', padding: '8px 10px', border: '1.5px solid #C8D4E4', borderRadius: 6, fontSize: 13, boxSizing: 'border-box',
@@ -97,12 +98,18 @@ export default function PaymentsTab({ jobId, token, job }) {
   };
 
   const submitInvoice = async () => {
-    if (!formInv.amount) return showToast('Enter an invoice amount', 'error');
+    const validLines = (formInv.line_items || []).filter(li => li.description.trim() || Number(li.amount));
+    if (!validLines.length) return showToast('Add at least one line item', 'error');
+    const emptyDesc = validLines.find(li => !li.description.trim());
+    if (emptyDesc) return showToast('All line items need a description', 'error');
+    const badAmt = validLines.find(li => !Number(li.amount) || Number(li.amount) <= 0);
+    if (badAmt) return showToast('All line items need an amount greater than 0', 'error');
     setSaving(true);
-    const res  = await fetch(`/api/invoices/job/${jobId}`, { method: 'POST', headers, body: JSON.stringify(formInv) });
+    const payload = { notes: formInv.notes, line_items: validLines.map(li => ({ ...li, amount: parseFloat(li.amount) })) };
+    const res  = await fetch(`/api/invoices/job/${jobId}`, { method: 'POST', headers, body: JSON.stringify(payload) });
     const data = await res.json();
     if (res.ok) {
-      setFormInv(EMPTY_INV);
+      setFormInv({ ...EMPTY_INV, line_items: [{ ...EMPTY_LINE }] });
       setShowInvoiceForm(false);
       load();
       showToast('Invoice created: ' + data.invoice.invoice_number);
@@ -145,9 +152,10 @@ export default function PaymentsTab({ jobId, token, job }) {
 
   if (loading) return <div style={{ color: '#888', padding: 20 }}>Loading payments...</div>;
 
-  const contractInvoices    = invoices.filter(i => i.invoice_type === 'contract_invoice');
+  const contractInvoices    = invoices.filter(i => i.invoice_type === 'contract_invoice' || i.invoice_type === 'combined_invoice');
   const passThroughInvoices = invoices.filter(i => i.invoice_type === 'pass_through_invoice');
   const changeOrders        = invoices.filter(i => i.invoice_type === 'change_order');
+  const INV_TYPE_LABEL      = { contract_invoice: 'Contract Invoice', pass_through_invoice: 'Pass-Through Invoice', change_order: 'Change Order', combined_invoice: 'Combined Invoice' };
 
   const contractReceived  = received.filter(r => !r.is_pass_through_reimbursement);
   const ptReceived             = received.filter(r => r.is_pass_through_reimbursement);
@@ -192,37 +200,124 @@ export default function PaymentsTab({ jobId, token, job }) {
       </div>
 
       {/* Invoice Form */}
-      {showInvoiceForm && (
-        <div style={{ background: '#f0f9ff', border: `1px solid ${TEAL}40`, borderRadius: 8, padding: 16, marginBottom: 16 }}>
-          <div style={{ fontWeight: 'bold', color: TEAL, marginBottom: 12, fontSize: 13 }}>Create Invoice</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10, marginBottom: 10 }}>
-            <Field label="Invoice Type">
-              <select value={formInv.invoice_type} onChange={e => setFormInv(p => ({ ...p, invoice_type: e.target.value }))} style={inputStyle}>
-                <option value="contract_invoice">Contract Invoice</option>
-                <option value="pass_through_invoice">Pass-Through Invoice</option>
-                <option value="change_order">Change Order</option>
-              </select>
-            </Field>
-            <Field label="Amount *">
-              <input type="number" step="0.01" min="0" value={formInv.amount} onChange={e => setFormInv(p => ({ ...p, amount: e.target.value }))} placeholder="0.00" style={inputStyle} />
-            </Field>
-            <Field label="Notes">
-              <input value={formInv.notes} onChange={e => setFormInv(p => ({ ...p, notes: e.target.value }))} placeholder="Optional" style={inputStyle} />
-            </Field>
-          </div>
-          {formInv.invoice_type === 'pass_through_invoice' && (
-            <div style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '8px 12px', marginBottom: 10, fontSize: 12, color: '#92400e' }}>
-              Pass-through invoices are NOT counted as income. They bill the customer for reimbursement of costs paid on their behalf (permits, engineers, etc.).
+      {showInvoiceForm && (() => {
+        const lines = formInv.line_items || [];
+        const contractTotal    = lines.reduce((s, li) => li.type === 'contract'      ? s + (parseFloat(li.amount) || 0) : s, 0);
+        const passThroughTotal = lines.reduce((s, li) => li.type === 'pass_through'  ? s + (parseFloat(li.amount) || 0) : s, 0);
+        const grandTotal       = contractTotal + passThroughTotal;
+        const hasPT            = lines.some(li => li.type === 'pass_through');
+        const updateLine       = (i, field, value) => setFormInv(p => {
+          const next = p.line_items.map((l, idx) => idx === i ? { ...l, [field]: value } : l);
+          return { ...p, line_items: next };
+        });
+        const addLine   = () => setFormInv(p => ({ ...p, line_items: [...p.line_items, { ...EMPTY_LINE }] }));
+        const removeLine = (i) => setFormInv(p => ({ ...p, line_items: p.line_items.filter((_, idx) => idx !== i) }));
+
+        return (
+          <div style={{ background: '#f0f9ff', border: `1px solid ${TEAL}40`, borderRadius: 8, padding: 16, marginBottom: 16 }}>
+            <div style={{ fontWeight: 'bold', color: TEAL, marginBottom: 14, fontSize: 14 }}>Create Invoice — Line Items</div>
+
+            {hasPT && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 6, padding: '8px 12px', marginBottom: 12, fontSize: 12, color: '#92400e' }}>
+                Pass-through items are billed for reimbursement only — they are <strong>not income to Preferred Builders</strong>. The invoice type is auto-set based on your line item mix.
+              </div>
+            )}
+
+            {/* Line items table */}
+            <div style={{ overflowX: 'auto', marginBottom: 8 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#1B3A6B', color: 'white' }}>
+                    <th style={{ padding: '7px 8px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>#</th>
+                    <th style={{ padding: '7px 8px', textAlign: 'left', fontWeight: 600, fontSize: 11 }}>Description</th>
+                    <th style={{ padding: '7px 8px', textAlign: 'center', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap' }}>Type</th>
+                    <th style={{ padding: '7px 8px', textAlign: 'right', fontWeight: 600, fontSize: 11 }}>Amount</th>
+                    <th style={{ padding: '7px 4px', textAlign: 'center', fontWeight: 600, fontSize: 11 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lines.map((li, i) => (
+                    <tr key={i} style={{ background: li.type === 'pass_through' ? '#fffef5' : '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
+                      <td style={{ padding: '6px 8px', color: '#888', fontSize: 11 }}>{i + 1}</td>
+                      <td style={{ padding: '4px 6px' }}>
+                        <input
+                          value={li.description}
+                          onChange={e => updateLine(i, 'description', e.target.value)}
+                          placeholder="e.g. Customer Deposit, Building Permit..."
+                          style={{ ...inputStyle, fontSize: 12, padding: '6px 8px' }}
+                        />
+                      </td>
+                      <td style={{ padding: '4px 6px', minWidth: 130 }}>
+                        <select
+                          value={li.type}
+                          onChange={e => updateLine(i, 'type', e.target.value)}
+                          style={{ ...inputStyle, fontSize: 12, padding: '6px 8px', background: li.type === 'pass_through' ? '#fffbeb' : '#f0f4ff', color: li.type === 'pass_through' ? '#92400e' : '#1B3A6B', fontWeight: 600 }}
+                        >
+                          <option value="contract">Contract</option>
+                          <option value="pass_through">Pass-Through</option>
+                        </select>
+                      </td>
+                      <td style={{ padding: '4px 6px', minWidth: 100 }}>
+                        <input
+                          type="number" step="0.01" min="0"
+                          value={li.amount}
+                          onChange={e => updateLine(i, 'amount', e.target.value)}
+                          placeholder="0.00"
+                          style={{ ...inputStyle, fontSize: 12, padding: '6px 8px', textAlign: 'right' }}
+                        />
+                      </td>
+                      <td style={{ padding: '4px 4px', textAlign: 'center' }}>
+                        {lines.length > 1 && (
+                          <button onClick={() => removeLine(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#C62828', fontSize: 16, lineHeight: 1, padding: '2px 4px' }}>✕</button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={submitInvoice} disabled={saving} style={{ padding: '8px 16px', background: TEAL, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
-              {saving ? 'Creating...' : 'Create Invoice'}
+
+            <button onClick={addLine} style={{ background: 'none', border: `1px dashed ${TEAL}`, color: TEAL, borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600, marginBottom: 14 }}>
+              + Add Line Item
             </button>
-            <button onClick={() => setShowInvoiceForm(false)} style={{ padding: '8px 12px', background: 'none', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#888' }}>Cancel</button>
+
+            {/* Totals summary */}
+            {grandTotal > 0 && (
+              <div style={{ background: '#f8faff', border: '1px solid #dbeafe', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>
+                {contractTotal > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#1B3A6B' }}>
+                    <span style={{ fontWeight: 500 }}>Contract (PB Revenue):</span>
+                    <span style={{ fontWeight: 700 }}>{fmt(contractTotal)}</span>
+                  </div>
+                )}
+                {passThroughTotal > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: '#92400e' }}>
+                    <span style={{ fontWeight: 500 }}>Pass-Through (Reimbursement):</span>
+                    <span style={{ fontWeight: 700 }}>{fmt(passThroughTotal)}</span>
+                  </div>
+                )}
+                {contractTotal > 0 && passThroughTotal > 0 && <hr style={{ border: 'none', borderTop: '1px solid #dbeafe', margin: '6px 0' }} />}
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: 15, color: hasPT && contractTotal > 0 ? '#E07B2A' : (hasPT ? '#92400e' : '#1B3A6B') }}>
+                  <span>Total Due:</span>
+                  <span>{fmt(grandTotal)}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Notes */}
+            <Field label="Notes (optional)">
+              <input value={formInv.notes} onChange={e => setFormInv(p => ({ ...p, notes: e.target.value }))} placeholder="Payment terms, instructions, etc." style={{ ...inputStyle, marginBottom: 12 }} />
+            </Field>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={submitInvoice} disabled={saving} style={{ padding: '8px 18px', background: TEAL, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold', fontSize: 12 }}>
+                {saving ? 'Creating...' : 'Create Invoice'}
+              </button>
+              <button onClick={() => { setShowInvoiceForm(false); setFormInv({ ...EMPTY_INV, line_items: [{ ...EMPTY_LINE }] }); }} style={{ padding: '8px 12px', background: 'none', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#888' }}>Cancel</button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Check Received Form */}
       {showIn && (
@@ -565,7 +660,17 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
         {invoices.map(inv => (
           <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'white', border: `1px solid ${color}22`, borderRadius: 7, padding: '10px 14px', flexWrap: 'wrap' }}>
             <div style={{ fontSize: 11, fontFamily: 'monospace', fontWeight: 'bold', color, minWidth: 160 }}>{inv.invoice_number}</div>
-            <div style={{ flex: 1, fontSize: 13, fontWeight: 'bold', minWidth: 80 }}>${Number(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 80 }}>
+              <span style={{ fontSize: 13, fontWeight: 'bold' }}>${Number(inv.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              {inv.invoice_type === 'combined_invoice' && inv.contract_amount > 0 && inv.pass_through_amount > 0 && (
+                <span style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>
+                  PB: ${Number(inv.contract_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} · PT: ${Number(inv.pass_through_amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+              )}
+            </div>
+            {inv.invoice_type === 'combined_invoice' && (
+              <span style={{ fontSize: 9, padding: '2px 7px', borderRadius: 10, background: '#fff3e0', color: '#E07B2A', border: '1px solid #E07B2A44', fontWeight: 'bold' }}>COMBINED</span>
+            )}
             <div>
               <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: (statusColor[inv.status] || '#888') + '22', color: statusColor[inv.status] || '#888', fontWeight: 'bold' }}>
                 {inv.status?.toUpperCase()}
