@@ -8,14 +8,23 @@ const DB_PATH      = path.resolve(__dirname, '../../data/pb_system.db');
 const DEFAULT_BACKUP_DIR = path.resolve(__dirname, '../../data/backups');
 const MAX_BACKUPS  = 14; // keep 14 rolling backups
 
+function stripQuotes(str) {
+  if (!str) return str;
+  const s = str.trim();
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
+    return s.slice(1, -1).trim();
+  }
+  return s;
+}
+
 function getBackupDir() {
   // Priority: PBBKUPS secret → DB custom path → default
   if (process.env.PBBKUPS && process.env.PBBKUPS.trim().length > 0) {
-    return process.env.PBBKUPS.trim();
+    return stripQuotes(process.env.PBBKUPS);
   }
   try {
     const { getDb } = require('../db/database');
-    const custom = getDb().prepare("SELECT value FROM settings WHERE key = 'backup.customPath'").get()?.value?.trim();
+    const custom = stripQuotes(getDb().prepare("SELECT value FROM settings WHERE key = 'backup.customPath'").get()?.value);
     return (custom && custom.length > 0) ? custom : DEFAULT_BACKUP_DIR;
   } catch { return DEFAULT_BACKUP_DIR; }
 }

@@ -5,11 +5,16 @@
 
 require('dotenv').config();
 
-// Strip Windows CRLF \r characters from all env var values — Notepad saves
-// .env files with CRLF line endings which add invisible \r to every value.
+// Sanitize all env var values at startup:
+// 1. Strip Windows CRLF \r characters (Notepad saves .env with CRLF)
+// 2. Strip surrounding quotes (copy-paste or Replit secrets can include them)
 for (const key of Object.keys(process.env)) {
   if (typeof process.env[key] === 'string') {
-    process.env[key] = process.env[key].replace(/\r/g, '').trim();
+    let v = process.env[key].replace(/\r/g, '').trim();
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      v = v.slice(1, -1).trim();
+    }
+    process.env[key] = v;
   }
 }
 

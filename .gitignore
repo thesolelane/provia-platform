@@ -14,6 +14,9 @@ ecosystem.local.js
 data/*.db
 data/*.db-shm
 data/*.db-wal
+data/**/*.db
+data/**/*.db-shm
+data/**/*.db-wal
 
 # Generated PDFs — regeneratable
 outputs/*.pdf
@@ -24,8 +27,14 @@ uploads/*
 !uploads/invoices/
 !uploads/jobs/
 
-# Backup archives — stored locally, never committed to git
+# Backup files — stored locally, NEVER committed to git
 backups/*.tar.gz
+backups/*.db
+*.db-backup
+# Catch any backup snapshot db files anywhere in the tree
+pb_system_*.db
+# Catch Windows absolute-path backup folders that got created relative to project root
+"C:*"
 
 # Temporary files
 tmp/*
