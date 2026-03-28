@@ -31,7 +31,22 @@ function parseEnv(content) {
   const entries = [];
   for (const raw of content.split('\n')) {
     const line = raw.replace(/\r$/, '');
-    if (!line || line.startsWith('#')) {
+    if (!line) {
+      entries.push({ type: 'comment', raw: line });
+      continue;
+    }
+    // Detect commented-out key=value lines like #KEY=value or # KEY=value
+    if (line.startsWith('#')) {
+      const inner = line.replace(/^#+\s*/, '');
+      const eqIdx = inner.indexOf('=');
+      if (eqIdx > 0 && /^[A-Z][A-Z0-9_]*$/.test(inner.slice(0, eqIdx).trim())) {
+        const key = inner.slice(0, eqIdx).trim();
+        let val   = inner.slice(eqIdx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) ||
+            (val.startsWith("'") && val.endsWith("'"))) val = val.slice(1, -1);
+        entries.push({ type: 'commented-kv', key, value: val, raw: line });
+        continue;
+      }
       entries.push({ type: 'comment', raw: line });
       continue;
     }
@@ -71,11 +86,12 @@ router.get('/', requireAuth, (req, res) => {
   if (req.session.role !== 'system_admin') return res.status(403).json({ error: 'Forbidden' });
   const entries = parseEnv(readEnvFile());
   const kvs = entries
-    .filter(e => e.type === 'kv')
+    .filter(e => e.type === 'kv' || e.type === 'commented-kv')
     .map(e => ({
-      key:    e.key,
-      value:  e.value,
-      noMask: NO_MASK_KEYS.has(e.key),
+      key:      e.key,
+      value:    e.value,
+      noMask:   NO_MASK_KEYS.has(e.key),
+      disabled: e.type === 'commented-kv',
     }));
   res.json(kvs);
 });
@@ -115,8 +131,10 @@ router.put('/:key', requireAuth, (req, res) => {
   const value = (req.body.value !== undefined ? req.body.value : '').replace(/[\r\n]/g, '').trim();
 
   const entries = parseEnv(readEnvFile());
-  const entry = entries.find(e => e.type === 'kv' && e.key === oldKey);
+  const entry = entries.find(e => (e.type === 'kv' || e.type === 'commented-kv') && e.key === oldKey);
   if (!entry) return res.status(404).json({ error: 'Key not found' });
+  // Uncomment if it was a commented-out entry
+  entry.type = 'kv';
 
   // If renaming, check new name isn't already taken
   if (newKey !== oldKey && entries.find(e => e.type === 'kv' && e.key === newKey)) {
@@ -138,7 +156,7 @@ router.delete('/:key', requireAuth, (req, res) => {
   if (req.session.role !== 'system_admin') return res.status(403).json({ error: 'Forbidden' });
   const key = req.params.key;
   const entries = parseEnv(readEnvFile());
-  const idx = entries.findIndex(e => e.type === 'kv' && e.key === key);
+  const idx = entries.findIndex(e => (e.type === 'kv' || e.type === 'commented-kv') && e.key === key);
   if (idx === -1) return res.status(404).json({ error: 'Key not found' });
   entries.splice(idx, 1);
   writeEnvFile(entries);

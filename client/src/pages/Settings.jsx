@@ -530,9 +530,11 @@ export default function Settings({ token, userRole }) {
           }
 
           return (
-            <div key={s.key} style={ROW}>
-              <div style={{ width: 220, flexShrink: 0, fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                title={s.key}>{s.key}</div>
+            <div key={s.key} style={{ ...ROW, opacity: s.disabled ? 0.6 : 1, background: s.disabled ? '#fff8f0' : 'transparent', borderRadius: s.disabled ? 6 : 0, padding: s.disabled ? '6px 8px' : '8px 0' }}>
+              <div style={{ width: 220, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={s.key}>
+                <span style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: s.disabled ? '#b45' : '#333' }}>{s.key}</span>
+                {s.disabled && <span style={{ marginLeft: 6, fontSize: 10, background: '#f5c242', color: '#5D3A00', borderRadius: 4, padding: '1px 5px', fontWeight: 700 }}>COMMENTED OUT</span>}
+              </div>
               <div style={{ flex: 1, fontFamily: 'monospace', fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {isVisible
                   ? (s.value || <span style={{ color: '#ccc', fontStyle: 'italic' }}>empty</span>)
@@ -546,7 +548,10 @@ export default function Settings({ token, userRole }) {
                     {isVisible ? '🙈' : '👁'}
                   </button>
                 )}
-                <button onClick={() => startEdit(s)} style={BTN()} title="Edit">✏️</button>
+                {s.disabled
+                  ? <button onClick={() => startEdit(s)} style={BTN({ background: '#E07B2A', color: 'white', border: 'none', fontWeight: 700 })} title="Enable this key">Enable</button>
+                  : <button onClick={() => startEdit(s)} style={BTN()} title="Edit">✏️</button>
+                }
                 <button onClick={() => deleteSecret(s.key)} style={BTN({ color: '#c00' })} title="Delete">🗑</button>
               </div>
             </div>
