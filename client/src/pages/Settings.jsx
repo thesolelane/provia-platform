@@ -17,10 +17,13 @@ export default function Settings({ token, userRole }) {
   const [calLoading, setCalLoading] = useState(false);
   const [calSaved, setCalSaved] = useState(false);
   const [secrets, setSecrets] = useState([]);
-  const [secretsEdited, setSecretsEdited] = useState({});
   const [showValues, setShowValues] = useState({});
-  const [secretsSaved, setSecretsSaved] = useState(false);
   const [secretsLoading, setSecretsLoading] = useState(false);
+  const [secretsMsg, setSecretsMsg] = useState(null);
+  const [editingKey, setEditingKey] = useState(null);
+  const [editDraft, setEditDraft] = useState({ key: '', value: '' });
+  const [addingNew, setAddingNew] = useState(false);
+  const [newSecret, setNewSecret] = useState({ key: '', value: '' });
   const [statusData, setStatusData]     = useState(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [statusError, setStatusError]   = useState(null);
@@ -391,103 +394,202 @@ export default function Settings({ token, userRole }) {
     );
   };
 
+  const flashMsg = (msg, ms = 3000) => {
+    setSecretsMsg(msg);
+    setTimeout(() => setSecretsMsg(null), ms);
+  };
+
   const loadSecrets = async () => {
     setSecretsLoading(true);
     try {
-      const res = await fetch('/api/secrets', { headers: { 'x-auth-token': token } });
+      const res  = await fetch('/api/secrets', { headers: { 'x-auth-token': token } });
       const data = await res.json();
-      if (res.ok) { setSecrets(data); setSecretsEdited({}); }
+      if (res.ok) { setSecrets(data); setEditingKey(null); setAddingNew(false); }
     } catch (e) {}
     setSecretsLoading(false);
   };
 
-  const saveSecrets = async () => {
-    if (Object.keys(secretsEdited).length === 0) return;
-    const res = await fetch('/api/secrets', { method: 'PUT', headers, body: JSON.stringify(secretsEdited) });
+  const startEdit = (s) => {
+    setEditingKey(s.key);
+    setEditDraft({ key: s.key, value: s.value });
+    setAddingNew(false);
+  };
+
+  const cancelEdit = () => { setEditingKey(null); setEditDraft({ key: '', value: '' }); };
+
+  const saveEdit = async (originalKey) => {
+    const body = { value: editDraft.value };
+    if (editDraft.key !== originalKey) body.newKey = editDraft.key;
+    const res = await fetch(`/api/secrets/${encodeURIComponent(originalKey)}`, {
+      method: 'PUT', headers, body: JSON.stringify(body),
+    });
     if (res.ok) {
-      setSecrets(prev => prev.map(s => secretsEdited[s.key] !== undefined ? { ...s, value: secretsEdited[s.key] } : s));
-      setSecretsEdited({});
-      setSecretsSaved(true);
-      setTimeout(() => setSecretsSaved(false), 3000);
+      await loadSecrets();
+      flashMsg('✅ Saved');
+    } else {
+      const d = await res.json();
+      flashMsg(`❌ ${d.error || 'Save failed'}`);
+    }
+    cancelEdit();
+  };
+
+  const deleteSecret = async (key) => {
+    if (!window.confirm(`Delete secret "${key}"?`)) return;
+    const res = await fetch(`/api/secrets/${encodeURIComponent(key)}`, { method: 'DELETE', headers });
+    if (res.ok) { setSecrets(prev => prev.filter(s => s.key !== key)); flashMsg('🗑 Deleted'); }
+  };
+
+  const saveNew = async () => {
+    if (!newSecret.key.trim()) return;
+    const res = await fetch('/api/secrets', {
+      method: 'POST', headers, body: JSON.stringify({ key: newSecret.key.trim(), value: newSecret.value }),
+    });
+    if (res.ok) {
+      setAddingNew(false);
+      setNewSecret({ key: '', value: '' });
+      await loadSecrets();
+      flashMsg('✅ Secret added');
+    } else {
+      const d = await res.json();
+      flashMsg(`❌ ${d.error || 'Add failed'}`);
     }
   };
 
   const renderSecrets = () => {
-    if (secretsLoading) return <div style={{ color: '#888', fontSize: 13 }}>Loading...</div>;
+    if (secretsLoading) return <div style={{ color: '#888', fontSize: 13, padding: 20 }}>Loading...</div>;
+
     if (secrets.length === 0) {
       return (
         <div style={{ textAlign: 'center', padding: 40 }}>
-          <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>Load your current configuration keys to view or update them.</p>
+          <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>Load your current .env secrets to view, edit, add, or remove them.</p>
           <button onClick={loadSecrets}
             style={{ padding: '10px 24px', background: BLUE, color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold', fontSize: 13 }}>
-            🔑 Load Configuration Keys
+            🔑 Load Secrets
           </button>
         </div>
       );
     }
 
-    const groups = [...new Set(secrets.map(s => s.group))];
+    const ROW = { display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid #f0f0f0' };
+    const BTN = (extra = {}) => ({
+      padding: '5px 10px', border: '1px solid #ddd', borderRadius: 6,
+      cursor: 'pointer', fontSize: 12, background: 'white', ...extra,
+    });
 
     return (
       <div>
-        <div style={{ background: '#fff8f0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 12, fontSize: 12, color: '#5D3A00', marginBottom: 20 }}>
-          ⚠️ Changes are saved to your <strong>.env</strong> file and take effect immediately for most settings. API key changes (Claude, Resend, Twilio) require a server restart to fully take effect.
+        <div style={{ background: '#fff8f0', border: `1px solid ${ORANGE}`, borderRadius: 8, padding: 12, fontSize: 12, color: '#5D3A00', marginBottom: 16 }}>
+          ⚠️ Changes write directly to your <strong>.env</strong> file. API key changes (Claude, Twilio) need a server restart to take full effect.
         </div>
 
-        {groups.map(group => (
-          <div key={group} style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 11, fontWeight: 'bold', color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12, borderBottom: '1px solid #eee', paddingBottom: 6 }}>
-              {group}
-            </div>
-            {secrets.filter(s => s.group === group).map(s => {
-              const currentVal = secretsEdited[s.key] !== undefined ? secretsEdited[s.key] : s.value;
-              const isVisible = showValues[s.key] || s.noMask;
-              const isEdited = secretsEdited[s.key] !== undefined;
-              return (
-                <div key={s.key} style={{ marginBottom: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <label style={{ fontSize: 12, fontWeight: '600', color: '#444' }}>{s.label}</label>
-                    <span style={{ fontSize: 10, color: '#bbb', fontFamily: 'monospace' }}>{s.key}</span>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    <input
-                      type={isVisible ? 'text' : 'password'}
-                      value={currentVal}
-                      onChange={e => setSecretsEdited(prev => ({ ...prev, [s.key]: e.target.value }))}
-                      style={{
-                        flex: 1, padding: '8px 10px', border: `1px solid ${isEdited ? ORANGE : '#ddd'}`,
-                        borderRadius: 6, fontSize: 12, fontFamily: 'monospace',
-                        background: isEdited ? '#fff8f0' : 'white'
-                      }}
-                    />
-                    {!s.noMask && (
-                      <button
-                        onClick={() => setShowValues(prev => ({ ...prev, [s.key]: !prev[s.key] }))}
-                        style={{ padding: '8px 10px', background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
-                        title={isVisible ? 'Hide' : 'Show'}>
-                        {isVisible ? '🙈' : '👁'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        {secretsMsg && (
+          <div style={{ marginBottom: 12, padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+            background: secretsMsg.startsWith('❌') ? '#fff0f0' : '#f0fff4',
+            color: secretsMsg.startsWith('❌') ? '#c00' : '#2E7D32',
+            border: `1px solid ${secretsMsg.startsWith('❌') ? '#fcc' : '#b2dfdb'}` }}>
+            {secretsMsg}
           </div>
-        ))}
+        )}
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 8 }}>
-          <button onClick={saveSecrets}
-            disabled={Object.keys(secretsEdited).length === 0}
-            style={{
-              padding: '10px 24px', border: 'none', borderRadius: 8, cursor: Object.keys(secretsEdited).length === 0 ? 'not-allowed' : 'pointer',
-              fontWeight: 'bold', fontSize: 13,
-              background: secretsSaved ? '#2E7D32' : Object.keys(secretsEdited).length === 0 ? '#ccc' : BLUE,
-              color: 'white'
-            }}>
-            {secretsSaved ? '✅ Saved!' : `Save ${Object.keys(secretsEdited).length > 0 ? `(${Object.keys(secretsEdited).length} changed)` : 'Changes'}`}
+        {/* Column headers */}
+        <div style={{ display: 'flex', gap: 8, padding: '4px 0 8px', fontSize: 11, fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+          <div style={{ width: 220, flexShrink: 0 }}>Key Name</div>
+          <div style={{ flex: 1 }}>Value</div>
+          <div style={{ width: 100, flexShrink: 0 }}></div>
+        </div>
+
+        {secrets.map(s => {
+          const isEditing = editingKey === s.key;
+          const isVisible = showValues[s.key] || s.noMask;
+
+          if (isEditing) {
+            return (
+              <div key={s.key} style={{ ...ROW, background: '#fffbf5', borderRadius: 6, padding: '8px', margin: '4px 0', border: `1px solid ${ORANGE}` }}>
+                <input
+                  value={editDraft.key}
+                  onChange={e => setEditDraft(p => ({ ...p, key: e.target.value.toUpperCase().replace(/\s/g, '_') }))}
+                  style={{ width: 210, flexShrink: 0, padding: '6px 8px', border: '1px solid #ccc', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', fontWeight: 600 }}
+                  placeholder="KEY_NAME"
+                />
+                <input
+                  type={isVisible ? 'text' : 'password'}
+                  value={editDraft.value}
+                  onChange={e => setEditDraft(p => ({ ...p, value: e.target.value }))}
+                  style={{ flex: 1, padding: '6px 8px', border: '1px solid #ccc', borderRadius: 6, fontSize: 12, fontFamily: 'monospace' }}
+                  placeholder="value"
+                  autoFocus
+                />
+                <button onClick={() => setShowValues(p => ({ ...p, [s.key]: !p[s.key] }))}
+                  style={BTN()} title={isVisible ? 'Hide' : 'Reveal'}>
+                  {isVisible ? '🙈' : '👁'}
+                </button>
+                <button onClick={() => saveEdit(s.key)} style={BTN({ background: BLUE, color: 'white', border: 'none' })}>Save</button>
+                <button onClick={cancelEdit} style={BTN()}>Cancel</button>
+              </div>
+            );
+          }
+
+          return (
+            <div key={s.key} style={ROW}>
+              <div style={{ width: 220, flexShrink: 0, fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#333', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                title={s.key}>{s.key}</div>
+              <div style={{ flex: 1, fontFamily: 'monospace', fontSize: 12, color: '#666', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {isVisible
+                  ? (s.value || <span style={{ color: '#ccc', fontStyle: 'italic' }}>empty</span>)
+                  : (s.value ? '••••••••••••' : <span style={{ color: '#ccc', fontStyle: 'italic' }}>empty</span>)
+                }
+              </div>
+              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                {!s.noMask && (
+                  <button onClick={() => setShowValues(p => ({ ...p, [s.key]: !p[s.key] }))}
+                    style={BTN()} title={isVisible ? 'Hide' : 'Reveal'}>
+                    {isVisible ? '🙈' : '👁'}
+                  </button>
+                )}
+                <button onClick={() => startEdit(s)} style={BTN()} title="Edit">✏️</button>
+                <button onClick={() => deleteSecret(s.key)} style={BTN({ color: '#c00' })} title="Delete">🗑</button>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Add new secret */}
+        {addingNew ? (
+          <div style={{ marginTop: 16, padding: 12, border: `1px solid ${BLUE}`, borderRadius: 8, background: '#f8faff' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, marginBottom: 10 }}>Add New Secret</div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input
+                value={newSecret.key}
+                onChange={e => setNewSecret(p => ({ ...p, key: e.target.value.toUpperCase().replace(/\s/g, '_') }))}
+                placeholder="KEY_NAME"
+                style={{ width: 210, flexShrink: 0, padding: '7px 10px', border: '1px solid #ccc', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', fontWeight: 600 }}
+                autoFocus
+              />
+              <input
+                value={newSecret.value}
+                onChange={e => setNewSecret(p => ({ ...p, value: e.target.value }))}
+                placeholder="value"
+                type="text"
+                style={{ flex: 1, padding: '7px 10px', border: '1px solid #ccc', borderRadius: 6, fontSize: 12, fontFamily: 'monospace' }}
+              />
+              <button onClick={saveNew}
+                disabled={!newSecret.key.trim()}
+                style={BTN({ background: BLUE, color: 'white', border: 'none', opacity: newSecret.key.trim() ? 1 : 0.5 })}>
+                Add
+              </button>
+              <button onClick={() => { setAddingNew(false); setNewSecret({ key: '', value: '' }); }} style={BTN()}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => { setAddingNew(true); setEditingKey(null); }}
+            style={{ marginTop: 16, padding: '8px 18px', background: 'white', border: `1px dashed ${BLUE}`, borderRadius: 8, color: BLUE, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
+            + Add Secret
           </button>
+        )}
+
+        <div style={{ marginTop: 16, display: 'flex', gap: 10 }}>
           <button onClick={loadSecrets}
-            style={{ padding: '10px 16px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>
+            style={{ padding: '8px 16px', background: 'white', color: '#888', border: '1px solid #ddd', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}>
             ↺ Reload
           </button>
         </div>
