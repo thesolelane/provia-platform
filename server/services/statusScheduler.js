@@ -123,13 +123,15 @@ async function runAllChecks() {
 
 // ── Build and send email report ───────────────────────────────────────────────
 
-async function sendStatusReport() {
+// sendStatusReport({ subject, label, extra, alwaysSend })
+// alwaysSend=false → only emails when something fails (silent on all-OK)
+async function sendStatusReport({ subject: subjectOverride, label = 'Daily Check', extra = '', alwaysSend = false } = {}) {
   const when = new Date().toLocaleString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York'
   });
 
-  console.log(`[StatusScheduler] Running 24-hour status check — ${when}`);
+  console.log(`[StatusScheduler] Running status check (${label}) — ${when}`);
 
   let results;
   try {
@@ -143,6 +145,12 @@ async function sendStatusReport() {
   const okCount = results.filter(r => r.ok).length;
   const failed  = results.filter(r => !r.ok);
 
+  // Skip emailing if everything is fine and this isn't a forced send
+  if (allOk && !alwaysSend) {
+    console.log(`[StatusScheduler] All OK — silent (no email sent for ${label})`);
+    return;
+  }
+
   const rowsHtml = results.map(r => `
     <tr style="border-bottom:1px solid #eee">
       <td style="padding:10px 14px;font-size:14px">${r.ok ? '🟢' : '🔴'}</td>
@@ -154,7 +162,7 @@ async function sendStatusReport() {
     <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto">
       <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
         <div style="font-size:18px;font-weight:700">
-          ${allOk ? '✅' : '⚠️'} Preferred Builders — Daily System Report
+          ${allOk ? '✅' : '⚠️'} Preferred Builders — ${label}
         </div>
         <div style="font-size:12px;opacity:0.8;margin-top:4px">${when}</div>
       </div>
@@ -187,6 +195,8 @@ async function sendStatusReport() {
           <tbody>${rowsHtml}</tbody>
         </table>
 
+        ${extra ? `<div style="margin-bottom:20px;padding:14px 16px;background:#F3F6FC;border:1px solid #d0d9ee;border-radius:8px;font-size:13px;color:#333">${extra}</div>` : ''}
+
         <a href="https://preferredbuilders.duckdns.org/settings"
           style="background:#1B3A6B;color:white;padding:12px 24px;border-radius:8px;
           text-decoration:none;font-size:13px;font-weight:700;display:inline-block">
@@ -194,7 +204,7 @@ async function sendStatusReport() {
         </a>
 
         <p style="font-size:11px;color:#aaa;margin-top:20px">
-          This report runs automatically every 24 hours. Next check: tomorrow at this time.
+          Emails send twice daily — once before backup, once after. Additional alerts fire only on errors.
         </p>
       </div>
     </div>`;
@@ -206,13 +216,14 @@ async function sendStatusReport() {
       console.warn('[StatusScheduler] No OWNER_EMAIL set — skipping report email');
       return;
     }
+    const subject = subjectOverride || `${allOk ? '✅' : '⚠️'} Preferred Builders ${label} — ${when}`;
     await sendEmail({
       to: owners,
-      subject: `${allOk ? '✅' : '⚠️'} Preferred Builders Daily Status — ${when}`,
+      subject,
       html,
       emailType: 'system_alert',
     });
-    console.log(`[StatusScheduler] Report sent to ${owners.join(', ')} — ${okCount}/${results.length} OK`);
+    console.log(`[StatusScheduler] Report sent to ${owners.join(', ')} — ${okCount}/${results.length} OK (${label})`);
   } catch (e) {
     console.error('[StatusScheduler] Failed to send report:', e.message);
   }
@@ -270,13 +281,9 @@ function scheduleNext() {
 
 function startStatusScheduler() {
   if (nextReportTimeout) return;
-  const { intervalHours } = getScheduleSettings();
-  console.log(`📊 Daily status report scheduled (every ${intervalHours}h, first run in 30s)`);
-  // First run 30 seconds after boot, then reschedule based on settings
-  nextReportTimeout = setTimeout(async () => {
-    await sendStatusReport();
-    scheduleNext();
-  }, 30 * 1000);
+  // Do NOT fire on startup — only send on schedule or from backup service.
+  // This prevents an email blast every time the server restarts.
+  scheduleNext();
 }
 
 function stopStatusScheduler() {

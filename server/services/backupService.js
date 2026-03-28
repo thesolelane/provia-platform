@@ -171,13 +171,44 @@ async function notifyFailure(label, errorMessage) {
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────
 
+// Run backup with optional status emails (pre + post).
+// sendStatusEmails=false on the silent startup run so we don't email on every restart.
+async function runBackupWithStatus(sendStatusEmails = true) {
+  const { sendStatusReport } = require('./statusScheduler');
+
+  if (sendStatusEmails) {
+    // Email 1: pre-backup system check
+    await sendStatusReport({
+      label: 'Pre-Backup System Check',
+      alwaysSend: true,
+    });
+  }
+
+  const result = await runBackup();
+
+  if (sendStatusEmails) {
+    // Email 2: post-backup report with backup result
+    const backupDetail = result.ok
+      ? `✅ Backup saved: <strong>${result.file}</strong> (${result.dbSize}) — ${result.totalBackups} file${result.totalBackups !== 1 ? 's' : ''} on disk`
+      : `🔴 Backup failed: ${result.error}`;
+
+    await sendStatusReport({
+      label: 'Post-Backup Report',
+      alwaysSend: true,
+      extra: `<strong>Backup Result:</strong> ${backupDetail}`,
+    });
+  }
+
+  return result;
+}
+
 function scheduleNextBackup() {
   if (backupTimeout) clearTimeout(backupTimeout);
   const hours = getBackupScheduleHours();
   const delayMs = hours * 60 * 60 * 1000;
   console.log(`💾 Next backup in ${hours}h`);
   backupTimeout = setTimeout(async () => {
-    await runBackup();
+    await runBackupWithStatus(true); // sends pre+post emails
     scheduleNextBackup();
   }, delayMs);
 }
@@ -185,10 +216,10 @@ function scheduleNextBackup() {
 function startBackupScheduler() {
   if (backupTimeout) return;
   const hours = getBackupScheduleHours();
-  console.log(`💾 Backup scheduler started (every ${hours}h, first run in 60s)`);
-  // First run 60 seconds after boot
+  console.log(`💾 Backup scheduler started (every ${hours}h, silent startup run in 60s)`);
+  // Silent startup run — no emails so restarts don't spam owners
   backupTimeout = setTimeout(async () => {
-    await runBackup();
+    await runBackupWithStatus(false);
     scheduleNextBackup();
   }, 60 * 1000);
 }
