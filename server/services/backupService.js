@@ -9,6 +9,10 @@ const DEFAULT_BACKUP_DIR = path.resolve(__dirname, '../../data/backups');
 const MAX_BACKUPS  = 14; // keep 14 rolling backups
 
 function getBackupDir() {
+  // Priority: PBBKUPS secret → DB custom path → default
+  if (process.env.PBBKUPS && process.env.PBBKUPS.trim().length > 0) {
+    return process.env.PBBKUPS.trim();
+  }
   try {
     const { getDb } = require('../db/database');
     const custom = getDb().prepare("SELECT value FROM settings WHERE key = 'backup.customPath'").get()?.value?.trim();
