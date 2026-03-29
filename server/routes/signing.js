@@ -30,6 +30,33 @@ function pdfPublicURL(pdfPath) {
   return `/outputs/${path.basename(pdfPath)}`;
 }
 
+const SIGNING_EXPIRY_DAYS = 10;
+
+function isSessionExpired(session) {
+  if (session.status === 'signed') return false;
+  const sentAt = session.email_sent_at || session.created_at;
+  if (!sentAt) return false;
+  const cutoff = new Date(sentAt);
+  cutoff.setDate(cutoff.getDate() + SIGNING_EXPIRY_DAYS);
+  return new Date() > cutoff;
+}
+
+function expiredPageHTML(docLabel) {
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Link Expired</title>
+  <style>body{font-family:system-ui,sans-serif;background:#f5f7fb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+  .box{background:#fff;border-radius:12px;padding:48px 36px;max-width:420px;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+  h2{color:#1B3A6B;margin-bottom:12px}p{color:#555;font-size:15px;line-height:1.6}
+  .badge{display:inline-block;background:#fff3cd;color:#856404;border:1px solid #ffc107;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;margin-bottom:24px}</style>
+  </head><body><div class="box">
+  <div class="badge">⏰ Link Expired</div>
+  <h2>This signing link has expired</h2>
+  <p>The ${docLabel} signing link is only valid for ${SIGNING_EXPIRY_DAYS} days from when it was sent.<br><br>
+  Please contact <strong>Preferred Builders General Services Inc.</strong> to receive a new link.</p>
+  <p style="font-size:13px;color:#888;margin-top:24px">📞 You can reach us by replying to the original email.</p>
+  </div></body></html>`;
+}
+
 // ─── Signing page HTML generator ──────────────────────────────────────────────
 
 function signingPageHTML({ docType, job, session, base: _base }) {
@@ -281,6 +308,7 @@ router.get('/sign/p/:token', (req, res) => {
     .prepare('SELECT * FROM signing_sessions WHERE token = ? AND doc_type = ?')
     .get(req.params.token, 'proposal');
   if (!session) return res.status(404).send('<h2>Link not found or expired.</h2>');
+  if (isSessionExpired(session)) return res.status(410).send(expiredPageHTML('proposal'));
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
   if (!job) return res.status(404).send('<h2>Job not found.</h2>');
   res.send(signingPageHTML({ docType: 'proposal', job, session, base: baseURL(req) }));
@@ -292,6 +320,7 @@ router.get('/sign/c/:token', (req, res) => {
     .prepare('SELECT * FROM signing_sessions WHERE token = ? AND doc_type = ?')
     .get(req.params.token, 'contract');
   if (!session) return res.status(404).send('<h2>Link not found or expired.</h2>');
+  if (isSessionExpired(session)) return res.status(410).send(expiredPageHTML('contract'));
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
   if (!job) return res.status(404).send('<h2>Job not found.</h2>');
   res.send(signingPageHTML({ docType: 'contract', job, session, base: baseURL(req) }));
@@ -365,6 +394,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
     .get(req.params.token);
   if (!session) return res.status(404).json({ error: 'Not found' });
   if (session.status === 'signed') return res.status(400).json({ error: 'Already signed' });
+  if (isSessionExpired(session)) return res.status(410).json({ error: 'This signing link has expired. Please contact Preferred Builders for a new link.' });
 
   const { signer_name, signature_data } = req.body;
   if (!signer_name || !signature_data)

@@ -73,9 +73,13 @@ app.get('/outputs/:filename', (req, res) => {
     const { getDb } = require('./db/database');
     const db = getDb();
     const session = db
-      .prepare("SELECT id FROM signing_sessions WHERE token = ? AND status != 'void'")
+      .prepare("SELECT id, status, email_sent_at, created_at FROM signing_sessions WHERE token = ? AND status != 'void'")
       .get(signToken);
     if (session) {
+      const sentAt = session.email_sent_at || session.created_at;
+      const cutoff = sentAt ? new Date(new Date(sentAt).getTime() + 10 * 24 * 60 * 60 * 1000) : null;
+      const expired = session.status !== 'signed' && cutoff && new Date() > cutoff;
+      if (expired) return res.status(410).json({ error: 'Link expired' });
       if (req.query.download === '1') {
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       }
