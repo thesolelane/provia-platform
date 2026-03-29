@@ -67,10 +67,30 @@ const LIGHT_BLUE = '#EEF3FB';
 const LIGHT_GRAY = '#F8F8F8';
 
 async function generatePDF(data, type, jobId) {
-  const html =
-    type === 'proposal'
-      ? buildProposalHTML(data)
-      : buildContractHTMLNew(adaptToContractSchema(data));
+  let html;
+  if (type === 'proposal') {
+    html = buildProposalHTML(data);
+  } else {
+    const contractHTML = buildContractHTMLNew(adaptToContractSchema(data));
+    const fmt = (n) => (n ? `$${Number(n).toLocaleString()}` : '$0');
+    const today = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/New_York'
+    });
+    const noticeHTML = buildNoticeOfContractHTML({
+      customer: data.customer || {},
+      project: data.project || {},
+      quoteNum: data.quoteNumber || '',
+      today,
+      total: data.pricing?.totalContractPrice || data.totalValue || 0,
+      lineItems: data.lineItems || [],
+      fmt,
+      county: data.county || 'Worcester'
+    });
+    html = contractHTML.replace('</body>', noticeHTML + '\n</body>');
+  }
 
   const filename = `PB_${type === 'proposal' ? 'Proposal' : 'Contract'}_${jobId.slice(0, 8)}_${Date.now()}.pdf`;
   const outputPath = path.join(OUTPUT_DIR, filename);
@@ -689,10 +709,9 @@ function buildExhibitAHTML(data, _fmt) {
 // A standalone, notarizable document for filing at the Registry of Deeds
 // to establish and protect the Contractor's mechanic's lien rights.
 // ══════════════════════════════════════════════════════════════════════
-function _buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, lineItems, fmt }) {
+function buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, lineItems, fmt, county = 'Worcester' }) {
   const workDescription =
     lineItems.map((i) => i.trade).join('; ') || 'General construction and home improvement work';
-  const county = 'Worcester'; // default; Townsend MA is Worcester County
 
   const noticeCSS = `
     .notice-page { page-break-before: always; font-family: Arial, sans-serif; }
@@ -844,7 +863,7 @@ function _buildNoticeOfContractHTML({ customer, project, quoteNum, today, total,
 </div>
 <div class="notice-field">
   <span class="notice-label">Assessor's Parcel No.:</span>
-  <span class="notice-value">&nbsp;</span>
+  <span class="notice-value">${project.parcel_number || '&nbsp;'}</span>
 </div>
 <div class="notice-field">
   <span class="notice-label">Title Reference:</span>
@@ -1045,4 +1064,4 @@ async function generatePDFFromHTML(html, filenameBase) {
   return outputPath;
 }
 
-module.exports = { generatePDF, generatePDFFromHTML, generateBlankContractDocx };
+module.exports = { generatePDF, generatePDFFromHTML, generateBlankContractDocx, buildNoticeOfContractHTML };

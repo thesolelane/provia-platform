@@ -650,8 +650,63 @@ function applyPricing(data, rates, settings) {
 }
 
 // ── GENERATE CONTRACT (after customer approval) ──────────────────────
-async function generateContract(proposalData, jobId, _language = 'en') {
-  return proposalData;
+// Uses Claude Opus to derive county, estimated duration, and scope-specific
+// special conditions that the template system cannot determine programmatically.
+async function generateContract(proposalData, _jobId, _language = 'en') {
+  const lineItems = (proposalData.lineItems || []).map((i) => i.trade).join(', ') || 'General construction';
+  const projectType = proposalData.project?.type || 'renovation';
+  const city = proposalData.project?.city || '';
+  const totalValue = proposalData.pricing?.totalContractPrice || proposalData.totalValue || 0;
+
+  let enrichment = {};
+  try {
+    const response = await client.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 800,
+      temperature: 0,
+      system: `You are a Massachusetts construction contract assistant for Preferred Builders General Services Inc. (HIC-197400). Return ONLY valid JSON — no commentary, no markdown.`,
+      messages: [
+        {
+          role: 'user',
+          content: `Given this construction project, return contract enrichment data.
+
+Project Type: ${projectType}
+City/Town: ${city}, MA
+Total Contract Value: $${Number(totalValue).toLocaleString()}
+Trades/Scope: ${lineItems}
+
+Return this EXACT JSON:
+{
+  "county": "Worcester",
+  "estimatedDurationWeeks": 12,
+  "specialConditions": []
+}
+
+Rules:
+1. county: The Massachusetts county for the city/town (Worcester County covers Fitchburg, Leominster, Worcester, Gardner, Athol, Townsend, etc. Middlesex covers Lowell, Cambridge, Framingham, Waltham, Woburn, etc. Essex covers Salem, Lawrence, Lynn, Haverhill, etc. Bristol covers Taunton, Fall River, New Bedford, etc.)
+2. estimatedDurationWeeks: realistic project duration in whole weeks (new construction: 26–52, major renovation with multiple trades: 12–24, single-trade renovation: 4–12, minor repair: 1–4)
+3. specialConditions: array of up to 4 scope-specific contract conditions relevant to this exact scope. Only include if genuinely project-specific. Leave as empty array [] if no special conditions are needed.`
+        }
+      ]
+    });
+
+    const text = response.content.find((b) => b.type === 'text')?.text?.trim() || '';
+    const clean = text.replace(/```json|```/g, '').trim();
+    enrichment = JSON.parse(clean);
+    console.log(
+      `[generateContract] Opus enrichment OK — county: ${enrichment.county}, duration: ${enrichment.estimatedDurationWeeks}w, conditions: ${(enrichment.specialConditions || []).length}`
+    );
+  } catch (e) {
+    console.warn('[generateContract] Opus enrichment failed, using defaults:', e.message);
+    enrichment = { county: 'Worcester', estimatedDurationWeeks: 12, specialConditions: [] };
+  }
+
+  return {
+    ...proposalData,
+    county: enrichment.county || 'Worcester',
+    estimatedDurationWeeks: Number(enrichment.estimatedDurationWeeks) || 12,
+    specialConditions: Array.isArray(enrichment.specialConditions) ? enrichment.specialConditions : []
+  };
 }
 
 // ── HANDLE CLARIFICATION CONVERSATION ────────────────────────────────
