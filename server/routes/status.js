@@ -410,7 +410,7 @@ router.get('/', requireAuth, async (req, res) => {
   ]);
 
   res.json({
-    version: '1.4.0',
+    version: require('../../package.json').version,
     checkedAt: new Date().toISOString(),
     services: {
       database: { label: 'Database (SQLite)', ...database },
