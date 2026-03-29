@@ -2,17 +2,39 @@
 
 const { google } = require('googleapis');
 
-let connectionSettings = null;
+// ── Auth strategy ─────────────────────────────────────────────────────────────
+// Production (Windows server): uses GOOGLE_SERVICE_ACCOUNT_JSON env var.
+// Replit dev fallback: uses Replit connector OAuth tokens.
+// If neither is available, all API calls are skipped gracefully.
 
-async function getAccessToken() {
-  if (
-    connectionSettings &&
-    connectionSettings.settings?.expires_at &&
-    new Date(connectionSettings.settings.expires_at).getTime() > Date.now()
-  ) {
-    return connectionSettings.settings.access_token;
+let _serviceAccountClient = null;
+
+function getServiceAccountClient() {
+  if (_serviceAccountClient) return _serviceAccountClient;
+
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+
+  try {
+    const key = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    const auth = new google.auth.GoogleAuth({
+      credentials: key,
+      scopes: ['https://www.googleapis.com/auth/calendar']
+    });
+    _serviceAccountClient = google.calendar({ version: 'v3', auth });
+    console.log('[GoogleCalendar] Using Service Account auth');
+    return _serviceAccountClient;
+  } catch (e) {
+    console.warn('[GoogleCalendar] Service Account JSON parse failed:', e.message);
+    return null;
   }
+}
 
+// ── Replit connector fallback ─────────────────────────────────────────────────
+
+let _replitConnSettings = null;
+
+async function getReplitConnectorClient() {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
   const replIdentity = process.env.REPL_IDENTITY;
   const webReplRenewal = process.env.WEB_REPL_RENEWAL;
@@ -22,52 +44,98 @@ async function getAccessToken() {
       ? 'depl ' + webReplRenewal
       : null;
 
-  if (!xReplitToken || !hostname) {
-    throw new Error('Google Calendar: Replit connector tokens not available');
+  if (!xReplitToken || !hostname) return null;
+
+  // Reuse cached token if still valid
+  if (
+    _replitConnSettings?.settings?.expires_at &&
+    new Date(_replitConnSettings.settings.expires_at).getTime() > Date.now()
+  ) {
+    const accessToken = _replitConnSettings.settings.access_token;
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
+    return google.calendar({ version: 'v3', auth: oauth2Client });
   }
 
-  const data = await fetch(
-    'https://' +
-      hostname +
-      '/api/v2/connection?include_secrets=true&connector_names=google-calendar',
-    { headers: { Accept: 'application/json', 'X-Replit-Token': xReplitToken } }
-  ).then((r) => r.json());
+  try {
+    const data = await fetch(
+      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-calendar',
+      { headers: { Accept: 'application/json', 'X-Replit-Token': xReplitToken } }
+    ).then((r) => r.json());
 
-  connectionSettings = data.items?.[0];
-  const accessToken =
-    connectionSettings?.settings?.access_token ||
-    connectionSettings?.settings?.oauth?.credentials?.access_token;
+    _replitConnSettings = data.items?.[0];
+    const accessToken =
+      _replitConnSettings?.settings?.access_token ||
+      _replitConnSettings?.settings?.oauth?.credentials?.access_token;
 
-  if (!connectionSettings || !accessToken) {
-    throw new Error('Google Calendar not connected');
+    if (!_replitConnSettings || !accessToken) return null;
+
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({ access_token: accessToken });
+    return google.calendar({ version: 'v3', auth: oauth2Client });
+  } catch {
+    return null;
   }
-  return accessToken;
 }
 
 async function getCalendarClient() {
-  const accessToken = await getAccessToken();
-  const oauth2Client = new google.auth.OAuth2();
-  oauth2Client.setCredentials({ access_token: accessToken });
-  return google.calendar({ version: 'v3', auth: oauth2Client });
+  const sa = getServiceAccountClient();
+  if (sa) return sa;
+
+  const replit = await getReplitConnectorClient();
+  if (replit) return replit;
+
+  throw new Error('Google Calendar: no auth configured (set GOOGLE_SERVICE_ACCOUNT_JSON)');
+}
+
+// ── Attendees ─────────────────────────────────────────────────────────────────
+// Always include the company owner email so Jackson gets a calendar invite.
+
+function buildAttendees(extraEmails = []) {
+  const attendees = [];
+  const ownerEmail = process.env.OWNER_EMAIL;
+  if (ownerEmail) attendees.push({ email: ownerEmail, responseStatus: 'accepted' });
+  for (const email of extraEmails) {
+    if (email && email !== ownerEmail) attendees.push({ email, responseStatus: 'needsAction' });
+  }
+  return attendees;
+}
+
+// ── Calendar ID helper ────────────────────────────────────────────────────────
+// For Service Account auth, 'primary' refers to the SA's own empty calendar.
+// Use OWNER_EMAIL as calendarId so events land on Jackson's actual calendar
+// (requires the calendar to be shared with the service account first).
+
+function resolveCalendarId(calendarId) {
+  if (calendarId && calendarId !== 'primary') return calendarId;
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON && process.env.OWNER_EMAIL) {
+    return process.env.OWNER_EMAIL;
+  }
+  return calendarId || 'primary';
 }
 
 /**
  * Create a Google Calendar event for a task.
- * @param {object} task - task row from DB (title, description, due_at)
- * @param {string} calendarId - Google Calendar ID, defaults to 'primary'
- * @returns {string|null} - Google Calendar event HTML link or null on failure
+ * @param {object} task         - task row from DB (title, description, due_at)
+ * @param {string} calendarId   - Google Calendar ID; auto-resolved if 'primary'
+ * @param {string[]} extraEmails - additional attendees to invite
+ * @returns {string|null}       - Google Calendar event HTML link or null on failure
  */
-async function createCalendarEvent(task, calendarId = 'primary') {
+async function createCalendarEvent(task, calendarId = 'primary', extraEmails = []) {
   if (!task.due_at) return null;
 
+  const resolvedId = resolveCalendarId(calendarId);
   const start = new Date(task.due_at);
-  const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour default
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+  const attendees = buildAttendees(extraEmails);
 
   const event = {
     summary: task.title,
     description: task.description || '',
     start: { dateTime: start.toISOString(), timeZone: 'America/New_York' },
     end: { dateTime: end.toISOString(), timeZone: 'America/New_York' },
+    attendees: attendees.length ? attendees : undefined,
     reminders: {
       useDefault: false,
       overrides: [
@@ -79,7 +147,12 @@ async function createCalendarEvent(task, calendarId = 'primary') {
 
   try {
     const cal = await getCalendarClient();
-    const result = await cal.events.insert({ calendarId, resource: event });
+    const result = await cal.events.insert({
+      calendarId: resolvedId,
+      resource: event,
+      sendUpdates: attendees.length ? 'all' : 'none'
+    });
+    console.log(`[GoogleCalendar] Event created on calendar "${resolvedId}": ${result.data.htmlLink}`);
     return result.data.htmlLink || null;
   } catch (err) {
     console.warn('[GoogleCalendar] Failed to create event:', err.message);
@@ -91,11 +164,12 @@ async function createCalendarEvent(task, calendarId = 'primary') {
  * List upcoming events from the calendar (next 7 days).
  */
 async function listUpcomingEvents(calendarId = 'primary', maxResults = 10) {
+  const resolvedId = resolveCalendarId(calendarId);
   const cal = await getCalendarClient();
   const now = new Date();
   const week = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
   const res = await cal.events.list({
-    calendarId,
+    calendarId: resolvedId,
     timeMin: now.toISOString(),
     timeMax: week.toISOString(),
     maxResults,
@@ -106,7 +180,7 @@ async function listUpcomingEvents(calendarId = 'primary', maxResults = 10) {
 }
 
 /**
- * List all calendars for this user so they can pick the right one.
+ * List all calendars accessible to this auth.
  */
 async function listCalendars() {
   const cal = await getCalendarClient();
@@ -114,4 +188,15 @@ async function listCalendars() {
   return res.data.items || [];
 }
 
-module.exports = { createCalendarEvent, listUpcomingEvents, listCalendars };
+/**
+ * Check whether calendar integration is available.
+ * Returns true if Service Account JSON is set OR Replit connector is present.
+ */
+async function isConfigured() {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) return true;
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const replIdentity = process.env.REPL_IDENTITY;
+  return !!(hostname && replIdentity);
+}
+
+module.exports = { createCalendarEvent, listUpcomingEvents, listCalendars, isConfigured };
