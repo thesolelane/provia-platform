@@ -52,6 +52,7 @@ export default function Dashboard({ token }) {
   const [jobs, setJobs] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [showWizard, setShowWizard] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [submitTab, setSubmitTab] = useState('text');
@@ -84,6 +85,12 @@ export default function Dashboard({ token }) {
   };
 
   // Re-fetch whenever navigating to the dashboard
+  useEffect(() => {
+    const fn = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+
   useEffect(() => {
     loadDashboard();
   }, [location.key]);
@@ -254,60 +261,123 @@ export default function Dashboard({ token }) {
         </div>
       )}
 
-      {/* Jobs table */}
-      <div className="pb-table-wrap" style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflowX: 'auto', overflowY: 'visible', WebkitOverflowScrolling: 'touch' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
-          <thead>
-            <tr style={{ background: '#1B3A6B' }}>
-              {['PB Number', 'Customer', 'Address', 'Value', 'Status', 'Date', ''].map(h => (
-                <th key={h} style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: 12, fontWeight: 'bold' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 32, textAlign: 'center', color: '#888' }}>No jobs yet. Waiting for estimates from Hearth...</td></tr>
-            )}
-            {jobs.map((job, i) => (
-              <tr key={job.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
-                <td style={{ padding: '12px 16px' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#1B3A6B', fontFamily: 'monospace' }}>
+      {/* Jobs list — cards on mobile, table on desktop */}
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {jobs.length === 0 && (
+            <div style={{ background: 'white', borderRadius: 10, padding: 32, textAlign: 'center', color: '#888', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+              No jobs yet. Waiting for estimates from Hearth...
+            </div>
+          )}
+          {jobs.map(job => (
+            <div key={job.id} style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: '14px 16px' }}>
+              {/* Top row: PB# + status badge */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                <div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', fontFamily: 'monospace' }}>
                     {job.pb_number || '—'}
-                  </div>
-                  {job.external_ref && (
-                    <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>ref #{job.external_ref}</div>
-                  )}
-                </td>
-                <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500' }}>{job.customer_name || '—'}</td>
-                <td style={{ padding: '12px 16px', fontSize: 12, color: '#555' }}>{job.project_address || '—'}</td>
-                <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500', color: '#1B3A6B' }}>
-                  {job.total_value ? `$${job.total_value.toLocaleString()}` : '—'}
-                </td>
-                <td style={{ padding: '12px 16px' }}>
-                  <span style={{
-                    background: STATUS_COLORS[job.status] + '22',
-                    color: STATUS_COLORS[job.status],
-                    padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 'bold'
-                  }}>
-                    {STATUS_LABELS[job.status] || job.status}
                   </span>
-                </td>
-                <td style={{ padding: '12px 16px', fontSize: 11, color: '#888' }}>
-                  {new Date(job.created_at).toLocaleDateString()}
-                </td>
-                <td style={{ padding: '12px 16px', display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <Link to={`/jobs/${job.id}`} style={{ color: '#1B3A6B', fontSize: 12, fontWeight: 'bold', textDecoration: 'none' }}>View →</Link>
+                  {job.external_ref && (
+                    <span style={{ fontSize: 10, color: '#aaa', marginLeft: 6 }}>ref #{job.external_ref}</span>
+                  )}
+                </div>
+                <span style={{
+                  background: STATUS_COLORS[job.status] + '22',
+                  color: STATUS_COLORS[job.status],
+                  padding: '3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 'bold', whiteSpace: 'nowrap', marginLeft: 8
+                }}>
+                  {STATUS_LABELS[job.status] || job.status}
+                </span>
+              </div>
+              {/* Customer name */}
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#111', marginBottom: 3 }}>
+                {job.customer_name || '—'}
+              </div>
+              {/* Address */}
+              {job.project_address && (
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>{job.project_address}</div>
+              )}
+              {/* Bottom row: value + date + actions */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f0f0f0', paddingTop: 10, marginTop: 4 }}>
+                <div>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1B3A6B' }}>
+                    {job.total_value ? `$${job.total_value.toLocaleString()}` : '—'}
+                  </span>
+                  <span style={{ fontSize: 10, color: '#aaa', marginLeft: 8 }}>
+                    {new Date(job.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   <button
                     onClick={() => openArchiveModal(job.id, job.customer_name, job.status)}
-                    style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}
-                    title="Archive job"
+                    style={{ background: 'none', border: 'none', color: '#bbb', cursor: 'pointer', fontSize: 11, padding: '4px 6px' }}
                   >Archive</button>
-                </td>
+                  <Link to={`/jobs/${job.id}`} style={{
+                    background: '#1B3A6B', color: 'white', fontSize: 12, fontWeight: 'bold',
+                    textDecoration: 'none', padding: '6px 14px', borderRadius: 6
+                  }}>View →</Link>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+            <thead>
+              <tr style={{ background: '#1B3A6B' }}>
+                {['PB Number', 'Customer', 'Address', 'Value', 'Status', 'Date', ''].map(h => (
+                  <th key={h} style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: 12, fontWeight: 'bold' }}>{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {jobs.length === 0 && (
+                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#888' }}>No jobs yet. Waiting for estimates from Hearth...</td></tr>
+              )}
+              {jobs.map((job, i) => (
+                <tr key={job.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                  <td style={{ padding: '12px 16px' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1B3A6B', fontFamily: 'monospace' }}>
+                      {job.pb_number || '—'}
+                    </div>
+                    {job.external_ref && (
+                      <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>ref #{job.external_ref}</div>
+                    )}
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500' }}>{job.customer_name || '—'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 12, color: '#555' }}>{job.project_address || '—'}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500', color: '#1B3A6B' }}>
+                    {job.total_value ? `$${job.total_value.toLocaleString()}` : '—'}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{
+                      background: STATUS_COLORS[job.status] + '22',
+                      color: STATUS_COLORS[job.status],
+                      padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 'bold'
+                    }}>
+                      {STATUS_LABELS[job.status] || job.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: 11, color: '#888' }}>
+                    {new Date(job.created_at).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <Link to={`/jobs/${job.id}`} style={{ color: '#1B3A6B', fontSize: 12, fontWeight: 'bold', textDecoration: 'none' }}>View →</Link>
+                      <button
+                        onClick={() => openArchiveModal(job.id, job.customer_name, job.status)}
+                        style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}
+                        title="Archive job"
+                      >Archive</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div style={{ marginTop: 12, textAlign: 'right' }}>
         <button onClick={loadArchived} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}>
