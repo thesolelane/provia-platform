@@ -35,7 +35,8 @@ function pdfPublicURL(pdfPath) {
 function signingPageHTML({ docType, job, session, base: _base }) {
   const isProposal = docType === 'proposal';
   const docLabel = isProposal ? 'Proposal' : 'Contract';
-  const pdfURL = pdfPublicURL(isProposal ? job.proposal_pdf_path : job.contract_pdf_path);
+  const pdfURLBase = pdfPublicURL(isProposal ? job.proposal_pdf_path : job.contract_pdf_path);
+  const pdfURL = pdfURLBase ? `${pdfURLBase}?sign_token=${encodeURIComponent(session.token)}` : null;
   const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
   const already = session.status === 'signed';
 

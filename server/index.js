@@ -47,17 +47,38 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 }, useTempFiles: true }));
 
 // ── AUTH-PROTECTED FILE SERVING ───────────────────────────────
-// PDFs (proposals, contracts) — requires login
+// PDFs (proposals, contracts) — requires staff login OR a valid signing session token
 const OUTPUTS_DIR     = path.resolve(__dirname, '../outputs');
 const CONTACT_DOCS_DIR = path.resolve(__dirname, '../uploads/contact_docs');
 
-app.get('/outputs/:filename', requireAuth, (req, res) => {
+app.get('/outputs/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
   const filePath = path.join(OUTPUTS_DIR, filename);
   if (!filePath.startsWith(OUTPUTS_DIR) || !fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
-  res.sendFile(filePath);
+
+  // Accept staff auth token (header or query param)
+  const authToken = req.headers['x-auth-token'] || req.query.token;
+  if (authToken) {
+    const { getDb } = require('./db/database');
+    const db = getDb();
+    const user = db.prepare('SELECT id FROM users WHERE token = ?').get(authToken);
+    if (user) return res.sendFile(filePath);
+  }
+
+  // Also accept a valid signing session token (customers viewing their own docs)
+  const signToken = req.query.sign_token;
+  if (signToken) {
+    const { getDb } = require('./db/database');
+    const db = getDb();
+    const session = db
+      .prepare("SELECT id FROM signing_sessions WHERE token = ? AND status != 'void'")
+      .get(signToken);
+    if (session) return res.sendFile(filePath);
+  }
+
+  return res.status(401).json({ error: 'Unauthorized' });
 });
 
 app.get('/contact-docs/:contactId/:filename', requireAuth, (req, res) => {
