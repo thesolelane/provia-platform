@@ -344,17 +344,18 @@ function runReport(db, type, period) {
     const jobs = db
       .prepare(
         `
-      SELECT j.id, j.customer_name, j.pb_number, j.quote_number, j.status,
-             COALESCE((
-               SELECT SUM(CASE WHEN credit_debit='debit' THEN amount ELSE -amount END)
-               FROM payments_made WHERE job_id=j.id AND payment_class='pass_through' AND paid_by!='customer_direct'
-             ), 0) AS fronted,
-             COALESCE((
-               SELECT SUM(CASE WHEN credit_debit='credit' THEN amount ELSE -amount END)
-               FROM payments_received WHERE job_id=j.id AND is_pass_through_reimbursement=1
-             ), 0) AS reimbursed
-      FROM jobs j WHERE j.archived = 0
-      HAVING fronted > 0
+      SELECT * FROM (
+        SELECT j.id, j.customer_name, j.pb_number, j.quote_number, j.status,
+               COALESCE((
+                 SELECT SUM(CASE WHEN credit_debit='debit' THEN amount ELSE -amount END)
+                 FROM payments_made WHERE job_id=j.id AND payment_class='pass_through' AND paid_by!='customer_direct'
+               ), 0) AS fronted,
+               COALESCE((
+                 SELECT SUM(CASE WHEN credit_debit='credit' THEN amount ELSE -amount END)
+                 FROM payments_received WHERE job_id=j.id AND is_pass_through_reimbursement=1
+               ), 0) AS reimbursed
+        FROM jobs j WHERE j.archived = 0
+      ) WHERE fronted > 0
       ORDER BY (fronted - reimbursed) DESC
     `
       )
