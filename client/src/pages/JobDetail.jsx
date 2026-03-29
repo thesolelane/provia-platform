@@ -63,6 +63,8 @@ export default function JobDetail({ token }) {
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   const [versionHistory, setVersionHistory] = useState([]);
+  const [historySort, setHistorySort] = useState('desc');
+  const [auditSort, setAuditSort]     = useState('desc');
   const [marginData, setMarginData] = useState(null);
   const [marginLoading, setMarginLoading] = useState(false);
   const [pipelineCtx, setPipelineCtx] = useState(null);
@@ -838,7 +840,13 @@ export default function JobDetail({ token }) {
         {/* VERSION HISTORY */}
         {activeTab === 'history' && (
           <div>
-            <h3 style={{ color: BLUE, marginBottom: 16 }}>Estimate Version History</h3>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <h3 style={{ color: BLUE, margin: 0 }}>Estimate Version History</h3>
+              <button onClick={() => setHistorySort(s => s === 'desc' ? 'asc' : 'desc')}
+                style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', color: '#555' }}>
+                {historySort === 'desc' ? '⬇ Newest First' : '⬆ Oldest First'}
+              </button>
+            </div>
             {!job.quote_number ? (
               <div style={{ color: '#888', textAlign: 'center', padding: 40 }}>
                 <div style={{ fontSize: 32, marginBottom: 10 }}>📋</div>
@@ -864,7 +872,10 @@ export default function JobDetail({ token }) {
                   <tbody>
                     {versionHistory.length === 0 ? (
                       <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#aaa' }}>No versions found.</td></tr>
-                    ) : versionHistory.map((v, i) => {
+                    ) : [...versionHistory].sort((a, b) => historySort === 'desc'
+                        ? new Date(b.created_at) - new Date(a.created_at)
+                        : new Date(a.created_at) - new Date(b.created_at)
+                      ).map((v, i) => {
                       const isCurrent = v.id === job.id;
                       const rawQuoteNum = job.quote_number;
                       return (
@@ -909,10 +920,21 @@ export default function JobDetail({ token }) {
 
             {/* Activity log — all audit entries for this job */}
             <div style={{ marginTop: 28 }}>
-              <h4 style={{ color: BLUE, marginBottom: 10, fontSize: 14 }}>📋 Activity Log</h4>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <h4 style={{ color: BLUE, margin: 0, fontSize: 14 }}>📋 Activity Log</h4>
+                {auditLog.length > 0 && (
+                  <button onClick={() => setAuditSort(s => s === 'desc' ? 'asc' : 'desc')}
+                    style={{ fontSize: 12, padding: '4px 10px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', color: '#555' }}>
+                    {auditSort === 'desc' ? '⬇ Newest First' : '⬆ Oldest First'}
+                  </button>
+                )}
+              </div>
               {auditLog.length === 0
                 ? <div style={{ color: '#aaa', fontSize: 13 }}>No activity recorded yet.</div>
-                : auditLog.map(a => (
+                : [...auditLog].sort((a, b) => auditSort === 'desc'
+                    ? new Date(b.created_at) - new Date(a.created_at)
+                    : new Date(a.created_at) - new Date(b.created_at)
+                  ).map(a => (
                   <div key={a.id} style={{ display: 'flex', gap: 10, padding: '7px 0', borderBottom: '1px solid #f0f0f0', fontSize: 12, flexWrap: 'wrap' }}>
                     <span style={{ color: '#aaa', width: 130, flexShrink: 0 }}>{new Date(a.created_at).toLocaleString()}</span>
                     <span style={{ fontWeight: 600, color: ORANGE, flexShrink: 0, minWidth: 160 }}>{a.action.replace(/_/g, ' ')}</span>
