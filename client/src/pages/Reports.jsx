@@ -20,6 +20,115 @@ const REPORT_TYPES = [
   { key: 'deposits',      icon: '🏦', label: 'Deposit Tracker',        desc: 'Signed jobs and deposit status' },
 ];
 
+function DocHistoryPanel({ token }) {
+  const [query,   setQuery]   = useState('');
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const search = async (q) => {
+    setQuery(q);
+    setSelected(null);
+    if (!q.trim()) { setResults([]); return; }
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/reports/doc-history/search?q=${encodeURIComponent(q)}`, {
+        headers: { 'x-auth-token': token }
+      });
+      const d = await r.json();
+      setResults(d.jobs || []);
+    } catch { setResults([]); }
+    setLoading(false);
+  };
+
+  const openPDF = () => {
+    if (!selected) return;
+    window.open(`/api/reports/doc-history/${selected.id}/pdf?token=${encodeURIComponent(token)}`, '_blank');
+  };
+
+  const statusColors = { complete: GREEN, contract_signed: TEAL, contract_sent: '#3B82F6', proposal_approved: '#059669', proposal_sent: '#F59E0B' };
+
+  return (
+    <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginTop: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <span style={{ fontSize: 22 }}>📁</span>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 'bold', color: BLUE }}>Document History Report</div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Search a job or customer — generate a full PDF document trail</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <input
+          value={query}
+          onChange={(e) => search(e.target.value)}
+          placeholder="Search by job #, customer name, or address…"
+          style={{ flex: 1, padding: '9px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, outline: 'none' }}
+        />
+        <button
+          onClick={openPDF}
+          disabled={!selected}
+          style={{
+            padding: '9px 18px', background: selected ? BLUE : '#ccc', color: 'white',
+            border: 'none', borderRadius: 8, cursor: selected ? 'pointer' : 'not-allowed',
+            fontWeight: 'bold', fontSize: 13, whiteSpace: 'nowrap'
+          }}
+        >
+          Generate PDF
+        </button>
+      </div>
+
+      {loading && <div style={{ color: '#aaa', fontSize: 13, padding: '8px 0' }}>Searching…</div>}
+
+      {!loading && results.length > 0 && (
+        <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+          {results.map((job, i) => {
+            const isSel = selected?.id === job.id;
+            const sc = statusColors[job.status] || '#888';
+            return (
+              <div
+                key={job.id}
+                onClick={() => setSelected(job)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                  cursor: 'pointer', borderBottom: i < results.length - 1 ? '1px solid #f0f0f0' : 'none',
+                  background: isSel ? BLUE + '12' : i % 2 === 0 ? 'white' : '#fafafa',
+                  borderLeft: isSel ? `3px solid ${BLUE}` : '3px solid transparent',
+                }}
+              >
+                <span style={{ fontSize: 16, flexShrink: 0 }}>📋</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isSel ? BLUE : '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {job.contact_name || job.customer_name || '—'}
+                    {job.pb_customer_number && <span style={{ fontFamily: 'monospace', fontSize: 10, background: '#e0e8ff', color: BLUE, padding: '1px 6px', borderRadius: 4, marginLeft: 8, fontWeight: 'bold' }}>{job.pb_customer_number}</span>}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    PB-{job.quote_number || job.id} &nbsp;·&nbsp; {job.project_address || '—'}{job.project_city ? `, ${job.project_city}` : ''}
+                  </div>
+                </div>
+                <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: sc + '22', color: sc, fontWeight: 'bold', flexShrink: 0 }}>
+                  {job.status || '—'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && query && results.length === 0 && (
+        <div style={{ color: '#aaa', fontSize: 13, padding: '8px 0' }}>No jobs found matching "{query}"</div>
+      )}
+
+      {selected && (
+        <div style={{ marginTop: 12, background: '#f0f4ff', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: BLUE }}>
+          Selected: <strong>{selected.contact_name || selected.customer_name}</strong> — PB-{selected.quote_number || selected.id} — {selected.project_address || '—'}
+          &nbsp;·&nbsp; Click <strong>Generate PDF</strong> to open the document history report.
+        </div>
+      )}
+    </div>
+  );
+}
+
 const PERIODS = [
   { key: 'mtd',  label: 'Month to Date' },
   { key: 'qtd',  label: 'Quarter to Date' },
@@ -647,6 +756,9 @@ export default function Reports({ token }) {
           )}
         </div>
       </div>
+
+      {/* ── Document History Report ── */}
+      <DocHistoryPanel token={token} />
     </div>
   );
 }

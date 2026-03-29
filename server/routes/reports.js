@@ -484,6 +484,196 @@ router.post('/run', requireAuth, (req, res) => {
   }
 });
 
+// ── GET /api/reports/doc-history/:jobId/pdf — document history PDF for a job ──
+router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
+  try {
+    const db = getDb();
+    const { generatePDFFromHTML } = require('../services/pdfService');
+
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const contact = job.contact_id
+      ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(job.contact_id)
+      : null;
+
+    const invoices = db
+      .prepare('SELECT * FROM invoices WHERE job_id = ? ORDER BY created_at ASC')
+      .all(job.id);
+
+    const payments = db
+      .prepare('SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC')
+      .all(job.id);
+
+    const activity = db
+      .prepare(`SELECT * FROM activity_log WHERE job_id = ? ORDER BY created_at ASC`)
+      .all(job.id);
+
+    const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    const fmtDate = (d) => {
+      if (!d) return '—';
+      try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' }); }
+      catch { return d; }
+    };
+
+    // Build timeline: merge key activity events + invoices + payments into a sorted list
+    const timeline = [];
+
+    // Job created / received
+    timeline.push({ date: job.created_at, icon: '📋', label: 'Job Created', sub: `Status: ${job.status || 'received'}`, color: '#1B3A6B' });
+
+    // Proposal / quote
+    if (job.quote_number) {
+      const proposalEvent = activity.find((a) => a.event_type === 'PROPOSAL_SENT' || a.event_type === 'PROPOSAL_READY');
+      timeline.push({ date: proposalEvent?.created_at || job.updated_at, icon: '📄', label: `Proposal / Scope of Work`, sub: `PB-${job.quote_number}`, color: '#7C3AED' });
+    }
+
+    // Contract signed
+    const signedEvent = activity.find((a) => a.event_type === 'CONTRACT_SIGNED');
+    if (signedEvent) {
+      timeline.push({ date: signedEvent.created_at, icon: '✍️', label: 'Contract Signed', sub: `Contract No. PB-${job.quote_number || job.id}`, color: '#0D9488' });
+    }
+
+    // Invoices
+    for (const inv of invoices) {
+      const typeMap = { contract_invoice: 'Deposit Invoice', pass_through_invoice: 'Pass-Through Invoice', change_order: 'Change Order Invoice', combined_invoice: 'Invoice' };
+      const typeLabel = typeMap[inv.invoice_type] || 'Invoice';
+      const statusBadge = inv.status === 'paid' ? ' ✓ PAID' : inv.status === 'sent' ? ' — Sent' : inv.status === 'void' ? ' — VOID' : ' — Draft';
+      let items = [];
+      try { items = inv.line_items ? JSON.parse(inv.line_items) : []; } catch { /* ignore */ }
+      const pbDue = inv.pb_due_amount || inv.amount;
+      const sub = items.length
+        ? `${money(inv.amount)} total · ${money(pbDue)} due to PB${statusBadge}`
+        : `${money(inv.amount)}${statusBadge}`;
+      timeline.push({ date: inv.created_at, icon: '🧾', label: `${typeLabel} — ${inv.invoice_number}`, sub, color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A' });
+    }
+
+    // Payments received
+    for (const pmt of payments) {
+      timeline.push({
+        date: pmt.date_received,
+        icon: '💵',
+        label: `Payment Received — ${money(pmt.amount)}`,
+        sub: `${pmt.payment_type || 'Check'}${pmt.check_number ? ` #${pmt.check_number}` : ''}${pmt.notes ? ` · ${pmt.notes}` : ''}`,
+        color: '#2E7D32'
+      });
+    }
+
+    // Job complete
+    if (job.status === 'complete') {
+      const completeEvent = activity.find((a) => a.event_type === 'JOB_COMPLETE' || a.event_type === 'STATUS_CHANGE' && a.description?.includes('complete'));
+      timeline.push({ date: completeEvent?.created_at || job.updated_at, icon: '🏁', label: 'Job Complete', sub: '', color: '#2E7D32' });
+    }
+
+    // Sort by date ascending
+    timeline.sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db2 = b.date ? new Date(b.date).getTime() : 0;
+      return da - db2;
+    });
+
+    const timelineRowsHTML = timeline.map((row, i) => `
+<tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'};border-bottom:1px solid #eee">
+  <td style="padding:9px 12px;font-size:18px;width:36px;text-align:center">${row.icon}</td>
+  <td style="padding:9px 8px;font-size:11px;color:#888;white-space:nowrap;width:100px">${fmtDate(row.date)}</td>
+  <td style="padding:9px 8px">
+    <div style="font-size:12px;font-weight:600;color:${row.color}">${row.label}</div>
+    ${row.sub ? `<div style="font-size:11px;color:#888;margin-top:2px">${row.sub}</div>` : ''}
+  </td>
+</tr>`).join('');
+
+    const runDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  body{font-family:Arial,sans-serif;margin:0;padding:36px;color:#222;font-size:13px}
+  h1{color:#1B3A6B;margin:0;font-size:20px}
+  .sub{color:#888;font-size:11px;margin:3px 0}
+  hr{border:none;border-top:2px solid #E07B2A;margin:14px 0}
+  .section-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin:0 0 5px;font-weight:600}
+  .ftr{margin-top:36px;padding-top:12px;border-top:1px solid #eee;font-size:10px;color:#aaa;text-align:center}
+</style></head><body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
+  <div>
+    <h1>PREFERRED BUILDERS</h1>
+    <p class="sub">General Services Inc. · 978-377-1784 · Fitchburg, MA</p>
+    <p class="sub">License #CS-109171 · HIC-197400</p>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:14px;font-weight:bold;color:#1B3A6B">Document History Report</div>
+    <div class="sub">Generated: ${runDate}</div>
+  </div>
+</div>
+<hr>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+  <div>
+    <div class="section-label">Customer</div>
+    <div style="font-size:13px;font-weight:600;margin-top:4px">
+      ${contact?.pb_customer_number ? `<span style="font-family:monospace;font-size:10px;background:#e0e8ff;color:#1B3A6B;padding:2px 7px;border-radius:4px;font-weight:bold">${contact.pb_customer_number}</span><br>` : ''}
+      ${contact?.name || job.customer_name || '—'}<br>
+      <span style="font-size:11px;font-weight:normal;color:#888">${contact?.email || job.customer_email || ''}</span>
+    </div>
+  </div>
+  <div>
+    <div class="section-label">Project</div>
+    <div style="font-size:13px;font-weight:600;margin-top:4px">
+      ${job.pb_number || job.quote_number ? `PB-${job.quote_number || job.id}<br>` : ''}
+      ${job.project_address || '—'}${job.project_city ? `, ${job.project_city}, MA` : ''}
+      <br><span style="font-size:11px;font-weight:normal;color:#888">Status: ${job.status || '—'}</span>
+    </div>
+  </div>
+</div>
+
+<div class="section-label" style="margin-bottom:8px">Document Timeline</div>
+<table style="width:100%;border-collapse:collapse;font-size:12px">
+  <tr style="background:#1B3A6B;color:white">
+    <th style="padding:8px 12px;font-size:10px;font-weight:600;width:36px"></th>
+    <th style="padding:8px 8px;font-size:10px;font-weight:600;text-align:left;width:100px">Date</th>
+    <th style="padding:8px 8px;font-size:10px;font-weight:600;text-align:left">Event / Document</th>
+  </tr>
+  ${timelineRowsHTML || '<tr><td colspan="3" style="padding:16px;text-align:center;color:#aaa">No documents on record</td></tr>'}
+</table>
+
+<div class="ftr">
+  Preferred Builders General Services Inc. · License #CS-109171 · HIC-197400 · 978-377-1784<br>
+  Document History for ${contact?.name || job.customer_name || job.id} — Generated ${runDate}
+</div>
+</body></html>`;
+
+    const pdfPath = await generatePDFFromHTML(html, `doc_history_${job.id}`);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="doc-history-${job.quote_number || job.id}.pdf"`);
+    const fs = require('fs');
+    fs.createReadStream(pdfPath).pipe(res);
+  } catch (err) {
+    console.error('[DocHistory PDF]', err.message);
+    res.status(500).json({ error: 'PDF generation failed: ' + err.message });
+  }
+});
+
+// ── GET /api/reports/doc-history/search — find jobs for the doc-history picker ──
+router.get('/doc-history/search', requireAuth, (req, res) => {
+  const db = getDb();
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.json({ jobs: [] });
+
+  const like = `%${q}%`;
+  const rows = db
+    .prepare(
+      `SELECT j.id, j.quote_number, j.pb_number, j.customer_name, j.project_address,
+              j.project_city, j.status, j.total_value,
+              c.name AS contact_name, c.pb_customer_number
+       FROM jobs j
+       LEFT JOIN contacts c ON c.id = j.contact_id
+       WHERE j.quote_number LIKE ? OR j.pb_number LIKE ? OR j.customer_name LIKE ?
+          OR c.name LIKE ? OR c.pb_customer_number LIKE ? OR j.project_address LIKE ?
+       ORDER BY j.created_at DESC LIMIT 12`
+    )
+    .all(like, like, like, like, like, like);
+  res.json({ jobs: rows });
+});
+
 // ── GET /api/reports/saved ────────────────────────────────────────────────────
 router.get('/saved', requireAuth, (req, res) => {
   const db = getDb();

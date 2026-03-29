@@ -196,6 +196,51 @@ router.patch('/:id', requireAuth, (req, res) => {
   res.json({ invoice: updated });
 });
 
+// PATCH /:id/pay-direct — toggle pay_direct flag on a specific line item, recompute pb_due_amount
+router.patch('/:id/pay-direct', requireAuth, (req, res) => {
+  const db = getDb();
+  const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
+  if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+
+  const { line_item_index, pay_direct, pay_direct_received } = req.body;
+  if (line_item_index === undefined) return res.status(400).json({ error: 'line_item_index required' });
+
+  let items = [];
+  try { items = inv.line_items ? JSON.parse(inv.line_items) : []; } catch { /* ignore */ }
+  if (line_item_index < 0 || line_item_index >= items.length) {
+    return res.status(400).json({ error: 'line_item_index out of range' });
+  }
+
+  if (pay_direct !== undefined)          items[line_item_index].pay_direct          = !!pay_direct;
+  if (pay_direct_received !== undefined) items[line_item_index].pay_direct_received = !!pay_direct_received;
+
+  // Recompute pb_due_amount: sum of items where pay_direct is false
+  const newPbDue = items
+    .filter((li) => !li.pay_direct)
+    .reduce((s, li) => s + (li.amount || 0), 0);
+
+  db.prepare(
+    'UPDATE invoices SET line_items = ?, pb_due_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+  ).run(JSON.stringify(items), newPbDue, inv.id);
+
+  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(inv.job_id);
+  const contact = job?.contact_id
+    ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+    : null;
+  const item = items[line_item_index];
+  logActivity({
+    customer_number: contact?.pb_customer_number || null,
+    job_id: inv.job_id,
+    event_type: 'INVOICE_UPDATED',
+    description: `Invoice ${inv.invoice_number} line item "${item.description}" marked ${item.pay_direct ? 'Pay Direct' : 'Pay to PB'}${item.pay_direct_received ? ' (received)' : ''}`,
+    document_ref: inv.invoice_number,
+    recorded_by: req.session?.name || 'staff'
+  });
+
+  const updated = db.prepare('SELECT * FROM invoices WHERE id = ?').get(inv.id);
+  res.json({ invoice: updated });
+});
+
 router.delete('/:id', requireAuth, (req, res) => {
   const db = getDb();
   const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
@@ -233,69 +278,58 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
       storedItems = inv.line_items ? JSON.parse(inv.line_items) : [];
     } catch { /* ignore */ }
 
-    // Build itemized line items HTML (new multi-line system)
+    // Build itemized line items HTML — shows pay_direct status when present
     const buildLineItemsHTML = () => {
       if (!storedItems.length) return '';
-      const contractItems = storedItems.filter((li) => li.type !== 'pass_through');
-      const ptItems = storedItems.filter((li) => li.type === 'pass_through');
-      const contractTotal = contractItems.reduce((s, li) => s + (li.amount || 0), 0);
-      const ptTotal = ptItems.reduce((s, li) => s + (li.amount || 0), 0);
-      const grandTotal = contractTotal + ptTotal;
+      const hasPayDirect = storedItems.some((li) => li.type === 'pass_through' && li.pay_direct !== undefined);
+      const grandTotal   = storedItems.reduce((s, li) => s + (li.amount || 0), 0);
+      const pbDue        = inv.pb_due_amount > 0 ? inv.pb_due_amount
+                         : storedItems.filter((li) => !li.pay_direct).reduce((s, li) => s + (li.amount || 0), 0);
 
       let html = `<div class="section"><h3>Invoice Line Items</h3>
 <table style="width:100%;border-collapse:collapse;font-size:12px">
   <tr style="background:#1B3A6B;color:white">
     <th style="text-align:left;padding:7px 10px;font-size:10px">#</th>
     <th style="text-align:left;padding:7px 10px;font-size:10px">Description</th>
-    <th style="text-align:center;padding:7px 10px;font-size:10px">Type</th>
+    <th style="text-align:center;padding:7px 10px;font-size:10px">Payment</th>
     <th style="text-align:right;padding:7px 10px;font-size:10px">Amount</th>
   </tr>`;
 
       storedItems.forEach((li, i) => {
         const isPtRow = li.type === 'pass_through';
-        const typeBadge = isPtRow
-          ? `<span style="background:#fffbeb;color:#92400e;border:1px solid #fbbf24;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:bold">Pass-Through</span>`
-          : `<span style="background:#f0f4ff;color:#1B3A6B;border:1px solid #93c5fd;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:bold">Contract</span>`;
-        const rowBg = isPtRow ? '#fffef5' : '#ffffff';
+        const isPayDirect = !!li.pay_direct;
+        const isReceived  = !!li.pay_direct_received;
+        let badge;
+        if (isPtRow && isPayDirect) {
+          badge = isReceived
+            ? `<span style="background:#dcfce7;color:#16a34a;border:1px solid #86efac;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:bold">Pay Direct ✓ Received</span>`
+            : `<span style="background:#fef3c7;color:#b45309;border:1px solid #fcd34d;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:bold">Pay Direct — Pending</span>`;
+        } else if (isPtRow) {
+          badge = `<span style="background:#fffbeb;color:#92400e;border:1px solid #fbbf24;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:bold">Pass-Through</span>`;
+        } else {
+          badge = `<span style="background:#f0f4ff;color:#1B3A6B;border:1px solid #93c5fd;padding:2px 7px;border-radius:10px;font-size:9px;font-weight:bold">Deposit</span>`;
+        }
+        const rowBg = isPtRow && isPayDirect ? '#f0fdf4' : isPtRow ? '#fffef5' : '#ffffff';
         html += `<tr style="background:${rowBg};border-bottom:1px solid #eee">
     <td style="padding:7px 10px;color:#888;font-size:11px">${i + 1}</td>
     <td style="padding:7px 10px;color:#222;font-size:12px">${li.description || '—'}</td>
-    <td style="padding:7px 10px;text-align:center">${typeBadge}</td>
-    <td style="padding:7px 10px;text-align:right;font-weight:600;font-size:12px">$${fmt(li.amount)}</td>
+    <td style="padding:7px 10px;text-align:center">${badge}</td>
+    <td style="padding:7px 10px;text-align:right;font-weight:600;font-size:12px;${isPayDirect && !isReceived ? 'color:#888;text-decoration:line-through' : ''}">$${fmt(li.amount)}</td>
   </tr>`;
       });
 
-      if (contractItems.length && ptItems.length) {
-        html += `<tr style="background:#f8f9ff;border-top:1px solid #ddd">
-    <td colspan="3" style="padding:7px 10px;font-size:11px;color:#1B3A6B;font-weight:600">Contract Subtotal (Revenue to PB)</td>
-    <td style="padding:7px 10px;text-align:right;font-weight:700;color:#1B3A6B;font-size:12px">$${fmt(contractTotal)}</td>
+      html += `<tr style="background:#f0f0f0;border-top:1px solid #ddd">
+    <td colspan="3" style="padding:7px 10px;font-size:11px;color:#555;font-weight:600">Invoice Total</td>
+    <td style="padding:7px 10px;text-align:right;font-weight:700;color:#333;font-size:12px">$${fmt(grandTotal)}</td>
   </tr>
-  <tr style="background:#fffef5;border-top:1px solid #fde68a">
-    <td colspan="3" style="padding:7px 10px;font-size:11px;color:#92400e;font-weight:600">Pass-Through Subtotal <span style="font-weight:400;font-size:10px">(reimbursement only — not PB income)</span></td>
-    <td style="padding:7px 10px;text-align:right;font-weight:700;color:#92400e;font-size:12px">$${fmt(ptTotal)}</td>
+  <tr style="background:#1B3A6B;color:white">
+    <td colspan="3" style="padding:9px 10px;font-weight:bold;font-size:13px">Amount Due to Preferred Builders</td>
+    <td style="padding:9px 10px;text-align:right;font-weight:bold;font-size:15px">$${fmt(pbDue)}</td>
   </tr>`;
-      } else if (ptItems.length) {
-        html += `<tr style="background:#fef3c7;border-top:2px solid #f59e0b">
-    <td colspan="3" style="padding:8px 10px;font-weight:bold;font-size:12px">Total Reimbursement</td>
-    <td style="padding:8px 10px;text-align:right;font-weight:bold;color:#92400e;font-size:13px">$${fmt(ptTotal)}</td>
-  </tr>`;
-      } else {
-        html += `<tr style="background:#f8f9ff;border-top:2px solid #1B3A6B">
-    <td colspan="3" style="padding:8px 10px;font-weight:bold;font-size:12px">Subtotal</td>
-    <td style="padding:8px 10px;text-align:right;font-weight:bold;color:#1B3A6B;font-size:13px">$${fmt(contractTotal)}</td>
-  </tr>`;
-      }
-
-      if (contractItems.length && ptItems.length) {
-        html += `<tr style="background:#1B3A6B;color:white">
-    <td colspan="3" style="padding:10px;font-weight:bold;font-size:13px">TOTAL DUE</td>
-    <td style="padding:10px;text-align:right;font-weight:bold;font-size:16px">$${fmt(grandTotal)}</td>
-  </tr>`;
-      }
 
       html += `</table>`;
-      if (ptItems.length) {
-        html += `<p style="font-size:11px;color:#92400e;margin:8px 0 0;background:#fffbeb;padding:8px 12px;border-radius:4px;border-left:3px solid #f59e0b">⚠️ Pass-through line items are third-party costs billed for direct reimbursement only. They are <strong>not income to Preferred Builders</strong>.</p>`;
+      if (hasPayDirect) {
+        html += `<p style="font-size:11px;color:#92400e;margin:8px 0 0;background:#fffbeb;padding:8px 12px;border-radius:4px;border-left:3px solid #f59e0b">Items marked <strong>Pay Direct</strong> are paid by the client directly to the permit office or design professional. Strikethrough amounts are excluded from the balance due to Preferred Builders.</p>`;
       }
       html += `</div>`;
       return html;

@@ -644,6 +644,18 @@ async function initDatabase() {
   } catch {
     db.exec('ALTER TABLE invoices ADD COLUMN pass_through_amount REAL NOT NULL DEFAULT 0');
   }
+  // ── Migration: pb_due_amount — what is actually owed to PB after pay-direct items ──
+  try {
+    db.prepare('SELECT pb_due_amount FROM invoices LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE invoices ADD COLUMN pb_due_amount REAL NOT NULL DEFAULT 0');
+  }
+  // ── Migration: full_contract_value — informational total shown at top of Invoice 1 ──
+  try {
+    db.prepare('SELECT full_contract_value FROM invoices LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE invoices ADD COLUMN full_contract_value REAL NOT NULL DEFAULT 0');
+  }
 
   seedDefaultSettings();
   seedDefaultSenders();
