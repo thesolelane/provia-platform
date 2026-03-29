@@ -226,7 +226,7 @@ async function handleIncomingWhatsApp(data) {
       return;
     }
 
-    // ── PDF ATTACHMENT — extract text, then ask YES/NO ────────────────
+    // ── PDF / DOCUMENT ATTACHMENT — extract text with pdf-parse, fall back to Claude vision ──
     if (
       mediaUrl &&
       (mediaContentType.includes('pdf') || mediaContentType.includes('application'))
@@ -235,21 +235,59 @@ async function handleIncomingWhatsApp(data) {
         await sendWhatsApp(
           from,
           isPortuguese
-            ? `📎 Recebi o PDF, ${senderName}! Extraindo o texto... aguarde.`
-            : `📎 Got the PDF, ${senderName}! Extracting text — one moment.`
+            ? `📎 Recebi o documento, ${senderName}! Extraindo o texto... aguarde.`
+            : `📎 Got the document, ${senderName}! Extracting text — one moment.`
         );
         const { buffer } = await downloadTwilioMedia(mediaUrl);
-        const parsed = await pdfParse(buffer);
-        const rawText = parsed.text.trim();
+
+        // ── Step 1: try pdf-parse (fast, works on text-based PDFs)
+        let rawText = '';
+        try {
+          const parsed = await pdfParse(buffer);
+          rawText = parsed.text.trim();
+        } catch { /* not a text PDF — fall through to Claude vision */ }
+
+        // ── Step 2: if pdf-parse came up empty (scanned/image PDF or non-PDF doc),
+        //    use Claude's native document reading — handles both kinds of PDFs and
+        //    most other document formats
+        if (rawText.length < 50) {
+          console.log('[WhatsApp] pdf-parse empty — trying Claude document vision');
+          const Anthropic = require('@anthropic-ai/sdk');
+          const docClient = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+          const base64 = buffer.toString('base64');
+          const docMime = mediaContentType.includes('pdf') ? 'application/pdf' : mediaContentType;
+          const visionRes = await docClient.messages.create({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 4000,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'document',
+                    source: { type: 'base64', media_type: docMime, data: base64 }
+                  },
+                  {
+                    type: 'text',
+                    text: 'This is a construction estimate or scope-of-work document. Extract ALL visible text, numbers, line items, dollar amounts, trade names, customer info, and addresses exactly as they appear. Return plain text only.'
+                  }
+                ]
+              }
+            ]
+          });
+          rawText = visionRes.content[0].text.trim();
+        }
+
         if (rawText.length < 50) {
           await sendWhatsApp(
             from,
             isPortuguese
-              ? `⚠️ Não consegui extrair texto do PDF. Use um PDF pesquisável ou envie uma foto.`
-              : `⚠️ Couldn't extract text from that PDF. Use a searchable PDF or send a photo instead.`
+              ? `⚠️ Não consegui extrair texto do documento. Tente enviar como PDF pesquisável ou foto.`
+              : `⚠️ Couldn't extract text from that document. Try sending a searchable PDF or a photo instead.`
           );
           return;
         }
+
         const tempId = uuidv4();
         const shortId = tempId.slice(0, 8).toUpperCase();
         db.prepare(
@@ -258,16 +296,16 @@ async function handleIncomingWhatsApp(data) {
         await sendWhatsApp(
           from,
           isPortuguese
-            ? `✅ PDF lido! Pré-orçamento *#${shortId}* pronto.\n\nQuer que eu processe e gere uma proposta?\nResponda *SIM* para processar ou *NÃO* para cancelar.`
-            : `✅ PDF read! Pre-quote *#${shortId}* is ready.\n\nWant me to process it and generate a proposal?\nReply *YES* to process or *NO* to cancel.`
+            ? `✅ Documento lido! Pré-orçamento *#${shortId}* pronto.\n\nQuer que eu processe e gere uma proposta?\nResponda *SIM* para processar ou *NÃO* para cancelar.`
+            : `✅ Document read! Pre-quote *#${shortId}* is ready.\n\nWant me to process it and generate a proposal?\nReply *YES* to process or *NO* to cancel.`
         );
       } catch (err) {
-        console.error('PDF attachment error:', err);
+        console.error('Document attachment error:', err);
         await sendWhatsApp(
           from,
           isPortuguese
-            ? `❌ Erro ao processar o PDF. Tente novamente ou envie o texto do orçamento.`
-            : `❌ Error processing the PDF. Try again or paste the estimate text directly.`
+            ? `❌ Erro ao processar o documento. Tente novamente ou cole o texto do orçamento.`
+            : `❌ Error processing the document. Try again or paste the estimate text directly.`
         );
       }
       return;
