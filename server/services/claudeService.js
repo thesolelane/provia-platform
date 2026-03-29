@@ -192,7 +192,7 @@ function buildMemoryContext(db, projectAddress) {
           lineItems = (pd.lineItems || [])
             .map((li) => `    - ${li.trade}: baseCost $${li.baseCost?.toLocaleString()}`)
             .join('\n');
-        } catch {}
+        } catch { /* ignore */ }
         const ref = j.pb_number || j.external_ref || j.id;
         return `  Quote ${ref} (${new Date(j.created_at).toLocaleDateString()}) — Total: $${Number(j.total_value || 0).toLocaleString()}\n${lineItems}`;
       })
@@ -490,14 +490,14 @@ RULES:
     // First attempt: plain parse
     try {
       parsed = JSON.parse(jsonStr);
-    } catch (_) {}
+    } catch { /* ignore */ }
 
     // Second attempt: strip trailing commas before } or ] (common Claude quirk)
     if (!parsed) {
       try {
         const repaired = jsonStr.replace(/,\s*([}\]])/g, '$1');
         parsed = JSON.parse(repaired);
-      } catch (_) {}
+      } catch { /* ignore */ }
     }
 
     // Third attempt: truncate at last complete top-level property and close
@@ -514,7 +514,7 @@ RULES:
           }
         }
         if (lastGood > 0) parsed = JSON.parse(jsonStr.slice(0, lastGood + 1));
-      } catch (_) {}
+      } catch { /* ignore */ }
     }
 
     if (!parsed) {
@@ -650,7 +650,7 @@ function applyPricing(data, rates, settings) {
 }
 
 // ── GENERATE CONTRACT (after customer approval) ──────────────────────
-async function generateContract(proposalData, jobId, language = 'en') {
+async function generateContract(proposalData, jobId, _language = 'en') {
   return proposalData;
 }
 
@@ -910,7 +910,7 @@ IMPORTANT STYLE RULES:
           try {
             const parsed = JSON.parse(result);
             if (parsed.created) createdTask = parsed;
-          } catch {}
+          } catch { /* ignore */ }
         }
       } catch (e) {
         result = `Error: ${e.message}`;

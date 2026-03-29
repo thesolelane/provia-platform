@@ -151,11 +151,6 @@ async function processHearthEstimate(event) {
   }
 }
 
-async function handleClarificationsNeeded(jobId, proposalData, db, jacksonName, language) {
-  // This is now handled inline in processHearthEstimate
-  // Kept for compatibility
-}
-
 async function handleProposalReady(
   jobId,
   proposalData,

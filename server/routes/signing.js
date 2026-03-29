@@ -32,7 +32,7 @@ function pdfPublicURL(pdfPath) {
 
 // ─── Signing page HTML generator ──────────────────────────────────────────────
 
-function signingPageHTML({ docType, job, session, base }) {
+function signingPageHTML({ docType, job, session, base: _base }) {
   const isProposal = docType === 'proposal';
   const docLabel = isProposal ? 'Proposal' : 'Contract';
   const pdfURL = pdfPublicURL(isProposal ? job.proposal_pdf_path : job.contract_pdf_path);
@@ -373,7 +373,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
     ).run(session.job_id);
     try {
       jobMemory.markOutcome(session.job_id, 'approved');
-    } catch (_) {}
+    } catch { /* ignore */ }
     logAudit(
       session.job_id,
       'proposal_signed',
@@ -458,7 +458,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
             description: 'Contract auto-generated and ready to send',
             recorded_by: 'system'
           });
-        } catch (_) {}
+        } catch { /* ignore */ }
         notifyClients('job_updated', {
           jobId: session.job_id,
           status: 'contract_ready',
@@ -474,7 +474,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
     ).run(session.job_id);
     try {
       jobMemory.lock(session.job_id, 'contract_signed');
-    } catch (_) {}
+    } catch { /* ignore */ }
     logAudit(
       session.job_id,
       'contract_signed',
@@ -484,7 +484,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
     // Auto-wipe stored email HTML previews for this job now that contract is signed
     try {
       db.prepare('UPDATE email_log SET html_body = NULL WHERE job_id = ?').run(session.job_id);
-    } catch (_) {}
+    } catch { /* ignore */ }
     notifyClients('job_updated', {
       jobId: session.job_id,
       status: 'contract_signed',
@@ -512,7 +512,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
         let proposalData = null;
         try {
           proposalData = job?.proposal_data ? JSON.parse(job.proposal_data) : null;
-        } catch {}
+        } catch { /* ignore */ }
 
         // Deposit = contract value EXCLUDING pass-through fees (permits/engineers/architects)
         const parsePT = (str) => {
@@ -844,7 +844,7 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
     ).run(job.id);
     try {
       jobMemory.markSent(job.id);
-    } catch (_) {}
+    } catch { /* ignore */ }
     logAudit(
       job.id,
       'proposal_sent_for_signing',

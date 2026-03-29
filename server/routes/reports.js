@@ -293,7 +293,7 @@ function runReport(db, type, period) {
         const price = lineItems.reduce((s, li) => s + (Number(li.finalPrice) || 0), 0);
         if (base > 0 && price > 0)
           estimatedMargin = Math.round(((price - base) / price) * 10000) / 100;
-      } catch {}
+      } catch { /* ignore */ }
       return {
         id: j.id,
         customerName: j.customer_name,
@@ -416,7 +416,7 @@ function runReport(db, type, period) {
       const db2 = getDb();
       const setting = db2.prepare("SELECT value FROM settings WHERE key='markup.deposit'").get();
       if (setting?.value) depositPct = parseFloat(setting.value);
-    } catch {}
+    } catch { /* ignore */ }
 
     const rows = jobs.map((j) => {
       const expected = (j.total_value || 0) * depositPct;
@@ -454,7 +454,7 @@ router.post('/run', requireAuth, (req, res) => {
   const db = getDb();
   ensureTable(db);
 
-  const { type, period, label, savePrevious } = req.body;
+  const { type, period, savePrevious } = req.body;
   if (!type || !period) return res.status(400).json({ error: 'type and period required' });
 
   // If the client is passing a previous report to save first, save it
@@ -505,7 +505,7 @@ router.get('/saved/:id', requireAuth, (req, res) => {
   if (!row) return res.status(404).json({ error: 'Not found' });
   try {
     row.data = JSON.parse(row.data);
-  } catch {}
+  } catch { /* ignore */ }
   res.json({ report: row });
 });
 

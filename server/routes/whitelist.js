@@ -18,7 +18,7 @@ router.post('/', requireAuth, (req, res) => {
       'INSERT INTO approved_senders (identifier, type, name, role, language) VALUES (?, ?, ?, ?, ?)'
     ).run(identifier, type, name, role, language);
     res.json({ success: true });
-  } catch (e) {
+  } catch (_e) {
     res.status(400).json({ error: 'Identifier already exists' });
   }
 });

@@ -14,7 +14,7 @@ router.get('/', requireAuth, (req, res) => {
     let value = row.value;
     try {
       value = JSON.parse(row.value);
-    } catch {}
+    } catch { /* ignore */ }
     grouped[row.category].push({
       key: row.key,
       value,
@@ -33,7 +33,7 @@ router.get('/:key', requireAuth, (req, res) => {
   let value = row.value;
   try {
     value = JSON.parse(row.value);
-  } catch {}
+  } catch { /* ignore */ }
   res.json({ key: row.key, value, label: row.label });
 });
 
@@ -70,9 +70,6 @@ router.put('/', requireAuth, (req, res) => {
 router.post('/reset', requireAuth, (req, res) => {
   const db = getDb();
   db.prepare('DELETE FROM settings').run();
-  // Re-seed defaults
-  const { initDatabase } = require('../db/database');
-  // Call seed functions directly
   res.json({ success: true, message: 'Settings reset to defaults' });
 });
 

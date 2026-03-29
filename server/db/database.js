@@ -472,7 +472,7 @@ async function initDatabase() {
   // Migration: add html_body column for email preview (auto-wiped on contract signing)
   try {
     db.exec(`ALTER TABLE email_log ADD COLUMN html_body TEXT`);
-  } catch (_) {}
+  } catch { /* ignore */ }
 
   // Field photos — standalone camera inbox with GPS grouping
   db.exec(`

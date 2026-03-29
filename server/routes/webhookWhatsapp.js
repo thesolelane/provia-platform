@@ -3,10 +3,10 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../db/database');
-const { handleClarification, generateContract } = require('../services/claudeService');
+const { generateContract } = require('../services/claudeService');
 const { sendWhatsApp } = require('../services/whatsappService');
 const { generatePDF } = require('../services/pdfService');
-const { sendEmail } = require('../services/emailService');
+
 const { logAudit } = require('../services/auditService');
 const { claimMessage } = require('../services/msgDedup');
 const { tickQuoteCounter } = require('../services/assessmentService');

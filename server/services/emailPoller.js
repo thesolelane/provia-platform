@@ -10,7 +10,7 @@ const { getDb } = require('../db/database');
 const { logAudit } = require('./auditService');
 const { sendEmail } = require('./emailService');
 
-let polling = false;
+let _polling = false;
 
 async function pollOnce(processEstimateFn, generatePDFFn) {
   if (!process.env.IMAP_USER || !process.env.IMAP_PASSWORD) return;
@@ -52,7 +52,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
 
         // Extract text from PDF attachments
         let estimateText = bodyText.trim();
-        let hasPdf = false;
+        let _hasPdf = false;
 
         if (parsed.attachments?.length) {
           for (const att of parsed.attachments) {
@@ -65,7 +65,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                 const pdfText = parsed2.text?.trim();
                 if (pdfText && pdfText.length > 50) {
                   estimateText = pdfText + (estimateText ? '\n\n' + estimateText : '');
-                  hasPdf = true;
+                  _hasPdf = true;
                   console.log(`[Email Poller] PDF extracted: ${pdfText.length} chars`);
                 }
               } catch (e) {
@@ -99,7 +99,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                 const imageText = visionRes.content[0].text?.trim();
                 if (imageText) {
                   estimateText = imageText + (estimateText ? '\n\n' + estimateText : '');
-                  hasPdf = true;
+                  _hasPdf = true;
                 }
               } catch (e) {
                 console.error('[Email Poller] Image vision error:', e.message);
@@ -236,7 +236,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
         // Still mark as read so we don't retry indefinitely
         try {
           await client.messageFlagsAdd(uid, ['\\Seen']);
-        } catch {}
+        } catch { /* ignore */ }
       }
     }
 
@@ -245,7 +245,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
     console.error('[Email Poller] Connection error:', err.message);
     try {
       await client.logout();
-    } catch {}
+    } catch { /* ignore */ }
   }
 }
 

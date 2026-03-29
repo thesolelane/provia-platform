@@ -7,18 +7,8 @@ const { logAudit } = require('../services/auditService');
 const { logActivity } = require('./activityLog');
 
 const VALID_PAYMENT_TYPES = ['deposit', 'progress', 'final', 'other'];
-const VALID_CATEGORIES = [
-  'subcontractor',
-  'material',
-  'permit',
-  'other',
-  'engineer',
-  'architect',
-  'designer'
-];
 const VALID_CREDIT_DEBIT = ['credit', 'debit'];
 const VALID_PAYMENT_CLASS_OUT = ['cost_of_revenue', 'pass_through'];
-const VALID_PAYMENT_CLASS_IN = ['contract', 'pass_through_reimbursement', 'other'];
 
 function signedSum(rows, amountCol, defaultSign) {
   return rows.reduce((sum, r) => {
@@ -426,7 +416,7 @@ router.post('/made', requireAuth, (req, res) => {
     try {
       const { nextDeptCode } = require('./invoices');
       deptCodeVal = nextDeptCode(db, job_id, job.quote_number);
-    } catch (_) {}
+    } catch { /* ignore */ }
   }
 
   const info = db

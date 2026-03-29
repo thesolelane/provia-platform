@@ -28,7 +28,7 @@ const MAX_TOKENS = {
 const SONAR_SYSTEM = `You are a concise construction data assistant. Respond with ONLY the specific data point requested — no introductions, no caveats, no lists of options unless specifically asked. Return a single direct answer in 1–3 sentences maximum. If you cannot find current data, say so in one sentence.`;
 
 function callPerplexity(model, query) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     if (!API_KEY) {
       return resolve('[Perplexity] API key not configured — web search unavailable.');
     }

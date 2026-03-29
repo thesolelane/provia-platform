@@ -1,7 +1,6 @@
 // server/routes/contacts.js
 const express = require('express');
 const router = express.Router();
-const path = require('path');
 const fs = require('fs');
 const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
@@ -97,7 +96,7 @@ router.delete('/:id/documents/:docId', requireAuth, (req, res) => {
   if (doc.file_path && fs.existsSync(doc.file_path)) {
     try {
       fs.unlinkSync(doc.file_path);
-    } catch {}
+    } catch { /* ignore */ }
   }
   db.prepare('DELETE FROM contact_documents WHERE id = ?').run(doc.id);
   res.json({ success: true });

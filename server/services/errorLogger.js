@@ -251,7 +251,7 @@ async function createGithubIssue(title, body, labels) {
             try {
               const issue = JSON.parse(data);
               console.log(`[GitHub] Created issue #${issue.number}: ${title}`);
-            } catch (_) {}
+            } catch { /* ignore */ }
           } else {
             console.warn(
               `[GitHub] Issue creation returned HTTP ${res.statusCode}: ${data.slice(0, 200)}`
@@ -277,7 +277,7 @@ async function createGithubIssue(title, body, labels) {
 // ─── Alert sender ─────────────────────────────────────────────────────────────
 
 async function sendSystemAlert({ classification, rawMessage, jobId, timestamp }) {
-  const { type, severity, source, suggestedCause } = classification;
+  const { severity, source, suggestedCause } = classification;
   const ownerEmails = (() => {
     const raw = process.env.OWNER_EMAIL || process.env.REPLY_TO_EMAIL || '';
     return raw

@@ -368,7 +368,7 @@ function generatePbCustomerNumber(db) {
     const pbn = 'PB-C-' + String(seq).padStart(4, '0');
     db.prepare('UPDATE pb_customer_counter SET next_seq = ? WHERE id = 1').run(seq + 1);
     return pbn;
-  } catch (_) {
+  } catch {
     return null;
   }
 }
@@ -560,17 +560,17 @@ router.get('/:id', requireAuth, (req, res) => {
   if (job.proposal_data) {
     try {
       job.proposal_data = JSON.parse(job.proposal_data);
-    } catch {}
+    } catch { /* ignore */ }
   }
   if (job.contract_data) {
     try {
       job.contract_data = JSON.parse(job.contract_data);
-    } catch {}
+    } catch { /* ignore */ }
   }
   if (job.flagged_items) {
     try {
       job.flagged_items = JSON.parse(job.flagged_items);
-    } catch {}
+    } catch { /* ignore */ }
   }
 
   // Include version history for the same quote number
@@ -836,7 +836,7 @@ router.post(
           description: `Contract generated for ${job.project_address || 'project'}`,
           recorded_by: req.session?.name || 'admin'
         });
-      } catch (_) {}
+      } catch { /* ignore */ }
       res.json({
         success: true,
         message: 'Contract generated',
@@ -987,7 +987,7 @@ Format as a clear, detailed construction scope description. Include the project 
     // Clean up temp dir if nothing extracted
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch {}
+    } catch { /* ignore */ }
     return res.status(400).json({ error: 'No readable content found in the uploaded files.' });
   }
 
@@ -1466,7 +1466,7 @@ router.post('/manual', requireAuth, async (req, res) => {
       description: `New estimate created for ${customerName || 'unknown customer'} at ${projectAddress || 'unknown address'}`,
       recorded_by: req.session?.name || 'staff'
     });
-  } catch (_) {}
+  } catch { /* ignore */ }
 
   const { processEstimate } = require('../services/claudeService');
   (async () => {
@@ -1656,7 +1656,7 @@ router.patch('/:id/notes', requireAuth, (req, res) => {
           description: `Job marked complete for ${prevJob?.project_address || 'project'}`,
           recorded_by: req.session?.name || 'admin'
         });
-      } catch (_) {}
+      } catch { /* ignore */ }
     }
   } else {
     db.prepare('UPDATE jobs SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
@@ -1720,7 +1720,7 @@ router.get('/events', requireAuth, (req, res) => {
   const heartbeat = setInterval(() => {
     try {
       res.write(': heartbeat\n\n');
-    } catch {}
+    } catch { /* ignore */ }
   }, 30000);
 
   addClient(res);
@@ -1873,7 +1873,7 @@ router.post('/wizard/extract-text', requireAuth, async (req, res) => {
 
 // POST wizard/questions — AI generates clarifying questions from scope text
 router.post('/wizard/questions', requireAuth, async (req, res) => {
-  const { scopeText, customerName, projectAddress, budgetTarget } = req.body;
+  const { scopeText, projectAddress, budgetTarget } = req.body;
   if (!scopeText || scopeText.trim().length < 20) {
     return res.status(400).json({ error: 'Scope text is required (at least 20 characters).' });
   }
@@ -2016,7 +2016,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
           existing = JSON.parse(
             db.prepare('SELECT attachments FROM jobs WHERE id = ?').get(jobId)?.attachments || '[]'
           );
-        } catch {}
+        } catch { /* ignore */ }
         db.prepare('UPDATE jobs SET attachments = ? WHERE id = ?').run(
           JSON.stringify([...existing, ...movedPaths]),
           jobId
@@ -2361,7 +2361,7 @@ function purgeOldArchived() {
       console.log(
         `[Auto-purge] Permanently deleted ${old.length} archived job(s) older than 90 days`
       );
-  } catch (e) {}
+  } catch { /* ignore purge errors */ }
 }
 setInterval(purgeOldArchived, 24 * 60 * 60 * 1000);
 setTimeout(purgeOldArchived, 5000);

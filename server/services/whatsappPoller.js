@@ -1,5 +1,4 @@
 const twilio = require('twilio');
-const { getDb } = require('../db/database');
 const { claimMessage } = require('./msgDedup');
 
 let pollerClient;

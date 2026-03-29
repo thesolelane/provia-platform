@@ -3,7 +3,7 @@
 
 const https = require('https');
 
-let schedulerInterval = null;
+let _schedulerInterval = null;
 
 // ── Internal check functions ──────────────────────────────────────────────────
 
@@ -120,7 +120,7 @@ async function checkPDF() {
       .toString()
       .trim();
     if (p) return { ok: true, label: 'PDF Generation', detail: `Chromium: ${p}` };
-  } catch {}
+  } catch { /* ignore */ }
   const nixPath =
     '/nix/store/gasnw5878924jbw6bql257ll29hkm4fd-chromium-123.0.6312.105/bin/chromium';
   if (require('fs').existsSync(nixPath))

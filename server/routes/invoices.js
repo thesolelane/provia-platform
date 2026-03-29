@@ -216,12 +216,6 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
       ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(job.contact_id)
       : null;
 
-    // Parse proposal_data for line items and pass-through fee detail
-    let proposalData = null;
-    try {
-      proposalData = job?.proposal_data ? JSON.parse(job.proposal_data) : null;
-    } catch {}
-
     const typeLabels = {
       contract_invoice: 'Contract Invoice',
       pass_through_invoice: 'Pass-Through Invoice',
@@ -237,7 +231,7 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
     let storedItems = [];
     try {
       storedItems = inv.line_items ? JSON.parse(inv.line_items) : [];
-    } catch {}
+    } catch { /* ignore */ }
 
     // Build itemized line items HTML (new multi-line system)
     const buildLineItemsHTML = () => {

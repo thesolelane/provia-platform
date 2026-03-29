@@ -134,7 +134,7 @@ async function checkPDF() {
     try {
       const p = execSync('where chrome', { timeout: 3000 }).toString().split('\n')[0].trim();
       if (p && fs.existsSync(p)) return { ok: true, detail: `Chrome (PATH): ${p}` };
-    } catch {}
+    } catch { /* ignore */ }
     return {
       ok: false,
       detail:
@@ -151,7 +151,7 @@ async function checkPDF() {
       .toString()
       .trim();
     if (p) return { ok: true, detail: `Chromium: ${p}` };
-  } catch {}
+  } catch { /* ignore */ }
   const nixPath =
     '/nix/store/gasnw5878924jbw6bql257ll29hkm4fd-chromium-123.0.6312.105/bin/chromium';
   if (fs.existsSync(nixPath)) return { ok: true, detail: 'Chromium found in Nix store' };
