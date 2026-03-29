@@ -71,25 +71,8 @@ async function generatePDF(data, type, jobId) {
   if (type === 'proposal') {
     html = buildProposalHTML(data);
   } else {
-    const contractHTML = buildContractHTMLNew(adaptToContractSchema(data));
-    const fmt = (n) => (n ? `$${Number(n).toLocaleString()}` : '$0');
-    const today = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'America/New_York'
-    });
-    const noticeHTML = buildNoticeOfContractHTML({
-      customer: data.customer || {},
-      project: data.project || {},
-      quoteNum: data.quoteNumber || '',
-      today,
-      total: data.pricing?.totalContractPrice || data.totalValue || 0,
-      lineItems: data.lineItems || [],
-      fmt,
-      county: data.county || 'Worcester'
-    });
-    html = contractHTML.replace('</body>', noticeHTML + '\n</body>');
+    // contractTemplate already includes Addendum 1 (Notice of Contract) — no need to append separately
+    html = buildContractHTMLNew(adaptToContractSchema(data));
   }
 
   const filename = `PB_${type === 'proposal' ? 'Proposal' : 'Contract'}_${jobId.slice(0, 8)}_${Date.now()}.pdf`;
