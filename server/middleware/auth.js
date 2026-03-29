@@ -34,4 +34,8 @@ function destroySession(token) {
   sessions.delete(token);
 }
 
-module.exports = { requireAuth, requireRole, createSession, destroySession };
+function isValidSession(token) {
+  return token && sessions.has(token);
+}
+
+module.exports = { requireAuth, requireRole, createSession, destroySession, isValidSession };

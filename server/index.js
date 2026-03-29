@@ -58,13 +58,11 @@ app.get('/outputs/:filename', (req, res) => {
     return res.status(404).json({ error: 'File not found' });
   }
 
-  // Accept staff auth token (header or query param)
+  // Accept staff auth token (header or query param) — checked against in-memory sessions
   const authToken = req.headers['x-auth-token'] || req.query.token;
   if (authToken) {
-    const { getDb } = require('./db/database');
-    const db = getDb();
-    const user = db.prepare('SELECT id FROM users WHERE token = ?').get(authToken);
-    if (user) return res.sendFile(filePath);
+    const { isValidSession } = require('./middleware/auth');
+    if (isValidSession(authToken)) return res.sendFile(filePath);
   }
 
   // Also accept a valid signing session token (customers viewing their own docs)
