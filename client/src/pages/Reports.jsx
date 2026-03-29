@@ -129,6 +129,126 @@ function DocHistoryPanel({ token }) {
   );
 }
 
+function CustomerReportPanel({ token }) {
+  const [query,    setQuery]    = useState('');
+  const [results,  setResults]  = useState([]);
+  const [loading,  setLoading]  = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  const search = async (q) => {
+    setQuery(q);
+    setSelected(null);
+    if (!q.trim()) { setResults([]); return; }
+    setLoading(true);
+    try {
+      const r = await fetch(`/api/reports/customer/search?q=${encodeURIComponent(q)}`, {
+        headers: { 'x-auth-token': token }
+      });
+      const d = await r.json();
+      setResults(d.customers || []);
+    } catch { setResults([]); }
+    setLoading(false);
+  };
+
+  const openPDF = () => {
+    if (!selected) return;
+    const params = selected.type === 'contact'
+      ? `contact_id=${encodeURIComponent(selected.id)}`
+      : `customer_name=${encodeURIComponent(selected.name)}`;
+    window.open(`/api/reports/customer/pdf?${params}&token=${encodeURIComponent(token)}`, '_blank');
+  };
+
+  return (
+    <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.08)', marginTop: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <span style={{ fontSize: 22 }}>👤</span>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 'bold', color: BLUE }}>Customer Full Report</div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Search a customer — generate a complete PDF with all jobs, invoices, change orders, and payments</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+        <input
+          value={query}
+          onChange={(e) => search(e.target.value)}
+          placeholder="Search by name, customer #, email, or phone…"
+          style={{ flex: 1, padding: '9px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, outline: 'none' }}
+        />
+        <button
+          onClick={openPDF}
+          disabled={!selected}
+          style={{
+            padding: '9px 18px', background: selected ? BLUE : '#ccc', color: 'white',
+            border: 'none', borderRadius: 8, cursor: selected ? 'pointer' : 'not-allowed',
+            fontWeight: 'bold', fontSize: 13, whiteSpace: 'nowrap'
+          }}
+        >
+          Generate PDF
+        </button>
+      </div>
+
+      {loading && <div style={{ color: '#aaa', fontSize: 13, padding: '8px 0' }}>Searching…</div>}
+
+      {!loading && results.length > 0 && (
+        <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+          {results.map((c, i) => {
+            const isSel = selected?.id === c.id && selected?.name === c.name;
+            return (
+              <div
+                key={c.id || c.name}
+                onClick={() => setSelected(c)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                  cursor: 'pointer', borderBottom: i < results.length - 1 ? '1px solid #f0f0f0' : 'none',
+                  background: isSel ? BLUE + '12' : i % 2 === 0 ? 'white' : '#fafafa',
+                  borderLeft: isSel ? `3px solid ${BLUE}` : '3px solid transparent',
+                }}
+              >
+                <span style={{ fontSize: 16, flexShrink: 0 }}>👤</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: isSel ? BLUE : '#222' }}>
+                    {c.name || '—'}
+                    {c.pb_customer_number && (
+                      <span style={{ fontFamily: 'monospace', fontSize: 10, background: '#e0e8ff', color: BLUE, padding: '1px 6px', borderRadius: 4, marginLeft: 8, fontWeight: 'bold' }}>
+                        {c.pb_customer_number}
+                      </span>
+                    )}
+                    {c.type === 'unlinked' && (
+                      <span style={{ fontSize: 10, background: '#fff3e0', color: '#e65100', padding: '1px 6px', borderRadius: 4, marginLeft: 6 }}>
+                        unlinked
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                    {c.email || ''}
+                    {c.email && c.phone ? ' · ' : ''}
+                    {c.phone || ''}
+                    {(c.email || c.phone) && c.job_count ? ' · ' : ''}
+                    {c.job_count} job{c.job_count !== 1 ? 's' : ''} on record
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!loading && query && results.length === 0 && (
+        <div style={{ color: '#aaa', fontSize: 13, padding: '8px 0' }}>No customers found matching "{query}"</div>
+      )}
+
+      {selected && (
+        <div style={{ marginTop: 12, background: '#f0f4ff', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: BLUE }}>
+          Selected: <strong>{selected.name}</strong>
+          {selected.pb_customer_number ? ` (${selected.pb_customer_number})` : ''}
+          {' '}— {selected.job_count} job{selected.job_count !== 1 ? 's' : ''} &nbsp;·&nbsp; Click <strong>Generate PDF</strong> to open the full customer report.
+        </div>
+      )}
+    </div>
+  );
+}
+
 const PERIODS = [
   { key: 'mtd',  label: 'Month to Date' },
   { key: 'qtd',  label: 'Quarter to Date' },
@@ -759,6 +879,9 @@ export default function Reports({ token }) {
 
       {/* ── Document History Report ── */}
       <DocHistoryPanel token={token} />
+
+      {/* ── Customer Full Report ── */}
+      <CustomerReportPanel token={token} />
     </div>
   );
 }

@@ -674,6 +674,252 @@ router.get('/doc-history/search', requireAuth, (req, res) => {
   res.json({ jobs: rows });
 });
 
+// ── GET /api/reports/customer/search — find contacts for customer report picker ──
+router.get('/customer/search', requireAuth, (req, res) => {
+  const db = getDb();
+  const q = String(req.query.q || '').trim();
+  if (!q) return res.json({ customers: [] });
+
+  const like = `%${q}%`;
+
+  // Linked contacts (have a contact record)
+  const contacts = db.prepare(`
+    SELECT c.id, c.name, c.email, c.phone, c.address, c.city, c.pb_customer_number,
+           COUNT(j.id) AS job_count
+    FROM contacts c
+    LEFT JOIN jobs j ON j.contact_id = c.id
+    WHERE c.name LIKE ? OR c.pb_customer_number LIKE ? OR c.email LIKE ? OR c.phone LIKE ?
+    GROUP BY c.id
+    ORDER BY c.name ASC LIMIT 10
+  `).all(like, like, like, like);
+
+  // Unlinked jobs (no contact record) grouped by customer_name
+  const unlinked = db.prepare(`
+    SELECT customer_name AS name, customer_email AS email, customer_phone AS phone,
+           COUNT(*) AS job_count, NULL AS pb_customer_number, NULL AS id
+    FROM jobs
+    WHERE contact_id IS NULL AND customer_name LIKE ?
+    GROUP BY customer_name
+    ORDER BY customer_name ASC LIMIT 5
+  `).all(like);
+
+  const results = [
+    ...contacts.map(c => ({ ...c, type: 'contact' })),
+    ...unlinked.filter(u => !contacts.some(c => c.name === u.name)).map(u => ({ ...u, type: 'unlinked' }))
+  ].slice(0, 12);
+
+  res.json({ customers: results });
+});
+
+// ── GET /api/reports/customer/pdf — full customer report PDF ──────────────────
+router.get('/customer/pdf', requireAuth, async (req, res) => {
+  try {
+    const db = getDb();
+    const { generatePDFFromHTML } = require('../services/pdfService');
+
+    const { contact_id, customer_name } = req.query;
+    if (!contact_id && !customer_name) return res.status(400).json({ error: 'contact_id or customer_name required' });
+
+    let contact = null;
+    let jobs = [];
+
+    if (contact_id) {
+      contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact_id);
+      jobs = db.prepare('SELECT * FROM jobs WHERE contact_id = ? ORDER BY created_at ASC').all(contact_id);
+    } else {
+      jobs = db.prepare("SELECT * FROM jobs WHERE contact_id IS NULL AND customer_name = ? ORDER BY created_at ASC").all(customer_name);
+    }
+
+    if (!jobs.length && !contact) return res.status(404).json({ error: 'No records found' });
+
+    const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    const fmtDateTime = (d) => {
+      if (!d) return '—';
+      try { return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/New_York' }); }
+      catch { return d; }
+    };
+
+    const displayName = contact?.name || jobs[0]?.customer_name || 'Unknown Customer';
+    const runDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+
+    // Aggregate totals
+    let totalContractValue = 0;
+    let totalCollected = 0;
+
+    const jobSections = [];
+
+    for (const job of jobs) {
+      const invoices = db.prepare('SELECT * FROM invoices WHERE job_id = ? ORDER BY created_at ASC').all(job.id);
+      const payments = db.prepare('SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC').all(job.id);
+
+      const jobTotal = Number(job.total_value || 0);
+      const jobCollected = payments.filter(p => (p.credit_debit || 'credit') === 'credit').reduce((s, p) => s + Number(p.amount || 0), 0);
+      totalContractValue += jobTotal;
+      totalCollected += jobCollected;
+
+      // Build timeline for this job
+      const timeline = [];
+      timeline.push({ date: job.created_at, icon: '📋', label: 'Job Created', sub: `Status: ${job.status || 'received'}`, color: '#1B3A6B' });
+
+      if (job.quote_number) {
+        timeline.push({ date: job.updated_at, icon: '📄', label: 'Proposal / Scope of Work', sub: `PB-${job.quote_number}${job.total_value ? ' · ' + money(job.total_value) : ''}`, color: '#7C3AED' });
+      }
+
+      const activity = db.prepare('SELECT * FROM activity_log WHERE job_id = ? ORDER BY created_at ASC').all(job.id);
+      const signedEvent = activity.find(a => a.event_type === 'CONTRACT_SIGNED');
+      if (signedEvent) {
+        timeline.push({ date: signedEvent.created_at, icon: '✍️', label: 'Contract Signed', sub: `Contract No. PB-${job.quote_number || job.id}`, color: '#0D9488' });
+      }
+
+      for (const inv of invoices) {
+        const typeMap = { contract_invoice: 'Deposit Invoice', pass_through_invoice: 'Pass-Through Invoice', change_order: 'Change Order Invoice', combined_invoice: 'Invoice' };
+        const tLabel = typeMap[inv.invoice_type] || 'Invoice';
+        const statusBadge = inv.status === 'paid' ? ' ✓ PAID' : inv.status === 'sent' ? ' — Sent' : inv.status === 'void' ? ' — VOID' : ' — Draft';
+        let items = [];
+        try { items = inv.line_items ? JSON.parse(inv.line_items) : []; } catch { /* ignore */ }
+        const pbDue = inv.pb_due_amount || inv.amount;
+        const sub = items.length
+          ? `${money(inv.amount)} total · ${money(pbDue)} due to PB${statusBadge}`
+          : `${money(inv.amount)}${statusBadge}`;
+        timeline.push({ date: inv.created_at, icon: '🧾', label: `${tLabel} — ${inv.invoice_number}`, sub, color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A' });
+      }
+
+      for (const pmt of payments) {
+        const crDr = (pmt.credit_debit || 'credit') === 'debit' ? ' (Debit/Refund)' : '';
+        timeline.push({
+          date: `${pmt.date_received}T${pmt.time_received || '12:00:00'}`,
+          icon: '💵',
+          label: `Payment Received — ${money(pmt.amount)}${crDr}`,
+          sub: `${pmt.payment_type || 'check'}${pmt.check_number ? ' #' + pmt.check_number : ''}${pmt.notes ? ' · ' + pmt.notes : ''} · Recorded by ${pmt.recorded_by || '—'}`,
+          color: '#2E7D32'
+        });
+      }
+
+      if (job.archived && job.closed_reason === 'completed') {
+        timeline.push({ date: job.archived_at || job.updated_at, icon: '🏁', label: 'Job Completed', sub: job.closed_note || '', color: '#2E7D32' });
+      }
+
+      timeline.sort((a, b) => (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0));
+
+      const rowsHTML = timeline.map((row, i) => `
+<tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'};border-bottom:1px solid #eee">
+  <td style="padding:7px 10px;font-size:16px;width:30px;text-align:center">${row.icon}</td>
+  <td style="padding:7px 8px;font-size:10px;color:#888;white-space:nowrap;width:120px">${fmtDateTime(row.date)}</td>
+  <td style="padding:7px 8px">
+    <div style="font-size:11px;font-weight:600;color:${row.color}">${row.label}</div>
+    ${row.sub ? `<div style="font-size:10px;color:#888;margin-top:1px">${row.sub}</div>` : ''}
+  </td>
+</tr>`).join('');
+
+      const outstanding = Math.max(0, jobTotal - jobCollected);
+      const statusColor = { completed: '#2E7D32', contract_signed: '#0D9488', in_progress: '#3B82F6', proposal_sent: '#F59E0B' }[job.status] || '#888';
+
+      jobSections.push(`
+<div style="margin-bottom:28px;page-break-inside:avoid">
+  <div style="background:#1B3A6B;color:white;padding:10px 14px;border-radius:6px 6px 0 0;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <span style="font-size:13px;font-weight:bold">PB-${job.quote_number || job.id}</span>
+      <span style="font-size:11px;opacity:0.8;margin-left:12px">${job.project_address || '—'}${job.project_city ? ', ' + job.project_city + ', MA' : ''}</span>
+    </div>
+    <span style="font-size:10px;background:${statusColor};padding:2px 9px;border-radius:10px;font-weight:bold">${(job.status || '—').replace(/_/g, ' ').toUpperCase()}</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;background:#f0f4ff;padding:10px 14px;font-size:11px;border:1px solid #e0e8ff;border-top:none">
+    <div><span style="color:#888">Contract Value</span><br><strong style="color:#1B3A6B;font-size:13px">${money(jobTotal)}</strong></div>
+    <div><span style="color:#888">Total Collected</span><br><strong style="color:#2E7D32;font-size:13px">${money(jobCollected)}</strong></div>
+    <div><span style="color:#888">Outstanding</span><br><strong style="color:${outstanding > 0 ? '#C62828' : '#2E7D32'};font-size:13px">${money(outstanding)}</strong></div>
+  </div>
+  <table style="width:100%;border-collapse:collapse;font-size:11px;border:1px solid #e2e8f0;border-top:none">
+    <tr style="background:#f8faff">
+      <th style="padding:6px 10px;font-size:9px;color:#888;text-align:left;width:30px"></th>
+      <th style="padding:6px 8px;font-size:9px;color:#888;text-align:left;width:120px">DATE / TIME</th>
+      <th style="padding:6px 8px;font-size:9px;color:#888;text-align:left">DOCUMENT / EVENT</th>
+    </tr>
+    ${rowsHTML || '<tr><td colspan="3" style="padding:14px;text-align:center;color:#aaa;font-size:11px">No documents on record</td></tr>'}
+  </table>
+</div>`);
+    }
+
+    const outstanding = Math.max(0, totalContractValue - totalCollected);
+
+    const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  body{font-family:Arial,sans-serif;margin:0;padding:32px;color:#222;font-size:13px}
+  h1{color:#1B3A6B;margin:0;font-size:20px}
+  .sub{color:#888;font-size:11px;margin:3px 0}
+  hr{border:none;border-top:2px solid #E07B2A;margin:14px 0}
+  .section-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px;margin:0 0 5px;font-weight:600}
+  .ftr{margin-top:36px;padding-top:12px;border-top:1px solid #eee;font-size:10px;color:#aaa;text-align:center}
+  @media print{.no-break{page-break-inside:avoid}}
+</style></head><body>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
+  <div>
+    <h1>PREFERRED BUILDERS</h1>
+    <p class="sub">General Services Inc. · 978-377-1784 · Fitchburg, MA</p>
+    <p class="sub">License #CS-109171 · HIC-197400</p>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:14px;font-weight:bold;color:#1B3A6B">Customer Full Report</div>
+    <div class="sub">Generated: ${runDate}</div>
+  </div>
+</div>
+<hr>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+  <div>
+    <div class="section-label">Customer</div>
+    <div style="font-size:14px;font-weight:bold;margin-top:4px">
+      ${contact?.pb_customer_number ? `<span style="font-family:monospace;font-size:10px;background:#e0e8ff;color:#1B3A6B;padding:2px 7px;border-radius:4px;font-weight:bold">${contact.pb_customer_number}</span><br>` : ''}
+      ${displayName}
+    </div>
+    ${contact?.email ? `<div style="font-size:11px;color:#555;margin-top:3px">✉ ${contact.email}</div>` : ''}
+    ${contact?.phone ? `<div style="font-size:11px;color:#555">📞 ${contact.phone}</div>` : ''}
+    ${contact?.address ? `<div style="font-size:11px;color:#555">📍 ${contact.address}${contact.city ? ', ' + contact.city : ''}</div>` : ''}
+  </div>
+  <div>
+    <div class="section-label">Account Summary</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px">
+      <div style="background:#f0f4ff;border-radius:6px;padding:10px 12px">
+        <div style="font-size:10px;color:#888">Total Jobs</div>
+        <div style="font-size:18px;font-weight:bold;color:#1B3A6B">${jobs.length}</div>
+      </div>
+      <div style="background:#f0f4ff;border-radius:6px;padding:10px 12px">
+        <div style="font-size:10px;color:#888">Contract Value</div>
+        <div style="font-size:16px;font-weight:bold;color:#1B3A6B">${money(totalContractValue)}</div>
+      </div>
+      <div style="background:#e8f5e9;border-radius:6px;padding:10px 12px">
+        <div style="font-size:10px;color:#888">Total Collected</div>
+        <div style="font-size:16px;font-weight:bold;color:#2E7D32">${money(totalCollected)}</div>
+      </div>
+      <div style="background:${outstanding > 0 ? '#fef2f2' : '#e8f5e9'};border-radius:6px;padding:10px 12px">
+        <div style="font-size:10px;color:#888">Outstanding</div>
+        <div style="font-size:16px;font-weight:bold;color:${outstanding > 0 ? '#C62828' : '#2E7D32'}">${money(outstanding)}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section-label" style="margin-bottom:12px">Job History &amp; Document Timeline</div>
+
+${jobSections.join('') || '<p style="color:#aaa;font-size:12px">No jobs on record for this customer.</p>'}
+
+<div class="ftr">
+  Preferred Builders General Services Inc. · License #CS-109171 · HIC-197400 · 978-377-1784<br>
+  Customer Report — ${displayName} — Generated ${runDate}
+</div>
+</body></html>`;
+
+    const pdfPath = await generatePDFFromHTML(html, `customer_report_${contact_id || customer_name.replace(/\s+/g, '_')}`);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="customer-report-${displayName.replace(/\s+/g, '-')}.pdf"`);
+    const fs = require('fs');
+    fs.createReadStream(pdfPath).pipe(res);
+  } catch (err) {
+    console.error('[Customer Report PDF]', err.message);
+    res.status(500).json({ error: 'PDF generation failed: ' + err.message });
+  }
+});
+
 // ── GET /api/reports/saved ────────────────────────────────────────────────────
 router.get('/saved', requireAuth, (req, res) => {
   const db = getDb();
