@@ -13,6 +13,7 @@ const MAIN_NAV = [
   { path: '/contacts',     icon: '👥', label: 'Contacts' },
   { path: '/takeoff',      icon: '📐', label: 'Material Take-Off' },
   { path: '/analytics',    icon: '📈', label: 'Analytics' },
+  { path: '/reports',      icon: '📋', label: 'Reports' },
 ];
 
 const CONFIG_NAV = [
