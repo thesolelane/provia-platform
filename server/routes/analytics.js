@@ -7,55 +7,106 @@ router.get('/pipeline', requireAuth, (req, res) => {
   const db = getDb();
 
   const statusOrder = [
-    'received','processing','clarification','review_pending',
-    'proposal_ready','proposal_sent','proposal_approved',
-    'contract_ready','contract_sent','contract_signed','complete'
+    'received',
+    'processing',
+    'clarification',
+    'review_pending',
+    'proposal_ready',
+    'proposal_sent',
+    'proposal_approved',
+    'contract_ready',
+    'contract_sent',
+    'contract_signed',
+    'complete'
   ];
   const statusLabels = {
-    received: 'Received', processing: 'Processing', clarification: 'Clarification',
-    review_pending: 'Review Pending', proposal_ready: 'Proposal Ready', proposal_sent: 'Proposal Sent',
-    proposal_approved: 'Approved', contract_ready: 'Contract Ready', contract_sent: 'Contract Sent',
-    contract_signed: 'Contract Signed', complete: 'Complete'
+    received: 'Received',
+    processing: 'Processing',
+    clarification: 'Clarification',
+    review_pending: 'Review Pending',
+    proposal_ready: 'Proposal Ready',
+    proposal_sent: 'Proposal Sent',
+    proposal_approved: 'Approved',
+    contract_ready: 'Contract Ready',
+    contract_sent: 'Contract Sent',
+    contract_signed: 'Contract Signed',
+    complete: 'Complete'
   };
 
-  const allCounts = db.prepare('SELECT status, COUNT(*) as count FROM jobs WHERE archived = 0 GROUP BY status').all();
+  const allCounts = db
+    .prepare('SELECT status, COUNT(*) as count FROM jobs WHERE archived = 0 GROUP BY status')
+    .all();
   const countMap = {};
   for (const r of allCounts) countMap[r.status] = r.count;
-  const pipeline = statusOrder.map(s => ({ status: s, label: statusLabels[s] || s, count: countMap[s] || 0 }));
+  const pipeline = statusOrder.map((s) => ({
+    status: s,
+    label: statusLabels[s] || s,
+    count: countMap[s] || 0
+  }));
 
   const { range } = req.query;
   let dateFilter = '';
-  if (range === '30')  dateFilter = "AND archived_at >= date('now', '-30 days')";
-  else if (range === '90')  dateFilter = "AND archived_at >= date('now', '-90 days')";
+  if (range === '30') dateFilter = "AND archived_at >= date('now', '-30 days')";
+  else if (range === '90') dateFilter = "AND archived_at >= date('now', '-90 days')";
   else if (range === '365') dateFilter = "AND archived_at >= date('now', '-365 days')";
 
   let wonDateFilter = dateFilter.replace(/archived_at/g, 'updated_at');
-  const wonCount = db.prepare(`SELECT COUNT(*) as count FROM jobs WHERE status IN ('complete','contract_signed') ${wonDateFilter}`).get().count;
-  const lostCount = db.prepare(`SELECT COUNT(*) as count FROM jobs WHERE archived = 1 AND closed_reason IN ('lost_price','lost_timing','lost_competitor','ghosted') ${dateFilter}`).get().count;
+  const wonCount = db
+    .prepare(
+      `SELECT COUNT(*) as count FROM jobs WHERE status IN ('complete','contract_signed') ${wonDateFilter}`
+    )
+    .get().count;
+  const lostCount = db
+    .prepare(
+      `SELECT COUNT(*) as count FROM jobs WHERE archived = 1 AND closed_reason IN ('lost_price','lost_timing','lost_competitor','ghosted') ${dateFilter}`
+    )
+    .get().count;
   const totalClosed = wonCount + lostCount;
   const winRate = totalClosed > 0 ? Math.round((wonCount / totalClosed) * 100) : null;
 
-  const lossReasons = db.prepare(`
+  const lossReasons = db
+    .prepare(
+      `
     SELECT closed_reason, COUNT(*) as count FROM jobs
     WHERE archived = 1 AND closed_reason IN ('lost_price','lost_timing','lost_competitor','ghosted') ${dateFilter}
     GROUP BY closed_reason ORDER BY count DESC
-  `).all();
+  `
+    )
+    .all();
 
-  const lossLabels = { lost_price: 'Price', lost_timing: 'Timing', lost_competitor: 'Competitor', ghosted: 'Ghosted' };
-  const lossBreakdown = lossReasons.map(r => ({ reason: r.closed_reason, label: lossLabels[r.closed_reason] || r.closed_reason, count: r.count }));
+  const lossLabels = {
+    lost_price: 'Price',
+    lost_timing: 'Timing',
+    lost_competitor: 'Competitor',
+    ghosted: 'Ghosted'
+  };
+  const lossBreakdown = lossReasons.map((r) => ({
+    reason: r.closed_reason,
+    label: lossLabels[r.closed_reason] || r.closed_reason,
+    count: r.count
+  }));
 
-  const velocityRows = db.prepare(`
+  const velocityRows = db
+    .prepare(
+      `
     SELECT id, created_at FROM jobs
     WHERE status IN ('complete','contract_signed') ${wonDateFilter}
-  `).all();
+  `
+    )
+    .all();
 
-  const auditRows = velocityRows.length > 0
-    ? db.prepare(`
+  const auditRows =
+    velocityRows.length > 0
+      ? db
+          .prepare(
+            `
         SELECT job_id, action, created_at FROM audit_log
         WHERE action IN ('proposal_sent_for_signing','contract_signed')
         ORDER BY created_at ASC
-      `).all()
-    : [];
+      `
+          )
+          .all()
+      : [];
 
   const auditByJob = {};
   for (const a of auditRows) {
@@ -81,7 +132,8 @@ router.get('/pipeline', requireAuth, (req, res) => {
     }
   }
 
-  const avg = arr => arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;
+  const avg = (arr) =>
+    arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 10) / 10 : null;
   const proposalVelocity = {
     intakeToProposal: avg(intakeToProposalDays),
     proposalToSigned: avg(proposalToSignedDays),
@@ -90,11 +142,15 @@ router.get('/pipeline', requireAuth, (req, res) => {
     proposalToSignedCount: proposalToSignedDays.length
   };
 
-  const revenueRows = db.prepare(`
+  const revenueRows = db
+    .prepare(
+      `
     SELECT total_value, updated_at FROM jobs
     WHERE status IN ('complete','contract_signed') AND total_value > 0 ${wonDateFilter}
     ORDER BY updated_at ASC
-  `).all();
+  `
+    )
+    .all();
 
   const revenueByMonth = {};
   for (const r of revenueRows) {
@@ -107,17 +163,34 @@ router.get('/pipeline', requireAuth, (req, res) => {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, value]) => ({ month, value: Math.round(value) }));
 
-  const totalJobs = db.prepare("SELECT COUNT(*) as count FROM jobs WHERE created_at >= date('now', 'start of year')").get().count;
-  const quotesYTD = db.prepare("SELECT COUNT(*) as count FROM jobs WHERE created_at >= date('now', 'start of year') AND status NOT IN ('received','processing')").get().count;
-  const pipelineValue = db.prepare("SELECT COALESCE(SUM(total_value), 0) as total FROM jobs WHERE archived = 0").get().total;
-  const wonRevenueYTD = db.prepare("SELECT COALESCE(SUM(total_value), 0) as total FROM jobs WHERE status IN ('complete','contract_signed') AND updated_at >= date('now', 'start of year')").get().total;
+  const totalJobs = db
+    .prepare("SELECT COUNT(*) as count FROM jobs WHERE created_at >= date('now', 'start of year')")
+    .get().count;
+  const quotesYTD = db
+    .prepare(
+      "SELECT COUNT(*) as count FROM jobs WHERE created_at >= date('now', 'start of year') AND status NOT IN ('received','processing')"
+    )
+    .get().count;
+  const pipelineValue = db
+    .prepare('SELECT COALESCE(SUM(total_value), 0) as total FROM jobs WHERE archived = 0')
+    .get().total;
+  const wonRevenueYTD = db
+    .prepare(
+      "SELECT COALESCE(SUM(total_value), 0) as total FROM jobs WHERE status IN ('complete','contract_signed') AND updated_at >= date('now', 'start of year')"
+    )
+    .get().total;
 
-  const avgMarginRows = db.prepare(`
+  const avgMarginRows = db
+    .prepare(
+      `
     SELECT proposal_data FROM jobs
     WHERE status IN ('complete','contract_signed') AND proposal_data IS NOT NULL
-  `).all();
+  `
+    )
+    .all();
 
-  let marginSum = 0, marginCount = 0;
+  let marginSum = 0,
+    marginCount = 0;
   for (const row of avgMarginRows) {
     try {
       const pd = JSON.parse(row.proposal_data);
@@ -151,21 +224,34 @@ router.get('/pipeline', requireAuth, (req, res) => {
 
 router.get('/job/:id/context', requireAuth, (req, res) => {
   const db = getDb();
-  const job = db.prepare('SELECT id, status, created_at, updated_at FROM jobs WHERE id = ?').get(req.params.id);
+  const job = db
+    .prepare('SELECT id, status, created_at, updated_at FROM jobs WHERE id = ?')
+    .get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
   const STATUS_ACTIONS = [
-    'status_changed', 'archived', 'restored',
-    'proposal_generated', 'proposal_sent_for_signing', 'proposal_approved',
-    'contract_generated', 'contract_sent', 'contract_signed',
-    'customer_approved', 'marked_complete'
+    'status_changed',
+    'archived',
+    'restored',
+    'proposal_generated',
+    'proposal_sent_for_signing',
+    'proposal_approved',
+    'contract_generated',
+    'contract_sent',
+    'contract_signed',
+    'customer_approved',
+    'marked_complete'
   ];
 
-  const lastStatusChange = db.prepare(`
+  const lastStatusChange = db
+    .prepare(
+      `
     SELECT created_at FROM audit_log
     WHERE job_id = ? AND action IN (${STATUS_ACTIONS.map(() => '?').join(',')})
     ORDER BY created_at DESC LIMIT 1
-  `).get(req.params.id, ...STATUS_ACTIONS);
+  `
+    )
+    .get(req.params.id, ...STATUS_ACTIONS);
 
   const now = Date.now();
   const stageEnteredAt = lastStatusChange
@@ -173,18 +259,27 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
     : new Date(job.updated_at || job.created_at).getTime();
   const daysAtCurrentStage = Math.round(((now - stageEnteredAt) / 86400000) * 10) / 10;
 
-  const wonJobs = db.prepare(`
+  const wonJobs = db
+    .prepare(
+      `
     SELECT id, created_at FROM jobs WHERE status IN ('complete','contract_signed')
-  `).all();
+  `
+    )
+    .all();
 
-  const wonAudits = wonJobs.length > 0
-    ? db.prepare(`
+  const wonAudits =
+    wonJobs.length > 0
+      ? db
+          .prepare(
+            `
         SELECT job_id, action, created_at FROM audit_log
         WHERE action IN ('proposal_sent_for_signing','contract_signed')
         AND job_id IN (${wonJobs.map(() => '?').join(',')})
         ORDER BY created_at ASC
-      `).all(...wonJobs.map(j => j.id))
-    : [];
+      `
+          )
+          .all(...wonJobs.map((j) => j.id))
+      : [];
 
   const wonAuditByJob = {};
   for (const a of wonAudits) {
@@ -202,14 +297,19 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
     }
   }
 
-  const avgDaysToClose = closeDays.length > 0
-    ? Math.round((closeDays.reduce((a, b) => a + b, 0) / closeDays.length) * 10) / 10
-    : null;
+  const avgDaysToClose =
+    closeDays.length > 0
+      ? Math.round((closeDays.reduce((a, b) => a + b, 0) / closeDays.length) * 10) / 10
+      : null;
 
-  const wonMargins = db.prepare(`
+  const wonMargins = db
+    .prepare(
+      `
     SELECT proposal_data FROM jobs
     WHERE status IN ('complete','contract_signed') AND proposal_data IS NOT NULL
-  `).all();
+  `
+    )
+    .all();
 
   let margins = [];
   let sqftPrices = [];
@@ -229,8 +329,14 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
     } catch (e) {}
   }
 
-  const avgWonMargin = margins.length > 0 ? Math.round((margins.reduce((a, b) => a + b, 0) / margins.length) * 10) / 10 : null;
-  const avgWonSqftPrice = sqftPrices.length > 0 ? Math.round(sqftPrices.reduce((a, b) => a + b, 0) / sqftPrices.length) : null;
+  const avgWonMargin =
+    margins.length > 0
+      ? Math.round((margins.reduce((a, b) => a + b, 0) / margins.length) * 10) / 10
+      : null;
+  const avgWonSqftPrice =
+    sqftPrices.length > 0
+      ? Math.round(sqftPrices.reduce((a, b) => a + b, 0) / sqftPrices.length)
+      : null;
 
   res.json({
     daysAtCurrentStage,

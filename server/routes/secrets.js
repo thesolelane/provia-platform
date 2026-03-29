@@ -2,8 +2,8 @@
 // Full CRUD secrets manager — reads/writes the .env file directly
 
 const express = require('express');
-const fs      = require('fs');
-const path    = require('path');
+const fs = require('fs');
+const path = require('path');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
@@ -11,12 +11,23 @@ const ENV_PATH = path.resolve(__dirname, '../../.env');
 
 // Keys whose values are shown in plain text (not sensitive)
 const NO_MASK_KEYS = new Set([
-  'BOT_EMAIL', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USER',
-  'OWNER_EMAIL', 'OWNER_WHATSAPP', 'JACKSON_WHATSAPP',
-  'COOPER_WHATSAPP', 'TWILIO_WHATSAPP_NUMBER',
-  'APP_URL', 'PORT', 'NODE_ENV', 'TZ',
-  'DISABLE_WHATSAPP_POLLER', 'DISABLE_WHATSAPP_WEBHOOK',
-  'PBBKUPS', 'SIGNED_CONTRACTS_DIR',
+  'BOT_EMAIL',
+  'SMTP_HOST',
+  'SMTP_PORT',
+  'SMTP_USER',
+  'OWNER_EMAIL',
+  'OWNER_WHATSAPP',
+  'JACKSON_WHATSAPP',
+  'COOPER_WHATSAPP',
+  'TWILIO_WHATSAPP_NUMBER',
+  'APP_URL',
+  'PORT',
+  'NODE_ENV',
+  'TZ',
+  'DISABLE_WHATSAPP_POLLER',
+  'DISABLE_WHATSAPP_WEBHOOK',
+  'PBBKUPS',
+  'SIGNED_CONTRACTS_DIR'
 ]);
 
 // ------------------------------------------------------------------
@@ -41,9 +52,12 @@ function parseEnv(content) {
       const eqIdx = inner.indexOf('=');
       if (eqIdx > 0 && /^[A-Z][A-Z0-9_]*$/.test(inner.slice(0, eqIdx).trim())) {
         const key = inner.slice(0, eqIdx).trim();
-        let val   = inner.slice(eqIdx + 1).trim();
-        if ((val.startsWith('"') && val.endsWith('"')) ||
-            (val.startsWith("'") && val.endsWith("'"))) val = val.slice(1, -1);
+        let val = inner.slice(eqIdx + 1).trim();
+        if (
+          (val.startsWith('"') && val.endsWith('"')) ||
+          (val.startsWith("'") && val.endsWith("'"))
+        )
+          val = val.slice(1, -1);
         entries.push({ type: 'commented-kv', key, value: val, raw: line });
         continue;
       }
@@ -56,9 +70,8 @@ function parseEnv(content) {
       continue;
     }
     const key = line.slice(0, eqIdx).trim();
-    let val   = line.slice(eqIdx + 1).trim();
-    if ((val.startsWith('"') && val.endsWith('"')) ||
-        (val.startsWith("'") && val.endsWith("'"))) {
+    let val = line.slice(eqIdx + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
     entries.push({ type: 'kv', key, value: val });
@@ -67,12 +80,14 @@ function parseEnv(content) {
 }
 
 function serializeEnv(entries) {
-  return entries.map(e => {
-    if (e.type === 'comment') return e.raw;
-    const val = e.value;
-    const needsQuotes = /[\s"'`#\\]/.test(val);
-    return `${e.key}=${needsQuotes ? `"${val.replace(/"/g, '\\"')}"` : val}`;
-  }).join('\n');
+  return entries
+    .map((e) => {
+      if (e.type === 'comment') return e.raw;
+      const val = e.value;
+      const needsQuotes = /[\s"'`#\\]/.test(val);
+      return `${e.key}=${needsQuotes ? `"${val.replace(/"/g, '\\"')}"` : val}`;
+    })
+    .join('\n');
 }
 
 function writeEnvFile(entries) {
@@ -86,12 +101,12 @@ router.get('/', requireAuth, (req, res) => {
   if (req.session.role !== 'system_admin') return res.status(403).json({ error: 'Forbidden' });
   const entries = parseEnv(readEnvFile());
   const kvs = entries
-    .filter(e => e.type === 'kv' || e.type === 'commented-kv')
-    .map(e => ({
-      key:      e.key,
-      value:    e.value,
-      noMask:   NO_MASK_KEYS.has(e.key),
-      disabled: e.type === 'commented-kv',
+    .filter((e) => e.type === 'kv' || e.type === 'commented-kv')
+    .map((e) => ({
+      key: e.key,
+      value: e.value,
+      noMask: NO_MASK_KEYS.has(e.key),
+      disabled: e.type === 'commented-kv'
     }));
   res.json(kvs);
 });
@@ -102,12 +117,12 @@ router.get('/', requireAuth, (req, res) => {
 // ------------------------------------------------------------------
 router.post('/', requireAuth, (req, res) => {
   if (req.session.role !== 'system_admin') return res.status(403).json({ error: 'Forbidden' });
-  const key   = (req.body.key   || '').replace(/[\r\n\s]/g, '').toUpperCase();
+  const key = (req.body.key || '').replace(/[\r\n\s]/g, '').toUpperCase();
   const value = (req.body.value || '').replace(/[\r\n]/g, '').trim();
   if (!key) return res.status(400).json({ error: 'Key is required' });
 
   const entries = parseEnv(readEnvFile());
-  const existing = entries.find(e => e.type === 'kv' && e.key === key);
+  const existing = entries.find((e) => e.type === 'kv' && e.key === key);
   if (existing) {
     existing.value = value;
   } else {
@@ -131,18 +146,20 @@ router.put('/:key', requireAuth, (req, res) => {
   const value = (req.body.value !== undefined ? req.body.value : '').replace(/[\r\n]/g, '').trim();
 
   const entries = parseEnv(readEnvFile());
-  const entry = entries.find(e => (e.type === 'kv' || e.type === 'commented-kv') && e.key === oldKey);
+  const entry = entries.find(
+    (e) => (e.type === 'kv' || e.type === 'commented-kv') && e.key === oldKey
+  );
   if (!entry) return res.status(404).json({ error: 'Key not found' });
   // Uncomment if it was a commented-out entry
   entry.type = 'kv';
 
   // If renaming, check new name isn't already taken
-  if (newKey !== oldKey && entries.find(e => e.type === 'kv' && e.key === newKey)) {
+  if (newKey !== oldKey && entries.find((e) => e.type === 'kv' && e.key === newKey)) {
     return res.status(409).json({ error: 'A secret with that name already exists' });
   }
 
   delete process.env[oldKey];
-  entry.key   = newKey;
+  entry.key = newKey;
   entry.value = value;
   process.env[newKey] = value;
   writeEnvFile(entries);
@@ -156,7 +173,9 @@ router.delete('/:key', requireAuth, (req, res) => {
   if (req.session.role !== 'system_admin') return res.status(403).json({ error: 'Forbidden' });
   const key = req.params.key;
   const entries = parseEnv(readEnvFile());
-  const idx = entries.findIndex(e => (e.type === 'kv' || e.type === 'commented-kv') && e.key === key);
+  const idx = entries.findIndex(
+    (e) => (e.type === 'kv' || e.type === 'commented-kv') && e.key === key
+  );
   if (idx === -1) return res.status(404).json({ error: 'Key not found' });
   entries.splice(idx, 1);
   writeEnvFile(entries);

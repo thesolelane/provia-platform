@@ -168,6 +168,15 @@ The `requireAuth` middleware (`server/middleware/auth.js`) accepts auth via eith
 
 ---
 
+## Code Quality (ESLint & Prettier)
+- `npm run lint` — ESLint scans `server/` for issues (warnings only, no auto-fix)
+- `npm run format` — Prettier auto-formats all `server/**/*.js` files
+- Config: `eslint.config.js` (flat config, ESLint v10+) and `.prettierrc`
+- Settings: single quotes, 2-space indent, no trailing commas, 100-char line width
+- Validation step "server-lint" is registered and runs `npm run lint`
+
+---
+
 ## Important Dev Notes
 - `PORT=5000` set as Replit env var — do not override
 - NEVER use `dotenv.config({ override: true })` — Replit secrets must win

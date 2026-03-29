@@ -44,7 +44,9 @@ function startPolling(handleIncoming, intervalMs = 5000) {
   if (pollingInterval) return;
 
   const sandboxNumber = process.env.TWILIO_WHATSAPP_NUMBER || '+14155238886';
-  const toNumber = sandboxNumber.startsWith('whatsapp:') ? sandboxNumber : `whatsapp:${sandboxNumber}`;
+  const toNumber = sandboxNumber.startsWith('whatsapp:')
+    ? sandboxNumber
+    : `whatsapp:${sandboxNumber}`;
 
   console.log(`📡 WhatsApp poller started (every ${intervalMs / 1000}s) watching ${toNumber}`);
 
@@ -61,11 +63,13 @@ function startPolling(handleIncoming, intervalMs = 5000) {
         limit: 10
       });
 
-      const inbound = messages.filter(m => m.direction === 'inbound');
+      const inbound = messages.filter((m) => m.direction === 'inbound');
 
       for (const msg of inbound) {
         if (!claimMessage(msg.sid)) continue;
-        console.log(`📥 Polled message: ${msg.from} -> "${msg.body?.substring(0, 50)}" numMedia=${msg.numMedia}`);
+        console.log(
+          `📥 Polled message: ${msg.from} -> "${msg.body?.substring(0, 50)}" numMedia=${msg.numMedia}`
+        );
 
         const fakeBody = {
           From: msg.from,
@@ -90,12 +94,11 @@ function startPolling(handleIncoming, intervalMs = 5000) {
       }
 
       if (messages.length > 0) {
-        const newest = messages.reduce((a, b) => a.dateCreated > b.dateCreated ? a : b);
+        const newest = messages.reduce((a, b) => (a.dateCreated > b.dateCreated ? a : b));
         if (newest.dateCreated > lastPollTime) {
           lastPollTime = newest.dateCreated;
         }
       }
-
     } catch (err) {
       console.error('Poller error:', err.message);
     }

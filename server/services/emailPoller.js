@@ -80,13 +80,21 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                 const visionRes = await visionClient.messages.create({
                   model: 'claude-sonnet-4-20250514',
                   max_tokens: 3000,
-                  messages: [{
-                    role: 'user',
-                    content: [
-                      { type: 'image', source: { type: 'base64', media_type: att.contentType, data: base64 } },
-                      { type: 'text', text: 'This is a construction estimate or invoice image. Extract ALL text, line items, dollar amounts, trade names, and addresses exactly as they appear. Return plain text.' }
-                    ]
-                  }]
+                  messages: [
+                    {
+                      role: 'user',
+                      content: [
+                        {
+                          type: 'image',
+                          source: { type: 'base64', media_type: att.contentType, data: base64 }
+                        },
+                        {
+                          type: 'text',
+                          text: 'This is a construction estimate or invoice image. Extract ALL text, line items, dollar amounts, trade names, and addresses exactly as they appear. Return plain text.'
+                        }
+                      ]
+                    }
+                  ]
                 });
                 const imageText = visionRes.content[0].text?.trim();
                 if (imageText) {
@@ -113,10 +121,16 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
 
         const fullEstimate = `EMAIL FROM: ${from}\nSUBJECT: ${subject}\n\n${estimateText}`;
 
-        db.prepare(`INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'received', ?)`
+        db.prepare(
+          `INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'received', ?)`
         ).run(jobId, fullEstimate, `email:${from}`);
 
-        logAudit(jobId, 'estimate_received_email', `Email from ${from} | Subject: ${subject}`, 'email-poller');
+        logAudit(
+          jobId,
+          'estimate_received_email',
+          `Email from ${from} | Subject: ${subject}`,
+          'email-poller'
+        );
 
         // Mark email as read
         await client.messageFlagsAdd(uid, ['\\Seen']);
@@ -126,9 +140,10 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
           await sendEmail({
             to: from,
             subject: `Received — Quote #${shortId}`,
-            html: language === 'pt-BR'
-              ? `<p>Oi ${firstName}! Recebi o orçamento e já estou processando. Ref: <strong>#${shortId}</strong></p><p>Você receberá a proposta em breve.</p>`
-              : `<p>Hey ${firstName}! Got your estimate — processing it now. Ref: <strong>#${shortId}</strong></p><p>You'll receive the proposal shortly.</p>`,
+            html:
+              language === 'pt-BR'
+                ? `<p>Oi ${firstName}! Recebi o orçamento e já estou processando. Ref: <strong>#${shortId}</strong></p><p>Você receberá a proposta em breve.</p>`
+                : `<p>Hey ${firstName}! Got your estimate — processing it now. Ref: <strong>#${shortId}</strong></p><p>You'll receive the proposal shortly.</p>`,
             emailType: 'acknowledgement',
             jobId
           });
@@ -141,34 +156,54 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
 
         const proposalData = await processEstimateFn(fullEstimate, jobId, language);
 
-        if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
+        if (
+          proposalData.readyToGenerate === false &&
+          proposalData.clarificationsNeeded?.length > 0
+        ) {
           db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', jobId);
           const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
           for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
 
-          const questions = proposalData.clarificationsNeeded.map((q, i) => `${i + 1}. ${q}`).join('\n');
+          const questions = proposalData.clarificationsNeeded
+            .map((q, i) => `${i + 1}. ${q}`)
+            .join('\n');
           await sendEmail({
             to: from,
             subject: `A few questions — Quote #${shortId}`,
-            html: language === 'pt-BR'
-              ? `<p>Preciso de mais informações sobre o orçamento:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Por favor responda este email com as respostas.</p>`
-              : `<p>I need a few more details about the estimate:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Please reply to this email with your answers.</p>`,
+            html:
+              language === 'pt-BR'
+                ? `<p>Preciso de mais informações sobre o orçamento:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Por favor responda este email com as respostas.</p>`
+                : `<p>I need a few more details about the estimate:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Please reply to this email with your answers.</p>`,
             emailType: 'clarification',
             jobId
           });
-          console.log(`[Email Poller] Job ${shortId} needs ${proposalData.clarificationsNeeded.length} clarifications — emailed ${from}`);
-
+          console.log(
+            `[Email Poller] Job ${shortId} needs ${proposalData.clarificationsNeeded.length} clarifications — emailed ${from}`
+          );
         } else {
           const pdfPath = await generatePDFFn(proposalData, 'proposal', jobId);
-          db.prepare(`UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?`)
-            .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
+          db.prepare(
+            `UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?`
+          ).run(
+            JSON.stringify(proposalData),
+            pdfPath,
+            proposalData.totalValue,
+            proposalData.depositAmount,
+            'proposal_ready',
+            jobId
+          );
 
-          logAudit(jobId, 'proposal_ready_email', `Proposal ready. Total: $${proposalData.totalValue}`, 'email-poller');
+          logAudit(
+            jobId,
+            'proposal_ready_email',
+            `Proposal ready. Total: $${proposalData.totalValue}`,
+            'email-poller'
+          );
 
           const { getOwnerEmails } = require('./emailService');
           const recipients = [from];
           for (const ownerEmail of getOwnerEmails()) {
-            if (!recipients.map(r => r.toLowerCase()).includes(ownerEmail.toLowerCase())) {
+            if (!recipients.map((r) => r.toLowerCase()).includes(ownerEmail.toLowerCase())) {
               recipients.push(ownerEmail);
             }
           }
@@ -192,25 +227,31 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
             attachmentName: `Proposal_${shortId}.pdf`
           });
 
-          console.log(`[Email Poller] Job ${shortId} — proposal ready. Total: $${proposalData.totalValue}`);
+          console.log(
+            `[Email Poller] Job ${shortId} — proposal ready. Total: $${proposalData.totalValue}`
+          );
         }
-
       } catch (err) {
         console.error(`[Email Poller] Error processing email ${uid}:`, err.message);
         // Still mark as read so we don't retry indefinitely
-        try { await client.messageFlagsAdd(uid, ['\\Seen']); } catch {}
+        try {
+          await client.messageFlagsAdd(uid, ['\\Seen']);
+        } catch {}
       }
     }
 
     await client.logout();
   } catch (err) {
     console.error('[Email Poller] Connection error:', err.message);
-    try { await client.logout(); } catch {}
+    try {
+      await client.logout();
+    } catch {}
   }
 }
 
 function detectLanguage(text) {
-  const ptWords = /\b(obrigado|orçamento|proposta|serviço|construção|acabamento|banheiro|quarto|sala)\b/i;
+  const ptWords =
+    /\b(obrigado|orçamento|proposta|serviço|construção|acabamento|banheiro|quarto|sala)\b/i;
   return ptWords.test(text) ? 'pt-BR' : 'en';
 }
 
@@ -223,12 +264,18 @@ function startEmailPolling(intervalMs = 60000) {
   const { processEstimate } = require('./claudeService');
   const { generatePDF } = require('./pdfService');
 
-  console.log(`[Email Poller] Started — watching ${process.env.IMAP_USER} every ${intervalMs / 1000}s`);
+  console.log(
+    `[Email Poller] Started — watching ${process.env.IMAP_USER} every ${intervalMs / 1000}s`
+  );
 
   // Poll immediately on start, then on interval
-  pollOnce(processEstimate, generatePDF).catch(e => console.error('[Email Poller] Initial poll error:', e.message));
+  pollOnce(processEstimate, generatePDF).catch((e) =>
+    console.error('[Email Poller] Initial poll error:', e.message)
+  );
   setInterval(() => {
-    pollOnce(processEstimate, generatePDF).catch(e => console.error('[Email Poller] Poll error:', e.message));
+    pollOnce(processEstimate, generatePDF).catch((e) =>
+      console.error('[Email Poller] Poll error:', e.message)
+    );
   }, intervalMs);
 }
 

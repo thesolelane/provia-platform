@@ -146,33 +146,45 @@ async function initDatabase() {
 
   // Migration: add archived columns if missing
   try {
-    db.prepare("SELECT archived FROM jobs LIMIT 1").get();
+    db.prepare('SELECT archived FROM jobs LIMIT 1').get();
   } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN archived INTEGER DEFAULT 0");
-    db.exec("ALTER TABLE jobs ADD COLUMN archived_at DATETIME");
+    db.exec('ALTER TABLE jobs ADD COLUMN archived INTEGER DEFAULT 0');
+    db.exec('ALTER TABLE jobs ADD COLUMN archived_at DATETIME');
   }
 
   // Migration: add customer serial number to contacts
-  try { db.prepare("SELECT customer_number FROM contacts LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE contacts ADD COLUMN customer_number TEXT");
+  try {
+    db.prepare('SELECT customer_number FROM contacts LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE contacts ADD COLUMN customer_number TEXT');
   }
 
   // Migration: add contact_id link on jobs
-  try { db.prepare("SELECT contact_id FROM jobs LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN contact_id INTEGER");
+  try {
+    db.prepare('SELECT contact_id FROM jobs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE jobs ADD COLUMN contact_id INTEGER');
   }
 
   // Migration: add quote versioning columns to jobs
-  try { db.prepare("SELECT quote_number FROM jobs LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN quote_number TEXT");
+  try {
+    db.prepare('SELECT quote_number FROM jobs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE jobs ADD COLUMN quote_number TEXT');
   }
-  try { db.prepare("SELECT version FROM jobs LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN version INTEGER DEFAULT 1");
+  try {
+    db.prepare('SELECT version FROM jobs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE jobs ADD COLUMN version INTEGER DEFAULT 1');
   }
-  try { db.prepare("SELECT parent_job_id FROM jobs LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN parent_job_id TEXT");
+  try {
+    db.prepare('SELECT parent_job_id FROM jobs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE jobs ADD COLUMN parent_job_id TEXT');
   }
-  try { db.prepare("SELECT estimate_source FROM jobs LIMIT 1").get(); } catch {
+  try {
+    db.prepare('SELECT estimate_source FROM jobs LIMIT 1').get();
+  } catch {
     db.exec("ALTER TABLE jobs ADD COLUMN estimate_source TEXT DEFAULT 'ai'");
   }
   db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_quote_number ON jobs(quote_number)`);
@@ -187,16 +199,26 @@ async function initDatabase() {
   `);
 
   // Ensure uniqueness at the DB level (add if not already present)
-  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_customer_number ON contacts(customer_number)`);
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_customer_number ON contacts(customer_number)`
+  );
 
   // Migration: backfill customer_number on any existing contacts that don't have one
   {
-    const untagged = db.prepare("SELECT id FROM contacts WHERE customer_number IS NULL OR customer_number = '' ORDER BY id ASC").all();
+    const untagged = db
+      .prepare(
+        "SELECT id FROM contacts WHERE customer_number IS NULL OR customer_number = '' ORDER BY id ASC"
+      )
+      .all();
     const year = new Date().getFullYear();
     const prefix = `PB-C-${year}-`;
-    const lastRow = db.prepare("SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1").get(prefix + '%');
+    const lastRow = db
+      .prepare(
+        'SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1'
+      )
+      .get(prefix + '%');
     let seq = lastRow ? parseInt(lastRow.customer_number.slice(prefix.length)) + 1 : 1;
-    const setCSN = db.prepare("UPDATE contacts SET customer_number = ? WHERE id = ?");
+    const setCSN = db.prepare('UPDATE contacts SET customer_number = ? WHERE id = ?');
     for (const row of untagged) {
       setCSN.run(prefix + String(seq).padStart(4, '0'), row.id);
       seq++;
@@ -205,13 +227,23 @@ async function initDatabase() {
 
   // Sync counter table: set next_seq to max existing serial + 1 for each year
   {
-    const years = db.prepare("SELECT DISTINCT CAST(substr(customer_number, 6, 4) AS INTEGER) AS yr FROM contacts WHERE customer_number IS NOT NULL").all();
+    const years = db
+      .prepare(
+        'SELECT DISTINCT CAST(substr(customer_number, 6, 4) AS INTEGER) AS yr FROM contacts WHERE customer_number IS NOT NULL'
+      )
+      .all();
     for (const { yr } of years) {
       const pfx = `PB-C-${yr}-`;
-      const last = db.prepare("SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1").get(pfx + '%');
+      const last = db
+        .prepare(
+          'SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1'
+        )
+        .get(pfx + '%');
       if (last) {
         const maxSeq = parseInt(last.customer_number.slice(pfx.length)) + 1;
-        db.prepare('INSERT INTO customer_serial_counter (year, next_seq) VALUES (?, ?) ON CONFLICT(year) DO UPDATE SET next_seq = MAX(next_seq, ?)').run(yr, maxSeq, maxSeq);
+        db.prepare(
+          'INSERT INTO customer_serial_counter (year, next_seq) VALUES (?, ?) ON CONFLICT(year) DO UPDATE SET next_seq = MAX(next_seq, ?)'
+        ).run(yr, maxSeq, maxSeq);
       }
     }
   }
@@ -265,16 +297,22 @@ async function initDatabase() {
   `);
 
   // Migration: add profile columns to users
-  try { db.prepare("SELECT phone FROM users LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE users ADD COLUMN phone TEXT");
+  try {
+    db.prepare('SELECT phone FROM users LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
     db.exec("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'");
     db.exec("ALTER TABLE users ADD COLUMN title TEXT DEFAULT 'Team Member'");
-    db.exec("ALTER TABLE users ADD COLUMN active INTEGER DEFAULT 1");
+    db.exec('ALTER TABLE users ADD COLUMN active INTEGER DEFAULT 1');
   }
 
   // Migration: update roles to new permission system
-  db.prepare("UPDATE users SET role='system_admin', title='Project Manager' WHERE id=1 AND role IN ('owner','system_admin')").run();
-  db.prepare("UPDATE users SET role='admin', title='Project Manager' WHERE id=2 AND role IN ('pm','admin')").run();
+  db.prepare(
+    "UPDATE users SET role='system_admin', title='Project Manager' WHERE id=1 AND role IN ('owner','system_admin')"
+  ).run();
+  db.prepare(
+    "UPDATE users SET role='admin', title='Project Manager' WHERE id=2 AND role IN ('pm','admin')"
+  ).run();
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS job_photos (
@@ -288,16 +326,20 @@ async function initDatabase() {
     )
   `);
 
-  db.prepare(`
+  db.prepare(
+    `
     CREATE TABLE IF NOT EXISTS whatsapp_processed (
       message_sid TEXT PRIMARY KEY,
       processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-  `).run();
+  `
+  ).run();
 
-  db.prepare(`
+  db.prepare(
+    `
     DELETE FROM whatsapp_processed WHERE processed_at < datetime('now', '-24 hours')
-  `).run();
+  `
+  ).run();
 
   // Payment tracking tables
   db.exec(`
@@ -337,17 +379,25 @@ async function initDatabase() {
   `);
 
   // Migration: add pb_number, external_ref, version tracking to jobs
-  try { db.prepare("SELECT pb_number FROM jobs LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN pb_number TEXT");
+  try {
+    db.prepare('SELECT pb_number FROM jobs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE jobs ADD COLUMN pb_number TEXT');
   }
-  try { db.prepare("SELECT external_ref FROM jobs LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN external_ref TEXT");
+  try {
+    db.prepare('SELECT external_ref FROM jobs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE jobs ADD COLUMN external_ref TEXT');
   }
-  try { db.prepare("SELECT quote_version FROM jobs LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN quote_version INTEGER DEFAULT 1");
+  try {
+    db.prepare('SELECT quote_version FROM jobs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE jobs ADD COLUMN quote_version INTEGER DEFAULT 1');
   }
-  try { db.prepare("SELECT parent_job_id FROM jobs LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN parent_job_id TEXT");
+  try {
+    db.prepare('SELECT parent_job_id FROM jobs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE jobs ADD COLUMN parent_job_id TEXT');
   }
 
   // Atomic quote number counter (separate from customer serial counter)
@@ -369,21 +419,25 @@ async function initDatabase() {
 
   // Migration: advance counter past any existing numeric quote numbers already in the DB
   {
-    const maxRow = db.prepare(
-      `SELECT MAX(CAST(quote_number AS INTEGER)) AS mx FROM jobs
+    const maxRow = db
+      .prepare(
+        `SELECT MAX(CAST(quote_number AS INTEGER)) AS mx FROM jobs
        WHERE quote_number IS NOT NULL AND quote_number GLOB '[0-9]*' AND LENGTH(quote_number) <= 6`
-    ).get();
+      )
+      .get();
     if (maxRow?.mx) {
       const needed = maxRow.mx + 1;
-      db.prepare(
-        `UPDATE quote_auto_counter SET next_seq = MAX(next_seq, ?) WHERE id = 1`
-      ).run(needed);
+      db.prepare(`UPDATE quote_auto_counter SET next_seq = MAX(next_seq, ?) WHERE id = 1`).run(
+        needed
+      );
     }
   }
 
   // Migration: add new columns to payments tables if missing (check each individually)
   const addColIfMissing = (table, col, def) => {
-    try { db.prepare(`SELECT ${col} FROM ${table} LIMIT 1`).get(); } catch {
+    try {
+      db.prepare(`SELECT ${col} FROM ${table} LIMIT 1`).get();
+    } catch {
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
     }
   };
@@ -416,7 +470,9 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_email_log_job_id  ON email_log(job_id)`);
 
   // Migration: add html_body column for email preview (auto-wiped on contract signing)
-  try { db.exec(`ALTER TABLE email_log ADD COLUMN html_body TEXT`); } catch (_) {}
+  try {
+    db.exec(`ALTER TABLE email_log ADD COLUMN html_body TEXT`);
+  } catch (_) {}
 
   // Field photos — standalone camera inbox with GPS grouping
   db.exec(`
@@ -435,7 +491,9 @@ async function initDatabase() {
     )
   `);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_field_photos_job_id ON field_photos(job_id)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_field_photos_location_label ON field_photos(location_label)`);
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_field_photos_location_label ON field_photos(location_label)`
+  );
 
   // ── Customer Activity Log ────────────────────────────────────────────────────
   db.exec(`
@@ -450,7 +508,9 @@ async function initDatabase() {
       created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_cal_customer_number ON customer_activity_log(customer_number)`);
+  db.exec(
+    `CREATE INDEX IF NOT EXISTS idx_cal_customer_number ON customer_activity_log(customer_number)`
+  );
   db.exec(`CREATE INDEX IF NOT EXISTS idx_cal_job_id ON customer_activity_log(job_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_cal_created_at ON customer_activity_log(created_at)`);
 
@@ -474,7 +534,9 @@ async function initDatabase() {
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
     )
   `);
-  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number)`);
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number)`
+  );
   db.exec(`CREATE INDEX IF NOT EXISTS idx_invoices_job_id ON invoices(job_id)`);
 
   // ── Invoice sequence counters per job ────────────────────────────────────────
@@ -494,41 +556,57 @@ async function initDatabase() {
   // ── Migration: add payment_class and dept_code to payments_made ──────────────
   addColIfMissing('payments_made', 'payment_class', "TEXT NOT NULL DEFAULT 'cost_of_revenue'");
   addColIfMissing('payments_made', 'dept_code', 'TEXT');
-  addColIfMissing('payments_made', 'is_pass_through', "INTEGER NOT NULL DEFAULT 0");
+  addColIfMissing('payments_made', 'is_pass_through', 'INTEGER NOT NULL DEFAULT 0');
   addColIfMissing('payments_made', 'line_item_ref', 'TEXT');
   // 'pb' = PB fronted the cost (default); 'customer_direct' = customer wrote check directly to vendor/municipality
   addColIfMissing('payments_made', 'paid_by', "TEXT NOT NULL DEFAULT 'pb'");
 
   // ── Migration: add payment_class and invoice link to payments_received ────────
   addColIfMissing('payments_received', 'payment_class', "TEXT NOT NULL DEFAULT 'contract'");
-  addColIfMissing('payments_received', 'is_pass_through_reimbursement', "INTEGER NOT NULL DEFAULT 0");
+  addColIfMissing(
+    'payments_received',
+    'is_pass_through_reimbursement',
+    'INTEGER NOT NULL DEFAULT 0'
+  );
   addColIfMissing('payments_received', 'invoice_id', 'INTEGER');
   addColIfMissing('payments_received', 'line_item_ref', 'TEXT');
 
   // ── Migration: add pb_customer_number to contacts (new format: PB-C-XXXX) ────
   // The existing customer_number column uses PB-C-YEAR-NNNN format.
   // We add pb_customer_number as a simpler sequential PB-C-XXXX identifier.
-  try { db.prepare("SELECT pb_customer_number FROM contacts LIMIT 1").get(); } catch {
-    db.exec("ALTER TABLE contacts ADD COLUMN pb_customer_number TEXT");
+  try {
+    db.prepare('SELECT pb_customer_number FROM contacts LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE contacts ADD COLUMN pb_customer_number TEXT');
   }
 
   // Backfill pb_customer_number for contacts missing it
   {
-    const untagged = db.prepare("SELECT id FROM contacts WHERE pb_customer_number IS NULL OR pb_customer_number = '' ORDER BY id ASC").all();
-    const lastRow = db.prepare("SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1").get();
+    const untagged = db
+      .prepare(
+        "SELECT id FROM contacts WHERE pb_customer_number IS NULL OR pb_customer_number = '' ORDER BY id ASC"
+      )
+      .all();
+    const lastRow = db
+      .prepare(
+        "SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1"
+      )
+      .get();
     let seq = 1;
     if (lastRow?.pb_customer_number) {
       const parts = lastRow.pb_customer_number.split('-');
       const lastSeq = parseInt(parts[parts.length - 1]);
       if (!isNaN(lastSeq)) seq = lastSeq + 1;
     }
-    const setPN = db.prepare("UPDATE contacts SET pb_customer_number = ? WHERE id = ?");
+    const setPN = db.prepare('UPDATE contacts SET pb_customer_number = ? WHERE id = ?');
     for (const row of untagged) {
       setPN.run('PB-C-' + String(seq).padStart(4, '0'), row.id);
       seq++;
     }
   }
-  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_pb_customer_number ON contacts(pb_customer_number)`);
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_pb_customer_number ON contacts(pb_customer_number)`
+  );
 
   // ── pb_customer_counter: simple sequential counter for new contacts ───────────
   db.exec(`
@@ -539,21 +617,31 @@ async function initDatabase() {
   `);
   db.prepare('INSERT OR IGNORE INTO pb_customer_counter (id, next_seq) VALUES (1, 1)').run();
   {
-    const lastPN = db.prepare("SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1").get();
+    const lastPN = db
+      .prepare(
+        "SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1"
+      )
+      .get();
     if (lastPN?.pb_customer_number) {
       const parts = lastPN.pb_customer_number.split('-');
       const lastSeq = parseInt(parts[parts.length - 1]);
       if (!isNaN(lastSeq)) {
-        db.prepare('UPDATE pb_customer_counter SET next_seq = MAX(next_seq, ?) WHERE id = 1').run(lastSeq + 1);
+        db.prepare('UPDATE pb_customer_counter SET next_seq = MAX(next_seq, ?) WHERE id = 1').run(
+          lastSeq + 1
+        );
       }
     }
   }
 
   // ── Migration: invoice line-item split columns ────────────────────────────
-  try { db.prepare('SELECT contract_amount FROM invoices LIMIT 1').get(); } catch {
+  try {
+    db.prepare('SELECT contract_amount FROM invoices LIMIT 1').get();
+  } catch {
     db.exec('ALTER TABLE invoices ADD COLUMN contract_amount REAL NOT NULL DEFAULT 0');
   }
-  try { db.prepare('SELECT pass_through_amount FROM invoices LIMIT 1').get(); } catch {
+  try {
+    db.prepare('SELECT pass_through_amount FROM invoices LIMIT 1').get();
+  } catch {
     db.exec('ALTER TABLE invoices ADD COLUMN pass_through_amount REAL NOT NULL DEFAULT 0');
   }
 
@@ -568,71 +656,321 @@ async function initDatabase() {
 function seedDefaultSettings() {
   const defaults = [
     // Markup
-    { key: 'markup.subOandP',    value: '0.15',  category: 'markup',     label: 'Sub Overhead & Profit %' },
-    { key: 'markup.gcOandP',     value: '0.25',  category: 'markup',     label: 'GC Overhead & Profit %' },
-    { key: 'markup.contingency', value: '0.10',  category: 'markup',     label: 'Contingency %' },
-    { key: 'markup.deposit',     value: '0.33',  category: 'markup',     label: 'Deposit %' },
+    { key: 'markup.subOandP', value: '0.15', category: 'markup', label: 'Sub Overhead & Profit %' },
+    { key: 'markup.gcOandP', value: '0.25', category: 'markup', label: 'GC Overhead & Profit %' },
+    { key: 'markup.contingency', value: '0.10', category: 'markup', label: 'Contingency %' },
+    { key: 'markup.deposit', value: '0.33', category: 'markup', label: 'Deposit %' },
     // Labor rates
-    { key: 'labor.framing',      value: JSON.stringify({low:12, high:16, unit:'sqft'}),  category:'labor', label:'Framing' },
-    { key: 'labor.roofing',      value: JSON.stringify({low:10, high:15, unit:'sqft'}),  category:'labor', label:'Roofing' },
-    { key: 'labor.siding',       value: JSON.stringify({low:8,  high:12, unit:'sqft'}),  category:'labor', label:'Siding' },
-    { key: 'labor.electrical',   value: JSON.stringify({low:85, high:110,unit:'hour'}),  category:'labor', label:'Electrical' },
-    { key: 'labor.plumbing',     value: JSON.stringify({low:90, high:115,unit:'hour'}),  category:'labor', label:'Plumbing' },
-    { key: 'labor.hvac',         value: JSON.stringify({low:85, high:105,unit:'hour'}),  category:'labor', label:'HVAC' },
-    { key: 'labor.drywall',      value: JSON.stringify({low:3,  high:5,  unit:'sqft'}),  category:'labor', label:'Drywall' },
-    { key: 'labor.insulation',   value: JSON.stringify({low:2,  high:4,  unit:'sqft'}),  category:'labor', label:'Insulation' },
-    { key: 'labor.tile',         value: JSON.stringify({low:12, high:18, unit:'sqft'}),  category:'labor', label:'Tile' },
-    { key: 'labor.flooring',     value: JSON.stringify({low:5,  high:8,  unit:'sqft'}),  category:'labor', label:'Flooring' },
+    {
+      key: 'labor.framing',
+      value: JSON.stringify({ low: 12, high: 16, unit: 'sqft' }),
+      category: 'labor',
+      label: 'Framing'
+    },
+    {
+      key: 'labor.roofing',
+      value: JSON.stringify({ low: 10, high: 15, unit: 'sqft' }),
+      category: 'labor',
+      label: 'Roofing'
+    },
+    {
+      key: 'labor.siding',
+      value: JSON.stringify({ low: 8, high: 12, unit: 'sqft' }),
+      category: 'labor',
+      label: 'Siding'
+    },
+    {
+      key: 'labor.electrical',
+      value: JSON.stringify({ low: 85, high: 110, unit: 'hour' }),
+      category: 'labor',
+      label: 'Electrical'
+    },
+    {
+      key: 'labor.plumbing',
+      value: JSON.stringify({ low: 90, high: 115, unit: 'hour' }),
+      category: 'labor',
+      label: 'Plumbing'
+    },
+    {
+      key: 'labor.hvac',
+      value: JSON.stringify({ low: 85, high: 105, unit: 'hour' }),
+      category: 'labor',
+      label: 'HVAC'
+    },
+    {
+      key: 'labor.drywall',
+      value: JSON.stringify({ low: 3, high: 5, unit: 'sqft' }),
+      category: 'labor',
+      label: 'Drywall'
+    },
+    {
+      key: 'labor.insulation',
+      value: JSON.stringify({ low: 2, high: 4, unit: 'sqft' }),
+      category: 'labor',
+      label: 'Insulation'
+    },
+    {
+      key: 'labor.tile',
+      value: JSON.stringify({ low: 12, high: 18, unit: 'sqft' }),
+      category: 'labor',
+      label: 'Tile'
+    },
+    {
+      key: 'labor.flooring',
+      value: JSON.stringify({ low: 5, high: 8, unit: 'sqft' }),
+      category: 'labor',
+      label: 'Flooring'
+    },
     // Allowances
-    { key: 'allowance.lvp',          value: JSON.stringify({amount:6.50, unit:'sqft'}),  category:'allowance', label:'LVP Flooring' },
-    { key: 'allowance.hardwood',     value: JSON.stringify({amount:8.00, unit:'sqft'}),  category:'allowance', label:'Engineered Hardwood' },
-    { key: 'allowance.carpet',       value: JSON.stringify({amount:3.50, unit:'sqft'}),  category:'allowance', label:'Carpet' },
-    { key: 'allowance.tileBath',     value: JSON.stringify({amount:4.50, unit:'sqft'}),  category:'allowance', label:'Bath Floor Tile' },
-    { key: 'allowance.tileShower',   value: JSON.stringify({amount:5.50, unit:'sqft'}),  category:'allowance', label:'Shower Tile' },
-    { key: 'allowance.cabinets',     value: JSON.stringify({amount:12000,unit:'fixed'}), category:'allowance', label:'Kitchen Cabinets' },
-    { key: 'allowance.quartz',       value: JSON.stringify({amount:4250, unit:'fixed'}), category:'allowance', label:'Quartz Countertop' },
-    { key: 'allowance.kitFaucet',    value: JSON.stringify({amount:250,  unit:'each'}),  category:'allowance', label:'Kitchen Faucet' },
-    { key: 'allowance.kitSink',      value: JSON.stringify({amount:350,  unit:'each'}),  category:'allowance', label:'Kitchen Sink' },
-    { key: 'allowance.disposal',     value: JSON.stringify({amount:150,  unit:'each'}),  category:'allowance', label:'Disposal' },
-    { key: 'allowance.vanity',       value: JSON.stringify({amount:650,  unit:'each'}),  category:'allowance', label:'Vanity (full)' },
-    { key: 'allowance.vanitySmall',  value: JSON.stringify({amount:350,  unit:'each'}),  category:'allowance', label:'Vanity (small)' },
-    { key: 'allowance.vanityTop',    value: JSON.stringify({amount:350,  unit:'each'}),  category:'allowance', label:'Vanity Top/Sink' },
-    { key: 'allowance.bathFaucet',   value: JSON.stringify({amount:180,  unit:'each'}),  category:'allowance', label:'Bath Faucet' },
-    { key: 'allowance.toilet',       value: JSON.stringify({amount:280,  unit:'each'}),  category:'allowance', label:'Toilet' },
-    { key: 'allowance.tub',          value: JSON.stringify({amount:850,  unit:'each'}),  category:'allowance', label:'Bathtub' },
-    { key: 'allowance.showerValve',  value: JSON.stringify({amount:350,  unit:'each'}),  category:'allowance', label:'Shower Valve' },
-    { key: 'allowance.showerDoor',   value: JSON.stringify({amount:250,  unit:'each'}),  category:'allowance', label:'Shower Door' },
-    { key: 'allowance.bathAcc',      value: JSON.stringify({amount:150,  unit:'set'}),   category:'allowance', label:'Bath Accessories' },
-    { key: 'allowance.exhaustFan',   value: JSON.stringify({amount:85,   unit:'each'}),  category:'allowance', label:'Exhaust Fan' },
-    { key: 'allowance.intDoor',      value: JSON.stringify({amount:180,  unit:'each'}),  category:'allowance', label:'Interior Door' },
-    { key: 'allowance.passage',      value: JSON.stringify({amount:45,   unit:'each'}),  category:'allowance', label:'Passage Set (Doorknob)' },
-    { key: 'allowance.privacy',      value: JSON.stringify({amount:55,   unit:'each'}),  category:'allowance', label:'Privacy Set' },
-    { key: 'allowance.bifold',       value: JSON.stringify({amount:175,  unit:'each'}),  category:'allowance', label:'Bifold Door' },
-    { key: 'allowance.baseMold',     value: JSON.stringify({amount:1.85, unit:'lf'}),    category:'allowance', label:'Base Molding (per LF)' },
-    { key: 'allowance.casing',       value: JSON.stringify({amount:1.65, unit:'lf'}),    category:'allowance', label:'Door/Window Casing (per LF)' },
-    { key: 'allowance.windowStool',  value: JSON.stringify({amount:85,   unit:'each'}),  category:'allowance', label:'Window Stool & Apron' },
+    {
+      key: 'allowance.lvp',
+      value: JSON.stringify({ amount: 6.5, unit: 'sqft' }),
+      category: 'allowance',
+      label: 'LVP Flooring'
+    },
+    {
+      key: 'allowance.hardwood',
+      value: JSON.stringify({ amount: 8.0, unit: 'sqft' }),
+      category: 'allowance',
+      label: 'Engineered Hardwood'
+    },
+    {
+      key: 'allowance.carpet',
+      value: JSON.stringify({ amount: 3.5, unit: 'sqft' }),
+      category: 'allowance',
+      label: 'Carpet'
+    },
+    {
+      key: 'allowance.tileBath',
+      value: JSON.stringify({ amount: 4.5, unit: 'sqft' }),
+      category: 'allowance',
+      label: 'Bath Floor Tile'
+    },
+    {
+      key: 'allowance.tileShower',
+      value: JSON.stringify({ amount: 5.5, unit: 'sqft' }),
+      category: 'allowance',
+      label: 'Shower Tile'
+    },
+    {
+      key: 'allowance.cabinets',
+      value: JSON.stringify({ amount: 12000, unit: 'fixed' }),
+      category: 'allowance',
+      label: 'Kitchen Cabinets'
+    },
+    {
+      key: 'allowance.quartz',
+      value: JSON.stringify({ amount: 4250, unit: 'fixed' }),
+      category: 'allowance',
+      label: 'Quartz Countertop'
+    },
+    {
+      key: 'allowance.kitFaucet',
+      value: JSON.stringify({ amount: 250, unit: 'each' }),
+      category: 'allowance',
+      label: 'Kitchen Faucet'
+    },
+    {
+      key: 'allowance.kitSink',
+      value: JSON.stringify({ amount: 350, unit: 'each' }),
+      category: 'allowance',
+      label: 'Kitchen Sink'
+    },
+    {
+      key: 'allowance.disposal',
+      value: JSON.stringify({ amount: 150, unit: 'each' }),
+      category: 'allowance',
+      label: 'Disposal'
+    },
+    {
+      key: 'allowance.vanity',
+      value: JSON.stringify({ amount: 650, unit: 'each' }),
+      category: 'allowance',
+      label: 'Vanity (full)'
+    },
+    {
+      key: 'allowance.vanitySmall',
+      value: JSON.stringify({ amount: 350, unit: 'each' }),
+      category: 'allowance',
+      label: 'Vanity (small)'
+    },
+    {
+      key: 'allowance.vanityTop',
+      value: JSON.stringify({ amount: 350, unit: 'each' }),
+      category: 'allowance',
+      label: 'Vanity Top/Sink'
+    },
+    {
+      key: 'allowance.bathFaucet',
+      value: JSON.stringify({ amount: 180, unit: 'each' }),
+      category: 'allowance',
+      label: 'Bath Faucet'
+    },
+    {
+      key: 'allowance.toilet',
+      value: JSON.stringify({ amount: 280, unit: 'each' }),
+      category: 'allowance',
+      label: 'Toilet'
+    },
+    {
+      key: 'allowance.tub',
+      value: JSON.stringify({ amount: 850, unit: 'each' }),
+      category: 'allowance',
+      label: 'Bathtub'
+    },
+    {
+      key: 'allowance.showerValve',
+      value: JSON.stringify({ amount: 350, unit: 'each' }),
+      category: 'allowance',
+      label: 'Shower Valve'
+    },
+    {
+      key: 'allowance.showerDoor',
+      value: JSON.stringify({ amount: 250, unit: 'each' }),
+      category: 'allowance',
+      label: 'Shower Door'
+    },
+    {
+      key: 'allowance.bathAcc',
+      value: JSON.stringify({ amount: 150, unit: 'set' }),
+      category: 'allowance',
+      label: 'Bath Accessories'
+    },
+    {
+      key: 'allowance.exhaustFan',
+      value: JSON.stringify({ amount: 85, unit: 'each' }),
+      category: 'allowance',
+      label: 'Exhaust Fan'
+    },
+    {
+      key: 'allowance.intDoor',
+      value: JSON.stringify({ amount: 180, unit: 'each' }),
+      category: 'allowance',
+      label: 'Interior Door'
+    },
+    {
+      key: 'allowance.passage',
+      value: JSON.stringify({ amount: 45, unit: 'each' }),
+      category: 'allowance',
+      label: 'Passage Set (Doorknob)'
+    },
+    {
+      key: 'allowance.privacy',
+      value: JSON.stringify({ amount: 55, unit: 'each' }),
+      category: 'allowance',
+      label: 'Privacy Set'
+    },
+    {
+      key: 'allowance.bifold',
+      value: JSON.stringify({ amount: 175, unit: 'each' }),
+      category: 'allowance',
+      label: 'Bifold Door'
+    },
+    {
+      key: 'allowance.baseMold',
+      value: JSON.stringify({ amount: 1.85, unit: 'lf' }),
+      category: 'allowance',
+      label: 'Base Molding (per LF)'
+    },
+    {
+      key: 'allowance.casing',
+      value: JSON.stringify({ amount: 1.65, unit: 'lf' }),
+      category: 'allowance',
+      label: 'Door/Window Casing (per LF)'
+    },
+    {
+      key: 'allowance.windowStool',
+      value: JSON.stringify({ amount: 85, unit: 'each' }),
+      category: 'allowance',
+      label: 'Window Stool & Apron'
+    },
     // Pricing targets
-    { key: 'pricing.sqftLow',  value: '320', category: 'pricing', label: 'Target Price Low ($/sqft)' },
-    { key: 'pricing.sqftHigh', value: '350', category: 'pricing', label: 'Target Price High ($/sqft)' },
+    {
+      key: 'pricing.sqftLow',
+      value: '320',
+      category: 'pricing',
+      label: 'Target Price Low ($/sqft)'
+    },
+    {
+      key: 'pricing.sqftHigh',
+      value: '350',
+      category: 'pricing',
+      label: 'Target Price High ($/sqft)'
+    },
     // Bot behavior
-    { key: 'bot.maxClarifications',  value: '3',     category:'behavior', label:'Max Clarification Rounds' },
-    { key: 'bot.autoStretchCode',    value: 'true',  category:'behavior', label:'Auto-detect Stretch Code Town' },
-    { key: 'bot.flagVariance',       value: '15',    category:'behavior', label:'Flag Variance % Threshold' },
-    { key: 'bot.requireReview',      value: 'true',  category:'behavior', label:'Require Review Before Sending to Customer' },
-    { key: 'bot.defaultRatePoint',   value: 'mid',   category:'behavior', label:'Default Rate Point (low/mid/high)' },
-    { key: 'bot.proposalFirst',      value: 'true',  category:'behavior', label:'Generate Proposal Before Contract' },
-    { key: 'bot.ccOwner',            value: 'true',  category:'behavior', label:'CC Owner on All Emails' },
+    {
+      key: 'bot.maxClarifications',
+      value: '3',
+      category: 'behavior',
+      label: 'Max Clarification Rounds'
+    },
+    {
+      key: 'bot.autoStretchCode',
+      value: 'true',
+      category: 'behavior',
+      label: 'Auto-detect Stretch Code Town'
+    },
+    {
+      key: 'bot.flagVariance',
+      value: '15',
+      category: 'behavior',
+      label: 'Flag Variance % Threshold'
+    },
+    {
+      key: 'bot.requireReview',
+      value: 'true',
+      category: 'behavior',
+      label: 'Require Review Before Sending to Customer'
+    },
+    {
+      key: 'bot.defaultRatePoint',
+      value: 'mid',
+      category: 'behavior',
+      label: 'Default Rate Point (low/mid/high)'
+    },
+    {
+      key: 'bot.proposalFirst',
+      value: 'true',
+      category: 'behavior',
+      label: 'Generate Proposal Before Contract'
+    },
+    { key: 'bot.ccOwner', value: 'true', category: 'behavior', label: 'CC Owner on All Emails' },
     // Google Calendar
-    { key: 'gcal.calendarId',        value: 'primary', category:'calendar', label:'Google Calendar ID' },
-    { key: 'gcal.enabled',           value: 'true',    category:'calendar', label:'Auto-add tasks to Google Calendar' },
+    { key: 'gcal.calendarId', value: 'primary', category: 'calendar', label: 'Google Calendar ID' },
+    {
+      key: 'gcal.enabled',
+      value: 'true',
+      category: 'calendar',
+      label: 'Auto-add tasks to Google Calendar'
+    },
     // Status report schedule
-    { key: 'status.reportIntervalHours', value: '24', category:'status', label:'Status Report Interval (hours)' },
-    { key: 'status.reportHourOfDay',     value: '-1', category:'status', label:'Status Report Hour of Day (-1 = use interval only)' },
+    {
+      key: 'status.reportIntervalHours',
+      value: '24',
+      category: 'status',
+      label: 'Status Report Interval (hours)'
+    },
+    {
+      key: 'status.reportHourOfDay',
+      value: '-1',
+      category: 'status',
+      label: 'Status Report Hour of Day (-1 = use interval only)'
+    },
     // Backup schedule
-    { key: 'backup.intervalHours', value: '24', category:'backup', label:'Backup Interval (hours)' },
-    { key: 'backup.lastRanAt',     value: '',   category:'backup', label:'Last Backup Timestamp' },
-    { key: 'backup.lastFile',      value: '',   category:'backup', label:'Last Backup Filename' },
-    { key: 'backup.customPath',    value: '',   category:'backup', label:'Custom Backup Folder Path (leave blank for default)' },
+    {
+      key: 'backup.intervalHours',
+      value: '24',
+      category: 'backup',
+      label: 'Backup Interval (hours)'
+    },
+    { key: 'backup.lastRanAt', value: '', category: 'backup', label: 'Last Backup Timestamp' },
+    { key: 'backup.lastFile', value: '', category: 'backup', label: 'Last Backup Filename' },
+    {
+      key: 'backup.customPath',
+      value: '',
+      category: 'backup',
+      label: 'Custom Backup Folder Path (leave blank for default)'
+    }
   ];
 
   const insert = db.prepare(`
@@ -649,8 +987,20 @@ function seedDefaultSettings() {
 
 function seedDefaultSenders() {
   const senders = [
-    { identifier: 'jackson.deaquino@preferredbuildersusa.com', type: 'email',     name: 'Jackson Deaquino', role: 'pm',    language: 'pt-BR' },
-    { identifier: 'cooper@preferredbuilders.com',               type: 'email',     name: 'Anthony Cooper',   role: 'owner', language: 'en' },
+    {
+      identifier: 'jackson.deaquino@preferredbuildersusa.com',
+      type: 'email',
+      name: 'Jackson Deaquino',
+      role: 'pm',
+      language: 'pt-BR'
+    },
+    {
+      identifier: 'cooper@preferredbuilders.com',
+      type: 'email',
+      name: 'Anthony Cooper',
+      role: 'owner',
+      language: 'en'
+    }
   ];
 
   const insert = db.prepare(`
@@ -841,8 +1191,18 @@ function seedUsers() {
   const hash = bcrypt.hashSync(tempPassword, 10);
 
   const users = [
-    { name: 'Anthony Cooper', email: 'cooper@preferredbuildersusa.com', role: 'system_admin', title: 'Project Manager' },
-    { name: 'Jackson Deaquino', email: 'jackson.deaquino@preferredbuildersusa.com', role: 'admin', title: 'Project Manager' },
+    {
+      name: 'Anthony Cooper',
+      email: 'cooper@preferredbuildersusa.com',
+      role: 'system_admin',
+      title: 'Project Manager'
+    },
+    {
+      name: 'Jackson Deaquino',
+      email: 'jackson.deaquino@preferredbuildersusa.com',
+      role: 'admin',
+      title: 'Project Manager'
+    }
   ];
 
   const insert = db.prepare(`

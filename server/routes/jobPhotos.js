@@ -7,7 +7,14 @@ const fs = require('fs');
 
 const UPLOADS_BASE = path.resolve(__dirname, '../../uploads/jobs');
 
-const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
+const ALLOWED_MIMES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/heic',
+  'image/heif'
+];
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -25,9 +32,9 @@ router.get('/:id/photos/file/:filename', requireAuth, (req, res) => {
 router.get('/:id/photos', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const photos = db.prepare(
-      'SELECT * FROM job_photos WHERE job_id = ? ORDER BY uploaded_at DESC'
-    ).all(req.params.id);
+    const photos = db
+      .prepare('SELECT * FROM job_photos WHERE job_id = ? ORDER BY uploaded_at DESC')
+      .all(req.params.id);
     res.json({ photos });
   } catch (err) {
     console.error('Get job photos error:', err);
@@ -71,9 +78,11 @@ router.post('/:id/photos', requireAuth, (req, res) => {
         return res.status(500).json({ error: 'Failed to save file' });
       }
 
-      const result = db.prepare(
-        'INSERT INTO job_photos (job_id, filename, original_name, caption) VALUES (?, ?, ?, ?)'
-      ).run(jobId, filename, file.name, caption);
+      const result = db
+        .prepare(
+          'INSERT INTO job_photos (job_id, filename, original_name, caption) VALUES (?, ?, ?, ?)'
+        )
+        .run(jobId, filename, file.name, caption);
 
       res.json({
         id: result.lastInsertRowid,
@@ -93,9 +102,9 @@ router.post('/:id/photos', requireAuth, (req, res) => {
 router.delete('/:id/photos/:photoId', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const photo = db.prepare(
-      'SELECT * FROM job_photos WHERE id = ? AND job_id = ?'
-    ).get(req.params.photoId, req.params.id);
+    const photo = db
+      .prepare('SELECT * FROM job_photos WHERE id = ? AND job_id = ?')
+      .get(req.params.photoId, req.params.id);
 
     if (!photo) return res.status(404).json({ error: 'Photo not found' });
 

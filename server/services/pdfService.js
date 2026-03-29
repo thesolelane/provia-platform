@@ -7,7 +7,11 @@ const path = require('path');
 const fs = require('fs');
 const { execSync } = require('child_process');
 
-const { buildContractHTML: buildContractHTMLNew, adaptToContractSchema, blankContractSchema } = require('./contractTemplate');
+const {
+  buildContractHTML: buildContractHTMLNew,
+  adaptToContractSchema,
+  blankContractSchema
+} = require('./contractTemplate');
 
 // Resolve Chromium: prefer env var, then OS-specific paths, then puppeteer bundled
 function resolveChromiumPath() {
@@ -29,17 +33,24 @@ function resolveChromiumPath() {
       'C:\\Users\\theso\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Program Files\\Chromium\\Application\\chrome.exe',
       (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
-      (process.env.PROGRAMFILES || '') + '\\Google\\Chrome\\Application\\chrome.exe',
+      (process.env.PROGRAMFILES || '') + '\\Google\\Chrome\\Application\\chrome.exe'
     ];
     for (const p of winPaths) {
-      try { if (p && fs.existsSync(p)) return p; } catch (_) {}
+      try {
+        if (p && fs.existsSync(p)) return p;
+      } catch (_) {}
     }
     return undefined;
   }
 
   // Linux/macOS — use which
   try {
-    const p = execSync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null', { timeout: 3000 }).toString().trim();
+    const p = execSync(
+      'which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null',
+      { timeout: 3000 }
+    )
+      .toString()
+      .trim();
     if (p) return p;
   } catch (_) {}
   return undefined; // fall back to puppeteer's own bundled chrome
@@ -50,17 +61,18 @@ if (CHROMIUM_PATH) console.log('[PDF] Using Chromium:', CHROMIUM_PATH);
 const OUTPUT_DIR = path.join(__dirname, '../../outputs');
 if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
-const BRAND_BLUE   = '#1B3A6B';
+const BRAND_BLUE = '#1B3A6B';
 const BRAND_ORANGE = '#E07B2A';
-const LIGHT_BLUE   = '#EEF3FB';
-const LIGHT_GRAY   = '#F8F8F8';
+const LIGHT_BLUE = '#EEF3FB';
+const LIGHT_GRAY = '#F8F8F8';
 
 async function generatePDF(data, type, jobId) {
-  const html = type === 'proposal'
-    ? buildProposalHTML(data)
-    : buildContractHTMLNew(adaptToContractSchema(data));
+  const html =
+    type === 'proposal'
+      ? buildProposalHTML(data)
+      : buildContractHTMLNew(adaptToContractSchema(data));
 
-  const filename = `PB_${type === 'proposal' ? 'Proposal' : 'Contract'}_${jobId.slice(0,8)}_${Date.now()}.pdf`;
+  const filename = `PB_${type === 'proposal' ? 'Proposal' : 'Contract'}_${jobId.slice(0, 8)}_${Date.now()}.pdf`;
   const outputPath = path.join(OUTPUT_DIR, filename);
 
   const browser = await puppeteer.launch({
@@ -187,7 +199,7 @@ function buildProposalHTML(data) {
   const lineItems = data.lineItems || [];
   const exclusions = data.exclusions || [];
   const pricing = data.pricing || {};
-  const fmt = (n) => n ? `$${Number(n).toLocaleString()}` : '$0';
+  const fmt = (n) => (n ? `$${Number(n).toLocaleString()}` : '$0');
   const quoteNum = data.quoteNumber || '—';
   const validUntil = data.validUntil || '—';
   const isStretchCode = project.stretchCodeTown || data.isStretchCodeTown || false;
@@ -204,7 +216,7 @@ function buildProposalHTML(data) {
   <div class="cover-meta">
     Prepared for: <strong>${customer.name || ''}</strong><br>
     Quote #: <strong>${quoteNum}</strong><br>
-    Date: <strong>${new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric',timeZone:'America/New_York'})}</strong><br>
+    Date: <strong>${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' })}</strong><br>
     Valid Until: <strong>${validUntil}</strong>
   </div>
   <div class="cover-badge">PROPOSAL — NOT A CONTRACT</div>
@@ -239,28 +251,36 @@ function buildProposalHTML(data) {
     <div class="item label-cell">Quote Number</div>
     <div class="item value-cell">${quoteNum || '—'}</div>
     <div class="item label-cell">Date Prepared</div>
-    <div class="item value-cell">${new Date().toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric',timeZone:'America/New_York'})}</div>
+    <div class="item value-cell">${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' })}</div>
     <div class="item label-cell">Valid Until</div>
     <div class="item value-cell">${validUntil || '—'}</div>
     <div class="item label-cell">Stretch Code Town</div>
     <div class="item value-cell">${isStretchCode ? '⚠️ Yes — additional requirements apply' : 'No'}</div>
   </div>
 
-  ${data.flaggedItems?.length ? `
+  ${
+    data.flaggedItems?.length
+      ? `
   <div class="flag-box">
     ⚠️ <strong>Items Flagged for Review:</strong><br>
-    ${data.flaggedItems.map(f => `• ${f}`).join('<br>')}
-  </div>` : ''}
+    ${data.flaggedItems.map((f) => `• ${f}`).join('<br>')}
+  </div>`
+      : ''
+  }
 
   <!-- SCOPE OF WORK -->
   <div class="section-header">SCOPE OF WORK</div>
   ${buildScopeHTML(lineItems)}
 
   <!-- EXCLUSIONS -->
-  ${exclusions.length ? `
+  ${
+    exclusions.length
+      ? `
   <div class="section-header">WHAT IS NOT INCLUDED</div>
   <p style="margin-bottom:10px;font-size:10pt;">The following are excluded from this proposal:</p>
-  ${buildExclusionsHTML(exclusions)}` : ''}
+  ${buildExclusionsHTML(exclusions)}`
+      : ''
+  }
 
   <!-- PERMIT CHECKLIST -->
   ${buildPermitChecklistHTML(data)}
@@ -312,24 +332,31 @@ ${buildExhibitAHTML(data, fmt)}
 // ══════════════════════════════════════════════════════════════════════
 function buildContractHTML(data) {
   const customer = data.customer || {};
-  const project  = data.project  || {};
+  const project = data.project || {};
   const lineItems = data.lineItems || [];
-  const pricing  = data.pricing  || {};
-  const fmt = (n) => n ? `$${Number(n).toLocaleString()}` : '$0';
+  const pricing = data.pricing || {};
+  const fmt = (n) => (n ? `$${Number(n).toLocaleString()}` : '$0');
 
-  const quoteNum   = data.quoteNumber || '—';
-  const today      = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
-  const total      = pricing.totalContractPrice || data.totalValue || 0;
-  const deposit    = pricing.depositAmount || data.depositAmount || 0;
+  const quoteNum = data.quoteNumber || '—';
+  const today = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'America/New_York'
+  });
+  const total = pricing.totalContractPrice || data.totalValue || 0;
+  const deposit = pricing.depositAmount || data.depositAmount || 0;
   const depositPct = pricing.depositPercent || 33;
-  const city       = project.city || 'the applicable municipality';
+  const city = project.city || 'the applicable municipality';
 
   // Payment milestones (deposit = first payment, already in pricing.depositAmount)
   const m2 = Math.round(total * 0.33);
   const m3 = Math.round(total * 0.33);
   const m4 = Math.round(total * 0.01);
 
-  const contractCSS = baseCSS() + `
+  const contractCSS =
+    baseCSS() +
+    `
     .contract-cover {
       background: ${BRAND_BLUE}; color: white;
       padding: 60px 56px 40px; min-height: 260px;
@@ -525,12 +552,16 @@ function buildContractHTML(data) {
       <th>Description</th>
       <th style="text-align:right;width:120px;">Contract Value</th>
     </tr>
-    ${lineItems.map(item => `
+    ${lineItems
+      .map(
+        (item) => `
     <tr>
       <td><strong>${item.trade}</strong></td>
       <td style="color:#444;">${item.description ? item.description.substring(0, 130) + (item.description.length > 130 ? '…' : '') : 'Per Proposal — Quote No. ' + quoteNum}</td>
       <td style="text-align:right;">${fmt(item.finalPrice)}</td>
-    </tr>`).join('')}
+    </tr>`
+      )
+      .join('')}
     <tr class="total-row">
       <td colspan="2"><strong>TOTAL CONTRACT PRICE</strong></td>
       <td style="text-align:right;"><strong>${fmt(total)}</strong></td>
@@ -1203,55 +1234,65 @@ ${buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, lineIte
 // ══════════════════════════════════════════════════════════════════════
 
 function buildScopeHTML(lineItems) {
-  return lineItems.map(item => {
-    const included = item.scopeIncluded || [];
-    return `
+  return lineItems
+    .map((item) => {
+      const included = item.scopeIncluded || [];
+      return `
     <div class="sub-header">${item.trade}</div>
     ${item.description ? `<p style="font-size:10.5pt;color:#333;margin-bottom:10px;line-height:1.6;">${item.description}</p>` : ''}
-    ${included.length ? `
+    ${
+      included.length
+        ? `
     <p style="font-size:9.5pt;font-weight:bold;color:${BRAND_BLUE};margin:6px 0 4px;">This trade includes:</p>
     <ul class="check-list">
-      ${included.map(i => `<li class="yes"><span class="label">${i}</span></li>`).join('')}
-    </ul>` : ''}`;
-  }).join('');
+      ${included.map((i) => `<li class="yes"><span class="label">${i}</span></li>`).join('')}
+    </ul>`
+        : ''
+    }`;
+    })
+    .join('');
 }
 
 function buildExclusionsHTML(exclusions) {
   return `
   <table>
     <tr><th>Excluded Item</th><th>Why Excluded</th><th>Customer Budget Estimate</th></tr>
-    ${exclusions.map(item => `
+    ${exclusions
+      .map(
+        (item) => `
     <tr>
       <td><strong>${item.name || ''}</strong></td>
       <td>${item.reason || '—'}</td>
       <td>${item.budget || '—'}</td>
-    </tr>`).join('')}
+    </tr>`
+      )
+      .join('')}
   </table>`;
 }
 
 function buildPermitChecklistHTML(data) {
-  const job      = data.job     || {};
-  const project  = data.project || {};
-  const trades   = job.trades   || {};
+  const job = data.job || {};
+  const project = data.project || {};
+  const trades = job.trades || {};
 
-  const isStretchCode   = project.stretchCodeTown || data.isStretchCodeTown || false;
-  const isNewConstruct  = project.type === 'new_construction';
-  const isADU           = project.type === 'adu';
+  const isStretchCode = project.stretchCodeTown || data.isStretchCodeTown || false;
+  const isNewConstruct = project.type === 'new_construction';
+  const isADU = project.type === 'adu';
   // hasBedrooms = true only for structures with actual sleeping/living quarters
   // (new homes, ADUs, in-law suites) — NOT garages, studios, workshops, art rooms, half-bath-only structures
-  const hasBedrooms     = !!(project.hasBedrooms || isADU);
+  const hasBedrooms = !!(project.hasBedrooms || isADU);
   // C of O only when the structure has bedrooms (residential living dwelling)
-  const needsCO         = (isNewConstruct || isADU) && hasBedrooms;
+  const needsCO = (isNewConstruct || isADU) && hasBedrooms;
   // HERS rating only for residential dwelling with bedrooms in a stretch code town
-  const needsHERS       = isStretchCode && (isNewConstruct || isADU) && hasBedrooms;
-  const hasElectrical   = !!trades.electrical;
-  const hasPlumbing     = !!trades.plumbing;
-  const hasHVAC         = !!trades.hvac;
-  const hasSprinkler    = !!trades.sprinkler;
-  const hasAnyTrade     = hasElectrical || hasPlumbing || hasHVAC || hasSprinkler;
-  const needsPermit     = !!job.has_permit;
-  const hasFraming      = !!job.has_framing || isNewConstruct;
-  const hasInsulation   = !!job.has_insulation;
+  const needsHERS = isStretchCode && (isNewConstruct || isADU) && hasBedrooms;
+  const hasElectrical = !!trades.electrical;
+  const hasPlumbing = !!trades.plumbing;
+  const hasHVAC = !!trades.hvac;
+  const hasSprinkler = !!trades.sprinkler;
+  const hasAnyTrade = hasElectrical || hasPlumbing || hasHVAC || hasSprinkler;
+  const needsPermit = !!job.has_permit;
+  const hasFraming = !!job.has_framing || isNewConstruct;
+  const hasInsulation = !!job.has_insulation;
 
   // No permit and no trade work → no inspections at all
   if (!needsPermit && !hasAnyTrade && !isNewConstruct) {
@@ -1272,24 +1313,25 @@ function buildPermitChecklistHTML(data) {
 
   // Rough trade inspections
   if (hasElectrical) rows.push('Rough electrical inspection');
-  if (hasPlumbing)   rows.push('Rough plumbing inspection');
-  if (hasHVAC)       rows.push('Rough mechanical (HVAC) inspection');
-  if (hasSprinkler)  rows.push('Rough sprinkler inspection');
+  if (hasPlumbing) rows.push('Rough plumbing inspection');
+  if (hasHVAC) rows.push('Rough mechanical (HVAC) inspection');
+  if (hasSprinkler) rows.push('Rough sprinkler inspection');
 
   // Insulation
   if (hasInsulation) rows.push('Insulation inspection');
 
   // Final trade inspections
   if (hasElectrical) rows.push('Final electrical inspection');
-  if (hasPlumbing)   rows.push('Final plumbing inspection');
-  if (hasHVAC)       rows.push('Final mechanical (HVAC) inspection');
-  if (hasSprinkler)  rows.push('Final sprinkler inspection');
+  if (hasPlumbing) rows.push('Final plumbing inspection');
+  if (hasHVAC) rows.push('Final mechanical (HVAC) inspection');
+  if (hasSprinkler) rows.push('Final sprinkler inspection');
 
   // Final building inspection — any permitted or structural work
   if (needsPermit || hasFraming || isNewConstruct) rows.push('Final building inspection');
 
   // HERS rating + blower door — only for ADU (living dwelling with bedrooms) in a stretch code town
-  if (needsHERS) rows.push('HERS rating and blower door test (Stretch Code — ADU residential unit)');
+  if (needsHERS)
+    rows.push('HERS rating and blower door test (Stretch Code — ADU residential unit)');
 
   // Closing certificate:
   // C of O → ADU only (new residential living dwelling with bedrooms)
@@ -1305,20 +1347,28 @@ function buildPermitChecklistHTML(data) {
   <p style="margin-bottom:10px;font-size:10pt;">The following inspections are required for this scope of work and are included in this proposal:</p>
   <table>
     <tr><th>Inspection / Milestone</th><th>Status</th></tr>
-    ${rows.map(item => `
+    ${rows
+      .map(
+        (item) => `
     <tr>
       <td>${item}</td>
       <td style="color:#2E7D32;font-weight:bold;">✓ Included</td>
-    </tr>`).join('')}
+    </tr>`
+      )
+      .join('')}
   </table>`;
 }
 
 function buildCostSummaryHTML(lineItems, pricing, data, fmt) {
-  let rows = lineItems.map(item => `
+  let rows = lineItems
+    .map(
+      (item) => `
     <tr>
       <td>${item.trade}</td>
       <td style="text-align:right;">${fmt(item.finalPrice)}</td>
-    </tr>`).join('');
+    </tr>`
+    )
+    .join('');
 
   rows += `
     <tr class="total">
@@ -1340,7 +1390,7 @@ function buildCostSummaryHTML(lineItems, pricing, data, fmt) {
 function buildResponsibilitiesHTML() {
   const items = [
     'Provide clear site access for construction vehicles and material deliveries',
-    'Maintain homeowner\'s insurance during construction period',
+    "Maintain homeowner's insurance during construction period",
     'Make timely progress payments per contract schedule',
     'Submit all material selections no later than framing completion',
     'Provide written approval for any change orders before work begins',
@@ -1349,7 +1399,7 @@ function buildResponsibilitiesHTML() {
   ];
   return `
   <ul class="check-list">
-    ${items.map(item => `<li class="bullet">${item}</li>`).join('')}
+    ${items.map((item) => `<li class="bullet">${item}</li>`).join('')}
   </ul>`;
 }
 
@@ -1396,8 +1446,11 @@ function buildExhibitAHTML(data, fmt) {
     const db = getDb();
     const rows = db.prepare('SELECT key, value FROM settings WHERE category = ?').all('allowance');
     for (const row of rows) {
-      try { settings[row.key] = JSON.parse(row.value); }
-      catch { settings[row.key] = row.value; }
+      try {
+        settings[row.key] = JSON.parse(row.value);
+      } catch {
+        settings[row.key] = row.value;
+      }
     }
   } catch (e) {}
 
@@ -1410,9 +1463,9 @@ function buildExhibitAHTML(data, fmt) {
     return v && typeof v === 'object' ? v : { amount: fallback, spec: '' };
   };
 
-  const flooring = get('allowance.lvp', 6.50);
-  const bathTile = get('allowance.tileBath', 4.50);
-  const carpet = get('allowance.carpet', 3.50);
+  const flooring = get('allowance.lvp', 6.5);
+  const bathTile = get('allowance.tileBath', 4.5);
+  const carpet = get('allowance.carpet', 3.5);
   const cabinets = get('allowance.cabinets', 12000);
   const quartz = get('allowance.quartz', 4250);
   const kitFaucet = get('allowance.kitFaucet', 250);
@@ -1541,7 +1594,8 @@ function buildExhibitAHTML(data, fmt) {
 // to establish and protect the Contractor's mechanic's lien rights.
 // ══════════════════════════════════════════════════════════════════════
 function buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, lineItems, fmt }) {
-  const workDescription = lineItems.map(i => i.trade).join('; ') || 'General construction and home improvement work';
+  const workDescription =
+    lineItems.map((i) => i.trade).join('; ') || 'General construction and home improvement work';
   const county = 'Worcester'; // default; Townsend MA is Worcester County
 
   const noticeCSS = `
@@ -1857,13 +1911,13 @@ async function generateBlankContractDocx() {
   const html = rawHtml
     .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    .replace(/\s*style="[^"]*"/gi, '');   // strip inline styles too for clean docx
+    .replace(/\s*style="[^"]*"/gi, ''); // strip inline styles too for clean docx
 
   const buffer = await HTMLtoDOCX(html, null, {
-    table:      { row: { cantSplit: true } },
-    footer:     true,
+    table: { row: { cantSplit: true } },
+    footer: true,
     pageNumber: true,
-    margins:    { top: 1080, right: 1080, bottom: 1080, left: 1080 }
+    margins: { top: 1080, right: 1080, bottom: 1080, left: 1080 }
   });
 
   return buffer;
@@ -1886,7 +1940,7 @@ async function generatePDFFromHTML(html, filenameBase) {
       path: outputPath,
       format: 'Letter',
       margin: { top: '0.5in', right: '0.75in', bottom: '0.5in', left: '0.75in' },
-      printBackground: true,
+      printBackground: true
     });
   } finally {
     await browser.close();

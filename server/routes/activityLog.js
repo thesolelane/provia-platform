@@ -1,28 +1,46 @@
 'use strict';
 const express = require('express');
-const router  = express.Router();
+const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { getDb }       = require('../db/database');
+const { getDb } = require('../db/database');
 
 const VALID_EVENT_TYPES = [
-  'ESTIMATE_CREATED', 'ESTIMATE_APPROVED', 'CONTRACT_GENERATED', 'CONTRACT_SIGNED',
-  'INVOICE_ISSUED', 'PAYMENT_RECEIVED', 'PAYMENT_MADE', 'PASS_THROUGH_PAID',
-  'PASS_THROUGH_REIMBURSED', 'CHANGE_ORDER_CREATED', 'JOB_COMPLETED', 'NOTE'
+  'ESTIMATE_CREATED',
+  'ESTIMATE_APPROVED',
+  'CONTRACT_GENERATED',
+  'CONTRACT_SIGNED',
+  'INVOICE_ISSUED',
+  'PAYMENT_RECEIVED',
+  'PAYMENT_MADE',
+  'PASS_THROUGH_PAID',
+  'PASS_THROUGH_REIMBURSED',
+  'CHANGE_ORDER_CREATED',
+  'JOB_COMPLETED',
+  'NOTE'
 ];
 
-function logActivity({ customer_number, job_id, event_type, description, document_ref, recorded_by }) {
+function logActivity({
+  customer_number,
+  job_id,
+  event_type,
+  description,
+  document_ref,
+  recorded_by
+}) {
   try {
     const db = getDb();
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO customer_activity_log (customer_number, job_id, event_type, description, document_ref, recorded_by)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
+    `
+    ).run(
       customer_number || null,
-      job_id          || null,
+      job_id || null,
       event_type,
       description,
-      document_ref    || null,
-      recorded_by     || 'system'
+      document_ref || null,
+      recorded_by || 'system'
     );
   } catch (e) {
     console.warn('[activityLog] Failed to log:', e.message);
@@ -31,17 +49,44 @@ function logActivity({ customer_number, job_id, event_type, description, documen
 
 router.get('/', requireAuth, (req, res) => {
   const db = getDb();
-  const { customer_number, job_id, event_type, date_from, date_to, recorded_by, limit = 200, offset = 0 } = req.query;
+  const {
+    customer_number,
+    job_id,
+    event_type,
+    date_from,
+    date_to,
+    recorded_by,
+    limit = 200,
+    offset = 0
+  } = req.query;
 
   let sql = 'SELECT * FROM customer_activity_log WHERE 1=1';
   const params = [];
 
-  if (customer_number) { sql += ' AND customer_number = ?'; params.push(customer_number); }
-  if (job_id)          { sql += ' AND job_id = ?';          params.push(job_id); }
-  if (event_type)      { sql += ' AND event_type = ?';      params.push(event_type); }
-  if (date_from)       { sql += ' AND created_at >= ?';     params.push(date_from); }
-  if (date_to)         { sql += ' AND created_at <= ?';     params.push(date_to + ' 23:59:59'); }
-  if (recorded_by)     { sql += ' AND recorded_by = ?';     params.push(recorded_by); }
+  if (customer_number) {
+    sql += ' AND customer_number = ?';
+    params.push(customer_number);
+  }
+  if (job_id) {
+    sql += ' AND job_id = ?';
+    params.push(job_id);
+  }
+  if (event_type) {
+    sql += ' AND event_type = ?';
+    params.push(event_type);
+  }
+  if (date_from) {
+    sql += ' AND created_at >= ?';
+    params.push(date_from);
+  }
+  if (date_to) {
+    sql += ' AND created_at <= ?';
+    params.push(date_to + ' 23:59:59');
+  }
+  if (recorded_by) {
+    sql += ' AND recorded_by = ?';
+    params.push(recorded_by);
+  }
 
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
   params.push(parseInt(limit), parseInt(offset));
@@ -61,7 +106,14 @@ router.post('/', requireAuth, (req, res) => {
   const evType = VALID_EVENT_TYPES.includes(event_type) ? event_type : 'NOTE';
   const recorder = req.session?.name || 'staff';
 
-  logActivity({ customer_number, job_id, event_type: evType, description, document_ref, recorded_by: recorder });
+  logActivity({
+    customer_number,
+    job_id,
+    event_type: evType,
+    description,
+    document_ref,
+    recorded_by: recorder
+  });
 
   const db = getDb();
   const entry = db.prepare('SELECT * FROM customer_activity_log ORDER BY id DESC LIMIT 1').get();

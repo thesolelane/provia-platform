@@ -1,34 +1,43 @@
 'use strict';
 const express = require('express');
-const router  = express.Router();
+const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { getDb }       = require('../db/database');
-const { logAudit }    = require('../services/auditService');
-const gcal            = require('../services/googleCalendar');
+const { getDb } = require('../db/database');
+const { logAudit } = require('../services/auditService');
+const gcal = require('../services/googleCalendar');
 
 // ── Google Calendar "add link" URL (fallback if API push fails) ───────────────
 function calDate(iso) {
-  return iso.replace(/[-:]/g, '').replace(/\.\d{3}Z?$/, '').slice(0, 15);
+  return iso
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}Z?$/, '')
+    .slice(0, 15);
 }
 
 function makeCalendarURL(task) {
   if (!task.due_at) return null;
   try {
-    const start  = calDate(task.due_at);
-    const endDt  = new Date(new Date(task.due_at).getTime() + 60 * 60 * 1000);
-    const end    = calDate(endDt.toISOString());
-    const parts  = [`action=TEMPLATE`, `text=${encodeURIComponent(task.title)}`];
+    const start = calDate(task.due_at);
+    const endDt = new Date(new Date(task.due_at).getTime() + 60 * 60 * 1000);
+    const end = calDate(endDt.toISOString());
+    const parts = [`action=TEMPLATE`, `text=${encodeURIComponent(task.title)}`];
     parts.push(`dates=${start}/${end}`);
     if (task.description) parts.push(`details=${encodeURIComponent(task.description)}`);
-    const job = task.job_id ? getDb().prepare('SELECT project_address FROM jobs WHERE id = ?').get(task.job_id) : null;
+    const job = task.job_id
+      ? getDb().prepare('SELECT project_address FROM jobs WHERE id = ?').get(task.job_id)
+      : null;
     if (job?.project_address) parts.push(`location=${encodeURIComponent(job.project_address)}`);
     return `https://calendar.google.com/calendar/render?${parts.join('&')}`;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 // ── Get calendar settings ─────────────────────────────────────────────────────
 function getCalSettings(db) {
-  const calId  = db.prepare("SELECT value FROM settings WHERE key = 'gcal.calendarId'").get()?.value || 'primary';
+  const calId =
+    db.prepare("SELECT value FROM settings WHERE key = 'gcal.calendarId'").get()?.value ||
+    'primary';
   const enabled = db.prepare("SELECT value FROM settings WHERE key = 'gcal.enabled'").get()?.value;
   return { calendarId: calId, enabled: enabled !== 'false' };
 }
@@ -37,12 +46,17 @@ function getCalSettings(db) {
 function enrichTask(task) {
   if (!task) return null;
   const db = getDb();
-  let jobInfo = null, contactInfo = null;
+  let jobInfo = null,
+    contactInfo = null;
   if (task.job_id) {
-    jobInfo = db.prepare('SELECT id, customer_name, project_address, status FROM jobs WHERE id = ?').get(task.job_id);
+    jobInfo = db
+      .prepare('SELECT id, customer_name, project_address, status FROM jobs WHERE id = ?')
+      .get(task.job_id);
   }
   if (task.contact_id) {
-    contactInfo = db.prepare('SELECT id, name, email, phone FROM contacts WHERE id = ?').get(task.contact_id);
+    contactInfo = db
+      .prepare('SELECT id, name, email, phone FROM contacts WHERE id = ?')
+      .get(task.contact_id);
   }
   return { ...task, job: jobInfo, contact: contactInfo };
 }
@@ -53,18 +67,36 @@ router.get('/', requireAuth, (req, res) => {
   const { status, job_id, contact_id, range } = req.query;
   let sql = 'SELECT * FROM tasks WHERE 1=1';
   const params = [];
-  if (status)     { sql += ' AND status = ?';     params.push(status); }
-  if (job_id)     { sql += ' AND job_id = ?';     params.push(job_id); }
-  if (contact_id) { sql += ' AND contact_id = ?'; params.push(contact_id); }
+  if (status) {
+    sql += ' AND status = ?';
+    params.push(status);
+  }
+  if (job_id) {
+    sql += ' AND job_id = ?';
+    params.push(job_id);
+  }
+  if (contact_id) {
+    sql += ' AND contact_id = ?';
+    params.push(contact_id);
+  }
   if (range === 'today') {
     sql += " AND date(due_at) = date('now')";
   } else if (range === 'week') {
     sql += " AND due_at <= datetime('now', '+7 days')";
   }
   sql += ' ORDER BY CASE WHEN due_at IS NULL THEN 1 ELSE 0 END, due_at ASC, created_at DESC';
-  const tasks      = db.prepare(sql).all(...params).map(enrichTask);
-  const todayCount = db.prepare("SELECT COUNT(*) as n FROM tasks WHERE status='pending' AND date(due_at)=date('now')").get().n;
-  const overdue    = db.prepare("SELECT COUNT(*) as n FROM tasks WHERE status='pending' AND due_at < datetime('now') AND due_at IS NOT NULL").get().n;
+  const tasks = db
+    .prepare(sql)
+    .all(...params)
+    .map(enrichTask);
+  const todayCount = db
+    .prepare("SELECT COUNT(*) as n FROM tasks WHERE status='pending' AND date(due_at)=date('now')")
+    .get().n;
+  const overdue = db
+    .prepare(
+      "SELECT COUNT(*) as n FROM tasks WHERE status='pending' AND due_at < datetime('now') AND due_at IS NOT NULL"
+    )
+    .get().n;
   res.json({ tasks, todayCount, overdue });
 });
 
@@ -72,7 +104,9 @@ router.get('/', requireAuth, (req, res) => {
 router.get('/calendars', requireAuth, async (req, res) => {
   try {
     const cals = await gcal.listCalendars();
-    res.json({ calendars: cals.map(c => ({ id: c.id, summary: c.summary, primary: c.primary })) });
+    res.json({
+      calendars: cals.map((c) => ({ id: c.id, summary: c.summary, primary: c.primary }))
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -84,10 +118,22 @@ router.post('/', requireAuth, async (req, res) => {
   const { title, description, due_at, job_id, contact_id, priority } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
 
-  const info = db.prepare(`
+  const info = db
+    .prepare(
+      `
     INSERT INTO tasks (title, description, due_at, job_id, contact_id, priority, calendar_url)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(title.trim(), description?.trim() || null, due_at || null, job_id || null, contact_id || null, priority || 'normal', null);
+  `
+    )
+    .run(
+      title.trim(),
+      description?.trim() || null,
+      due_at || null,
+      job_id || null,
+      contact_id || null,
+      priority || 'normal',
+      null
+    );
 
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
 
@@ -115,23 +161,25 @@ router.post('/', requireAuth, async (req, res) => {
 
 // ── PATCH /api/tasks/:id ──────────────────────────────────────────────────────
 router.patch('/:id', requireAuth, (req, res) => {
-  const db   = getDb();
+  const db = getDb();
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
   const { title, description, due_at, status, priority } = req.body;
-  const newTitle       = title       !== undefined ? title.trim()       : task.title;
+  const newTitle = title !== undefined ? title.trim() : task.title;
   const newDescription = description !== undefined ? description.trim() : task.description;
-  const newDueAt       = due_at      !== undefined ? due_at             : task.due_at;
-  const newStatus      = status      !== undefined ? status             : task.status;
-  const newPriority    = priority    !== undefined ? priority           : task.priority;
+  const newDueAt = due_at !== undefined ? due_at : task.due_at;
+  const newStatus = status !== undefined ? status : task.status;
+  const newPriority = priority !== undefined ? priority : task.priority;
 
   const updated = { ...task, title: newTitle, description: newDescription, due_at: newDueAt };
-  const calURL  = makeCalendarURL(updated);
+  const calURL = makeCalendarURL(updated);
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE tasks SET title=?, description=?, due_at=?, status=?, priority=?, calendar_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
-  `).run(newTitle, newDescription, newDueAt, newStatus, newPriority, calURL, task.id);
+  `
+  ).run(newTitle, newDescription, newDueAt, newStatus, newPriority, calURL, task.id);
 
   if (task.job_id && status && status !== task.status) {
     logAudit(task.job_id, 'task_status_changed', `Task "${newTitle}" → ${newStatus}`, 'admin');
@@ -142,7 +190,7 @@ router.patch('/:id', requireAuth, (req, res) => {
 
 // ── DELETE /api/tasks/:id ─────────────────────────────────────────────────────
 router.delete('/:id', requireAuth, (req, res) => {
-  const db   = getDb();
+  const db = getDb();
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
   if (!task) return res.status(404).json({ error: 'Task not found' });
   db.prepare('DELETE FROM tasks WHERE id = ?').run(req.params.id);

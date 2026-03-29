@@ -1,16 +1,24 @@
 'use strict';
 const express = require('express');
-const router  = express.Router();
+const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { getDb }       = require('../db/database');
-const { logAudit }    = require('../services/auditService');
+const { getDb } = require('../db/database');
+const { logAudit } = require('../services/auditService');
 const { logActivity } = require('./activityLog');
 
 const VALID_PAYMENT_TYPES = ['deposit', 'progress', 'final', 'other'];
-const VALID_CATEGORIES    = ['subcontractor', 'material', 'permit', 'other', 'engineer', 'architect', 'designer'];
-const VALID_CREDIT_DEBIT  = ['credit', 'debit'];
+const VALID_CATEGORIES = [
+  'subcontractor',
+  'material',
+  'permit',
+  'other',
+  'engineer',
+  'architect',
+  'designer'
+];
+const VALID_CREDIT_DEBIT = ['credit', 'debit'];
 const VALID_PAYMENT_CLASS_OUT = ['cost_of_revenue', 'pass_through'];
-const VALID_PAYMENT_CLASS_IN  = ['contract', 'pass_through_reimbursement', 'other'];
+const VALID_PAYMENT_CLASS_IN = ['contract', 'pass_through_reimbursement', 'other'];
 
 function signedSum(rows, amountCol, defaultSign) {
   return rows.reduce((sum, r) => {
@@ -21,9 +29,13 @@ function signedSum(rows, amountCol, defaultSign) {
 }
 
 function jobSummary(db, jobId) {
-  const recRows  = db.prepare('SELECT amount, credit_debit FROM payments_received WHERE job_id = ?').all(jobId);
-  const paidRows = db.prepare('SELECT amount, credit_debit FROM payments_made     WHERE job_id = ?').all(jobId);
-  const totalIn  = signedSum(recRows, 'amount', 'credit');
+  const recRows = db
+    .prepare('SELECT amount, credit_debit FROM payments_received WHERE job_id = ?')
+    .all(jobId);
+  const paidRows = db
+    .prepare('SELECT amount, credit_debit FROM payments_made     WHERE job_id = ?')
+    .all(jobId);
+  const totalIn = signedSum(recRows, 'amount', 'credit');
   const totalOut = signedSum(paidRows, 'amount', 'debit');
   return { total_received: totalIn, total_paid_out: totalOut, balance: totalIn - totalOut };
 }
@@ -34,7 +46,14 @@ function validateAmount(amount) {
 }
 
 function currentTime() {
-  return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' }).slice(0, 5);
+  return new Date()
+    .toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'America/New_York'
+    })
+    .slice(0, 5);
 }
 
 router.get('/summary/:jobId', requireAuth, (req, res) => {
@@ -55,10 +74,22 @@ router.get('/received', requireAuth, (req, res) => {
     WHERE 1=1
   `;
   const params = [];
-  if (job_id)    { sql += ' AND r.job_id = ?';         params.push(job_id); }
-  if (date_from) { sql += ' AND r.date_received >= ?';  params.push(date_from); }
-  if (date_to)   { sql += ' AND r.date_received <= ?';  params.push(date_to); }
-  if (customer)  { sql += ' AND (r.customer_name LIKE ? OR j.customer_name LIKE ?)'; params.push(`%${customer}%`, `%${customer}%`); }
+  if (job_id) {
+    sql += ' AND r.job_id = ?';
+    params.push(job_id);
+  }
+  if (date_from) {
+    sql += ' AND r.date_received >= ?';
+    params.push(date_from);
+  }
+  if (date_to) {
+    sql += ' AND r.date_received <= ?';
+    params.push(date_to);
+  }
+  if (customer) {
+    sql += ' AND (r.customer_name LIKE ? OR j.customer_name LIKE ?)';
+    params.push(`%${customer}%`, `%${customer}%`);
+  }
   sql += ' ORDER BY r.date_received DESC, r.created_at DESC';
   res.json({ payments: db.prepare(sql).all(...params) });
 });
@@ -73,10 +104,22 @@ router.get('/made', requireAuth, (req, res) => {
     WHERE 1=1
   `;
   const params = [];
-  if (job_id)    { sql += ' AND m.job_id = ?';       params.push(job_id); }
-  if (date_from) { sql += ' AND m.date_paid >= ?';    params.push(date_from); }
-  if (date_to)   { sql += ' AND m.date_paid <= ?';    params.push(date_to); }
-  if (customer)  { sql += ' AND (m.payee_name LIKE ? OR j.customer_name LIKE ?)'; params.push(`%${customer}%`, `%${customer}%`); }
+  if (job_id) {
+    sql += ' AND m.job_id = ?';
+    params.push(job_id);
+  }
+  if (date_from) {
+    sql += ' AND m.date_paid >= ?';
+    params.push(date_from);
+  }
+  if (date_to) {
+    sql += ' AND m.date_paid <= ?';
+    params.push(date_to);
+  }
+  if (customer) {
+    sql += ' AND (m.payee_name LIKE ? OR j.customer_name LIKE ?)';
+    params.push(`%${customer}%`, `%${customer}%`);
+  }
   sql += ' ORDER BY m.date_paid DESC, m.created_at DESC';
   res.json({ payments: db.prepare(sql).all(...params) });
 });
@@ -84,8 +127,12 @@ router.get('/made', requireAuth, (req, res) => {
 router.get('/job/:jobId', requireAuth, (req, res) => {
   const db = getDb();
   const { jobId } = req.params;
-  const received = db.prepare('SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received DESC').all(jobId);
-  const made     = db.prepare('SELECT * FROM payments_made     WHERE job_id = ? ORDER BY date_paid     DESC').all(jobId);
+  const received = db
+    .prepare('SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received DESC')
+    .all(jobId);
+  const made = db
+    .prepare('SELECT * FROM payments_made     WHERE job_id = ? ORDER BY date_paid     DESC')
+    .all(jobId);
   res.json({ received, made, summary: jobSummary(db, jobId) });
 });
 
@@ -95,35 +142,52 @@ router.get('/contact/:contactId', requireAuth, (req, res) => {
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId);
   if (!contact) return res.status(404).json({ error: 'Contact not found' });
 
-  const jobs = db.prepare(`
+  const jobs = db
+    .prepare(
+      `
     SELECT id, customer_name, project_address, total_value, status
     FROM jobs WHERE archived = 0 AND (
       (customer_email IS NOT NULL AND customer_email = ?) OR
       (customer_phone IS NOT NULL AND customer_phone = ?) OR
       (customer_name IS NOT NULL AND customer_name = ?)
     )
-  `).all(contact.email || '', contact.phone || '', contact.name || '');
+  `
+    )
+    .all(contact.email || '', contact.phone || '', contact.name || '');
 
-  const jobIds = jobs.map(j => j.id);
+  const jobIds = jobs.map((j) => j.id);
   if (jobIds.length === 0) {
-    return res.json({ received: [], made: [], summary: { total_received: 0, total_paid_out: 0, balance: 0 }, jobs: [] });
+    return res.json({
+      received: [],
+      made: [],
+      summary: { total_received: 0, total_paid_out: 0, balance: 0 },
+      jobs: []
+    });
   }
 
   const ph = jobIds.map(() => '?').join(',');
-  const received = db.prepare(`
+  const received = db
+    .prepare(
+      `
     SELECT r.*, j.project_address, j.customer_name as job_customer
     FROM payments_received r
     LEFT JOIN jobs j ON j.id = r.job_id
     WHERE r.job_id IN (${ph}) ORDER BY r.date_received DESC
-  `).all(...jobIds);
-  const made = db.prepare(`
+  `
+    )
+    .all(...jobIds);
+  const made = db
+    .prepare(
+      `
     SELECT m.*, j.project_address, j.customer_name as job_customer
     FROM payments_made m
     LEFT JOIN jobs j ON j.id = m.job_id
     WHERE m.job_id IN (${ph}) ORDER BY m.date_paid DESC
-  `).all(...jobIds);
+  `
+    )
+    .all(...jobIds);
 
-  const recTotal  = signedSum(received, 'amount', 'credit');
+  const recTotal = signedSum(received, 'amount', 'credit');
   const madeTotal = signedSum(made, 'amount', 'debit');
 
   res.json({
@@ -136,15 +200,28 @@ router.get('/contact/:contactId', requireAuth, (req, res) => {
 
 router.post('/received', requireAuth, (req, res) => {
   const db = getDb();
-  const { job_id, customer_name, check_number, amount, date_received, time_received, payment_type, credit_debit, notes, is_pass_through_reimbursement, invoice_id } = req.body;
-  if (!job_id)        return res.status(400).json({ error: 'job_id is required' });
+  const {
+    job_id,
+    customer_name,
+    check_number,
+    amount,
+    date_received,
+    time_received,
+    payment_type,
+    credit_debit,
+    notes,
+    is_pass_through_reimbursement,
+    invoice_id
+  } = req.body;
+  if (!job_id) return res.status(400).json({ error: 'job_id is required' });
   if (!date_received) return res.status(400).json({ error: 'date_received is required' });
 
   const parsedAmount = validateAmount(amount);
-  if (parsedAmount === null) return res.status(400).json({ error: 'amount must be a positive number' });
+  if (parsedAmount === null)
+    return res.status(400).json({ error: 'amount must be a positive number' });
 
   const pType = VALID_PAYMENT_TYPES.includes(payment_type) ? payment_type : 'deposit';
-  const crDr  = VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : 'credit';
+  const crDr = VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : 'credit';
   const isPTR = is_pass_through_reimbursement ? 1 : 0;
   const pClass = isPTR ? 'pass_through_reimbursement' : 'contract';
 
@@ -152,17 +229,44 @@ router.post('/received', requireAuth, (req, res) => {
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
   const recorder = req.session?.name || 'Unknown';
-  const timeVal  = time_received || currentTime();
+  const timeVal = time_received || currentTime();
 
-  const info = db.prepare(`
+  const info = db
+    .prepare(
+      `
     INSERT INTO payments_received (job_id, customer_name, check_number, amount, date_received, time_received, payment_type, credit_debit, recorded_by, notes, payment_class, is_pass_through_reimbursement, invoice_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(job_id, customer_name || null, check_number || null, parsedAmount, date_received, timeVal, pType, crDr, recorder, notes || null, pClass, isPTR, invoice_id || null);
+  `
+    )
+    .run(
+      job_id,
+      customer_name || null,
+      check_number || null,
+      parsedAmount,
+      date_received,
+      timeVal,
+      pType,
+      crDr,
+      recorder,
+      notes || null,
+      pClass,
+      isPTR,
+      invoice_id || null
+    );
 
-  const payment = db.prepare('SELECT * FROM payments_received WHERE id = ?').get(info.lastInsertRowid);
-  logAudit(job_id, 'payment_received', `Check received: $${amount} (${payment_type || 'deposit'}, ${credit_debit || 'credit'}) recorded by ${recorder}`, recorder);
+  const payment = db
+    .prepare('SELECT * FROM payments_received WHERE id = ?')
+    .get(info.lastInsertRowid);
+  logAudit(
+    job_id,
+    'payment_received',
+    `Check received: $${amount} (${payment_type || 'deposit'}, ${credit_debit || 'credit'}) recorded by ${recorder}`,
+    recorder
+  );
 
-  const contact = job.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
+  const contact = job.contact_id
+    ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+    : null;
   logActivity({
     customer_number: contact?.pb_customer_number || null,
     job_id,
@@ -182,10 +286,22 @@ router.post('/received', requireAuth, (req, res) => {
 
       const { sendEmail } = require('../services/emailService');
       const { mergePDFs } = require('../services/pdfMergeService');
-      const paidAmount  = `$${Number(parsedAmount).toLocaleString()}`;
-      const paidWhen    = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/New_York' });
-      const pTypeLabel  = { deposit: 'Deposit', progress: 'Progress Payment', final: 'Final Payment', other: 'Payment' }[pType] || 'Payment';
-      const safeName    = (fullJob.customer_name || job_id).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+      const paidAmount = `$${Number(parsedAmount).toLocaleString()}`;
+      const paidWhen = new Date().toLocaleString('en-US', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+        timeZone: 'America/New_York'
+      });
+      const pTypeLabel =
+        {
+          deposit: 'Deposit',
+          progress: 'Progress Payment',
+          final: 'Final Payment',
+          other: 'Payment'
+        }[pType] || 'Payment';
+      const safeName = (fullJob.customer_name || job_id)
+        .replace(/\s+/g, '-')
+        .replace(/[^a-zA-Z0-9-]/g, '');
 
       let mergedPdfPath = fullJob.contract_pdf_path;
       try {
@@ -205,8 +321,8 @@ router.post('/received', requireAuth, (req, res) => {
           const pathLib = require('path');
           if (!fsSync.existsSync(contractsDir)) fsSync.mkdirSync(contractsDir, { recursive: true });
           const dateStamp = new Date().toISOString().slice(0, 10);
-          const destName  = `Preferred-Builders-COMPLETED-${safeName}-${dateStamp}.pdf`;
-          const destPath  = pathLib.join(contractsDir, destName);
+          const destName = `Preferred-Builders-COMPLETED-${safeName}-${dateStamp}.pdf`;
+          const destPath = pathLib.join(contractsDir, destName);
           fsSync.copyFileSync(mergedPdfPath, destPath);
           console.log(`[SignedContracts] Payment-confirmed file saved: ${destPath}`);
         } catch (saveErr) {
@@ -263,27 +379,47 @@ router.post('/received', requireAuth, (req, res) => {
 
 router.post('/made', requireAuth, (req, res) => {
   const db = getDb();
-  const { job_id, payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, notes, payment_class, dept_code, paid_by } = req.body;
-  if (!job_id)     return res.status(400).json({ error: 'job_id is required' });
+  const {
+    job_id,
+    payee_name,
+    check_number,
+    amount,
+    date_paid,
+    time_paid,
+    category,
+    credit_debit,
+    notes,
+    payment_class,
+    dept_code,
+    paid_by
+  } = req.body;
+  if (!job_id) return res.status(400).json({ error: 'job_id is required' });
   if (!payee_name) return res.status(400).json({ error: 'payee_name is required' });
-  if (!date_paid)  return res.status(400).json({ error: 'date_paid is required' });
+  if (!date_paid) return res.status(400).json({ error: 'date_paid is required' });
 
   const parsedAmount = validateAmount(amount);
-  if (parsedAmount === null) return res.status(400).json({ error: 'amount must be a positive number' });
+  if (parsedAmount === null)
+    return res.status(400).json({ error: 'amount must be a positive number' });
 
   // Accept proposal-derived trade names (e.g. 'framing', 'roofing', 'hvac') beyond the base whitelist
-  const cat     = (category && typeof category === 'string' && category.trim()) ? category.trim().toLowerCase() : 'subcontractor';
-  const crDr    = VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : 'debit';
-  const pClass  = VALID_PAYMENT_CLASS_OUT.includes(payment_class) ? payment_class :
-                  (cat === 'permit' ? 'pass_through' : 'cost_of_revenue');
+  const cat =
+    category && typeof category === 'string' && category.trim()
+      ? category.trim().toLowerCase()
+      : 'subcontractor';
+  const crDr = VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : 'debit';
+  const pClass = VALID_PAYMENT_CLASS_OUT.includes(payment_class)
+    ? payment_class
+    : cat === 'permit'
+      ? 'pass_through'
+      : 'cost_of_revenue';
   const isPassThrough = pClass === 'pass_through' ? 1 : 0;
-  const paidBy  = (paid_by === 'customer_direct') ? 'customer_direct' : 'pb';
+  const paidBy = paid_by === 'customer_direct' ? 'customer_direct' : 'pb';
 
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(job_id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
   const recorder = req.session?.name || 'Unknown';
-  const timeVal  = time_paid || currentTime();
+  const timeVal = time_paid || currentTime();
 
   let deptCodeVal = dept_code || null;
   if (!deptCodeVal) {
@@ -293,19 +429,46 @@ router.post('/made', requireAuth, (req, res) => {
     } catch (_) {}
   }
 
-  const info = db.prepare(`
+  const info = db
+    .prepare(
+      `
     INSERT INTO payments_made (job_id, payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, recorded_by, notes, payment_class, dept_code, is_pass_through, paid_by)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(job_id, payee_name.trim(), check_number || null, parsedAmount, date_paid, timeVal, cat, crDr, recorder, notes || null, pClass, deptCodeVal, isPassThrough, paidBy);
+  `
+    )
+    .run(
+      job_id,
+      payee_name.trim(),
+      check_number || null,
+      parsedAmount,
+      date_paid,
+      timeVal,
+      cat,
+      crDr,
+      recorder,
+      notes || null,
+      pClass,
+      deptCodeVal,
+      isPassThrough,
+      paidBy
+    );
 
   const payment = db.prepare('SELECT * FROM payments_made WHERE id = ?').get(info.lastInsertRowid);
   const paidByLabel = paidBy === 'customer_direct' ? 'paid directly by customer' : `paid by PB`;
-  logAudit(job_id, 'payment_made', `${payee_name}: $${amount} (${cat}, ${paidByLabel}) recorded by ${recorder}`, recorder);
+  logAudit(
+    job_id,
+    'payment_made',
+    `${payee_name}: $${amount} (${cat}, ${paidByLabel}) recorded by ${recorder}`,
+    recorder
+  );
 
-  const contact = job.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
-  const activityDesc = paidBy === 'customer_direct'
-    ? `Customer paid directly to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''} — no PB reimbursement needed`
-    : `${isPassThrough ? 'Pass-through cost' : 'Payment'} to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''}`;
+  const contact = job.contact_id
+    ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+    : null;
+  const activityDesc =
+    paidBy === 'customer_direct'
+      ? `Customer paid directly to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''} — no PB reimbursement needed`
+      : `${isPassThrough ? 'Pass-through cost' : 'Payment'} to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''}`;
   logActivity({
     customer_number: contact?.pb_customer_number || null,
     job_id,
@@ -323,30 +486,52 @@ router.patch('/received/:id', requireAuth, (req, res) => {
   const row = db.prepare('SELECT * FROM payments_received WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Payment not found' });
 
-  const { customer_name, check_number, amount, date_received, time_received, payment_type, credit_debit, notes } = req.body;
+  const {
+    customer_name,
+    check_number,
+    amount,
+    date_received,
+    time_received,
+    payment_type,
+    credit_debit,
+    notes
+  } = req.body;
 
   let parsedAmt = row.amount;
   if (amount !== undefined) {
     parsedAmt = validateAmount(amount);
-    if (parsedAmt === null) return res.status(400).json({ error: 'amount must be a positive number' });
+    if (parsedAmt === null)
+      return res.status(400).json({ error: 'amount must be a positive number' });
   }
-  const pType = payment_type !== undefined ? (VALID_PAYMENT_TYPES.includes(payment_type) ? payment_type : row.payment_type) : row.payment_type;
-  const crDr  = credit_debit !== undefined ? (VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : row.credit_debit) : row.credit_debit;
+  const pType =
+    payment_type !== undefined
+      ? VALID_PAYMENT_TYPES.includes(payment_type)
+        ? payment_type
+        : row.payment_type
+      : row.payment_type;
+  const crDr =
+    credit_debit !== undefined
+      ? VALID_CREDIT_DEBIT.includes(credit_debit)
+        ? credit_debit
+        : row.credit_debit
+      : row.credit_debit;
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE payments_received SET
       customer_name = ?, check_number = ?, amount = ?, date_received = ?, time_received = ?,
       payment_type = ?, credit_debit = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(
+  `
+  ).run(
     customer_name ?? row.customer_name,
-    check_number  ?? row.check_number,
+    check_number ?? row.check_number,
     parsedAmt,
     date_received ?? row.date_received,
     time_received ?? row.time_received,
     pType,
     crDr,
-    notes         ?? row.notes,
+    notes ?? row.notes,
     row.id
   );
 
@@ -359,31 +544,59 @@ router.patch('/made/:id', requireAuth, (req, res) => {
   const row = db.prepare('SELECT * FROM payments_made WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Payment not found' });
 
-  const { payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, notes, paid_by } = req.body;
+  const {
+    payee_name,
+    check_number,
+    amount,
+    date_paid,
+    time_paid,
+    category,
+    credit_debit,
+    notes,
+    paid_by
+  } = req.body;
 
   let parsedAmt = row.amount;
   if (amount !== undefined) {
     parsedAmt = validateAmount(amount);
-    if (parsedAmt === null) return res.status(400).json({ error: 'amount must be a positive number' });
+    if (parsedAmt === null)
+      return res.status(400).json({ error: 'amount must be a positive number' });
   }
-  const cat    = category !== undefined ? ((category && typeof category === 'string' && category.trim()) ? category.trim().toLowerCase() : row.category) : row.category;
-  const crDr   = credit_debit !== undefined ? (VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : row.credit_debit) : row.credit_debit;
-  const paidBy = paid_by !== undefined ? ((paid_by === 'customer_direct') ? 'customer_direct' : 'pb') : (row.paid_by || 'pb');
+  const cat =
+    category !== undefined
+      ? category && typeof category === 'string' && category.trim()
+        ? category.trim().toLowerCase()
+        : row.category
+      : row.category;
+  const crDr =
+    credit_debit !== undefined
+      ? VALID_CREDIT_DEBIT.includes(credit_debit)
+        ? credit_debit
+        : row.credit_debit
+      : row.credit_debit;
+  const paidBy =
+    paid_by !== undefined
+      ? paid_by === 'customer_direct'
+        ? 'customer_direct'
+        : 'pb'
+      : row.paid_by || 'pb';
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE payments_made SET
       payee_name = ?, check_number = ?, amount = ?, date_paid = ?, time_paid = ?,
       category = ?, credit_debit = ?, notes = ?, paid_by = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(
-    payee_name    ?? row.payee_name,
-    check_number  ?? row.check_number,
+  `
+  ).run(
+    payee_name ?? row.payee_name,
+    check_number ?? row.check_number,
     parsedAmt,
-    date_paid     ?? row.date_paid,
-    time_paid     ?? row.time_paid,
+    date_paid ?? row.date_paid,
+    time_paid ?? row.time_paid,
     cat,
     crDr,
-    notes         ?? row.notes,
+    notes ?? row.notes,
     paidBy,
     row.id
   );
@@ -393,20 +606,30 @@ router.patch('/made/:id', requireAuth, (req, res) => {
 });
 
 router.delete('/received/:id', requireAuth, (req, res) => {
-  const db  = getDb();
+  const db = getDb();
   const row = db.prepare('SELECT * FROM payments_received WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Payment not found' });
   db.prepare('DELETE FROM payments_received WHERE id = ?').run(row.id);
-  logAudit(row.job_id, 'payment_received_deleted', `Check record deleted: $${row.amount}`, req.session?.name || 'admin');
+  logAudit(
+    row.job_id,
+    'payment_received_deleted',
+    `Check record deleted: $${row.amount}`,
+    req.session?.name || 'admin'
+  );
   res.json({ success: true, summary: jobSummary(db, row.job_id) });
 });
 
 router.delete('/made/:id', requireAuth, (req, res) => {
-  const db  = getDb();
+  const db = getDb();
   const row = db.prepare('SELECT * FROM payments_made WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Payment not found' });
   db.prepare('DELETE FROM payments_made WHERE id = ?').run(row.id);
-  logAudit(row.job_id, 'payment_made_deleted', `Outgoing check deleted: $${row.amount} to ${row.payee_name}`, req.session?.name || 'admin');
+  logAudit(
+    row.job_id,
+    'payment_made_deleted',
+    `Outgoing check deleted: $${row.amount} to ${row.payee_name}`,
+    req.session?.name || 'admin'
+  );
   res.json({ success: true, summary: jobSummary(db, row.job_id) });
 });
 

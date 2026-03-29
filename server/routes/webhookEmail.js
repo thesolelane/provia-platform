@@ -19,7 +19,9 @@ router.post('/', async (req, res) => {
     const bodyText = req.body['body-plain'] || req.body.text || '';
 
     const db = getDb();
-    const sender = db.prepare('SELECT * FROM approved_senders WHERE identifier = ? AND type = ? AND active = 1').get(from, 'email');
+    const sender = db
+      .prepare('SELECT * FROM approved_senders WHERE identifier = ? AND type = ? AND active = 1')
+      .get(from, 'email');
 
     if (!sender) {
       console.log(`Blocked inbound email from: ${from}`);
@@ -50,10 +52,12 @@ router.post('/', async (req, res) => {
     const jobId = uuidv4();
     const language = sender.language || 'en';
 
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO jobs (id, raw_estimate_data, status, submitted_by)
       VALUES (?, ?, 'received', ?)
-    `).run(jobId, estimateText, from);
+    `
+    ).run(jobId, estimateText, from);
 
     const senderFirstName = sender.name ? sender.name.split(' ')[0] : 'there';
 
@@ -61,35 +65,47 @@ router.post('/', async (req, res) => {
     await sendEmail({
       to: from,
       subject: `Re: ${subject} — Received ✅`,
-      html: language === 'pt-BR'
-        ? `<p>Oi ${senderFirstName}! Recebi a estimativa e já estou processando. Você receberá a proposta em breve.</p><p>Ref: ${jobId.slice(0,8).toUpperCase()}</p>`
-        : `<p>Hey ${senderFirstName}! Got your estimate — processing it now. You'll receive the proposal shortly.</p><p>Ref: ${jobId.slice(0,8).toUpperCase()}</p>`
+      html:
+        language === 'pt-BR'
+          ? `<p>Oi ${senderFirstName}! Recebi a estimativa e já estou processando. Você receberá a proposta em breve.</p><p>Ref: ${jobId.slice(0, 8).toUpperCase()}</p>`
+          : `<p>Hey ${senderFirstName}! Got your estimate — processing it now. You'll receive the proposal shortly.</p><p>Ref: ${jobId.slice(0, 8).toUpperCase()}</p>`
     });
 
     const proposalData = await processEstimate(estimateText, jobId, language);
 
     if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
       db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', jobId);
-      const questions = proposalData.clarificationsNeeded.map((q, i) => `${i + 1}. ${q}`).join('\n');
+      const questions = proposalData.clarificationsNeeded
+        .map((q, i) => `${i + 1}. ${q}`)
+        .join('\n');
 
       await sendEmail({
         to: from,
         subject: `Questions needed — Job ${jobId.slice(0, 8)}`,
-        html: language === 'pt-BR'
-          ? `<p>Preciso de mais informações:</p><pre>${questions}</pre><p>Por favor responda este email.</p>`
-          : `<p>I need a few more details:</p><pre>${questions}</pre><p>Please reply to this email.</p>`
+        html:
+          language === 'pt-BR'
+            ? `<p>Preciso de mais informações:</p><pre>${questions}</pre><p>Por favor responda este email.</p>`
+            : `<p>I need a few more details:</p><pre>${questions}</pre><p>Please reply to this email.</p>`
       });
     } else {
       const { generatePDF } = require('../services/pdfService');
       const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
 
-      db.prepare('UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
-        .run(JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount, 'proposal_sent', jobId);
+      db.prepare(
+        'UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?'
+      ).run(
+        JSON.stringify(proposalData),
+        pdfPath,
+        proposalData.totalValue,
+        proposalData.depositAmount,
+        'proposal_sent',
+        jobId
+      );
 
       const { getOwnerEmails } = require('../services/emailService');
       const recipients = [from];
       for (const ownerEmail of getOwnerEmails()) {
-        if (!recipients.map(r => r.toLowerCase()).includes(ownerEmail.toLowerCase())) {
+        if (!recipients.map((r) => r.toLowerCase()).includes(ownerEmail.toLowerCase())) {
           recipients.push(ownerEmail);
         }
       }
@@ -108,7 +124,8 @@ router.post('/', async (req, res) => {
       });
 
       if (process.env.JACKSON_WHATSAPP) {
-        await sendWhatsApp(process.env.JACKSON_WHATSAPP,
+        await sendWhatsApp(
+          process.env.JACKSON_WHATSAPP,
           `📋 Proposta pronta via email!\n${proposalData.customer?.name}\n$${proposalData.totalValue?.toLocaleString()}\nResponda APROVAR para gerar contrato.`
         );
       }

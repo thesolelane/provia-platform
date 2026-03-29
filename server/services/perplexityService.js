@@ -5,23 +5,23 @@
 
 const https = require('https');
 
-const API_KEY  = process.env.PERPLEXITY_API_KEY;
+const API_KEY = process.env.PERPLEXITY_API_KEY;
 const ENDPOINT = 'api.perplexity.ai';
 
 // Model routing — cheap/fast for simple lookups, pro only for code/detailed research
 const MODEL_MAP = {
-  material_price: 'sonar',       // current lumber, concrete, roofing prices
-  permit_fee:     'sonar',       // county permit fee schedules
-  labor_rate:     'sonar',       // subcontractor market rates
-  building_code:  'sonar-pro',   // code sections need more precision
-  supplier:       'sonar',       // local supplier research
-  general:        'sonar',       // catch-all, default to cheap
+  material_price: 'sonar', // current lumber, concrete, roofing prices
+  permit_fee: 'sonar', // county permit fee schedules
+  labor_rate: 'sonar', // subcontractor market rates
+  building_code: 'sonar-pro', // code sections need more precision
+  supplier: 'sonar', // local supplier research
+  general: 'sonar' // catch-all, default to cheap
 };
 
 // Max tokens per model — keep responses tight
 const MAX_TOKENS = {
-  'sonar':     250,
-  'sonar-pro': 400,
+  sonar: 250,
+  'sonar-pro': 400
 };
 
 // System prompt for all Perplexity calls — instructs it to be concise and factual
@@ -39,31 +39,35 @@ function callPerplexity(model, query) {
       temperature: 0.1,
       messages: [
         { role: 'system', content: SONAR_SYSTEM },
-        { role: 'user',   content: query },
-      ],
+        { role: 'user', content: query }
+      ]
     });
 
     const opts = {
       hostname: ENDPOINT,
-      path:     '/chat/completions',
-      method:   'POST',
+      path: '/chat/completions',
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type':  'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
+        Authorization: `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body)
+      }
     };
 
-    const req = https.request(opts, res => {
+    const req = https.request(opts, (res) => {
       let raw = '';
-      res.on('data', chunk => { raw += chunk; });
+      res.on('data', (chunk) => {
+        raw += chunk;
+      });
       res.on('end', () => {
         try {
           const json = JSON.parse(raw);
           if (json.error) return resolve(`[Search error: ${json.error.message || json.error}]`);
           const answer = json.choices?.[0]?.message?.content || '[No result]';
-          const usage  = json.usage || {};
-          console.log(`[Perplexity] model=${model} in=${usage.prompt_tokens||'?'} out=${usage.completion_tokens||'?'} query="${query.slice(0,60)}"`);
+          const usage = json.usage || {};
+          console.log(
+            `[Perplexity] model=${model} in=${usage.prompt_tokens || '?'} out=${usage.completion_tokens || '?'} query="${query.slice(0, 60)}"`
+          );
           resolve(answer.trim());
         } catch (e) {
           resolve(`[Search parse error: ${e.message}]`);
@@ -71,8 +75,11 @@ function callPerplexity(model, query) {
       });
     });
 
-    req.on('error', err => resolve(`[Search network error: ${err.message}]`));
-    req.setTimeout(10000, () => { req.destroy(); resolve('[Search timeout]'); });
+    req.on('error', (err) => resolve(`[Search network error: ${err.message}]`));
+    req.setTimeout(10000, () => {
+      req.destroy();
+      resolve('[Search timeout]');
+    });
     req.write(body);
     req.end();
   });
@@ -93,7 +100,7 @@ async function search(query, search_type = 'general') {
 // ── Batch search — for multiple queries at once (runs in parallel) ────────────
 // More efficient than sequential calls when multiple data points are needed
 async function searchBatch(queries) {
-  return Promise.all(queries.map(q => search(q.query, q.search_type)));
+  return Promise.all(queries.map((q) => search(q.query, q.search_type)));
 }
 
 module.exports = { search, searchBatch, isConfigured: () => !!API_KEY };

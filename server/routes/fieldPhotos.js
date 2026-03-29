@@ -6,7 +6,14 @@ const path = require('path');
 const fs = require('fs');
 
 const UPLOADS_DIR = path.resolve(__dirname, '../../uploads/field_photos');
-const ALLOWED_MIMES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
+const ALLOWED_MIMES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/heic',
+  'image/heif'
+];
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
 
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -44,10 +51,14 @@ router.post('/', requireAuth, (req, res) => {
       }
 
       const db = getDb();
-      const result = db.prepare(`
+      const result = db
+        .prepare(
+          `
         INSERT INTO field_photos (filename, original_name, taken_at, lat, lon, location_label, accuracy, uploaded_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(filename, file.name, taken_at, lat, lon, location_label, accuracy, uploaded_by);
+      `
+        )
+        .run(filename, file.name, taken_at, lat, lon, location_label, accuracy, uploaded_by);
 
       res.json({
         id: result.lastInsertRowid,
@@ -71,9 +82,13 @@ router.post('/', requireAuth, (req, res) => {
 router.get('/', requireAuth, (req, res) => {
   try {
     const db = getDb();
-    const photos = db.prepare(`
+    const photos = db
+      .prepare(
+        `
       SELECT * FROM field_photos ORDER BY taken_at DESC
-    `).all();
+    `
+      )
+      .all();
     res.json({ photos });
   } catch (err) {
     console.error('Get field photos error:', err);
@@ -103,7 +118,10 @@ router.patch('/:id/assign', requireAuth, (req, res) => {
       if (!job) return res.status(404).json({ error: 'Job not found' });
     }
 
-    db.prepare('UPDATE field_photos SET job_id = ? WHERE id = ?').run(job_id || null, req.params.id);
+    db.prepare('UPDATE field_photos SET job_id = ? WHERE id = ?').run(
+      job_id || null,
+      req.params.id
+    );
 
     if (job_id) {
       const fieldPhoto = db.prepare('SELECT * FROM field_photos WHERE id = ?').get(req.params.id);
@@ -117,10 +135,12 @@ router.patch('/:id/assign', requireAuth, (req, res) => {
         fs.copyFileSync(srcPath, destPath);
       }
 
-      db.prepare(`
+      db.prepare(
+        `
         INSERT OR IGNORE INTO job_photos (job_id, filename, original_name, caption)
         VALUES (?, ?, ?, ?)
-      `).run(job_id, fieldPhoto.filename, fieldPhoto.original_name || fieldPhoto.filename, '');
+      `
+      ).run(job_id, fieldPhoto.filename, fieldPhoto.original_name || fieldPhoto.filename, '');
     }
 
     res.json({ ok: true, job_id: job_id || null });

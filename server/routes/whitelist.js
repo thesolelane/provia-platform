@@ -14,7 +14,9 @@ router.post('/', requireAuth, (req, res) => {
   const { identifier, type, name, role, language = 'en' } = req.body;
   if (!identifier || !type) return res.status(400).json({ error: 'identifier and type required' });
   try {
-    db.prepare('INSERT INTO approved_senders (identifier, type, name, role, language) VALUES (?, ?, ?, ?, ?)').run(identifier, type, name, role, language);
+    db.prepare(
+      'INSERT INTO approved_senders (identifier, type, name, role, language) VALUES (?, ?, ?, ?, ?)'
+    ).run(identifier, type, name, role, language);
     res.json({ success: true });
   } catch (e) {
     res.status(400).json({ error: 'Identifier already exists' });
@@ -24,8 +26,9 @@ router.post('/', requireAuth, (req, res) => {
 router.put('/:id', requireAuth, (req, res) => {
   const db = getDb();
   const { name, role, language, active } = req.body;
-  db.prepare('UPDATE approved_senders SET name = COALESCE(?, name), role = COALESCE(?, role), language = COALESCE(?, language), active = COALESCE(?, active) WHERE id = ?')
-    .run(name, role, language, active, req.params.id);
+  db.prepare(
+    'UPDATE approved_senders SET name = COALESCE(?, name), role = COALESCE(?, role), language = COALESCE(?, language), active = COALESCE(?, active) WHERE id = ?'
+  ).run(name, role, language, active, req.params.id);
   res.json({ success: true });
 });
 

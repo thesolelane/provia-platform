@@ -1,13 +1,13 @@
 'use strict';
-const express  = require('express');
+const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const path     = require('path');
-const { getDb }      = require('../db/database');
-const jobMemory      = require('../services/jobMemory');
+const path = require('path');
+const { getDb } = require('../db/database');
+const jobMemory = require('../services/jobMemory');
 const { requireAuth } = require('../middleware/auth');
-const { logAudit }   = require('../services/auditService');
+const { logAudit } = require('../services/auditService');
 const { logActivity } = require('./activityLog');
-const { sendEmail }  = require('../services/emailService');
+const { sendEmail } = require('../services/emailService');
 const { notifyClients } = require('../services/sseManager');
 
 const router = express.Router();
@@ -34,10 +34,10 @@ function pdfPublicURL(pdfPath) {
 
 function signingPageHTML({ docType, job, session, base }) {
   const isProposal = docType === 'proposal';
-  const docLabel   = isProposal ? 'Proposal' : 'Contract';
-  const pdfURL     = pdfPublicURL(isProposal ? job.proposal_pdf_path : job.contract_pdf_path);
-  const amount     = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
-  const already    = session.status === 'signed';
+  const docLabel = isProposal ? 'Proposal' : 'Contract';
+  const pdfURL = pdfPublicURL(isProposal ? job.proposal_pdf_path : job.contract_pdf_path);
+  const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
+  const already = session.status === 'signed';
 
   const alreadySigned = `
     <div style="text-align:center;padding:60px 20px">
@@ -47,25 +47,31 @@ function signingPageHTML({ docType, job, session, base }) {
     </div>`;
 
   const formHTML = `
-    ${pdfURL ? `
+    ${
+      pdfURL
+        ? `
     <div style="margin-bottom:24px">
       <p style="font-size:12px;color:#888;margin-bottom:6px;text-align:center">
         Scroll through the full ${docLabel.toLowerCase()} before signing
       </p>
       <iframe src="${pdfURL}" style="width:100%;height:540px;border:1px solid #C8D4E4;border-radius:8px;background:#f5f5f5"></iframe>
-    </div>` : `
+    </div>`
+        : `
     <div style="background:#f8f9ff;border:1px solid #C8D4E4;border-radius:8px;padding:20px;margin-bottom:24px;font-size:13px;color:#444">
       <strong>Document details:</strong><br>
       Customer: ${job.customer_name || '—'}<br>
       Property: ${job.project_address || '—'}<br>
       ${amount ? `Contract Value: ${amount}` : ''}
-    </div>`}
+    </div>`
+    }
 
     <div style="background:#f8f9ff;border-left:4px solid #1B3A6B;padding:14px 16px;margin-bottom:20px;border-radius:0 8px 8px 0">
       <p style="margin:0;font-size:13px;color:#1B3A6B;font-weight:700">
-        ${isProposal
-          ? 'By signing below, you approve this proposal and authorize Preferred Builders General Services Inc. to proceed with contract preparation.'
-          : 'By signing below, you acknowledge that you have read, understand, and agree to all terms and conditions of this Home Improvement Construction Contract.'}
+        ${
+          isProposal
+            ? 'By signing below, you approve this proposal and authorize Preferred Builders General Services Inc. to proceed with contract preparation.'
+            : 'By signing below, you acknowledge that you have read, understand, and agree to all terms and conditions of this Home Improvement Construction Contract.'
+        }
       </p>
     </div>
 
@@ -153,7 +159,10 @@ function signingPageHTML({ docType, job, session, base }) {
   Preferred Builders General Services Inc. · HIC-197400 · <a href="https://preferredbuildersusa.com" style="color:#aaa">preferredbuildersusa.com</a>
 </div>
 
-${already ? '' : `
+${
+  already
+    ? ''
+    : `
 <script>
 (function() {
   // ── Record open on page load ──
@@ -225,9 +234,11 @@ ${already ? '' : `
             <div style="font-size:64px;margin-bottom:20px">✅</div>
             <h2 style="color:#1B3A6B;margin-bottom:10px">Thank you, \${name}!</h2>
             <p style="color:#555;font-size:14px;line-height:1.6">
-              ${isProposal
-                ? 'Your proposal has been approved. Preferred Builders will now prepare your contract and reach out shortly.'
-                : 'Your contract has been signed. You will receive a copy by email. Welcome to the Preferred Builders family!'}
+              ${
+                isProposal
+                  ? 'Your proposal has been approved. Preferred Builders will now prepare your contract and reach out shortly.'
+                  : 'Your contract has been signed. You will receive a copy by email. Welcome to the Preferred Builders family!'
+              }
             </p>
             <p style="color:#aaa;font-size:12px;margin-top:16px">Signed: \${new Date().toLocaleString()}</p>
           </div>\`;
@@ -245,7 +256,8 @@ ${already ? '' : `
     }
   };
 })();
-</script>`}
+</script>`
+}
 
 </body>
 </html>`;
@@ -254,40 +266,53 @@ ${already ? '' : `
 // ─── Public signing pages ──────────────────────────────────────────────────────
 
 router.get('/sign/p/:token', (req, res) => {
-  const db  = getDb();
-  const session = db.prepare('SELECT * FROM signing_sessions WHERE token = ? AND doc_type = ?').get(req.params.token, 'proposal');
+  const db = getDb();
+  const session = db
+    .prepare('SELECT * FROM signing_sessions WHERE token = ? AND doc_type = ?')
+    .get(req.params.token, 'proposal');
   if (!session) return res.status(404).send('<h2>Link not found or expired.</h2>');
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
-  if (!job)     return res.status(404).send('<h2>Job not found.</h2>');
+  if (!job) return res.status(404).send('<h2>Job not found.</h2>');
   res.send(signingPageHTML({ docType: 'proposal', job, session, base: baseURL(req) }));
 });
 
 router.get('/sign/c/:token', (req, res) => {
-  const db  = getDb();
-  const session = db.prepare('SELECT * FROM signing_sessions WHERE token = ? AND doc_type = ?').get(req.params.token, 'contract');
+  const db = getDb();
+  const session = db
+    .prepare('SELECT * FROM signing_sessions WHERE token = ? AND doc_type = ?')
+    .get(req.params.token, 'contract');
   if (!session) return res.status(404).send('<h2>Link not found or expired.</h2>');
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
-  if (!job)     return res.status(404).send('<h2>Job not found.</h2>');
+  if (!job) return res.status(404).send('<h2>Job not found.</h2>');
   res.send(signingPageHTML({ docType: 'contract', job, session, base: baseURL(req) }));
 });
 
 // ─── Record open (called by client JS on page load) ───────────────────────────
 
 router.post('/api/signing/opened/:token', (req, res) => {
-  const db      = getDb();
-  const session = db.prepare('SELECT * FROM signing_sessions WHERE token = ?').get(req.params.token);
+  const db = getDb();
+  const session = db
+    .prepare('SELECT * FROM signing_sessions WHERE token = ?')
+    .get(req.params.token);
   if (!session) return res.status(404).json({ error: 'Not found' });
 
   if (!session.opened_at) {
     const ip = clientIP(req);
-    db.prepare('UPDATE signing_sessions SET opened_at = CURRENT_TIMESTAMP, opened_ip = ?, status = ? WHERE token = ?')
-      .run(ip, 'opened', req.params.token);
+    db.prepare(
+      'UPDATE signing_sessions SET opened_at = CURRENT_TIMESTAMP, opened_ip = ?, status = ? WHERE token = ?'
+    ).run(ip, 'opened', req.params.token);
 
-    const job      = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
     const docLabel = session.doc_type === 'proposal' ? 'Proposal' : 'Contract';
-    logAudit(session.job_id, `${session.doc_type}_opened`, `${docLabel} opened by customer (IP: ${ip})`, 'customer');
+    logAudit(
+      session.job_id,
+      `${session.doc_type}_opened`,
+      `${docLabel} opened by customer (IP: ${ip})`,
+      'customer'
+    );
     notifyClients('job_updated', {
-      jobId: session.job_id, event: `${session.doc_type}_opened`,
+      jobId: session.job_id,
+      event: `${session.doc_type}_opened`,
       message: `📬 ${job?.customer_name || 'Customer'} opened the ${docLabel.toLowerCase()} — ${new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/New_York' })}`
     });
 
@@ -297,7 +322,11 @@ router.post('/api/signing/opened/:token', (req, res) => {
         const { sendEmail, getOwnerEmails } = require('../services/emailService');
         const owners = getOwnerEmails();
         if (owners.length) {
-          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
+          const when = new Date().toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+            timeZone: 'America/New_York'
+          });
           await sendEmail({
             to: owners,
             subject: `📬 ${docLabel} opened — ${job?.customer_name || 'Customer'}`,
@@ -309,7 +338,9 @@ router.post('/api/signing/opened/:token', (req, res) => {
             jobId: session.job_id
           });
         }
-      } catch (e) { console.warn('[SigningOpenedAlert]', e.message); }
+      } catch (e) {
+        console.warn('[SigningOpenedAlert]', e.message);
+      }
     });
   }
   res.json({ ok: true });
@@ -318,31 +349,53 @@ router.post('/api/signing/opened/:token', (req, res) => {
 // ─── Record signature ─────────────────────────────────────────────────────────
 
 router.post('/api/signing/signed/:token', async (req, res) => {
-  const db      = getDb();
-  const session = db.prepare('SELECT * FROM signing_sessions WHERE token = ?').get(req.params.token);
+  const db = getDb();
+  const session = db
+    .prepare('SELECT * FROM signing_sessions WHERE token = ?')
+    .get(req.params.token);
   if (!session) return res.status(404).json({ error: 'Not found' });
   if (session.status === 'signed') return res.status(400).json({ error: 'Already signed' });
 
   const { signer_name, signature_data } = req.body;
-  if (!signer_name || !signature_data) return res.status(400).json({ error: 'Missing name or signature' });
+  if (!signer_name || !signature_data)
+    return res.status(400).json({ error: 'Missing name or signature' });
 
   const ip = clientIP(req);
-  db.prepare(`UPDATE signing_sessions SET signed_at = CURRENT_TIMESTAMP, signed_ip = ?, signer_name = ?, signature_data = ?, status = 'signed' WHERE token = ?`)
-    .run(ip, signer_name, signature_data, req.params.token);
+  db.prepare(
+    `UPDATE signing_sessions SET signed_at = CURRENT_TIMESTAMP, signed_ip = ?, signer_name = ?, signature_data = ?, status = 'signed' WHERE token = ?`
+  ).run(ip, signer_name, signature_data, req.params.token);
 
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
 
   if (session.doc_type === 'proposal') {
-    db.prepare("UPDATE jobs SET status = 'proposal_approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(session.job_id);
-    try { jobMemory.markOutcome(session.job_id, 'approved'); } catch (_) {}
-    logAudit(session.job_id, 'proposal_signed', `Proposal signed by ${signer_name} (IP: ${ip})`, 'customer');
+    db.prepare(
+      "UPDATE jobs SET status = 'proposal_approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).run(session.job_id);
+    try {
+      jobMemory.markOutcome(session.job_id, 'approved');
+    } catch (_) {}
+    logAudit(
+      session.job_id,
+      'proposal_signed',
+      `Proposal signed by ${signer_name} (IP: ${ip})`,
+      'customer'
+    );
     notifyClients('job_updated', {
-      jobId: session.job_id, status: 'proposal_approved',
+      jobId: session.job_id,
+      status: 'proposal_approved',
       message: `✅ Proposal signed by ${signer_name}`
     });
     {
-      const contact = job?.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
-      logActivity({ customer_number: contact?.pb_customer_number || null, job_id: session.job_id, event_type: 'ESTIMATE_APPROVED', description: `Proposal approved & signed by ${signer_name}`, recorded_by: 'customer' });
+      const contact = job?.contact_id
+        ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+        : null;
+      logActivity({
+        customer_number: contact?.pb_customer_number || null,
+        job_id: session.job_id,
+        event_type: 'ESTIMATE_APPROVED',
+        description: `Proposal approved & signed by ${signer_name}`,
+        recorded_by: 'customer'
+      });
     }
 
     // Notify owners that proposal was signed
@@ -351,7 +404,11 @@ router.post('/api/signing/signed/:token', async (req, res) => {
         const { sendEmail, getOwnerEmails } = require('../services/emailService');
         const owners = getOwnerEmails();
         if (owners.length) {
-          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
+          const when = new Date().toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+            timeZone: 'America/New_York'
+          });
           await sendEmail({
             to: owners,
             subject: `✅ Proposal signed — ${job?.customer_name || signer_name}`,
@@ -365,43 +422,85 @@ router.post('/api/signing/signed/:token', async (req, res) => {
             jobId: session.job_id
           });
         }
-      } catch (e) { console.warn('[ProposalSignedAlert]', e.message); }
+      } catch (e) {
+        console.warn('[ProposalSignedAlert]', e.message);
+      }
     });
 
     // Auto-generate contract in background
     setImmediate(async () => {
       try {
         const { generateContract } = require('../services/claudeService');
-        const { generatePDF }      = require('../services/pdfService');
-        const proposalData = typeof job.proposal_data === 'string' ? JSON.parse(job.proposal_data) : job.proposal_data;
+        const { generatePDF } = require('../services/pdfService');
+        const proposalData =
+          typeof job.proposal_data === 'string' ? JSON.parse(job.proposal_data) : job.proposal_data;
         const contractData = await generateContract(proposalData, session.job_id, 'en');
-        const contractPDF  = await generatePDF(contractData, 'contract', session.job_id);
-        db.prepare("UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = 'contract_ready', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-          .run(JSON.stringify(contractData), contractPDF, session.job_id);
-        logAudit(session.job_id, 'contract_auto_generated', 'Contract auto-generated after proposal approval', 'system');
+        const contractPDF = await generatePDF(contractData, 'contract', session.job_id);
+        db.prepare(
+          "UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = 'contract_ready', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+        ).run(JSON.stringify(contractData), contractPDF, session.job_id);
+        logAudit(
+          session.job_id,
+          'contract_auto_generated',
+          'Contract auto-generated after proposal approval',
+          'system'
+        );
         try {
-          const contactRow = db.prepare('SELECT pb_customer_number FROM contacts WHERE id = (SELECT contact_id FROM jobs WHERE id = ?)').get(session.job_id);
-          logActivity({ customer_number: contactRow?.pb_customer_number || null, job_id: session.job_id, event_type: 'CONTRACT_GENERATED', description: 'Contract auto-generated and ready to send', recorded_by: 'system' });
+          const contactRow = db
+            .prepare(
+              'SELECT pb_customer_number FROM contacts WHERE id = (SELECT contact_id FROM jobs WHERE id = ?)'
+            )
+            .get(session.job_id);
+          logActivity({
+            customer_number: contactRow?.pb_customer_number || null,
+            job_id: session.job_id,
+            event_type: 'CONTRACT_GENERATED',
+            description: 'Contract auto-generated and ready to send',
+            recorded_by: 'system'
+          });
         } catch (_) {}
-        notifyClients('job_updated', { jobId: session.job_id, status: 'contract_ready', message: '📋 Contract auto-generated and ready to send' });
+        notifyClients('job_updated', {
+          jobId: session.job_id,
+          status: 'contract_ready',
+          message: '📋 Contract auto-generated and ready to send'
+        });
       } catch (e) {
         console.error('[AutoContract]', e.message);
       }
     });
-
   } else {
-    db.prepare("UPDATE jobs SET status = 'contract_signed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(session.job_id);
-    try { jobMemory.lock(session.job_id, 'contract_signed'); } catch (_) {}
-    logAudit(session.job_id, 'contract_signed', `Contract signed by ${signer_name} (IP: ${ip})`, 'customer');
+    db.prepare(
+      "UPDATE jobs SET status = 'contract_signed', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).run(session.job_id);
+    try {
+      jobMemory.lock(session.job_id, 'contract_signed');
+    } catch (_) {}
+    logAudit(
+      session.job_id,
+      'contract_signed',
+      `Contract signed by ${signer_name} (IP: ${ip})`,
+      'customer'
+    );
     // Auto-wipe stored email HTML previews for this job now that contract is signed
-    try { db.prepare("UPDATE email_log SET html_body = NULL WHERE job_id = ?").run(session.job_id); } catch (_) {}
+    try {
+      db.prepare('UPDATE email_log SET html_body = NULL WHERE job_id = ?').run(session.job_id);
+    } catch (_) {}
     notifyClients('job_updated', {
-      jobId: session.job_id, status: 'contract_signed',
+      jobId: session.job_id,
+      status: 'contract_signed',
       message: `🎉 Contract signed by ${signer_name}`
     });
     {
-      const contact = job?.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
-      logActivity({ customer_number: contact?.pb_customer_number || null, job_id: session.job_id, event_type: 'CONTRACT_SIGNED', description: `Contract signed by ${signer_name}`, recorded_by: 'customer' });
+      const contact = job?.contact_id
+        ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+        : null;
+      logActivity({
+        customer_number: contact?.pb_customer_number || null,
+        job_id: session.job_id,
+        event_type: 'CONTRACT_SIGNED',
+        description: `Contract signed by ${signer_name}`,
+        recorded_by: 'customer'
+      });
     }
     // Auto-create deposit invoice on contract sign and email to customer
     setImmediate(async () => {
@@ -411,7 +510,9 @@ router.post('/api/signing/signed/:token', async (req, res) => {
 
         // Parse proposal_data for line items and pass-through fees
         let proposalData = null;
-        try { proposalData = job?.proposal_data ? JSON.parse(job.proposal_data) : null; } catch {}
+        try {
+          proposalData = job?.proposal_data ? JSON.parse(job.proposal_data) : null;
+        } catch {}
 
         // Deposit = contract value EXCLUDING pass-through fees (permits/engineers/architects)
         const parsePT = (str) => {
@@ -419,10 +520,10 @@ router.post('/api/signing/signed/:token', async (req, res) => {
           const n = parseFloat(String(str).replace(/[^0-9.]/g, ''));
           return isNaN(n) ? 0 : n;
         };
-        const ptPermit   = parsePT(proposalData?.job?.permit_fee);
+        const ptPermit = parsePT(proposalData?.job?.permit_fee);
         const ptEngineer = parsePT(proposalData?.job?.engineer_fee);
-        const ptArchitect= parsePT(proposalData?.job?.architect_fee);
-        const totalPT    = ptPermit + ptEngineer + ptArchitect;
+        const ptArchitect = parsePT(proposalData?.job?.architect_fee);
+        const totalPT = ptPermit + ptEngineer + ptArchitect;
         const contractValue = job?.total_value || proposalData?.pricing?.totalContractPrice || 0;
         // ALWAYS exclude pass-through costs from the deposit basis — requirement is explicit
         const contractValueExclPT = Math.max(0, contractValue - totalPT);
@@ -431,35 +532,72 @@ router.post('/api/signing/signed/:token', async (req, res) => {
         const depositAmt = Math.round(contractValueExclPT * (depositPct / 100) * 100) / 100;
 
         if (depositAmt > 0) {
-          const invNum = nextInvoiceNumber(db, session.job_id, 'contract_invoice', job?.quote_number);
+          const invNum = nextInvoiceNumber(
+            db,
+            session.job_id,
+            'contract_invoice',
+            job?.quote_number
+          );
           // Create as DRAFT initially
-          const invResult = db.prepare(`
+          const invResult = db
+            .prepare(
+              `
             INSERT INTO invoices (job_id, invoice_number, invoice_type, status, amount, notes)
             VALUES (?, ?, 'contract_invoice', 'draft', ?, 'Deposit invoice — auto-created on contract signing')
-          `).run(session.job_id, invNum, depositAmt);
+          `
+            )
+            .run(session.job_id, invNum, depositAmt);
           const invId = invResult.lastInsertRowid;
-          const contact2 = job?.contact_id ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(job.contact_id) : null;
-          logActivity({ customer_number: contact2?.pb_customer_number || null, job_id: session.job_id, event_type: 'INVOICE_ISSUED', description: `Deposit invoice ${invNum} created — $${depositAmt.toLocaleString()}`, document_ref: invNum, recorded_by: 'system' });
+          const contact2 = job?.contact_id
+            ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(job.contact_id)
+            : null;
+          logActivity({
+            customer_number: contact2?.pb_customer_number || null,
+            job_id: session.job_id,
+            event_type: 'INVOICE_ISSUED',
+            description: `Deposit invoice ${invNum} created — $${depositAmt.toLocaleString()}`,
+            document_ref: invNum,
+            recorded_by: 'system'
+          });
 
           // Build line-item rows HTML from proposal_data
           const lineItems = proposalData?.lineItems || [];
-          const lineItemRowsHTML = lineItems.length > 0 ? `
+          const lineItemRowsHTML =
+            lineItems.length > 0
+              ? `
 <div style="margin-bottom:20px">
   <h3 style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px">Scope Summary (Contract Work)</h3>
   <table style="width:100%;border-collapse:collapse;font-size:12px">
     <tr style="background:#f0f4ff"><th style="text-align:left;padding:6px 8px;font-size:10px;color:#888;font-weight:600">Trade / Scope</th><th style="text-align:right;padding:6px 8px;font-size:10px;color:#888;font-weight:600">Price</th></tr>
-    ${lineItems.filter(li => !['permit','engineer','architect','designer'].includes((li.trade||'').toLowerCase())).map(li => `
+    ${lineItems
+      .filter(
+        (li) =>
+          !['permit', 'engineer', 'architect', 'designer'].includes((li.trade || '').toLowerCase())
+      )
+      .map(
+        (li) => `
     <tr style="border-bottom:1px solid #f0f0f0">
       <td style="padding:6px 8px;color:#333">${li.trade || '—'}${li.description ? `<div style="font-size:10px;color:#888;margin-top:2px">${li.description}</div>` : ''}</td>
-      <td style="padding:6px 8px;text-align:right;font-weight:600">$${Number(li.finalPrice||0).toLocaleString('en-US',{minimumFractionDigits:2})}</td>
-    </tr>`).join('')}
+      <td style="padding:6px 8px;text-align:right;font-weight:600">$${Number(li.finalPrice || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+    </tr>`
+      )
+      .join('')}
   </table>
-</div>` : '';
+</div>`
+              : '';
 
-          const fmtAmt   = `$${Number(depositAmt).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-          const fmtTotal = contractValue ? `$${Number(contractValue).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—';
-          const fmtPT    = totalPT > 0 ? `$${Number(totalPT).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : null;
-          const fmtContractExclPT = totalPT > 0 ? `$${Number(contractValueExclPT).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : null;
+          const fmtAmt = `$${Number(depositAmt).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+          const fmtTotal = contractValue
+            ? `$${Number(contractValue).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+            : '—';
+          const fmtPT =
+            totalPT > 0
+              ? `$${Number(totalPT).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+              : null;
+          const fmtContractExclPT =
+            totalPT > 0
+              ? `$${Number(contractValueExclPT).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+              : null;
 
           const invoiceHTML = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
@@ -488,7 +626,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
 <div class="val">
   ${contact2?.pb_customer_number ? `<span class="cn">${contact2.pb_customer_number}</span><br>` : ''}
   ${contact2?.name || job.customer_name || '—'}<br>
-  ${job.customer_email || ''}${(job.customer_email && job.customer_phone) ? '<br>' : ''}
+  ${job.customer_email || ''}${job.customer_email && job.customer_phone ? '<br>' : ''}
   ${job.customer_phone || ''}
 </div>
 <div class="lbl">Project</div>
@@ -508,7 +646,10 @@ ${fmtContractExclPT ? `<div class="lbl">Deposit Basis (contract value excl. pass
           // Generate PDF, email it, then mark sent on success
           if (job?.customer_email) {
             try {
-              const pdfPath = await generatePDFFromHTML(invoiceHTML, `invoice_${invNum.replace(/[^a-zA-Z0-9-]/g, '_')}`);
+              const pdfPath = await generatePDFFromHTML(
+                invoiceHTML,
+                `invoice_${invNum.replace(/[^a-zA-Z0-9-]/g, '_')}`
+              );
               await sendEmail({
                 to: job.customer_email,
                 subject: `Deposit Invoice ${invNum} — Preferred Builders General Services Inc.`,
@@ -537,21 +678,33 @@ ${fmtContractExclPT ? `<div class="lbl">Deposit Basis (contract value excl. pass
                 jobId: session.job_id,
                 db
               });
-              console.log(`[AutoDepositInvoice] Invoice ${invNum} emailed to ${job.customer_email}`);
+              console.log(
+                `[AutoDepositInvoice] Invoice ${invNum} emailed to ${job.customer_email}`
+              );
               // Mark sent only after successful email delivery
               db.prepare("UPDATE invoices SET status = 'sent' WHERE id = ?").run(invId);
-            } catch (emailErr) { console.warn('[AutoDepositInvoice] Email/PDF failed:', emailErr.message); }
+            } catch (emailErr) {
+              console.warn('[AutoDepositInvoice] Email/PDF failed:', emailErr.message);
+            }
           }
         }
-      } catch (e) { console.warn('[AutoDepositInvoice]', e.message); }
+      } catch (e) {
+        console.warn('[AutoDepositInvoice]', e.message);
+      }
     });
 
     // Email signed confirmation to customer — attach merged proposal + signed contract PDF
     try {
       if (job?.customer_email) {
-        const signedWhen = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/New_York' });
+        const signedWhen = new Date().toLocaleString('en-US', {
+          dateStyle: 'long',
+          timeStyle: 'short',
+          timeZone: 'America/New_York'
+        });
         const { mergePDFs } = require('../services/pdfMergeService');
-        const safeName = (job.customer_name || job.id).replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+        const safeName = (job.customer_name || job.id)
+          .replace(/\s+/g, '-')
+          .replace(/[^a-zA-Z0-9-]/g, '');
         let mergedPdfPath = null;
         let mergedPdfName = `Preferred-Builders-Signed-Contract-${safeName}.pdf`;
         try {
@@ -569,7 +722,8 @@ ${fmtContractExclPT ? `<div class="lbl">Deposit Basis (contract value excl. pass
         if (contractsDir && mergedPdfPath) {
           try {
             const fsSync = require('fs');
-            if (!fsSync.existsSync(contractsDir)) fsSync.mkdirSync(contractsDir, { recursive: true });
+            if (!fsSync.existsSync(contractsDir))
+              fsSync.mkdirSync(contractsDir, { recursive: true });
             const destPath = require('path').join(contractsDir, mergedPdfName);
             fsSync.copyFileSync(mergedPdfPath, destPath);
             console.log(`[SignedContracts] Combined contract+addendum saved: ${destPath}`);
@@ -631,7 +785,9 @@ ${fmtContractExclPT ? `<div class="lbl">Deposit Basis (contract value excl. pass
           jobId: job.id
         });
       }
-    } catch (e) { console.warn('[ContractSignedEmail]', e.message); }
+    } catch (e) {
+      console.warn('[ContractSignedEmail]', e.message);
+    }
 
     // Notify owners that contract was signed
     setImmediate(async () => {
@@ -639,7 +795,11 @@ ${fmtContractExclPT ? `<div class="lbl">Deposit Basis (contract value excl. pass
         const { sendEmail, getOwnerEmails } = require('../services/emailService');
         const owners = getOwnerEmails();
         if (owners.length) {
-          const when = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/New_York' });
+          const when = new Date().toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+            timeZone: 'America/New_York'
+          });
           await sendEmail({
             to: owners,
             subject: `🎉 Contract signed — ${job?.customer_name || signer_name}`,
@@ -653,7 +813,9 @@ ${fmtContractExclPT ? `<div class="lbl">Deposit Basis (contract value excl. pass
             jobId: session.job_id
           });
         }
-      } catch (e) { console.warn('[ContractSignedAlert]', e.message); }
+      } catch (e) {
+        console.warn('[ContractSignedAlert]', e.message);
+      }
     });
   }
 
@@ -663,31 +825,41 @@ ${fmtContractExclPT ? `<div class="lbl">Deposit Basis (contract value excl. pass
 // ─── Admin: send proposal for signing ────────────────────────────────────────
 
 router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) => {
-  const db  = getDb();
+  const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'Job not found' });
   if (!job.proposal_pdf_path) return res.status(400).json({ error: 'No proposal PDF ready' });
   if (!job.customer_email) return res.status(400).json({ error: 'No customer email on file' });
 
   try {
-  const token = uuidv4();
-  const base  = baseURL(req);
-  const link  = `${base}/sign/p/${token}`;
+    const token = uuidv4();
+    const base = baseURL(req);
+    const link = `${base}/sign/p/${token}`;
 
-  db.prepare(`INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'proposal', ?, CURRENT_TIMESTAMP, 'sent')`)
-    .run(job.id, token);
-  db.prepare("UPDATE jobs SET status = 'proposal_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(job.id);
-  try { jobMemory.markSent(job.id); } catch (_) {}
-  logAudit(job.id, 'proposal_sent_for_signing', `Proposal signing link sent to ${job.customer_email}`, 'admin');
+    db.prepare(
+      `INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'proposal', ?, CURRENT_TIMESTAMP, 'sent')`
+    ).run(job.id, token);
+    db.prepare(
+      "UPDATE jobs SET status = 'proposal_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).run(job.id);
+    try {
+      jobMemory.markSent(job.id);
+    } catch (_) {}
+    logAudit(
+      job.id,
+      'proposal_sent_for_signing',
+      `Proposal signing link sent to ${job.customer_email}`,
+      'admin'
+    );
 
-  const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
+    const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
 
-  await sendEmail({
-    to: job.customer_email,
-    subject: `Your Preferred Builders Proposal is Ready for Your Review`,
-    attachmentPath: job.proposal_pdf_path,
-    attachmentName: `Preferred-Builders-Proposal-${(job.customer_name || job.id).replace(/\s+/g, '-')}.pdf`,
-    html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
+    await sendEmail({
+      to: job.customer_email,
+      subject: `Your Preferred Builders Proposal is Ready for Your Review`,
+      attachmentPath: job.proposal_pdf_path,
+      attachmentName: `Preferred-Builders-Proposal-${(job.customer_name || job.id).replace(/\s+/g, '-')}.pdf`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
       <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
         <div style="font-size:17px;font-weight:700">Preferred Builders General Services Inc.</div>
         <div style="font-size:12px;opacity:.8;margin-top:4px">HIC-197400 · 978-377-1784</div>
@@ -773,13 +945,13 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
         Questions? Reply to this email or call us directly.
       </div>
     </div>`,
-    text: `Hi ${job.customer_name || 'there'},\n\nYour proposal for ${job.project_address} is ready to review. This is your estimate and scope of work — not a contract. Nothing is binding at this stage.\n\nReview it here: ${link}\n\nWhat happens next:\n1. Review the scope and allowances\n2. We get aligned on the details\n3. You receive the formal contract\n4. Sign + deposit = project starts (after 3-business-day cancellation period)\n\nNeed financing? Apply through Hearth: https://app.gethearth.com/financing/36650/61771/prequalify\n\nRefer a friend who signs a contract and get $250 off your next project.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
-    emailType: 'proposal_signing',
-    jobId: job.id
-  });
+      text: `Hi ${job.customer_name || 'there'},\n\nYour proposal for ${job.project_address} is ready to review. This is your estimate and scope of work — not a contract. Nothing is binding at this stage.\n\nReview it here: ${link}\n\nWhat happens next:\n1. Review the scope and allowances\n2. We get aligned on the details\n3. You receive the formal contract\n4. Sign + deposit = project starts (after 3-business-day cancellation period)\n\nNeed financing? Apply through Hearth: https://app.gethearth.com/financing/36650/61771/prequalify\n\nRefer a friend who signs a contract and get $250 off your next project.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
+      emailType: 'proposal_signing',
+      jobId: job.id
+    });
 
-  notifyClients('job_updated', { jobId: job.id, status: 'proposal_sent' });
-  res.json({ success: true, message: `Proposal signing link sent to ${job.customer_email}` });
+    notifyClients('job_updated', { jobId: job.id, status: 'proposal_sent' });
+    res.json({ success: true, message: `Proposal signing link sent to ${job.customer_email}` });
   } catch (err) {
     console.error('[send-proposal] Error:', err.message);
     res.status(500).json({ error: 'Failed to send proposal: ' + err.message });
@@ -789,27 +961,40 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
 // ─── Admin: send contract for signing ────────────────────────────────────────
 
 router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) => {
-  const db  = getDb();
+  const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.jobId);
   if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.contract_pdf_path) return res.status(400).json({ error: 'No contract PDF ready. Generate the contract first.' });
+  if (!job.contract_pdf_path)
+    return res.status(400).json({ error: 'No contract PDF ready. Generate the contract first.' });
   if (!job.customer_email) return res.status(400).json({ error: 'No customer email on file' });
 
   const token = uuidv4();
-  const base  = baseURL(req);
-  const link  = `${base}/sign/c/${token}`;
+  const base = baseURL(req);
+  const link = `${base}/sign/c/${token}`;
 
-  db.prepare(`INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'contract', ?, CURRENT_TIMESTAMP, 'sent')`)
-    .run(job.id, token);
-  db.prepare("UPDATE jobs SET status = 'contract_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(job.id);
-  logAudit(job.id, 'contract_sent_for_signing', `Contract signing link sent to ${job.customer_email}`, 'admin');
+  db.prepare(
+    `INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'contract', ?, CURRENT_TIMESTAMP, 'sent')`
+  ).run(job.id, token);
+  db.prepare(
+    "UPDATE jobs SET status = 'contract_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+  ).run(job.id);
+  logAudit(
+    job.id,
+    'contract_sent_for_signing',
+    `Contract signing link sent to ${job.customer_email}`,
+    'admin'
+  );
 
   const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
 
   const fs = require('fs');
-  const proposalAttachment = job.proposal_pdf_path && fs.existsSync(job.proposal_pdf_path)
-    ? { attachmentPath: job.proposal_pdf_path, attachmentName: `Preferred-Builders-Proposal-${job.customer_name || job.id}.pdf` }
-    : {};
+  const proposalAttachment =
+    job.proposal_pdf_path && fs.existsSync(job.proposal_pdf_path)
+      ? {
+          attachmentPath: job.proposal_pdf_path,
+          attachmentName: `Preferred-Builders-Proposal-${job.customer_name || job.id}.pdf`
+        }
+      : {};
 
   await sendEmail({
     to: job.customer_email,
@@ -906,7 +1091,11 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
 
 router.get('/api/signing/status/:jobId', requireAuth, (req, res) => {
   const db = getDb();
-  const sessions = db.prepare('SELECT id, doc_type, status, email_sent_at, opened_at, opened_ip, signed_at, signer_name, created_at FROM signing_sessions WHERE job_id = ? ORDER BY created_at DESC').all(req.params.jobId);
+  const sessions = db
+    .prepare(
+      'SELECT id, doc_type, status, email_sent_at, opened_at, opened_ip, signed_at, signer_name, created_at FROM signing_sessions WHERE job_id = ? ORDER BY created_at DESC'
+    )
+    .all(req.params.jobId);
   res.json({ sessions });
 });
 

@@ -16,9 +16,9 @@ const { selectMilestones, selectPreConAdvances } = require('./milestoneSelector'
 // ─── Tiny helpers ─────────────────────────────────────────────────────────────
 
 const f = (val, fallback = '') =>
-  (val !== undefined && val !== null && val !== '') ? val : fallback;
+  val !== undefined && val !== null && val !== '' ? val : fallback;
 
-const field = v => `<span class="fld">${f(v, '&nbsp;')}</span>`;
+const field = (v) => `<span class="fld">${f(v, '&nbsp;')}</span>`;
 
 const clauseHTML = (num, html) =>
   `<div class="clause"><span class="cn">${num}</span><span class="cb">${html}</span></div>`;
@@ -26,11 +26,15 @@ const clauseHTML = (num, html) =>
 const sigBlock = (title, lines) => `
   <div class="sig-col">
     <div class="sig-head">${title}</div>
-    ${lines.map(l => `
+    ${lines
+      .map(
+        (l) => `
       <div class="sig-line"></div>
       <div class="sig-label">${l.label}</div>
       ${l.printed ? `<div class="sig-printed">${l.printed}</div>` : ''}
-    `).join('')}
+    `
+      )
+      .join('')}
   </div>`;
 
 // ─── CSS ──────────────────────────────────────────────────────────────────────
@@ -193,7 +197,9 @@ function buildPaymentTable(data) {
       <td style="white-space:nowrap">${field(d.deposit_amount)}</td>
     </tr>`;
 
-  const middleRows = milestones.map((m, i) => `
+  const middleRows = milestones
+    .map(
+      (m, i) => `
     <tr>
       <td style="font-weight:700;text-align:center">${i + 2}</td>
       <td>
@@ -204,7 +210,9 @@ function buildPaymentTable(data) {
       <td>${f(m.invoiceRef)}</td>
       <td>${f(m.share)}</td>
       <td>${f(m.amount)}</td>
-    </tr>`).join('');
+    </tr>`
+    )
+    .join('');
 
   const finalRow = `
     <tr>
@@ -252,19 +260,21 @@ function buildPreConTable(data) {
   const advances = selectPreConAdvances(data.job || {});
   if (!advances.length) return '';
 
-  const rows = advances.map(a => {
-    const isPb     = a.paid_by !== 'customer_direct';
-    const respBadge = isPb
-      ? `<span style="background:#fffbeb;color:#92400e;border:1px solid #fbbf24;padding:1px 6px;border-radius:10px;font-size:7.5pt;font-weight:bold;white-space:nowrap;">PB Fronts → Owner Reimburses</span>`
-      : `<span style="background:#f0fdf4;color:#166534;border:1px solid #86efac;padding:1px 6px;border-radius:10px;font-size:7.5pt;font-weight:bold;white-space:nowrap;">Owner Pays Vendor Directly</span>`;
-    return `
+  const rows = advances
+    .map((a) => {
+      const isPb = a.paid_by !== 'customer_direct';
+      const respBadge = isPb
+        ? `<span style="background:#fffbeb;color:#92400e;border:1px solid #fbbf24;padding:1px 6px;border-radius:10px;font-size:7.5pt;font-weight:bold;white-space:nowrap;">PB Fronts → Owner Reimburses</span>`
+        : `<span style="background:#f0fdf4;color:#166534;border:1px solid #86efac;padding:1px 6px;border-radius:10px;font-size:7.5pt;font-weight:bold;white-space:nowrap;">Owner Pays Vendor Directly</span>`;
+      return `
     <tr>
       <td>${a.item}</td>
       <td style="font-size:8pt;color:#555">${a.detail}</td>
       <td style="text-align:center">${respBadge}</td>
       <td style="text-align:right">${a.amount}</td>
     </tr>`;
-  }).join('');
+    })
+    .join('');
 
   return `
     <table class="data-table">
@@ -281,16 +291,19 @@ function buildPreConTable(data) {
 }
 
 function buildTradeTable(data) {
-  const trades = (data.trades && data.trades.length)
-    ? data.trades
-    : [{ phase: '', description: '', value: '' }];
+  const trades =
+    data.trades && data.trades.length ? data.trades : [{ phase: '', description: '', value: '' }];
 
-  const rows = trades.map(t => `
+  const rows = trades
+    .map(
+      (t) => `
     <tr>
       <td>${f(t.phase)}</td>
       <td>${f(t.description)}</td>
       <td style="text-align:right">${f(t.value)}</td>
-    </tr>`).join('');
+    </tr>`
+    )
+    .join('');
 
   return `
     <table class="data-table">
@@ -315,50 +328,178 @@ function buildAllowanceTables(data) {
   const al = data.allowances || {};
 
   const section = (title, rows) => {
-    const filtered = rows.filter(r => al[r.key] !== false);
+    const filtered = rows.filter((r) => al[r.key] !== false);
     if (!filtered.length) return '';
     return `
       <div class="allow-section">${title}</div>
       <table class="data-table">
         <thead><tr><th>Item</th><th>Location / Notes</th><th style="width:100px">Allowance</th><th>Spec</th></tr></thead>
-        <tbody>${filtered.map(r => `<tr><td>${r.item}</td><td>${r.loc || ''}</td><td>${r.allowance}</td><td style="font-size:8pt;color:#555">${r.spec}</td></tr>`).join('')}</tbody>
+        <tbody>${filtered.map((r) => `<tr><td>${r.item}</td><td>${r.loc || ''}</td><td>${r.allowance}</td><td style="font-size:8pt;color:#555">${r.spec}</td></tr>`).join('')}</tbody>
       </table>`;
   };
 
   return [
     section('FLOORING', [
-      { key: 'flooring_lvp',    item: 'LVP / Engineered Hardwood', loc: 'All living areas',      allowance: '$6.50/sq ft',  spec: 'Shaw, Armstrong or equiv — supply only' },
-      { key: 'flooring_tile',   item: 'Bath Floor Tile',           loc: 'All bathrooms',          allowance: '$4.50/sq ft',  spec: '12×12 ceramic or porcelain, supply only' },
-      { key: 'flooring_carpet', item: 'Carpet',                    loc: 'Bedrooms (if selected)', allowance: '$3.50/sq ft',  spec: 'Contractor grade, supply only' },
+      {
+        key: 'flooring_lvp',
+        item: 'LVP / Engineered Hardwood',
+        loc: 'All living areas',
+        allowance: '$6.50/sq ft',
+        spec: 'Shaw, Armstrong or equiv — supply only'
+      },
+      {
+        key: 'flooring_tile',
+        item: 'Bath Floor Tile',
+        loc: 'All bathrooms',
+        allowance: '$4.50/sq ft',
+        spec: '12×12 ceramic or porcelain, supply only'
+      },
+      {
+        key: 'flooring_carpet',
+        item: 'Carpet',
+        loc: 'Bedrooms (if selected)',
+        allowance: '$3.50/sq ft',
+        spec: 'Contractor grade, supply only'
+      }
     ]),
     section('KITCHEN', [
-      { key: 'kitchen_cabinets', item: 'Cabinets — Base & Upper', allowance: '$12,000',    spec: 'Stock/semi-stock — Kraftmaid, Yorktowne or equiv' },
-      { key: 'kitchen_counter',  item: 'Countertop — Quartz',     allowance: '$4,250',     spec: '3cm slab — Cambria, MSI or equiv, up to 30 LF' },
-      { key: 'kitchen_faucet',   item: 'Kitchen Faucet',          allowance: '$250 each',  spec: 'Moen, Delta or Kohler — pull-down single handle' },
-      { key: 'kitchen_sink',     item: 'Kitchen Sink',            allowance: '$350 each',  spec: 'Stainless undermount 60/40 double bowl' },
-      { key: 'kitchen_disposal', item: 'Garbage Disposal',        allowance: '$150 each',  spec: 'InSinkErator 1/2 HP contractor grade' },
+      {
+        key: 'kitchen_cabinets',
+        item: 'Cabinets — Base & Upper',
+        allowance: '$12,000',
+        spec: 'Stock/semi-stock — Kraftmaid, Yorktowne or equiv'
+      },
+      {
+        key: 'kitchen_counter',
+        item: 'Countertop — Quartz',
+        allowance: '$4,250',
+        spec: '3cm slab — Cambria, MSI or equiv, up to 30 LF'
+      },
+      {
+        key: 'kitchen_faucet',
+        item: 'Kitchen Faucet',
+        allowance: '$250 each',
+        spec: 'Moen, Delta or Kohler — pull-down single handle'
+      },
+      {
+        key: 'kitchen_sink',
+        item: 'Kitchen Sink',
+        allowance: '$350 each',
+        spec: 'Stainless undermount 60/40 double bowl'
+      },
+      {
+        key: 'kitchen_disposal',
+        item: 'Garbage Disposal',
+        allowance: '$150 each',
+        spec: 'InSinkErator 1/2 HP contractor grade'
+      }
     ]),
     section('BATHROOMS', [
-      { key: 'bath_vanity_full',  item: 'Vanity (full bath)',      allowance: '$650 each',  spec: '48"–60" stock — Kraftmaid, RSI or equiv' },
-      { key: 'bath_vanity_half',  item: 'Vanity (half bath)',      allowance: '$350 each',  spec: '24"–30" stock' },
-      { key: 'bath_vanity_top',   item: 'Vanity Top / Sink',       allowance: '$350 each',  spec: 'Cultured marble integrated' },
-      { key: 'bath_faucet',       item: 'Bath Faucet',             allowance: '$180 each',  spec: 'Moen Adler or Delta Foundations' },
-      { key: 'bath_toilet',       item: 'Toilet',                  allowance: '$280 each',  spec: 'Kohler Cimarron or Am Std — elongated 1.28 GPF' },
-      { key: 'bath_tub',          item: 'Bathtub',                 allowance: '$850 each',  spec: 'Alcove 60" — American Standard or Kohler' },
-      { key: 'bath_shower_valve', item: 'Shower Valve & Trim',     allowance: '$350 each',  spec: 'Moen Posi-Temp or Delta Monitor' },
-      { key: 'bath_shower_door',  item: 'Shower Door',             allowance: '$250 each',  spec: 'Frameless bypass or curtain rod' },
-      { key: 'bath_accessories',  item: 'Bath Accessories',        allowance: '$150/set',   spec: 'TP holder, towel bar, robe hook — matching set' },
-      { key: 'bath_exhaust_fan',  item: 'Exhaust Fan',             allowance: '$85 each',   spec: 'Broan or Panasonic — 80 CFM min (Stretch Code)' },
+      {
+        key: 'bath_vanity_full',
+        item: 'Vanity (full bath)',
+        allowance: '$650 each',
+        spec: '48"–60" stock — Kraftmaid, RSI or equiv'
+      },
+      {
+        key: 'bath_vanity_half',
+        item: 'Vanity (half bath)',
+        allowance: '$350 each',
+        spec: '24"–30" stock'
+      },
+      {
+        key: 'bath_vanity_top',
+        item: 'Vanity Top / Sink',
+        allowance: '$350 each',
+        spec: 'Cultured marble integrated'
+      },
+      {
+        key: 'bath_faucet',
+        item: 'Bath Faucet',
+        allowance: '$180 each',
+        spec: 'Moen Adler or Delta Foundations'
+      },
+      {
+        key: 'bath_toilet',
+        item: 'Toilet',
+        allowance: '$280 each',
+        spec: 'Kohler Cimarron or Am Std — elongated 1.28 GPF'
+      },
+      {
+        key: 'bath_tub',
+        item: 'Bathtub',
+        allowance: '$850 each',
+        spec: 'Alcove 60" — American Standard or Kohler'
+      },
+      {
+        key: 'bath_shower_valve',
+        item: 'Shower Valve & Trim',
+        allowance: '$350 each',
+        spec: 'Moen Posi-Temp or Delta Monitor'
+      },
+      {
+        key: 'bath_shower_door',
+        item: 'Shower Door',
+        allowance: '$250 each',
+        spec: 'Frameless bypass or curtain rod'
+      },
+      {
+        key: 'bath_accessories',
+        item: 'Bath Accessories',
+        allowance: '$150/set',
+        spec: 'TP holder, towel bar, robe hook — matching set'
+      },
+      {
+        key: 'bath_exhaust_fan',
+        item: 'Exhaust Fan',
+        allowance: '$85 each',
+        spec: 'Broan or Panasonic — 80 CFM min (Stretch Code)'
+      }
     ]),
     section('DOORS & HARDWARE', [
-      { key: 'doors_interior',     item: 'Interior Door',          allowance: '$180 each',  spec: 'Hollow/solid core — 6-panel primed — Masonite or equiv' },
-      { key: 'doors_passage',      item: 'Passage Set',            allowance: '$45 each',   spec: 'Kwikset or Schlage — satin nickel' },
-      { key: 'doors_privacy',      item: 'Privacy Set (bath/bed)', allowance: '$55 each',   spec: 'Kwikset or Schlage lockset' },
-      { key: 'doors_bifold',       item: 'Bifold Door',            allowance: '$175 each',  spec: '6-panel primed white' },
-      { key: 'doors_base_molding', item: 'Base Molding',           allowance: '$1.85/LF',   spec: '3-1/4" colonial or craftsman primed MDF' },
-      { key: 'doors_casing',       item: 'Door/Window Casing',     allowance: '$1.65/LF',   spec: '2-1/4" colonial primed MDF' },
-      { key: 'doors_window_stool', item: 'Window Stool & Apron',   allowance: '$85 each',   spec: 'Primed MDF' },
-    ]),
+      {
+        key: 'doors_interior',
+        item: 'Interior Door',
+        allowance: '$180 each',
+        spec: 'Hollow/solid core — 6-panel primed — Masonite or equiv'
+      },
+      {
+        key: 'doors_passage',
+        item: 'Passage Set',
+        allowance: '$45 each',
+        spec: 'Kwikset or Schlage — satin nickel'
+      },
+      {
+        key: 'doors_privacy',
+        item: 'Privacy Set (bath/bed)',
+        allowance: '$55 each',
+        spec: 'Kwikset or Schlage lockset'
+      },
+      {
+        key: 'doors_bifold',
+        item: 'Bifold Door',
+        allowance: '$175 each',
+        spec: '6-panel primed white'
+      },
+      {
+        key: 'doors_base_molding',
+        item: 'Base Molding',
+        allowance: '$1.85/LF',
+        spec: '3-1/4" colonial or craftsman primed MDF'
+      },
+      {
+        key: 'doors_casing',
+        item: 'Door/Window Casing',
+        allowance: '$1.65/LF',
+        spec: '2-1/4" colonial primed MDF'
+      },
+      {
+        key: 'doors_window_stool',
+        item: 'Window Stool & Apron',
+        allowance: '$85 each',
+        spec: 'Primed MDF'
+      }
+    ])
   ].join('');
 }
 
@@ -371,8 +512,8 @@ function calculateMilestoneDistribution(job, totalContractPrice, depositAmount, 
   if (!milestones.length) return {};
 
   const qn = quoteNumber || '';
-  const fmt = n => `$${Number(Math.round(n)).toLocaleString()}`;
-  const pct = n => `${Math.round(n)}%`;
+  const fmt = (n) => `$${Number(Math.round(n)).toLocaleString()}`;
+  const pct = (n) => `${Math.round(n)}%`;
 
   // Final SC milestone gets 1% (or $1,000 min)
   const finalAmt = Math.max(Math.round(totalContractPrice * 0.01), 1000);
@@ -382,15 +523,17 @@ function calculateMilestoneDistribution(job, totalContractPrice, depositAmount, 
   const middleTotal = totalContractPrice - depositAmount - finalAmt;
   const perMilestone = milestones.length > 0 ? Math.round(middleTotal / milestones.length) : 0;
 
-  const milestoneShares  = {};
+  const milestoneShares = {};
   const milestoneAmounts = {};
-  const invoiceNumbers   = {};
+  const invoiceNumbers = {};
 
   milestones.forEach((m, idx) => {
     const invoiceIdx = idx + 2; // Invoice 1 = deposit
-    milestoneShares[m.code]  = pct((perMilestone / totalContractPrice) * 100);
+    milestoneShares[m.code] = pct((perMilestone / totalContractPrice) * 100);
     milestoneAmounts[m.code] = fmt(perMilestone);
-    invoiceNumbers[m.code]   = qn ? `INV-${qn}-${String(invoiceIdx).padStart(3, '0')}` : `Invoice No. ${invoiceIdx}`;
+    invoiceNumbers[m.code] = qn
+      ? `INV-${qn}-${String(invoiceIdx).padStart(3, '0')}`
+      : `Invoice No. ${invoiceIdx}`;
   });
 
   const finalInvoiceIdx = milestones.length + 2;
@@ -399,142 +542,158 @@ function calculateMilestoneDistribution(job, totalContractPrice, depositAmount, 
     milestoneShares,
     milestoneAmounts,
     invoiceNumbers,
-    final_milestone_share:  pct(finalPct),
+    final_milestone_share: pct(finalPct),
     final_milestone_amount: fmt(finalAmt),
-    final_invoice_number:   qn ? `INV-${qn}-${String(finalInvoiceIdx).padStart(3, '0')}` : `Invoice No. ${finalInvoiceIdx}`,
+    final_invoice_number: qn
+      ? `INV-${qn}-${String(finalInvoiceIdx).padStart(3, '0')}`
+      : `Invoice No. ${finalInvoiceIdx}`
   };
 }
 
 // ─── Data adapter: maps extracted proposal data → new contract schema ─────────
 
 function adaptToContractSchema(data) {
-  const fmt = n => n ? `$${Number(n).toLocaleString()}` : '';
-  const customer  = data.customer  || {};
-  const project   = data.project   || {};
-  const pricing   = data.pricing   || {};
+  const fmt = (n) => (n ? `$${Number(n).toLocaleString()}` : '');
+  const customer = data.customer || {};
+  const project = data.project || {};
+  const pricing = data.pricing || {};
   const lineItems = data.lineItems || [];
-  const jobRaw    = data.job       || {};
-  const today     = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+  const jobRaw = data.job || {};
+  const today = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'America/New_York'
+  });
 
   // Project type — prefer explicit field, fall back to trade-name inference
-  const allTrades = lineItems.map(i => (i.trade || '').toLowerCase()).join(' ');
+  const allTrades = lineItems.map((i) => (i.trade || '').toLowerCase()).join(' ');
   let jobType = project.type || 'renovation';
   if (!project.type) {
     if (/new.?construct|foundation.*new|new.?build/i.test(allTrades)) jobType = 'new_construction';
     if (/\badu\b|accessory.?dwelling/i.test(allTrades)) jobType = 'adu';
   }
 
-  const totalVal   = pricing.totalContractPrice || data.totalValue || 0;
-  const depositVal = pricing.depositAmount      || data.depositAmount || 0;
-  const depositPct = pricing.depositPercent     || 33;
-  const qn         = data.quoteNumber           || '';
+  const totalVal = pricing.totalContractPrice || data.totalValue || 0;
+  const depositVal = pricing.depositAmount || data.depositAmount || 0;
+  const depositPct = pricing.depositPercent || 33;
+  const qn = data.quoteNumber || '';
 
   // Jurisdiction: prefer explicit field, fall back to "City/Town of <city>"
-  const jurisdiction = project.jurisdiction ||
-    (project.city ? `City of ${project.city}` : '');
+  const jurisdiction = project.jurisdiction || (project.city ? `City of ${project.city}` : '');
 
   // Owner address: use explicit if provided, otherwise blank (≠ property address)
   const ownerAddr1 = customer.address_line1 || '';
-  const ownerCSZ   = customer.city_state_zip ||
+  const ownerCSZ =
+    customer.city_state_zip ||
     (ownerAddr1 ? [project.city, project.state || 'MA'].filter(Boolean).join(', ') : '');
 
   // Job flags: prefer explicit fields from extraction, fall back to trade-name inference
   const job = {
-    type:             jobType,
-    has_demo:         jobRaw.has_demo      !== undefined ? jobRaw.has_demo      : /demo|demolition/i.test(allTrades),
-    has_framing:      jobRaw.has_framing   !== undefined ? jobRaw.has_framing   : /\bfram/i.test(allTrades),
-    has_insulation:   jobRaw.has_insulation !== undefined ? jobRaw.has_insulation : /insul/i.test(allTrades),
-    has_permit:        jobRaw.has_permit    !== undefined ? jobRaw.has_permit    : /permit/i.test(allTrades),
-    permit_fee:        jobRaw.permit_fee    || '',
-    permit_paid_by:    jobRaw.permit_paid_by    || 'pb',
-    has_engineer:      jobRaw.has_engineer  || false,
-    engineer_fee:      jobRaw.engineer_fee  || '',
-    engineer_paid_by:  jobRaw.engineer_paid_by  || 'pb',
-    has_architect:     jobRaw.has_architect || false,
-    architect_fee:     jobRaw.architect_fee || '',
+    type: jobType,
+    has_demo: jobRaw.has_demo !== undefined ? jobRaw.has_demo : /demo|demolition/i.test(allTrades),
+    has_framing: jobRaw.has_framing !== undefined ? jobRaw.has_framing : /\bfram/i.test(allTrades),
+    has_insulation:
+      jobRaw.has_insulation !== undefined ? jobRaw.has_insulation : /insul/i.test(allTrades),
+    has_permit: jobRaw.has_permit !== undefined ? jobRaw.has_permit : /permit/i.test(allTrades),
+    permit_fee: jobRaw.permit_fee || '',
+    permit_paid_by: jobRaw.permit_paid_by || 'pb',
+    has_engineer: jobRaw.has_engineer || false,
+    engineer_fee: jobRaw.engineer_fee || '',
+    engineer_paid_by: jobRaw.engineer_paid_by || 'pb',
+    has_architect: jobRaw.has_architect || false,
+    architect_fee: jobRaw.architect_fee || '',
     architect_paid_by: jobRaw.architect_paid_by || 'pb',
-    sub_deposits:     jobRaw.sub_deposits  || null,
+    sub_deposits: jobRaw.sub_deposits || null,
     special_order_deposits: jobRaw.special_order_deposits || null,
     trades: {
-      electrical: jobRaw.trades?.electrical !== undefined ? jobRaw.trades.electrical : /electric/i.test(allTrades),
-      plumbing:   jobRaw.trades?.plumbing   !== undefined ? jobRaw.trades.plumbing   : /plumb/i.test(allTrades),
-      hvac:       jobRaw.trades?.hvac       !== undefined ? jobRaw.trades.hvac       : /hvac|heat|cool|mechanic/i.test(allTrades),
-      sprinkler:  jobRaw.trades?.sprinkler  || false,
+      electrical:
+        jobRaw.trades?.electrical !== undefined
+          ? jobRaw.trades.electrical
+          : /electric/i.test(allTrades),
+      plumbing:
+        jobRaw.trades?.plumbing !== undefined ? jobRaw.trades.plumbing : /plumb/i.test(allTrades),
+      hvac:
+        jobRaw.trades?.hvac !== undefined
+          ? jobRaw.trades.hvac
+          : /hvac|heat|cool|mechanic/i.test(allTrades),
+      sprinkler: jobRaw.trades?.sprinkler || false
     },
-    adu: jobRaw.adu || { on_septic: false, separate_metering: false, site_plan_required: false, new_sewer_connection: false },
+    adu: jobRaw.adu || {
+      on_septic: false,
+      separate_metering: false,
+      site_plan_required: false,
+      new_sewer_connection: false
+    }
   };
 
   // Calculate milestone distribution from actual pricing
-  const dist = totalVal > 0
-    ? calculateMilestoneDistribution(job, totalVal, depositVal, qn)
-    : {};
+  const dist = totalVal > 0 ? calculateMilestoneDistribution(job, totalVal, depositVal, qn) : {};
 
   Object.assign(job, dist);
 
   // Allowances: use extracted flags if present, otherwise all false
   const rawAllow = data.allowances || {};
   const allowances = {
-    flooring_lvp:      rawAllow.flooring_lvp      || false,
-    flooring_tile:     rawAllow.flooring_tile      || false,
-    flooring_carpet:   rawAllow.flooring_carpet    || false,
-    kitchen_cabinets:  rawAllow.kitchen_cabinets   || false,
-    kitchen_counter:   rawAllow.kitchen_counter    || false,
-    kitchen_faucet:    rawAllow.kitchen_faucet     || false,
-    kitchen_sink:      rawAllow.kitchen_sink       || false,
-    kitchen_disposal:  rawAllow.kitchen_disposal   || false,
-    bath_vanity_full:  rawAllow.bath_vanity_full   || false,
-    bath_vanity_half:  rawAllow.bath_vanity_half   || false,
-    bath_vanity_top:   rawAllow.bath_vanity_top    || false,
-    bath_faucet:       rawAllow.bath_faucet        || false,
-    bath_toilet:       rawAllow.bath_toilet        || false,
-    bath_tub:          rawAllow.bath_tub           || false,
-    bath_shower_valve: rawAllow.bath_shower_valve  || false,
-    bath_shower_door:  rawAllow.bath_shower_door   || false,
-    bath_accessories:  rawAllow.bath_accessories   || false,
-    bath_exhaust_fan:  rawAllow.bath_exhaust_fan   || false,
-    doors_interior:    rawAllow.doors_interior     || false,
-    doors_passage:     rawAllow.doors_passage      || false,
-    doors_privacy:     rawAllow.doors_privacy      || false,
-    doors_bifold:      rawAllow.doors_bifold       || false,
+    flooring_lvp: rawAllow.flooring_lvp || false,
+    flooring_tile: rawAllow.flooring_tile || false,
+    flooring_carpet: rawAllow.flooring_carpet || false,
+    kitchen_cabinets: rawAllow.kitchen_cabinets || false,
+    kitchen_counter: rawAllow.kitchen_counter || false,
+    kitchen_faucet: rawAllow.kitchen_faucet || false,
+    kitchen_sink: rawAllow.kitchen_sink || false,
+    kitchen_disposal: rawAllow.kitchen_disposal || false,
+    bath_vanity_full: rawAllow.bath_vanity_full || false,
+    bath_vanity_half: rawAllow.bath_vanity_half || false,
+    bath_vanity_top: rawAllow.bath_vanity_top || false,
+    bath_faucet: rawAllow.bath_faucet || false,
+    bath_toilet: rawAllow.bath_toilet || false,
+    bath_tub: rawAllow.bath_tub || false,
+    bath_shower_valve: rawAllow.bath_shower_valve || false,
+    bath_shower_door: rawAllow.bath_shower_door || false,
+    bath_accessories: rawAllow.bath_accessories || false,
+    bath_exhaust_fan: rawAllow.bath_exhaust_fan || false,
+    doors_interior: rawAllow.doors_interior || false,
+    doors_passage: rawAllow.doors_passage || false,
+    doors_privacy: rawAllow.doors_privacy || false,
+    doors_bifold: rawAllow.doors_bifold || false,
     doors_base_molding: rawAllow.doors_base_molding || false,
-    doors_casing:      rawAllow.doors_casing       || false,
-    doors_window_stool: rawAllow.doors_window_stool || false,
+    doors_casing: rawAllow.doors_casing || false,
+    doors_window_stool: rawAllow.doors_window_stool || false
   };
 
   return {
     contract: {
-      contract_number:      qn ? `PB-${qn}` : '',
-      invoice_number:       qn ? `INV-${qn}-001` : '',
-      quote_number:         qn,
-      proposal_date:        today,
-      contract_date:        today,
+      contract_number: qn ? `PB-${qn}` : '',
+      invoice_number: qn ? `INV-${qn}-001` : '',
+      quote_number: qn,
+      proposal_date: today,
+      contract_date: today,
       total_contract_price: fmt(totalVal),
-      deposit_amount:       fmt(depositVal),
-      deposit_pct:          `${depositPct}%`,
-      csl_number:           data.csl_number || 'CS-121662',
+      deposit_amount: fmt(depositVal),
+      deposit_pct: `${depositPct}%`,
+      csl_number: data.csl_number || 'CS-121662'
     },
     owner: {
-      full_name:      customer.name  || '',
-      address_line1:  ownerAddr1,
+      full_name: customer.name || '',
+      address_line1: ownerAddr1,
       city_state_zip: ownerCSZ,
-      phone:          customer.phone || '',
-      email:          customer.email || '',
+      phone: customer.phone || '',
+      email: customer.email || ''
     },
     property: {
-      address:       project.address       || '',
-      city:          project.city          || '',
-      jurisdiction:  jurisdiction,
-      parcel_number: project.parcel_number || '',
+      address: project.address || '',
+      city: project.city || '',
+      jurisdiction: jurisdiction,
+      parcel_number: project.parcel_number || ''
     },
     job,
-    trades: lineItems.map(item => ({
-      phase:       item.trade || '',
+    trades: lineItems.map((item) => ({
+      phase: item.trade || '',
       description: item.description || (item.scopeIncluded || []).slice(0, 3).join('; ') || '',
-      value:       item.finalPrice  ? fmt(item.finalPrice)
-                 : item.totalCost   ? fmt(item.totalCost)
-                 : '',
+      value: item.finalPrice ? fmt(item.finalPrice) : item.totalCost ? fmt(item.totalCost) : ''
     })),
-    allowances,
+    allowances
   };
 }
 
@@ -543,22 +702,70 @@ function adaptToContractSchema(data) {
 function blankContractSchema() {
   const _ = '___________________________________';
   return {
-    contract: { contract_number: '____________', invoice_number: '____________', quote_number: '____________', proposal_date: _, contract_date: _, total_contract_price: '$__________', deposit_amount: '$__________', deposit_pct: '___%', csl_number: 'CS-121662' },
-    owner:    { full_name: _, address_line1: _, city_state_zip: _, phone: _, email: _ },
+    contract: {
+      contract_number: '____________',
+      invoice_number: '____________',
+      quote_number: '____________',
+      proposal_date: _,
+      contract_date: _,
+      total_contract_price: '$__________',
+      deposit_amount: '$__________',
+      deposit_pct: '___%',
+      csl_number: 'CS-121662'
+    },
+    owner: { full_name: _, address_line1: _, city_state_zip: _, phone: _, email: _ },
     property: { address: _, city: _, jurisdiction: _, parcel_number: _ },
-    job:      { type: 'renovation', has_demo: false, has_framing: true, has_insulation: true, has_permit: false, has_engineer: false, has_architect: false, sub_deposits: null, special_order_deposits: null, trades: { electrical: true, plumbing: true, hvac: false, sprinkler: false }, adu: {} },
-    trades:   [{ phase: '', description: '', value: '' }],
-    allowances: { flooring_lvp: true, flooring_tile: true, flooring_carpet: false, kitchen_cabinets: true, kitchen_counter: true, kitchen_faucet: true, kitchen_sink: true, kitchen_disposal: true, bath_vanity_full: true, bath_vanity_half: true, bath_vanity_top: true, bath_faucet: true, bath_toilet: true, bath_tub: true, bath_shower_valve: true, bath_shower_door: true, bath_accessories: true, bath_exhaust_fan: true, doors_interior: true, doors_passage: true, doors_privacy: true, doors_bifold: false, doors_base_molding: true, doors_casing: true, doors_window_stool: true },
+    job: {
+      type: 'renovation',
+      has_demo: false,
+      has_framing: true,
+      has_insulation: true,
+      has_permit: false,
+      has_engineer: false,
+      has_architect: false,
+      sub_deposits: null,
+      special_order_deposits: null,
+      trades: { electrical: true, plumbing: true, hvac: false, sprinkler: false },
+      adu: {}
+    },
+    trades: [{ phase: '', description: '', value: '' }],
+    allowances: {
+      flooring_lvp: true,
+      flooring_tile: true,
+      flooring_carpet: false,
+      kitchen_cabinets: true,
+      kitchen_counter: true,
+      kitchen_faucet: true,
+      kitchen_sink: true,
+      kitchen_disposal: true,
+      bath_vanity_full: true,
+      bath_vanity_half: true,
+      bath_vanity_top: true,
+      bath_faucet: true,
+      bath_toilet: true,
+      bath_tub: true,
+      bath_shower_valve: true,
+      bath_shower_door: true,
+      bath_accessories: true,
+      bath_exhaust_fan: true,
+      doors_interior: true,
+      doors_passage: true,
+      doors_privacy: true,
+      doors_bifold: false,
+      doors_base_molding: true,
+      doors_casing: true,
+      doors_window_stool: true
+    }
   };
 }
 
 // ─── Main HTML builder ────────────────────────────────────────────────────────
 
 function buildContractHTML(data) {
-  const c   = data.contract  || {};
-  const o   = data.owner     || {};
-  const p   = data.property  || {};
-  const job = data.job       || {};
+  const c = data.contract || {};
+  const o = data.owner || {};
+  const p = data.property || {};
+  const job = data.job || {};
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -700,13 +907,16 @@ ${clauseHTML('6.4', `Owner shall submit all material selections, finish choices,
 <div class="article-heading">Article VII — Permits &amp; Inspections</div>
 
 ${clauseHTML('7.1', `Contractor shall apply for and obtain all building permits required for the Work from the applicable municipal building department. Contractor shall schedule and pass all required inspections.`)}
-${clauseHTML('7.2', `Permit fees and inspection charges are ${
-  !job.has_permit
-    ? 'not applicable to this scope of work per the parties\' mutual determination at signing. Should a permit later be required due to a Change Order or code determination, permit fees shall be billed as a pass-through cost at actual cost without markup. See Article III, Clause 3.3.'
-    : job.permit_paid_by === 'customer_direct'
-      ? 'the responsibility of Owner, who agrees to pay the applicable municipal building department directly. Owner shall provide Contractor with written confirmation of payment and a copy of the issued permit before Contractor commences permitted work. Permit fees shall not appear on any Contractor invoice.'
-      : 'itemized on Invoice 1 as a Pre-Construction Advance per Article III, Clause 3.3. Contractor shall pay permit fees directly to the issuing authority and document actual costs. Any overage or underage from the estimated permit fee shall be reflected as a credit or additional charge on the next applicable invoice.'
-}`)}
+${clauseHTML(
+  '7.2',
+  `Permit fees and inspection charges are ${
+    !job.has_permit
+      ? "not applicable to this scope of work per the parties' mutual determination at signing. Should a permit later be required due to a Change Order or code determination, permit fees shall be billed as a pass-through cost at actual cost without markup. See Article III, Clause 3.3."
+      : job.permit_paid_by === 'customer_direct'
+        ? 'the responsibility of Owner, who agrees to pay the applicable municipal building department directly. Owner shall provide Contractor with written confirmation of payment and a copy of the issued permit before Contractor commences permitted work. Permit fees shall not appear on any Contractor invoice.'
+        : 'itemized on Invoice 1 as a Pre-Construction Advance per Article III, Clause 3.3. Contractor shall pay permit fees directly to the issuing authority and document actual costs. Any overage or underage from the estimated permit fee shall be reflected as a credit or additional charge on the next applicable invoice.'
+  }`
+)}
 ${clauseHTML('7.3', `Owner shall not contact the building department to modify, expand, or otherwise change any permit application without prior written consent of Contractor.`)}
 
 <!-- ARTICLE VIII -->

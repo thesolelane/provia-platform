@@ -14,7 +14,11 @@ function removeClient(res) {
 function notifyClients(event, data) {
   const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
   for (const res of clients) {
-    try { res.write(payload); } catch { clients.delete(res); }
+    try {
+      res.write(payload);
+    } catch {
+      clients.delete(res);
+    }
   }
 }
 

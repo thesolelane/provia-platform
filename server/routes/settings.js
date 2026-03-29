@@ -12,8 +12,15 @@ router.get('/', requireAuth, (req, res) => {
   for (const row of rows) {
     if (!grouped[row.category]) grouped[row.category] = [];
     let value = row.value;
-    try { value = JSON.parse(row.value); } catch {}
-    grouped[row.category].push({ key: row.key, value, label: row.label, updatedAt: row.updated_at });
+    try {
+      value = JSON.parse(row.value);
+    } catch {}
+    grouped[row.category].push({
+      key: row.key,
+      value,
+      label: row.label,
+      updatedAt: row.updated_at
+    });
   }
   res.json(grouped);
 });
@@ -24,17 +31,21 @@ router.get('/:key', requireAuth, (req, res) => {
   const row = db.prepare('SELECT * FROM settings WHERE key = ?').get(req.params.key);
   if (!row) return res.status(404).json({ error: 'Setting not found' });
   let value = row.value;
-  try { value = JSON.parse(row.value); } catch {}
+  try {
+    value = JSON.parse(row.value);
+  } catch {}
   res.json({ key: row.key, value, label: row.label });
 });
 
 // PUT update single setting
 router.put('/:key', requireAuth, (req, res) => {
   const db = getDb();
-  const value = typeof req.body.value === 'object'
-    ? JSON.stringify(req.body.value)
-    : String(req.body.value);
-  db.prepare('UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?').run(value, req.params.key);
+  const value =
+    typeof req.body.value === 'object' ? JSON.stringify(req.body.value) : String(req.body.value);
+  db.prepare('UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?').run(
+    value,
+    req.params.key
+  );
   res.json({ success: true, key: req.params.key, value: req.body.value });
 });
 
@@ -42,7 +53,9 @@ router.put('/:key', requireAuth, (req, res) => {
 router.put('/', requireAuth, (req, res) => {
   const db = getDb();
   const updates = req.body; // { key: value, key: value }
-  const update = db.prepare('UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?');
+  const update = db.prepare(
+    'UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?'
+  );
   const updateMany = db.transaction((items) => {
     for (const [key, val] of Object.entries(items)) {
       const value = typeof val === 'object' ? JSON.stringify(val) : String(val);
@@ -66,9 +79,15 @@ router.post('/reset', requireAuth, (req, res) => {
 // GET integration status
 router.get('/integrations/status', requireAuth, (req, res) => {
   const db = getDb();
-  const platform = db.prepare("SELECT value FROM settings WHERE key = 'integration.platform'").get()?.value || 'hearth';
-  const whatsappEnabled = db.prepare("SELECT value FROM settings WHERE key = 'integration.whatsapp'").get()?.value === 'true';
-  const emailEnabled = db.prepare("SELECT value FROM settings WHERE key = 'integration.email'").get()?.value !== 'false';
+  const platform =
+    db.prepare("SELECT value FROM settings WHERE key = 'integration.platform'").get()?.value ||
+    'hearth';
+  const whatsappEnabled =
+    db.prepare("SELECT value FROM settings WHERE key = 'integration.whatsapp'").get()?.value ===
+    'true';
+  const emailEnabled =
+    db.prepare("SELECT value FROM settings WHERE key = 'integration.email'").get()?.value !==
+    'false';
 
   res.json({
     platform,
@@ -86,7 +105,9 @@ router.post('/integrations/switch', requireAuth, (req, res) => {
   if (!['hearth', 'wave', 'email'].includes(platform)) {
     return res.status(400).json({ error: 'Invalid platform. Must be: hearth, wave, or email' });
   }
-  db.prepare("INSERT OR REPLACE INTO settings (key, value, category, label) VALUES ('integration.platform', ?, 'integrations', 'Active Platform')").run(platform);
+  db.prepare(
+    "INSERT OR REPLACE INTO settings (key, value, category, label) VALUES ('integration.platform', ?, 'integrations', 'Active Platform')"
+  ).run(platform);
   res.json({ success: true, platform, message: `Switched to ${platform}` });
 });
 

@@ -15,7 +15,12 @@ router.post('/login', (req, res) => {
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
-  const token = createSession({ userId: user.id, name: user.name, email: user.email, role: user.role });
+  const token = createSession({
+    userId: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  });
   res.json({ token, name: user.name, role: user.role, message: 'Logged in successfully' });
 });
 

@@ -51,7 +51,6 @@ router.post('/', async (req, res) => {
     }
 
     await processHearthEstimate(event);
-
   } catch (err) {
     console.error('Hearth webhook error:', err);
   }
@@ -74,25 +73,33 @@ async function processHearthEstimate(event) {
 
   const rawText = formatHearthData(estimateData);
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO jobs (
       id, hearth_estimate_id, customer_name, customer_email, 
       customer_phone, project_address, project_city,
       raw_estimate_data, total_value, status, submitted_by
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'received', ?)
-  `).run(
-    jobId, hearthId, customerName, customerEmail,
-    customerPhone, projectAddress, projectCity,
-    JSON.stringify(estimateData), totalValue,
+  `
+  ).run(
+    jobId,
+    hearthId,
+    customerName,
+    customerEmail,
+    customerPhone,
+    projectAddress,
+    projectCity,
+    JSON.stringify(estimateData),
+    totalValue,
     'hearth_api'
   );
 
   logAudit(jobId, 'estimate_received', `Hearth estimate ${hearthId} received`, 'hearth_api');
 
   // Get Jackson's sender info for his name
-  const jacksonSender = db.prepare(
-    "SELECT * FROM approved_senders WHERE identifier = ? AND active = 1"
-  ).get(process.env.JACKSON_WHATSAPP);
+  const jacksonSender = db
+    .prepare('SELECT * FROM approved_senders WHERE identifier = ? AND active = 1')
+    .get(process.env.JACKSON_WHATSAPP);
 
   const jacksonName = firstName(jacksonSender?.name || 'Jackson');
   const language = jacksonSender?.language || 'pt-BR';
@@ -111,8 +118,10 @@ async function processHearthEstimate(event) {
     db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('awaiting_start', jobId);
 
     // Save raw proposal data so we can reprocess later with answers
-    db.prepare('UPDATE jobs SET proposal_data = ? WHERE id = ?')
-      .run(JSON.stringify(proposalData), jobId);
+    db.prepare('UPDATE jobs SET proposal_data = ? WHERE id = ?').run(
+      JSON.stringify(proposalData),
+      jobId
+    );
 
     const questionCount = proposalData.clarificationsNeeded.length;
 
@@ -122,11 +131,23 @@ async function processHearthEstimate(event) {
       : `Hey ${jacksonName}! 👋 I just received a new pre-quote (Ref #${shortId}) for *${customerName || 'a new customer'}*${projectAddress ? ` at ${projectAddress}` : ''}.\n\nI have ${questionCount} question${questionCount !== 1 ? 's' : ''} to get this one processed — do you have a moment to work through it with me? Reply *YES* to get started.`;
 
     await sendWhatsApp(process.env.JACKSON_WHATSAPP, intro);
-    logAudit(jobId, 'clarifications_pending', `${questionCount} questions saved, awaiting start`, 'bot');
-
+    logAudit(
+      jobId,
+      'clarifications_pending',
+      `${questionCount} questions saved, awaiting start`,
+      'bot'
+    );
   } else {
     // Ready to generate — proposal looks complete
-    await handleProposalReady(jobId, proposalData, customerName, projectAddress, db, jacksonName, language);
+    await handleProposalReady(
+      jobId,
+      proposalData,
+      customerName,
+      projectAddress,
+      db,
+      jacksonName,
+      language
+    );
   }
 }
 
@@ -135,12 +156,27 @@ async function handleClarificationsNeeded(jobId, proposalData, db, jacksonName, 
   // Kept for compatibility
 }
 
-async function handleProposalReady(jobId, proposalData, customerName, projectAddress, db, jacksonName, language) {
+async function handleProposalReady(
+  jobId,
+  proposalData,
+  customerName,
+  projectAddress,
+  db,
+  jacksonName,
+  language
+) {
   const { generatePDF } = require('../services/pdfService');
   const isPortuguese = language === 'pt-BR';
 
-  db.prepare('UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?')
-    .run(JSON.stringify(proposalData), proposalData.totalValue, proposalData.depositAmount, 'proposal_ready', jobId);
+  db.prepare(
+    'UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?'
+  ).run(
+    JSON.stringify(proposalData),
+    proposalData.totalValue,
+    proposalData.depositAmount,
+    'proposal_ready',
+    jobId
+  );
 
   const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
   db.prepare('UPDATE jobs SET proposal_pdf_path = ? WHERE id = ?').run(pdfPath, jobId);
@@ -168,10 +204,13 @@ async function handleProposalReady(jobId, proposalData, customerName, projectAdd
   // Notify owner (Cooper) in English
   if (process.env.OWNER_WHATSAPP) {
     const db2 = getDb();
-    const ownerSender = db2.prepare("SELECT * FROM approved_senders WHERE identifier = ? AND active = 1").get(process.env.OWNER_WHATSAPP);
+    const ownerSender = db2
+      .prepare('SELECT * FROM approved_senders WHERE identifier = ? AND active = 1')
+      .get(process.env.OWNER_WHATSAPP);
     const ownerName = firstName(ownerSender?.name || 'Cooper');
 
-    const ownerMsg = `Hey ${ownerName}! 📋 New proposal ready for review.\n\n` +
+    const ownerMsg =
+      `Hey ${ownerName}! 📋 New proposal ready for review.\n\n` +
       `Customer: *${customerName}*\n` +
       `Address: ${projectAddress}\n` +
       `Total: $${proposalData.totalValue?.toLocaleString()}\n` +
@@ -181,7 +220,12 @@ async function handleProposalReady(jobId, proposalData, customerName, projectAdd
     await sendWhatsApp(process.env.OWNER_WHATSAPP, ownerMsg, pdfPath);
   }
 
-  logAudit(jobId, 'proposal_generated', `Proposal sent for review. Total: $${proposalData.totalValue}`, 'bot');
+  logAudit(
+    jobId,
+    'proposal_generated',
+    `Proposal sent for review. Total: $${proposalData.totalValue}`,
+    'bot'
+  );
 }
 
 function formatHearthData(data) {
@@ -193,7 +237,7 @@ function formatHearthData(data) {
     `Address: ${data.project_address || data.address || ''}`,
     `Date: ${data.created_at || data.date || new Date().toISOString()}`,
     ``,
-    `LINE ITEMS:`,
+    `LINE ITEMS:`
   ];
 
   const items = data.line_items || data.items || data.services || [];

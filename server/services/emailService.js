@@ -5,7 +5,10 @@ const path = require('path');
 
 function getOwnerEmails() {
   const raw = process.env.OWNER_EMAIL || process.env.REPLY_TO_EMAIL || '';
-  return raw.split(',').map(e => e.trim()).filter(Boolean);
+  return raw
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
 }
 
 function getTransporter() {
@@ -26,11 +29,21 @@ function getTransporter() {
 
 function logEmail(db, { messageId, to, subject, emailType, jobId, htmlBody }) {
   try {
-    if (!db) { console.error('[EmailLog] No db instance — skipping log'); return; }
-    const toAddress = Array.isArray(to) ? to.join(', ') : (to || 'unknown');
+    if (!db) {
+      console.error('[EmailLog] No db instance — skipping log');
+      return;
+    }
+    const toAddress = Array.isArray(to) ? to.join(', ') : to || 'unknown';
     db.prepare(
       'INSERT INTO email_log (message_id, to_address, subject, email_type, job_id, html_body) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(messageId || null, toAddress, subject || null, emailType || 'general', jobId || null, htmlBody || null);
+    ).run(
+      messageId || null,
+      toAddress,
+      subject || null,
+      emailType || 'general',
+      jobId || null,
+      htmlBody || null
+    );
     console.log(`[EmailLog] Logged: type=${emailType} to=${toAddress}`);
   } catch (e) {
     console.error('[EmailLog] Failed to log email:', e.message, '| type:', emailType, '| to:', to);
@@ -38,9 +51,23 @@ function logEmail(db, { messageId, to, subject, emailType, jobId, htmlBody }) {
 }
 
 // attachments: array of { path, filename } objects — OR use legacy attachmentPath/attachmentName
-async function sendEmail({ to, subject, html, text, attachmentPath, attachmentName, attachments, replyTo, emailType, jobId, db }) {
+async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+  attachmentPath,
+  attachmentName,
+  attachments,
+  replyTo,
+  emailType,
+  jobId,
+  db
+}) {
   const recipients = Array.isArray(to) ? to : [to];
-  const validRecipients = recipients.filter(addr => addr && typeof addr === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr.trim()));
+  const validRecipients = recipients.filter(
+    (addr) => addr && typeof addr === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr.trim())
+  );
   if (validRecipients.length === 0) {
     console.warn('[Email] Skipped — no valid recipients in:', recipients);
     return;
@@ -52,7 +79,8 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     return;
   }
 
-  const fromAddress = process.env.SMTP_USER || process.env.BOT_EMAIL || 'noreply@contactpreferred.com';
+  const fromAddress =
+    process.env.SMTP_USER || process.env.BOT_EMAIL || 'noreply@contactpreferred.com';
   const ownerEmails = getOwnerEmails();
   const replyToAddress = replyTo || (ownerEmails.length ? ownerEmails.join(', ') : undefined);
   const ownerReceiptAddress = ownerEmails.length ? ownerEmails[0] : fromAddress;
@@ -74,7 +102,10 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
   // Build attachments list — supports both array and legacy single-attachment params
   const allAttachments = [];
   if (attachmentPath && fs.existsSync(attachmentPath)) {
-    allAttachments.push({ filename: attachmentName || path.basename(attachmentPath), path: attachmentPath });
+    allAttachments.push({
+      filename: attachmentName || path.basename(attachmentPath),
+      path: attachmentPath
+    });
   }
   if (Array.isArray(attachments)) {
     for (const a of attachments) {
@@ -85,7 +116,8 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
   }
   if (allAttachments.length) messageData.attachments = allAttachments;
 
-  const appUrl = process.env.APP_URL ||
+  const appUrl =
+    process.env.APP_URL ||
     (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '');
   let pixelId = null;
 
@@ -102,11 +134,14 @@ async function sendEmail({ to, subject, html, text, attachmentPath, attachmentNa
     console.log('Email sent:', result.messageId);
     let dbInstance = db;
     if (!dbInstance) {
-      try { dbInstance = require('../db/database').getDb(); }
-      catch (dbErr) { console.error('[EmailLog] Could not get DB instance:', dbErr.message); }
+      try {
+        dbInstance = require('../db/database').getDb();
+      } catch (dbErr) {
+        console.error('[EmailLog] Could not get DB instance:', dbErr.message);
+      }
     }
     // Store original html (before pixel injection) — wiped automatically on contract signing
-    const htmlBody = emailType === 'system_alert' ? null : (html || null);
+    const htmlBody = emailType === 'system_alert' ? null : html || null;
     logEmail(dbInstance, { messageId, to, subject, emailType, jobId, htmlBody });
     return { id: messageId };
   } catch (err) {

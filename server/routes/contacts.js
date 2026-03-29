@@ -20,11 +20,15 @@ router.get('/', requireAuth, (req, res) => {
   query += ' ORDER BY updated_at DESC LIMIT ? OFFSET ?';
   params.push(parseInt(limit), parseInt(offset));
   const contacts = db.prepare(query).all(...params);
-  const total = db.prepare(
-    search
-      ? 'SELECT COUNT(*) as c FROM contacts WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? OR address LIKE ? OR city LIKE ?'
-      : 'SELECT COUNT(*) as c FROM contacts'
-  ).get(...(search ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`] : []));
+  const total = db
+    .prepare(
+      search
+        ? 'SELECT COUNT(*) as c FROM contacts WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? OR address LIKE ? OR city LIKE ?'
+        : 'SELECT COUNT(*) as c FROM contacts'
+    )
+    .get(
+      ...(search ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`] : [])
+    );
   res.json({ contacts, total: total.c });
 });
 
@@ -34,28 +38,50 @@ router.get('/:id', requireAuth, (req, res) => {
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id);
   if (!contact) return res.status(404).json({ error: 'Contact not found' });
 
-  const jobs = db.prepare(`
+  const jobs = db
+    .prepare(
+      `
     SELECT id, customer_name, project_address, total_value, status, created_at
     FROM jobs WHERE archived = 0 AND (
       (customer_email IS NOT NULL AND customer_email = ?) OR
       (customer_phone IS NOT NULL AND customer_phone = ?) OR
       (customer_name IS NOT NULL AND customer_name = ?)
     ) ORDER BY created_at DESC
-  `).all(contact.email || '', contact.phone || '', contact.name || '');
+  `
+    )
+    .all(contact.email || '', contact.phone || '', contact.name || '');
 
-  const documents = db.prepare(
-    'SELECT id, filename, original_name, mime_type, source, created_at FROM contact_documents WHERE contact_id = ? ORDER BY created_at DESC'
-  ).all(req.params.id);
+  const documents = db
+    .prepare(
+      'SELECT id, filename, original_name, mime_type, source, created_at FROM contact_documents WHERE contact_id = ? ORDER BY created_at DESC'
+    )
+    .all(req.params.id);
 
-  const jobIds = jobs.map(j => j.id);
+  const jobIds = jobs.map((j) => j.id);
   let paymentSummary = { total_received: 0, total_paid_out: 0, balance: 0 };
   if (jobIds.length > 0) {
     const placeholders = jobIds.map(() => '?').join(',');
-    const recRows  = db.prepare(`SELECT amount, credit_debit FROM payments_received WHERE job_id IN (${placeholders})`).all(...jobIds);
-    const paidRows = db.prepare(`SELECT amount, credit_debit FROM payments_made WHERE job_id IN (${placeholders})`).all(...jobIds);
-    const totalIn  = recRows.reduce((s, r) => s + ((r.credit_debit === 'debit' ? -1 : 1) * (Number(r.amount) || 0)), 0);
-    const totalOut = paidRows.reduce((s, r) => s + ((r.credit_debit === 'credit' ? -1 : 1) * (Number(r.amount) || 0)), 0);
-    paymentSummary = { total_received: totalIn, total_paid_out: totalOut, balance: totalIn - totalOut };
+    const recRows = db
+      .prepare(
+        `SELECT amount, credit_debit FROM payments_received WHERE job_id IN (${placeholders})`
+      )
+      .all(...jobIds);
+    const paidRows = db
+      .prepare(`SELECT amount, credit_debit FROM payments_made WHERE job_id IN (${placeholders})`)
+      .all(...jobIds);
+    const totalIn = recRows.reduce(
+      (s, r) => s + (r.credit_debit === 'debit' ? -1 : 1) * (Number(r.amount) || 0),
+      0
+    );
+    const totalOut = paidRows.reduce(
+      (s, r) => s + (r.credit_debit === 'credit' ? -1 : 1) * (Number(r.amount) || 0),
+      0
+    );
+    paymentSummary = {
+      total_received: totalIn,
+      total_paid_out: totalOut,
+      balance: totalIn - totalOut
+    };
   }
 
   res.json({ contact, jobs, documents, paymentSummary });
@@ -64,10 +90,14 @@ router.get('/:id', requireAuth, (req, res) => {
 // DELETE a contact document
 router.delete('/:id/documents/:docId', requireAuth, (req, res) => {
   const db = getDb();
-  const doc = db.prepare('SELECT * FROM contact_documents WHERE id = ? AND contact_id = ?').get(req.params.docId, req.params.id);
+  const doc = db
+    .prepare('SELECT * FROM contact_documents WHERE id = ? AND contact_id = ?')
+    .get(req.params.docId, req.params.id);
   if (!doc) return res.status(404).json({ error: 'Document not found' });
   if (doc.file_path && fs.existsSync(doc.file_path)) {
-    try { fs.unlinkSync(doc.file_path); } catch {}
+    try {
+      fs.unlinkSync(doc.file_path);
+    } catch {}
   }
   db.prepare('DELETE FROM contact_documents WHERE id = ?').run(doc.id);
   res.json({ success: true });
@@ -86,12 +116,27 @@ router.post('/', requireAuth, (req, res) => {
     const seq = counter ? counter.next_seq : 1;
     pbCustomerNumber = 'PB-C-' + String(seq).padStart(4, '0');
     db.prepare('UPDATE pb_customer_counter SET next_seq = ? WHERE id = 1').run(seq + 1);
-  } catch (e) { console.warn('[Contact] pb_customer_number gen failed:', e.message); }
+  } catch (e) {
+    console.warn('[Contact] pb_customer_number gen failed:', e.message);
+  }
 
-  const result = db.prepare(
-    `INSERT INTO contacts (name, email, phone, address, city, state, zip, customer_type, notes, source, pb_customer_number)
+  const result = db
+    .prepare(
+      `INSERT INTO contacts (name, email, phone, address, city, state, zip, customer_type, notes, source, pb_customer_number)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)`
-  ).run(name||null, email||null, phone||null, address||null, city||null, state||null, zip||null, customer_type||'residential', notes||null, pbCustomerNumber);
+    )
+    .run(
+      name || null,
+      email || null,
+      phone || null,
+      address || null,
+      city || null,
+      state || null,
+      zip || null,
+      customer_type || 'residential',
+      notes || null,
+      pbCustomerNumber
+    );
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
   res.json({ success: true, id: result.lastInsertRowid, contact });
 });
@@ -100,11 +145,23 @@ router.post('/', requireAuth, (req, res) => {
 router.patch('/:id', requireAuth, (req, res) => {
   const db = getDb();
   const { name, email, phone, address, city, state, zip, customer_type, notes } = req.body;
-  db.prepare(`UPDATE contacts SET
+  db.prepare(
+    `UPDATE contacts SET
     name = ?, email = ?, phone = ?, address = ?, city = ?, state = ?, zip = ?,
     customer_type = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?`
-  ).run(name||null, email||null, phone||null, address||null, city||null, state||null, zip||null, customer_type||'residential', notes||null, req.params.id);
+  ).run(
+    name || null,
+    email || null,
+    phone || null,
+    address || null,
+    city || null,
+    state || null,
+    zip || null,
+    customer_type || 'residential',
+    notes || null,
+    req.params.id
+  );
   res.json({ success: true });
 });
 

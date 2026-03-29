@@ -12,7 +12,9 @@ function startKeepAlive(port, intervalMs = 5 * 60 * 1000) {
       if (res.statusCode === 200) {
         console.log(`[${new Date().toISOString()}] Keep-alive ping OK (HTTP ${res.statusCode})`);
       } else {
-        console.warn(`[${new Date().toISOString()}] Keep-alive ping returned unexpected status: ${res.statusCode}`);
+        console.warn(
+          `[${new Date().toISOString()}] Keep-alive ping returned unexpected status: ${res.statusCode}`
+        );
       }
       res.resume();
     });

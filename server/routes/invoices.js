@@ -1,13 +1,18 @@
 'use strict';
 const express = require('express');
-const router  = express.Router();
+const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { getDb }       = require('../db/database');
+const { getDb } = require('../db/database');
 const { logActivity } = require('./activityLog');
-const { sendEmail }   = require('../services/emailService');
+const { sendEmail } = require('../services/emailService');
 const { generatePDFFromHTML } = require('../services/pdfService');
 
-const VALID_TYPES   = ['contract_invoice', 'pass_through_invoice', 'change_order', 'combined_invoice'];
+const VALID_TYPES = [
+  'contract_invoice',
+  'pass_through_invoice',
+  'change_order',
+  'combined_invoice'
+];
 const VALID_STATUSES = ['draft', 'sent', 'paid', 'void'];
 
 function getOrCreateCounters(db, jobId) {
@@ -54,7 +59,9 @@ router.get('/job/:jobId', requireAuth, (req, res) => {
   const job = db.prepare('SELECT id FROM jobs WHERE id = ?').get(jobId);
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
-  const invoices = db.prepare('SELECT * FROM invoices WHERE job_id = ? ORDER BY created_at ASC').all(jobId);
+  const invoices = db
+    .prepare('SELECT * FROM invoices WHERE job_id = ? ORDER BY created_at ASC')
+    .all(jobId);
   res.json({ invoices });
 });
 
@@ -68,20 +75,22 @@ router.post('/job/:jobId', requireAuth, (req, res) => {
 
   // ── Compute amounts from line items if provided ──────────────────────────
   let items = Array.isArray(line_items) && line_items.length ? line_items : null;
-  let contractAmt    = 0;
+  let contractAmt = 0;
   let passThroughAmt = 0;
-  let totalAmt       = parseFloat(amount) || 0;
+  let totalAmt = parseFloat(amount) || 0;
 
   if (items) {
-    items = items.map(li => ({
-      description: String(li.description || '').trim(),
-      amount:      parseFloat(li.amount) || 0,
-      type:        ['contract', 'pass_through'].includes(li.type) ? li.type : 'contract',
-    })).filter(li => li.description || li.amount);
+    items = items
+      .map((li) => ({
+        description: String(li.description || '').trim(),
+        amount: parseFloat(li.amount) || 0,
+        type: ['contract', 'pass_through'].includes(li.type) ? li.type : 'contract'
+      }))
+      .filter((li) => li.description || li.amount);
 
     for (const li of items) {
       if (li.type === 'pass_through') passThroughAmt += li.amount;
-      else                            contractAmt    += li.amount;
+      else contractAmt += li.amount;
     }
     totalAmt = contractAmt + passThroughAmt;
   }
@@ -89,27 +98,39 @@ router.post('/job/:jobId', requireAuth, (req, res) => {
   // Auto-determine invoice type from line item composition
   let invType = VALID_TYPES.includes(invoice_type) ? invoice_type : 'contract_invoice';
   if (items && items.length) {
-    const hasContract = items.some(li => li.type === 'contract');
-    const hasPT       = items.some(li => li.type === 'pass_through');
-    if      (hasContract && hasPT) invType = 'combined_invoice';
-    else if (hasPT)                invType = 'pass_through_invoice';
-    else                           invType = 'contract_invoice';
+    const hasContract = items.some((li) => li.type === 'contract');
+    const hasPT = items.some((li) => li.type === 'pass_through');
+    if (hasContract && hasPT) invType = 'combined_invoice';
+    else if (hasPT) invType = 'pass_through_invoice';
+    else invType = 'contract_invoice';
   }
 
   const invNum = nextInvoiceNumber(db, jobId, invType, job.quote_number);
 
-  const info = db.prepare(`
+  const info = db
+    .prepare(
+      `
     INSERT INTO invoices
       (job_id, invoice_number, invoice_type, status, amount, contract_amount, pass_through_amount, line_items, notes)
     VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?)
-  `).run(
-    jobId, invNum, invType, totalAmt, contractAmt, passThroughAmt,
-    items ? JSON.stringify(items) : null, notes || null
-  );
+  `
+    )
+    .run(
+      jobId,
+      invNum,
+      invType,
+      totalAmt,
+      contractAmt,
+      passThroughAmt,
+      items ? JSON.stringify(items) : null,
+      notes || null
+    );
 
   const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(info.lastInsertRowid);
 
-  const contact = job.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
+  const contact = job.contact_id
+    ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+    : null;
   const recorder = req.session?.name || 'staff';
 
   logActivity({
@@ -131,33 +152,40 @@ router.patch('/:id', requireAuth, (req, res) => {
 
   const { status, amount, amount_paid, notes, line_items, issued_at, paid_at } = req.body;
 
-  const newStatus    = VALID_STATUSES.includes(status) ? status : inv.status;
-  const newAmount    = amount     !== undefined ? parseFloat(amount)      : inv.amount;
-  const newAmtPaid   = amount_paid !== undefined ? parseFloat(amount_paid) : inv.amount_paid;
+  const newStatus = VALID_STATUSES.includes(status) ? status : inv.status;
+  const newAmount = amount !== undefined ? parseFloat(amount) : inv.amount;
+  const newAmtPaid = amount_paid !== undefined ? parseFloat(amount_paid) : inv.amount_paid;
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE invoices SET
       status = ?, amount = ?, amount_paid = ?, notes = ?, line_items = ?,
       issued_at = ?, paid_at = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(
+  `
+  ).run(
     newStatus,
     newAmount,
     newAmtPaid,
-    notes      ?? inv.notes,
+    notes ?? inv.notes,
     line_items !== undefined ? (line_items ? JSON.stringify(line_items) : null) : inv.line_items,
-    issued_at  ?? inv.issued_at,
-    paid_at    ?? inv.paid_at,
+    issued_at ?? inv.issued_at,
+    paid_at ?? inv.paid_at,
     inv.id
   );
 
   if (newStatus === 'paid' && inv.status !== 'paid') {
-    const job     = db.prepare('SELECT * FROM jobs WHERE id = ?').get(inv.job_id);
-    const contact = job?.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(inv.job_id);
+    const contact = job?.contact_id
+      ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+      : null;
     logActivity({
       customer_number: contact?.pb_customer_number || null,
       job_id: inv.job_id,
-      event_type: inv.invoice_type === 'pass_through_invoice' ? 'PASS_THROUGH_REIMBURSED' : 'PAYMENT_RECEIVED',
+      event_type:
+        inv.invoice_type === 'pass_through_invoice'
+          ? 'PASS_THROUGH_REIMBURSED'
+          : 'PAYMENT_RECEIVED',
       description: `Invoice ${inv.invoice_number} marked paid — $${newAmtPaid.toLocaleString()}`,
       document_ref: inv.invoice_number,
       recorded_by: req.session?.name || 'staff'
@@ -179,38 +207,46 @@ router.delete('/:id', requireAuth, (req, res) => {
 // GET /:id/pdf — generate and stream a simple invoice PDF
 router.get('/:id/pdf', requireAuth, async (req, res) => {
   try {
-    const db  = getDb();
+    const db = getDb();
     const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
 
     const job = inv.job_id ? db.prepare('SELECT * FROM jobs WHERE id = ?').get(inv.job_id) : null;
-    const contact = job?.contact_id ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(job.contact_id) : null;
+    const contact = job?.contact_id
+      ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(job.contact_id)
+      : null;
 
     // Parse proposal_data for line items and pass-through fee detail
     let proposalData = null;
-    try { proposalData = job?.proposal_data ? JSON.parse(job.proposal_data) : null; } catch {}
+    try {
+      proposalData = job?.proposal_data ? JSON.parse(job.proposal_data) : null;
+    } catch {}
 
     const typeLabels = {
-      contract_invoice: 'Contract Invoice', pass_through_invoice: 'Pass-Through Invoice',
-      change_order: 'Change Order', combined_invoice: 'Invoice'
+      contract_invoice: 'Contract Invoice',
+      pass_through_invoice: 'Pass-Through Invoice',
+      change_order: 'Change Order',
+      combined_invoice: 'Invoice'
     };
-    const typeLabel  = typeLabels[inv.invoice_type] || 'Invoice';
-    const isPT       = inv.invoice_type === 'pass_through_invoice';
+    const typeLabel = typeLabels[inv.invoice_type] || 'Invoice';
+    const isPT = inv.invoice_type === 'pass_through_invoice';
     const isCombined = inv.invoice_type === 'combined_invoice';
-    const fmt        = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+    const fmt = (n) => Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
 
     // Parse stored line items (from the new multi-line system)
     let storedItems = [];
-    try { storedItems = inv.line_items ? JSON.parse(inv.line_items) : []; } catch {}
+    try {
+      storedItems = inv.line_items ? JSON.parse(inv.line_items) : [];
+    } catch {}
 
     // Build itemized line items HTML (new multi-line system)
     const buildLineItemsHTML = () => {
       if (!storedItems.length) return '';
-      const contractItems = storedItems.filter(li => li.type !== 'pass_through');
-      const ptItems       = storedItems.filter(li => li.type === 'pass_through');
+      const contractItems = storedItems.filter((li) => li.type !== 'pass_through');
+      const ptItems = storedItems.filter((li) => li.type === 'pass_through');
       const contractTotal = contractItems.reduce((s, li) => s + (li.amount || 0), 0);
-      const ptTotal       = ptItems.reduce((s, li) => s + (li.amount || 0), 0);
-      const grandTotal    = contractTotal + ptTotal;
+      const ptTotal = ptItems.reduce((s, li) => s + (li.amount || 0), 0);
+      const grandTotal = contractTotal + ptTotal;
 
       let html = `<div class="section"><h3>Invoice Line Items</h3>
 <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -307,36 +343,48 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
 </div>
 <hr class="divider">
 
-${(isPT || isCombined) ? `<div class="pt-notice"><strong>${isCombined ? 'COMBINED INVOICE — CONTAINS PASS-THROUGH ITEMS' : 'PASS-THROUGH COST — NOT A REVENUE ITEM'}</strong><br>${isCombined ? 'This invoice includes both contract charges (revenue to Preferred Builders) and pass-through reimbursement costs (not income to PB). Totals are broken out below.' : 'This invoice covers costs paid by Preferred Builders on behalf of the customer (permits, engineers, consultants, etc.) and is billed for direct reimbursement only.'}</div>` : ''}
+${isPT || isCombined ? `<div class="pt-notice"><strong>${isCombined ? 'COMBINED INVOICE — CONTAINS PASS-THROUGH ITEMS' : 'PASS-THROUGH COST — NOT A REVENUE ITEM'}</strong><br>${isCombined ? 'This invoice includes both contract charges (revenue to Preferred Builders) and pass-through reimbursement costs (not income to PB). Totals are broken out below.' : 'This invoice covers costs paid by Preferred Builders on behalf of the customer (permits, engineers, consultants, etc.) and is billed for direct reimbursement only.'}</div>` : ''}
 
-${contact || job ? `<div class="section">
+${
+  contact || job
+    ? `<div class="section">
   <h3>Billed To</h3>
   ${contact?.pb_customer_number ? `<div style="font-family:monospace;font-size:11px;background:#e0e8ff;color:#1B3A6B;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;font-weight:bold">${contact.pb_customer_number}</div><br>` : ''}
   <strong>${contact?.name || job?.customer_name || '—'}</strong><br>
-  ${contact?.email || job?.customer_email || ''}${(contact?.email || job?.customer_email) ? '<br>' : ''}
-  ${contact?.phone || job?.customer_phone || ''}${(contact?.phone || job?.customer_phone) ? '<br>' : ''}
+  ${contact?.email || job?.customer_email || ''}${contact?.email || job?.customer_email ? '<br>' : ''}
+  ${contact?.phone || job?.customer_phone || ''}${contact?.phone || job?.customer_phone ? '<br>' : ''}
   ${[contact?.address || '', contact?.city || job?.project_city || '', contact?.state || 'MA'].filter(Boolean).join(', ') || job?.project_address || ''}
-</div>` : ''}
+</div>`
+    : ''
+}
 
-${job ? `<div class="section">
+${
+  job
+    ? `<div class="section">
   <h3>Project</h3>
   ${job.pb_number || job.quote_number ? `<strong>PB# ${job.pb_number || job.quote_number}</strong><br>` : ''}
   ${job.project_address || ''}${job.project_city ? ', ' + job.project_city + ', MA' : ''}
-</div>` : ''}
+</div>`
+    : ''
+}
 
 ${buildLineItemsHTML()}
 
-${!storedItems.length ? `<div class="amount-box">
+${
+  !storedItems.length
+    ? `<div class="amount-box">
   <div class="lbl">Invoice Amount</div>
   <div class="amt">$${fmt(inv.amount)}</div>
   ${inv.amount_paid > 0 ? `<div class="lbl" style="margin-top:8px;color:#2E7D32">Paid: $${fmt(inv.amount_paid)}</div>` : ''}
-</div>` : `<div class="amount-box" style="border-color:${isCombined ? '#E07B2A' : (isPT ? '#f59e0b' : '#1B3A6B')}">
+</div>`
+    : `<div class="amount-box" style="border-color:${isCombined ? '#E07B2A' : isPT ? '#f59e0b' : '#1B3A6B'}">
   ${isCombined && inv.contract_amount > 0 ? `<div style="font-size:13px;color:#555;margin-bottom:4px">Contract Charges: <strong style="color:#1B3A6B">$${fmt(inv.contract_amount)}</strong></div>` : ''}
   ${isCombined && inv.pass_through_amount > 0 ? `<div style="font-size:13px;color:#555;margin-bottom:8px">Pass-Through Costs: <strong style="color:#92400e">$${fmt(inv.pass_through_amount)}</strong></div>` : ''}
   <div class="lbl">Total Due</div>
-  <div class="amt" style="color:${isCombined ? '#E07B2A' : (isPT ? '#92400e' : '#1B3A6B')}">$${fmt(inv.amount)}</div>
+  <div class="amt" style="color:${isCombined ? '#E07B2A' : isPT ? '#92400e' : '#1B3A6B'}">$${fmt(inv.amount)}</div>
   ${inv.amount_paid > 0 ? `<div class="lbl" style="margin-top:8px;color:#2E7D32">Paid: $${fmt(inv.amount_paid)}</div>` : ''}
-</div>`}
+</div>`
+}
 
 ${inv.notes ? `<div class="section"><h3>Notes</h3><p style="font-size:13px">${inv.notes}</p></div>` : ''}
 
@@ -346,7 +394,10 @@ ${inv.notes ? `<div class="section"><h3>Notes</h3><p style="font-size:13px">${in
 </div>
 </body></html>`;
 
-    const pdfPath = await generatePDFFromHTML(html, `invoice_${inv.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}`);
+    const pdfPath = await generatePDFFromHTML(
+      html,
+      `invoice_${inv.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}`
+    );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${inv.invoice_number}.pdf"`);
     const fs = require('fs');
@@ -367,18 +418,25 @@ router.post('/:id/pdf', requireAuth, (req, res) => {
 // POST /:id/email — email invoice PDF to customer
 router.post('/:id/email', requireAuth, async (req, res) => {
   try {
-    const db  = getDb();
+    const db = getDb();
     const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
     if (!inv) return res.status(404).json({ error: 'Invoice not found' });
 
     const job = inv.job_id ? db.prepare('SELECT * FROM jobs WHERE id = ?').get(inv.job_id) : null;
-    const contact = job?.contact_id ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(job.contact_id) : null;
+    const contact = job?.contact_id
+      ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(job.contact_id)
+      : null;
 
     const customerEmail = contact?.email || job?.customer_email;
-    if (!customerEmail) return res.status(400).json({ error: 'No customer email on file for this job' });
+    if (!customerEmail)
+      return res.status(400).json({ error: 'No customer email on file for this job' });
 
-    const typeLabels = { contract_invoice: 'Contract Invoice', pass_through_invoice: 'Pass-Through Invoice', change_order: 'Change Order' };
-    const typeLabel  = typeLabels[inv.invoice_type] || 'Invoice';
+    const typeLabels = {
+      contract_invoice: 'Contract Invoice',
+      pass_through_invoice: 'Pass-Through Invoice',
+      change_order: 'Change Order'
+    };
+    const typeLabel = typeLabels[inv.invoice_type] || 'Invoice';
     const isPT = inv.invoice_type === 'pass_through_invoice';
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>
@@ -414,16 +472,24 @@ router.post('/:id/email', requireAuth, async (req, res) => {
 </div>
 <hr class="divider">
 ${isPT ? `<div class="pt-notice"><strong>PASS-THROUGH COST — NOT A REVENUE ITEM</strong><br>Billed for direct reimbursement only (permits, engineers, consultants, etc.)</div>` : ''}
-${contact || job ? `<div class="section"><h3>Billed To</h3>
+${
+  contact || job
+    ? `<div class="section"><h3>Billed To</h3>
   ${contact?.pb_customer_number ? `<div style="font-family:monospace;font-size:11px;background:#e0e8ff;color:#1B3A6B;padding:2px 8px;border-radius:4px;display:inline-block;margin-bottom:6px;font-weight:bold">${contact.pb_customer_number}</div><br>` : ''}
   <strong>${contact?.name || job?.customer_name || '—'}</strong><br>
   ${customerEmail}<br>
   ${contact?.phone || job?.customer_phone || ''}
-</div>` : ''}
-${job ? `<div class="section"><h3>Project</h3>
+</div>`
+    : ''
+}
+${
+  job
+    ? `<div class="section"><h3>Project</h3>
   ${job.pb_number || job.quote_number ? `<strong>PB# ${job.pb_number || job.quote_number}</strong><br>` : ''}
   ${job.project_address || ''}${job.project_city ? ', ' + job.project_city + ', MA' : ''}
-</div>` : ''}
+</div>`
+    : ''
+}
 <div class="amount-box">
   <div class="lbl">Invoice Amount</div>
   <div class="amt">$${Number(inv.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
@@ -434,7 +500,10 @@ ${inv.notes ? `<div class="section"><h3>Notes</h3><p style="font-size:13px">${in
 Please make checks payable to: <strong>Preferred Builders General Services Inc.</strong></div>
 </body></html>`;
 
-    const pdfPath = await generatePDFFromHTML(html, `invoice_${inv.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}_email`);
+    const pdfPath = await generatePDFFromHTML(
+      html,
+      `invoice_${inv.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}_email`
+    );
 
     const subject = `Invoice ${inv.invoice_number} from Preferred Builders${job ? ' — ' + (job.project_address || job.description || 'Your Project') : ''}`;
     const emailBody = `<p>Dear ${contact?.name || job?.customer_name || 'Valued Customer'},</p>

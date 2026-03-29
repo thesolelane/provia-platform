@@ -1,12 +1,12 @@
 // server/services/backupService.js
 // Automatic SQLite + uploads backup with rotation, scheduling, and email alerts.
 
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 
-const DB_PATH      = path.resolve(__dirname, '../../data/pb_system.db');
+const DB_PATH = path.resolve(__dirname, '../../data/pb_system.db');
 const DEFAULT_BACKUP_DIR = path.resolve(__dirname, '../../data/backups');
-const MAX_BACKUPS  = 14; // keep 14 rolling backups
+const MAX_BACKUPS = 14; // keep 14 rolling backups
 
 function stripQuotes(str) {
   if (!str) return str;
@@ -24,9 +24,13 @@ function getBackupDir() {
   }
   try {
     const { getDb } = require('../db/database');
-    const custom = stripQuotes(getDb().prepare("SELECT value FROM settings WHERE key = 'backup.customPath'").get()?.value);
-    return (custom && custom.length > 0) ? custom : DEFAULT_BACKUP_DIR;
-  } catch { return DEFAULT_BACKUP_DIR; }
+    const custom = stripQuotes(
+      getDb().prepare("SELECT value FROM settings WHERE key = 'backup.customPath'").get()?.value
+    );
+    return custom && custom.length > 0 ? custom : DEFAULT_BACKUP_DIR;
+  } catch {
+    return DEFAULT_BACKUP_DIR;
+  }
 }
 
 let backupTimeout = null;
@@ -44,11 +48,18 @@ function formatBytes(bytes) {
 }
 
 function timestamp() {
-  return new Date().toLocaleString('en-US', {
-    timeZone: 'America/New_York',
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  }).replace(/[\/:, ]/g, '-').replace(/--/g, '-');
+  return new Date()
+    .toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+    .replace(/[\/:, ]/g, '-')
+    .replace(/--/g, '-');
 }
 
 function getBackupScheduleHours() {
@@ -57,16 +68,19 @@ function getBackupScheduleHours() {
     const db = getDb();
     const row = db.prepare("SELECT value FROM settings WHERE key = 'backup.intervalHours'").get();
     return Math.max(1, parseInt(row?.value || '24', 10));
-  } catch { return 24; }
+  } catch {
+    return 24;
+  }
 }
 
 function listBackups() {
   const dir = getBackupDir();
   ensureDir(dir);
-  return fs.readdirSync(dir)
-    .filter(f => f.startsWith('pb_system_') && f.endsWith('.db'))
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.startsWith('pb_system_') && f.endsWith('.db'))
     .sort()
-    .map(f => {
+    .map((f) => {
       const full = path.join(dir, f);
       const stat = fs.statSync(full);
       return { file: f, path: full, size: stat.size, mtime: stat.mtime };
@@ -108,8 +122,12 @@ async function runBackup() {
   if (backups.length > MAX_BACKUPS) {
     const toDelete = backups.slice(0, backups.length - MAX_BACKUPS);
     for (const b of toDelete) {
-      try { fs.unlinkSync(b.path); console.log(`${label} Rotated old backup: ${b.file}`); }
-      catch (e) { console.warn(`${label} Could not delete ${b.file}: ${e.message}`); }
+      try {
+        fs.unlinkSync(b.path);
+        console.log(`${label} Rotated old backup: ${b.file}`);
+      } catch (e) {
+        console.warn(`${label} Could not delete ${b.file}: ${e.message}`);
+      }
     }
   }
 
@@ -118,16 +136,20 @@ async function runBackup() {
     const { getDb } = require('../db/database');
     const db = getDb();
     const nowIso = new Date().toISOString();
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO settings (key, value, category, label)
       VALUES ('backup.lastRanAt', ?, 'backup', 'Last Backup Timestamp')
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-    `).run(nowIso);
-    db.prepare(`
+    `
+    ).run(nowIso);
+    db.prepare(
+      `
       INSERT INTO settings (key, value, category, label)
       VALUES ('backup.lastFile', ?, 'backup', 'Last Backup Filename')
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-    `).run(destFile);
+    `
+    ).run(destFile);
   } catch {}
 
   const remaining = listBackups();
@@ -136,7 +158,7 @@ async function runBackup() {
     file: destFile,
     dbSize: formatBytes(dbSizeBytes),
     totalBackups: remaining.length,
-    backups: remaining.map(b => ({ file: b.file, size: formatBytes(b.size), date: b.mtime })),
+    backups: remaining.map((b) => ({ file: b.file, size: formatBytes(b.size), date: b.mtime }))
   };
 
   console.log(`${label} ✅ Complete — ${remaining.length} backups on disk`);
@@ -159,12 +181,12 @@ async function notifyFailure(label, errorMessage) {
             🔴 Database Backup Failed
           </div>
           <div style="background:white;padding:20px;border:1px solid #eee;border-top:none;border-radius:0 0 8px 8px">
-            <p style="font-size:14px">A scheduled backup attempt failed at <strong>${new Date().toLocaleString('en-US',{timeZone:'America/New_York'})}</strong> ET.</p>
+            <p style="font-size:14px">A scheduled backup attempt failed at <strong>${new Date().toLocaleString('en-US', { timeZone: 'America/New_York' })}</strong> ET.</p>
             <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:12px;font-family:monospace;font-size:12px;color:#C62828">${errorMessage}</div>
             <p style="font-size:13px;color:#555;margin-top:12px">Please check the server and manually back up <code>data/pb_system.db</code> as soon as possible.</p>
           </div>
         </div>`,
-      emailType: 'system_alert',
+      emailType: 'system_alert'
     });
   } catch {}
 }
@@ -180,7 +202,7 @@ async function runBackupWithStatus(sendStatusEmails = true) {
     // Email 1: pre-backup system check
     await sendStatusReport({
       label: 'Pre-Backup System Check',
-      alwaysSend: true,
+      alwaysSend: true
     });
   }
 
@@ -195,7 +217,7 @@ async function runBackupWithStatus(sendStatusEmails = true) {
     await sendStatusReport({
       label: 'Post-Backup Report',
       alwaysSend: true,
-      extra: `<strong>Backup Result:</strong> ${backupDetail}`,
+      extra: `<strong>Backup Result:</strong> ${backupDetail}`
     });
   }
 
@@ -225,7 +247,10 @@ function startBackupScheduler() {
 }
 
 function stopBackupScheduler() {
-  if (backupTimeout) { clearTimeout(backupTimeout); backupTimeout = null; }
+  if (backupTimeout) {
+    clearTimeout(backupTimeout);
+    backupTimeout = null;
+  }
 }
 
 function rescheduleBackups() {
@@ -233,4 +258,11 @@ function rescheduleBackups() {
   scheduleNextBackup();
 }
 
-module.exports = { startBackupScheduler, stopBackupScheduler, rescheduleBackups, runBackup, listBackups, formatBytes };
+module.exports = {
+  startBackupScheduler,
+  stopBackupScheduler,
+  rescheduleBackups,
+  runBackup,
+  listBackups,
+  formatBytes
+};

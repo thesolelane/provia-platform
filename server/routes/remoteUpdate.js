@@ -49,7 +49,11 @@ router.get('/status', (req, res) => {
   try {
     const hash = execSync('git rev-parse --short HEAD', { cwd: PROJECT_DIR }).toString().trim();
     const msg = execSync('git log -1 --pretty=%s', { cwd: PROJECT_DIR }).toString().trim();
-    const date = execSync('git log -1 --pretty=%cd --date=format:"%Y-%m-%d %H:%M"', { cwd: PROJECT_DIR }).toString().trim();
+    const date = execSync('git log -1 --pretty=%cd --date=format:"%Y-%m-%d %H:%M"', {
+      cwd: PROJECT_DIR
+    })
+      .toString()
+      .trim();
     res.json({ commit: hash, message: msg, date, platform: process.platform });
   } catch (e) {
     res.json({ error: e.message });

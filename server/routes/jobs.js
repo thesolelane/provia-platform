@@ -39,7 +39,7 @@ function preExtractQuoteNumber(text) {
   const patterns = [
     /(?:quote|estimate|proposal|job|ref|#|no\.?)\s*[:\-#]?\s*(\d{2,6})\b/i,
     /\b(\d{3,6})\s*(?:rev|revision|version|v)\s*\d/i,
-    /^[\s\S]{0,500}?#\s*(\d{3,6})\b/,
+    /^[\s\S]{0,500}?#\s*(\d{3,6})\b/
   ];
   for (const re of patterns) {
     const m = text.match(re);
@@ -55,11 +55,15 @@ function findPriorQuoteContext(db, { rawText, contactId, projectAddress }) {
 
   // 1. Best match: same contact AND same address
   if (contactId && projectAddress && projectAddress.length > 5) {
-    const prior = db.prepare(`
+    const prior = db
+      .prepare(
+        `
       SELECT quote_number FROM jobs
       WHERE contact_id = ? AND project_address = ? AND quote_number IS NOT NULL AND proposal_data IS NOT NULL
       ORDER BY created_at DESC LIMIT 1
-    `).get(contactId, projectAddress);
+    `
+      )
+      .get(contactId, projectAddress);
     if (prior?.quote_number) {
       const ctx = getPriorVersionContext(db, prior.quote_number);
       if (ctx) return { quoteNumber: prior.quote_number, context: ctx };
@@ -68,11 +72,15 @@ function findPriorQuoteContext(db, { rawText, contactId, projectAddress }) {
 
   // 2. Same contact (any address) — only if single-property customer
   if (contactId) {
-    const prior = db.prepare(`
+    const prior = db
+      .prepare(
+        `
       SELECT quote_number FROM jobs
       WHERE contact_id = ? AND quote_number IS NOT NULL AND proposal_data IS NOT NULL
       ORDER BY created_at DESC LIMIT 1
-    `).get(contactId);
+    `
+      )
+      .get(contactId);
     if (prior?.quote_number) {
       const ctx = getPriorVersionContext(db, prior.quote_number);
       if (ctx) return { quoteNumber: prior.quote_number, context: ctx };
@@ -81,11 +89,15 @@ function findPriorQuoteContext(db, { rawText, contactId, projectAddress }) {
 
   // 3. Same address (different contact or no contact)
   if (projectAddress && projectAddress.length > 5) {
-    const prior = db.prepare(`
+    const prior = db
+      .prepare(
+        `
       SELECT quote_number FROM jobs
       WHERE project_address = ? AND quote_number IS NOT NULL AND proposal_data IS NOT NULL
       ORDER BY created_at DESC LIMIT 1
-    `).get(projectAddress);
+    `
+      )
+      .get(projectAddress);
     if (prior?.quote_number) {
       const ctx = getPriorVersionContext(db, prior.quote_number);
       if (ctx) return { quoteNumber: prior.quote_number, context: ctx };
@@ -105,9 +117,7 @@ function findPriorQuoteContext(db, { rawText, contactId, projectAddress }) {
 // After Claude returns, store quote_number + version + parent_job_id on the job and in proposalData
 // Idempotent: if the job already has a version assigned, re-use it instead of incrementing
 function finalizeJobVersioning(db, jobId, proposalData) {
-  let rawQuoteNum = proposalData.quoteNumber
-    ? String(proposalData.quoteNumber).trim()
-    : null;
+  let rawQuoteNum = proposalData.quoteNumber ? String(proposalData.quoteNumber).trim() : null;
   if (!rawQuoteNum) return;
 
   rawQuoteNum = rawQuoteNum.split('/')[0].replace(/[^\w\-]/g, '');
@@ -134,35 +144,45 @@ function finalizeJobVersioning(db, jobId, proposalData) {
   proposalData.quoteVersion = version;
   proposalData.quoteNumber = versionedDisplay;
 
-  console.log(`[Versioning] Job ${jobId}: quote ${rawQuoteNum} → version ${version} (${versionedDisplay})`);
+  console.log(
+    `[Versioning] Job ${jobId}: quote ${rawQuoteNum} → version ${version} (${versionedDisplay})`
+  );
 }
 
 // Helper: merge the job's stored PII (name/email/phone) back into proposalData.customer
 // Must be called after processEstimate and BEFORE generatePDF — Claude never sees PII.
 function mergeContactIntoProposal(db, jobId, proposalData) {
   try {
-    const job = db.prepare(
-      `SELECT customer_name, customer_email, customer_phone, project_address, project_city,
+    const job = db
+      .prepare(
+        `SELECT customer_name, customer_email, customer_phone, project_address, project_city,
               contact_id, pb_number, external_ref, quote_number FROM jobs WHERE id = ?`
-    ).get(jobId);
+      )
+      .get(jobId);
     if (!job) return;
 
     let contact = null;
     if (job.contact_id) {
-      contact = db.prepare(
-        'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE id = ?'
-      ).get(job.contact_id);
+      contact = db
+        .prepare(
+          'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE id = ?'
+        )
+        .get(job.contact_id);
     }
     // Fallback: older jobs may not have contact_id set — look up by email or phone
     if (!contact && job.customer_email) {
-      contact = db.prepare(
-        'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1'
-      ).get(job.customer_email);
+      contact = db
+        .prepare(
+          'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1'
+        )
+        .get(job.customer_email);
     }
     if (!contact && job.customer_phone) {
-      contact = db.prepare(
-        'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE phone = ? LIMIT 1'
-      ).get(job.customer_phone);
+      contact = db
+        .prepare(
+          'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE phone = ? LIMIT 1'
+        )
+        .get(job.customer_phone);
     }
 
     if (!proposalData.customer) proposalData.customer = {};
@@ -172,22 +192,27 @@ function mergeContactIntoProposal(db, jobId, proposalData) {
     // so always prefer the stored record over whatever Claude may have extracted.
     // Treat whitespace-only strings as empty so they don't block the fallback.
     const clean = (v) => (typeof v === 'string' ? v.trim() : '') || '';
-    c.name  = clean(contact?.name)  || clean(job.customer_name)  || clean(c.name)  || '';
+    c.name = clean(contact?.name) || clean(job.customer_name) || clean(c.name) || '';
     c.email = clean(contact?.email) || clean(job.customer_email) || clean(c.email) || '';
     c.phone = clean(contact?.phone) || clean(job.customer_phone) || clean(c.phone) || '';
     // Always include pb_customer_number for traceability in proposal/contract PDFs
     if (contact?.pb_customer_number) c.pb_customer_number = contact.pb_customer_number;
 
     if (!proposalData.project) proposalData.project = {};
-    proposalData.project.address = proposalData.project.address || contact?.address || job.project_address || '';
-    proposalData.project.city    = proposalData.project.city    || contact?.city    || job.project_city    || '';
+    proposalData.project.address =
+      proposalData.project.address || contact?.address || job.project_address || '';
+    proposalData.project.city =
+      proposalData.project.city || contact?.city || job.project_city || '';
 
     // Fill missing quote number: Claude's extraction → job.quote_number → external_ref → pb_number
     if (!proposalData.quoteNumber) {
       proposalData.quoteNumber = job.quote_number || job.external_ref || job.pb_number || '';
     }
 
-    if (c.name) console.log(`[mergeContact] Job ${jobId}: customer="${c.name}", quoteNumber="${proposalData.quoteNumber}"`);
+    if (c.name)
+      console.log(
+        `[mergeContact] Job ${jobId}: customer="${c.name}", quoteNumber="${proposalData.quoteNumber}"`
+      );
   } catch (e) {
     console.warn('[mergeContactIntoProposal] Error:', e.message);
   }
@@ -199,7 +224,8 @@ function saveProposalReady(db, proposalData, pdfPath, jobId) {
   const p = proposalData.project || {};
 
   // 1. Update the job record
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE jobs SET
       proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?,
       status = ?, updated_at = CURRENT_TIMESTAMP,
@@ -210,41 +236,58 @@ function saveProposalReady(db, proposalData, pdfPath, jobId) {
       project_city    = COALESCE(NULLIF(?, ''), project_city)
     WHERE id = ?`
   ).run(
-    JSON.stringify(proposalData), pdfPath, proposalData.totalValue, proposalData.depositAmount,
+    JSON.stringify(proposalData),
+    pdfPath,
+    proposalData.totalValue,
+    proposalData.depositAmount,
     'proposal_ready',
-    c.name || '', c.email || '', c.phone || '',
-    p.address || '', p.city || '',
+    c.name || '',
+    c.email || '',
+    c.phone || '',
+    p.address || '',
+    p.city || '',
     jobId
   );
 
   // 2. Upsert contact using the job's stored PII (which never left our server)
   //    and link the job to the contact via contact_id
-  const job = db.prepare('SELECT customer_name, customer_email, customer_phone, project_address, project_city, contact_id FROM jobs WHERE id = ?').get(jobId);
-  const contactName  = c.name  || job?.customer_name  || '';
+  const job = db
+    .prepare(
+      'SELECT customer_name, customer_email, customer_phone, project_address, project_city, contact_id FROM jobs WHERE id = ?'
+    )
+    .get(jobId);
+  const contactName = c.name || job?.customer_name || '';
   const contactEmail = c.email || job?.customer_email || '';
   const contactPhone = c.phone || job?.customer_phone || '';
-  const contactAddr  = p.address || job?.project_address || '';
-  const contactCity  = p.city    || job?.project_city    || '';
+  const contactAddr = p.address || job?.project_address || '';
+  const contactCity = p.city || job?.project_city || '';
 
   if (contactName || contactEmail) {
     try {
       const contactRef = findOrCreateContact(db, {
-        name: contactName, email: contactEmail, phone: contactPhone,
-        address: contactAddr, city: contactCity, state: p.state || 'MA'
+        name: contactName,
+        email: contactEmail,
+        phone: contactPhone,
+        address: contactAddr,
+        city: contactCity,
+        state: p.state || 'MA'
       });
       // Set contact_id on job if not already set
       if (!job?.contact_id) {
         db.prepare('UPDATE jobs SET contact_id = ? WHERE id = ?').run(contactRef.id, jobId);
       }
-    } catch (e) { console.warn('[saveProposalReady] Contact upsert failed:', e.message); }
+    } catch (e) {
+      console.warn('[saveProposalReady] Contact upsert failed:', e.message);
+    }
   }
 }
 
 // Helper: save extracted data with review_pending status (no PDF yet)
 function saveReviewPending(db, proposalData, jobId) {
   const c = proposalData.customer || {};
-  const p = proposalData.project  || {};
-  db.prepare(`
+  const p = proposalData.project || {};
+  db.prepare(
+    `
     UPDATE jobs SET
       proposal_data = ?, status = 'review_pending', updated_at = CURRENT_TIMESTAMP,
       total_value = ?, deposit_amount = ?,
@@ -256,9 +299,13 @@ function saveReviewPending(db, proposalData, jobId) {
     WHERE id = ?`
   ).run(
     JSON.stringify(proposalData),
-    proposalData.totalValue || 0, proposalData.depositAmount || 0,
-    c.name || '', c.email || '', c.phone || '',
-    p.address || '', p.city || '',
+    proposalData.totalValue || 0,
+    proposalData.depositAmount || 0,
+    c.name || '',
+    c.email || '',
+    c.phone || '',
+    p.address || '',
+    p.city || '',
     jobId
   );
 }
@@ -269,10 +316,14 @@ function saveReviewPending(db, proposalData, jobId) {
 function generateCustomerSerial(db) {
   const year = new Date().getFullYear();
   const assign = db.transaction(() => {
-    db.prepare('INSERT OR IGNORE INTO customer_serial_counter (year, next_seq) VALUES (?, 1)').run(year);
+    db.prepare('INSERT OR IGNORE INTO customer_serial_counter (year, next_seq) VALUES (?, 1)').run(
+      year
+    );
     const row = db.prepare('SELECT next_seq FROM customer_serial_counter WHERE year = ?').get(year);
     const seq = row.next_seq;
-    db.prepare('UPDATE customer_serial_counter SET next_seq = next_seq + 1 WHERE year = ?').run(year);
+    db.prepare('UPDATE customer_serial_counter SET next_seq = next_seq + 1 WHERE year = ?').run(
+      year
+    );
     return `PB-C-${year}-${String(seq).padStart(4, '0')}`;
   });
   return assign();
@@ -310,7 +361,6 @@ function extractExternalRef(text) {
   return match ? match[1] : null;
 }
 
-
 function generatePbCustomerNumber(db) {
   try {
     const counter = db.prepare('SELECT next_seq FROM pb_customer_counter WHERE id = 1').get();
@@ -318,7 +368,9 @@ function generatePbCustomerNumber(db) {
     const pbn = 'PB-C-' + String(seq).padStart(4, '0');
     db.prepare('UPDATE pb_customer_counter SET next_seq = ? WHERE id = 1').run(seq + 1);
     return pbn;
-  } catch (_) { return null; }
+  } catch (_) {
+    return null;
+  }
 }
 
 function findOrCreateContact(db, { name, email, phone, address, city, state }) {
@@ -330,7 +382,8 @@ function findOrCreateContact(db, { name, email, phone, address, city, state }) {
   }
   if (contact) {
     // Fill in any missing fields without overwriting existing data
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE contacts SET
         name    = COALESCE(NULLIF(?, ''), name),
         email   = COALESCE(NULLIF(?, ''), email),
@@ -339,8 +392,16 @@ function findOrCreateContact(db, { name, email, phone, address, city, state }) {
         city    = COALESCE(NULLIF(?, ''), city),
         state   = COALESCE(NULLIF(?, ''), state),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?`)
-      .run(name||'', email||'', phone||'', address||'', city||'', state||'MA', contact.id);
+      WHERE id = ?`
+    ).run(
+      name || '',
+      email || '',
+      phone || '',
+      address || '',
+      city || '',
+      state || 'MA',
+      contact.id
+    );
     // Assign CSN if contact doesn't have one yet (existing contacts pre-feature)
     if (!contact.customer_number) {
       const csn = generateCustomerSerial(db);
@@ -349,16 +410,35 @@ function findOrCreateContact(db, { name, email, phone, address, city, state }) {
     }
     if (!contact.pb_customer_number) {
       const pbn = generatePbCustomerNumber(db);
-      if (pbn) { db.prepare('UPDATE contacts SET pb_customer_number = ? WHERE id = ?').run(pbn, contact.id); contact.pb_customer_number = pbn; }
+      if (pbn) {
+        db.prepare('UPDATE contacts SET pb_customer_number = ? WHERE id = ?').run(pbn, contact.id);
+        contact.pb_customer_number = pbn;
+      }
     }
-    return { id: contact.id, csn: contact.customer_number, pb_customer_number: contact.pb_customer_number };
+    return {
+      id: contact.id,
+      csn: contact.customer_number,
+      pb_customer_number: contact.pb_customer_number
+    };
   } else {
     const csn = generateCustomerSerial(db);
     const pbn = generatePbCustomerNumber(db);
-    const result = db.prepare(`
+    const result = db
+      .prepare(
+        `
       INSERT INTO contacts (name, email, phone, address, city, state, customer_number, pb_customer_number, source)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'estimate')`)
-      .run(name||'', email||'', phone||'', address||'', city||'', state||'MA', csn, pbn);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'estimate')`
+      )
+      .run(
+        name || '',
+        email || '',
+        phone || '',
+        address || '',
+        city || '',
+        state || 'MA',
+        csn,
+        pbn
+      );
     return { id: result.lastInsertRowid, csn, pb_customer_number: pbn };
   }
 }
@@ -377,37 +457,59 @@ router.patch('/:id/takeoff', requireAuth, (req, res) => {
   if (!job) return res.status(404).json({ error: 'Job not found' });
   const { takeoffData } = req.body;
   if (!takeoffData) return res.status(400).json({ error: 'takeoffData is required' });
-  db.prepare('UPDATE jobs SET takeoff_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(JSON.stringify(takeoffData), req.params.id);
+  db.prepare('UPDATE jobs SET takeoff_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+    JSON.stringify(takeoffData),
+    req.params.id
+  );
   logAudit(req.params.id, 'takeoff_saved', 'Material take-off saved', req.session?.name || 'user');
   res.json({ success: true });
 });
 
 // PATCH /:id/pass-through-responsibility — save who pays each pass-through cost before contract generation
-router.patch('/:id/pass-through-responsibility', requireAuth, requireRole('admin', 'pm', 'system_admin'), (req, res) => {
-  const db = getDb();
-  const job = db.prepare('SELECT id, proposal_data FROM jobs WHERE id = ? AND archived = 0').get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
+router.patch(
+  '/:id/pass-through-responsibility',
+  requireAuth,
+  requireRole('admin', 'pm', 'system_admin'),
+  (req, res) => {
+    const db = getDb();
+    const job = db
+      .prepare('SELECT id, proposal_data FROM jobs WHERE id = ? AND archived = 0')
+      .get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
 
-  const { permit_paid_by, engineer_paid_by, architect_paid_by } = req.body;
-  const VALID = ['pb', 'customer_direct'];
-  if (permit_paid_by    && !VALID.includes(permit_paid_by))    return res.status(400).json({ error: 'Invalid permit_paid_by' });
-  if (engineer_paid_by  && !VALID.includes(engineer_paid_by))  return res.status(400).json({ error: 'Invalid engineer_paid_by' });
-  if (architect_paid_by && !VALID.includes(architect_paid_by)) return res.status(400).json({ error: 'Invalid architect_paid_by' });
+    const { permit_paid_by, engineer_paid_by, architect_paid_by } = req.body;
+    const VALID = ['pb', 'customer_direct'];
+    if (permit_paid_by && !VALID.includes(permit_paid_by))
+      return res.status(400).json({ error: 'Invalid permit_paid_by' });
+    if (engineer_paid_by && !VALID.includes(engineer_paid_by))
+      return res.status(400).json({ error: 'Invalid engineer_paid_by' });
+    if (architect_paid_by && !VALID.includes(architect_paid_by))
+      return res.status(400).json({ error: 'Invalid architect_paid_by' });
 
-  let proposal;
-  try { proposal = JSON.parse(job.proposal_data || '{}'); } catch { proposal = {}; }
-  if (!proposal.job) proposal.job = {};
+    let proposal;
+    try {
+      proposal = JSON.parse(job.proposal_data || '{}');
+    } catch {
+      proposal = {};
+    }
+    if (!proposal.job) proposal.job = {};
 
-  if (permit_paid_by    !== undefined) proposal.job.permit_paid_by    = permit_paid_by;
-  if (engineer_paid_by  !== undefined) proposal.job.engineer_paid_by  = engineer_paid_by;
-  if (architect_paid_by !== undefined) proposal.job.architect_paid_by = architect_paid_by;
+    if (permit_paid_by !== undefined) proposal.job.permit_paid_by = permit_paid_by;
+    if (engineer_paid_by !== undefined) proposal.job.engineer_paid_by = engineer_paid_by;
+    if (architect_paid_by !== undefined) proposal.job.architect_paid_by = architect_paid_by;
 
-  db.prepare('UPDATE jobs SET proposal_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(JSON.stringify(proposal), req.params.id);
-  logAudit(req.params.id, 'pass_through_responsibility_set', `Pass-through payment responsibility updated`, req.session?.name || 'user');
-  res.json({ success: true });
-});
+    db.prepare(
+      'UPDATE jobs SET proposal_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).run(JSON.stringify(proposal), req.params.id);
+    logAudit(
+      req.params.id,
+      'pass_through_responsibility_set',
+      `Pass-through payment responsibility updated`,
+      req.session?.name || 'user'
+    );
+    res.json({ success: true });
+  }
+);
 
 // GET archived jobs (must be before /:id route)
 router.get('/archived/list', requireAuth, (req, res) => {
@@ -420,13 +522,21 @@ router.get('/archived/list', requireAuth, (req, res) => {
 router.get('/', requireAuth, (req, res) => {
   const db = getDb();
   const { status, limit = 50, offset = 0 } = req.query;
-  let query = 'SELECT id, customer_name, customer_email, customer_phone, project_address, project_city, status, total_value, deposit_amount, created_at, updated_at, submitted_by, contact_id, pb_number, external_ref FROM jobs WHERE archived = 0';
+  let query =
+    'SELECT id, customer_name, customer_email, customer_phone, project_address, project_city, status, total_value, deposit_amount, created_at, updated_at, submitted_by, contact_id, pb_number, external_ref FROM jobs WHERE archived = 0';
   const params = [];
-  if (status) { query += ' AND status = ?'; params.push(status); }
+  if (status) {
+    query += ' AND status = ?';
+    params.push(status);
+  }
   query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
   params.push(parseInt(limit), parseInt(offset));
   const jobs = db.prepare(query).all(...params);
-  const total = db.prepare('SELECT COUNT(*) as count FROM jobs WHERE archived = 0' + (status ? ' AND status = ?' : '')).get(...(status ? [status] : []));
+  const total = db
+    .prepare(
+      'SELECT COUNT(*) as count FROM jobs WHERE archived = 0' + (status ? ' AND status = ?' : '')
+    )
+    .get(...(status ? [status] : []));
   res.json({ jobs, total: total.count });
 });
 
@@ -436,27 +546,51 @@ router.get('/:id', requireAuth, (req, res) => {
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
-  const conversations = db.prepare('SELECT * FROM conversations WHERE job_id = ? ORDER BY created_at ASC').all(req.params.id);
-  const clarifications = db.prepare('SELECT * FROM clarifications WHERE job_id = ? ORDER BY asked_at ASC').all(req.params.id);
-  const auditLog = db.prepare('SELECT * FROM audit_log WHERE job_id = ? ORDER BY created_at ASC').all(req.params.id);
+  const conversations = db
+    .prepare('SELECT * FROM conversations WHERE job_id = ? ORDER BY created_at ASC')
+    .all(req.params.id);
+  const clarifications = db
+    .prepare('SELECT * FROM clarifications WHERE job_id = ? ORDER BY asked_at ASC')
+    .all(req.params.id);
+  const auditLog = db
+    .prepare('SELECT * FROM audit_log WHERE job_id = ? ORDER BY created_at ASC')
+    .all(req.params.id);
 
   // Parse JSON fields
-  if (job.proposal_data) { try { job.proposal_data = JSON.parse(job.proposal_data); } catch {} }
-  if (job.contract_data) { try { job.contract_data = JSON.parse(job.contract_data); } catch {} }
-  if (job.flagged_items) { try { job.flagged_items = JSON.parse(job.flagged_items); } catch {} }
+  if (job.proposal_data) {
+    try {
+      job.proposal_data = JSON.parse(job.proposal_data);
+    } catch {}
+  }
+  if (job.contract_data) {
+    try {
+      job.contract_data = JSON.parse(job.contract_data);
+    } catch {}
+  }
+  if (job.flagged_items) {
+    try {
+      job.flagged_items = JSON.parse(job.flagged_items);
+    } catch {}
+  }
 
   // Include version history for the same quote number
   let versionHistory = [];
   if (job.quote_number) {
-    versionHistory = db.prepare(
-      `SELECT id, version, status, total_value, created_at, estimate_source, proposal_pdf_path
+    versionHistory = db
+      .prepare(
+        `SELECT id, version, status, total_value, created_at, estimate_source, proposal_pdf_path
        FROM jobs WHERE quote_number = ? ORDER BY version ASC`
-    ).all(job.quote_number);
+      )
+      .all(job.quote_number);
   }
 
   // Attach contact data (including pb_customer_number) if linked
   if (job.contact_id) {
-    const contact = db.prepare('SELECT id, name, email, phone, customer_number, pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id);
+    const contact = db
+      .prepare(
+        'SELECT id, name, email, phone, customer_number, pb_customer_number FROM contacts WHERE id = ?'
+      )
+      .get(job.contact_id);
     if (contact) job.contact = contact;
   }
 
@@ -465,196 +599,298 @@ router.get('/:id', requireAuth, (req, res) => {
 
 // POST approve proposal → generate contract
 // POST manually mark proposal as approved (in-person/verbal approval)
-router.post('/:id/mark-approved', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
-  const db = getDb();
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.proposal_data) return res.status(400).json({ error: 'No proposal to approve' });
-  db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('proposal_approved', job.id);
-  logAudit(job.id, 'proposal_approved', 'Proposal manually approved via admin panel', req.session?.name || 'admin');
-  res.json({ success: true, message: 'Proposal marked as approved' });
-});
+router.post(
+  '/:id/mark-approved',
+  requireAuth,
+  requireRole('admin', 'pm', 'system_admin'),
+  async (req, res) => {
+    const db = getDb();
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job.proposal_data) return res.status(400).json({ error: 'No proposal to approve' });
+    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+      'proposal_approved',
+      job.id
+    );
+    logAudit(
+      job.id,
+      'proposal_approved',
+      'Proposal manually approved via admin panel',
+      req.session?.name || 'admin'
+    );
+    res.json({ success: true, message: 'Proposal marked as approved' });
+  }
+);
 
 // PATCH /:id/line-items — save edited line items back to proposal_data (stays review_pending)
-router.patch('/:id/line-items', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
-  const db = getDb();
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.proposal_data) return res.status(400).json({ error: 'No editable estimate data found. This estimate was revised but has no stored line items — use the AI to regenerate the estimate from the original scope.' });
+router.patch(
+  '/:id/line-items',
+  requireAuth,
+  requireRole('admin', 'pm', 'system_admin'),
+  async (req, res) => {
+    const db = getDb();
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job.proposal_data)
+      return res
+        .status(400)
+        .json({
+          error:
+            'No editable estimate data found. This estimate was revised but has no stored line items — use the AI to regenerate the estimate from the original scope.'
+        });
 
-  const { lineItems } = req.body;
-  if (!Array.isArray(lineItems)) return res.status(400).json({ error: 'lineItems must be an array' });
-  if (lineItems.length === 0) return res.status(400).json({ error: 'lineItems cannot be empty' });
+    const { lineItems } = req.body;
+    if (!Array.isArray(lineItems))
+      return res.status(400).json({ error: 'lineItems must be an array' });
+    if (lineItems.length === 0) return res.status(400).json({ error: 'lineItems cannot be empty' });
 
-  // Validate each line item
-  for (const [i, li] of lineItems.entries()) {
-    if (!li.trade || typeof li.trade !== 'string' || !li.trade.trim()) {
-      return res.status(400).json({ error: `Line item ${i + 1} is missing a trade name` });
-    }
-    const cost = Number(li.baseCost);
-    if (isNaN(cost) || cost < 0) {
-      return res.status(400).json({ error: `Line item "${li.trade}" has an invalid cost (must be 0 or greater)` });
-    }
-  }
-
-  const proposalData = JSON.parse(job.proposal_data);
-  const settings = (() => {
-    const rows = db.prepare('SELECT key, value FROM settings').all();
-    const s = {};
-    for (const r of rows) { try { s[r.key] = JSON.parse(r.value); } catch { s[r.key] = r.value; } }
-    return s;
-  })();
-  const subOandP    = Number(settings['markup.subOandP'])    || 0.15;
-  const gcOandP     = Number(settings['markup.gcOandP'])     || 0.25;
-  const contingency = Number(settings['markup.contingency']) || 0.10;
-  const deposit     = Number(settings['markup.deposit'])     || 0.33;
-  const multiplier  = (1 + subOandP) * (1 + gcOandP) * (1 + contingency);
-
-  const updatedItems = lineItems.map(li => ({
-    ...li,
-    trade: li.trade.trim(),
-    baseCost: Math.max(0, Number(li.baseCost) || 0),
-    finalPrice: li.isStretchCode ? Math.max(0, Number(li.baseCost)) : Math.round(Math.max(0, Number(li.baseCost) || 0) * multiplier),
-  }));
-
-  // Auto-add dumpster as a visible line item if none exists
-  const hasDumpster = updatedItems.some(i => /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || ''));
-  if (!hasDumpster) {
-    const totalBase = updatedItems.reduce((s, i) => s + (i.baseCost || 0), 0);
-    const dumpsterBase = totalBase < 10000 ? 600 : totalBase <= 25000 ? 1200 : 1200 + Math.ceil((totalBase - 25000) / 15000) * 1200;
-    updatedItems.push({
-      trade: 'Waste Removal',
-      baseCost: dumpsterBase,
-      finalPrice: Math.round(dumpsterBase * multiplier),
-      description: 'Dumpster rental and debris disposal for project duration.',
-      scopeIncluded: ['Dumpster rental', 'Debris hauling and disposal'],
-      scopeExcluded: ['Hazardous material disposal'],
-      autoAdded: true,
-    });
-  }
-
-  const total = updatedItems.reduce((s, i) => s + (i.finalPrice || 0), 0);
-  const depositAmount = Math.round(total * deposit);
-
-  // Audit the change
-  const editor = req.session?.name || req.session?.email || 'admin';
-  const prevTotal = proposalData.totalValue || 0;
-
-  proposalData.lineItems = updatedItems;
-  proposalData.pricing = {
-    markupMultiplier: Math.round(multiplier * 10000) / 10000,
-    totalContractPrice: total,
-    depositPercent: Math.round(deposit * 100),
-    depositAmount,
-    appliedRates: { subOandP, gcOandP, contingency },
-  };
-  proposalData.totalValue = total;
-  proposalData.depositAmount = depositAmount;
-
-  db.prepare('UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-    .run(JSON.stringify(proposalData), total, depositAmount, job.id);
-
-  logAudit(job.id, 'line_items_edited', `Line items edited by ${editor}. Total changed from $${prevTotal.toLocaleString()} → $${total.toLocaleString()}`, editor);
-
-  res.json({ success: true, total, depositAmount, lineItems: updatedItems });
-});
-
-// POST /:id/generate-proposal — generate PDF from stored (possibly edited) proposal_data
-router.post('/:id/generate-proposal', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
-  const db = getDb();
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.proposal_data) return res.status(400).json({ error: 'No estimate data to generate from. Edit and save line items first, or reprocess the job to regenerate from the original scope.' });
-
-  try {
-    const proposalData = JSON.parse(job.proposal_data);
-    mergeContactIntoProposal(db, job.id, proposalData);
-    const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
-    saveProposalReady(db, proposalData, pdfPath, job.id);
-    logAudit(job.id, 'proposal_generated', 'Proposal PDF generated after line item review', req.session?.name || 'admin');
-    notifyClients('job_updated', { jobId: job.id, status: 'proposal_ready' });
-    res.json({ success: true, pdfPath: `/outputs/${require('path').basename(pdfPath)}` });
-  } catch (err) {
-    console.error('[generate-proposal] Error:', err.message);
-    res.status(500).json({ error: 'Failed to generate proposal: ' + err.message });
-  }
-});
-
-router.post('/:id/approve', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
-  const db = getDb();
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.proposal_data) return res.status(400).json({ error: 'No proposal to approve' });
-
-  try {
-    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('customer_approved', job.id);
-
-    const { generateContract } = require('../services/claudeService');
-    const proposalData = JSON.parse(job.proposal_data);
-    mergeContactIntoProposal(db, job.id, proposalData);
-
-    // Inject owner address from contact record if not already in proposal data
-    if (!proposalData.customer) proposalData.customer = {};
-    if (!proposalData.customer.address_line1 && job.contact_id) {
-      const contact = db.prepare('SELECT address, city, state, zip FROM contacts WHERE id = ?').get(job.contact_id);
-      if (contact?.address) {
-        proposalData.customer.address_line1  = contact.address;
-        proposalData.customer.city_state_zip = [contact.city, contact.state, contact.zip].filter(Boolean).join(', ');
+    // Validate each line item
+    for (const [i, li] of lineItems.entries()) {
+      if (!li.trade || typeof li.trade !== 'string' || !li.trade.trim()) {
+        return res.status(400).json({ error: `Line item ${i + 1} is missing a trade name` });
+      }
+      const cost = Number(li.baseCost);
+      if (isNaN(cost) || cost < 0) {
+        return res
+          .status(400)
+          .json({ error: `Line item "${li.trade}" has an invalid cost (must be 0 or greater)` });
       }
     }
-    // If still no owner address, fall back to project address (owner lives at job site)
-    if (!proposalData.customer.address_line1 && job.project_address) {
-      proposalData.customer.address_line1  = job.project_address;
-      proposalData.customer.city_state_zip = [job.project_city, 'MA'].filter(Boolean).join(', ');
+
+    const proposalData = JSON.parse(job.proposal_data);
+    const settings = (() => {
+      const rows = db.prepare('SELECT key, value FROM settings').all();
+      const s = {};
+      for (const r of rows) {
+        try {
+          s[r.key] = JSON.parse(r.value);
+        } catch {
+          s[r.key] = r.value;
+        }
+      }
+      return s;
+    })();
+    const subOandP = Number(settings['markup.subOandP']) || 0.15;
+    const gcOandP = Number(settings['markup.gcOandP']) || 0.25;
+    const contingency = Number(settings['markup.contingency']) || 0.1;
+    const deposit = Number(settings['markup.deposit']) || 0.33;
+    const multiplier = (1 + subOandP) * (1 + gcOandP) * (1 + contingency);
+
+    const updatedItems = lineItems.map((li) => ({
+      ...li,
+      trade: li.trade.trim(),
+      baseCost: Math.max(0, Number(li.baseCost) || 0),
+      finalPrice: li.isStretchCode
+        ? Math.max(0, Number(li.baseCost))
+        : Math.round(Math.max(0, Number(li.baseCost) || 0) * multiplier)
+    }));
+
+    // Auto-add dumpster as a visible line item if none exists
+    const hasDumpster = updatedItems.some((i) =>
+      /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || '')
+    );
+    if (!hasDumpster) {
+      const totalBase = updatedItems.reduce((s, i) => s + (i.baseCost || 0), 0);
+      const dumpsterBase =
+        totalBase < 10000
+          ? 600
+          : totalBase <= 25000
+            ? 1200
+            : 1200 + Math.ceil((totalBase - 25000) / 15000) * 1200;
+      updatedItems.push({
+        trade: 'Waste Removal',
+        baseCost: dumpsterBase,
+        finalPrice: Math.round(dumpsterBase * multiplier),
+        description: 'Dumpster rental and debris disposal for project duration.',
+        scopeIncluded: ['Dumpster rental', 'Debris hauling and disposal'],
+        scopeExcluded: ['Hazardous material disposal'],
+        autoAdded: true
+      });
     }
 
-    const contractData = await generateContract(proposalData, job.id, 'en');
+    const total = updatedItems.reduce((s, i) => s + (i.finalPrice || 0), 0);
+    const depositAmount = Math.round(total * deposit);
 
-    const contractPDF = await generatePDF(contractData, 'contract', job.id);
-    db.prepare('UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-      .run(JSON.stringify(contractData), contractPDF, 'contract_ready', job.id);
+    // Audit the change
+    const editor = req.session?.name || req.session?.email || 'admin';
+    const prevTotal = proposalData.totalValue || 0;
 
-    logAudit(job.id, 'contract_generated', 'Contract approved via admin panel', 'admin');
-    try {
-      const contactRef2 = job.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id) : null;
-      logActivity({ customer_number: contactRef2?.pb_customer_number || null, job_id: job.id, event_type: 'CONTRACT_GENERATED', description: `Contract generated for ${job.project_address || 'project'}`, recorded_by: req.session?.name || 'admin' });
-    } catch (_) {}
-    res.json({ success: true, message: 'Contract generated', contractPDF: `/outputs/${require('path').basename(contractPDF)}` });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    proposalData.lineItems = updatedItems;
+    proposalData.pricing = {
+      markupMultiplier: Math.round(multiplier * 10000) / 10000,
+      totalContractPrice: total,
+      depositPercent: Math.round(deposit * 100),
+      depositAmount,
+      appliedRates: { subOandP, gcOandP, contingency }
+    };
+    proposalData.totalValue = total;
+    proposalData.depositAmount = depositAmount;
+
+    db.prepare(
+      'UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).run(JSON.stringify(proposalData), total, depositAmount, job.id);
+
+    logAudit(
+      job.id,
+      'line_items_edited',
+      `Line items edited by ${editor}. Total changed from $${prevTotal.toLocaleString()} → $${total.toLocaleString()}`,
+      editor
+    );
+
+    res.json({ success: true, total, depositAmount, lineItems: updatedItems });
   }
-});
+);
+
+// POST /:id/generate-proposal — generate PDF from stored (possibly edited) proposal_data
+router.post(
+  '/:id/generate-proposal',
+  requireAuth,
+  requireRole('admin', 'pm', 'system_admin'),
+  async (req, res) => {
+    const db = getDb();
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job.proposal_data)
+      return res
+        .status(400)
+        .json({
+          error:
+            'No estimate data to generate from. Edit and save line items first, or reprocess the job to regenerate from the original scope.'
+        });
+
+    try {
+      const proposalData = JSON.parse(job.proposal_data);
+      mergeContactIntoProposal(db, job.id, proposalData);
+      const pdfPath = await generatePDF(proposalData, 'proposal', job.id);
+      saveProposalReady(db, proposalData, pdfPath, job.id);
+      logAudit(
+        job.id,
+        'proposal_generated',
+        'Proposal PDF generated after line item review',
+        req.session?.name || 'admin'
+      );
+      notifyClients('job_updated', { jobId: job.id, status: 'proposal_ready' });
+      res.json({ success: true, pdfPath: `/outputs/${require('path').basename(pdfPath)}` });
+    } catch (err) {
+      console.error('[generate-proposal] Error:', err.message);
+      res.status(500).json({ error: 'Failed to generate proposal: ' + err.message });
+    }
+  }
+);
+
+router.post(
+  '/:id/approve',
+  requireAuth,
+  requireRole('admin', 'pm', 'system_admin'),
+  async (req, res) => {
+    const db = getDb();
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job.proposal_data) return res.status(400).json({ error: 'No proposal to approve' });
+
+    try {
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+        'customer_approved',
+        job.id
+      );
+
+      const { generateContract } = require('../services/claudeService');
+      const proposalData = JSON.parse(job.proposal_data);
+      mergeContactIntoProposal(db, job.id, proposalData);
+
+      // Inject owner address from contact record if not already in proposal data
+      if (!proposalData.customer) proposalData.customer = {};
+      if (!proposalData.customer.address_line1 && job.contact_id) {
+        const contact = db
+          .prepare('SELECT address, city, state, zip FROM contacts WHERE id = ?')
+          .get(job.contact_id);
+        if (contact?.address) {
+          proposalData.customer.address_line1 = contact.address;
+          proposalData.customer.city_state_zip = [contact.city, contact.state, contact.zip]
+            .filter(Boolean)
+            .join(', ');
+        }
+      }
+      // If still no owner address, fall back to project address (owner lives at job site)
+      if (!proposalData.customer.address_line1 && job.project_address) {
+        proposalData.customer.address_line1 = job.project_address;
+        proposalData.customer.city_state_zip = [job.project_city, 'MA'].filter(Boolean).join(', ');
+      }
+
+      const contractData = await generateContract(proposalData, job.id, 'en');
+
+      const contractPDF = await generatePDF(contractData, 'contract', job.id);
+      db.prepare(
+        'UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).run(JSON.stringify(contractData), contractPDF, 'contract_ready', job.id);
+
+      logAudit(job.id, 'contract_generated', 'Contract approved via admin panel', 'admin');
+      try {
+        const contactRef2 = job.contact_id
+          ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+          : null;
+        logActivity({
+          customer_number: contactRef2?.pb_customer_number || null,
+          job_id: job.id,
+          event_type: 'CONTRACT_GENERATED',
+          description: `Contract generated for ${job.project_address || 'project'}`,
+          recorded_by: req.session?.name || 'admin'
+        });
+      } catch (_) {}
+      res.json({
+        success: true,
+        message: 'Contract generated',
+        contractPDF: `/outputs/${require('path').basename(contractPDF)}`
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
 
 // POST send contract to customer
-router.post('/:id/send-to-customer', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
-  const db = getDb();
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.contract_pdf_path) return res.status(400).json({ error: 'No contract PDF ready' });
+router.post(
+  '/:id/send-to-customer',
+  requireAuth,
+  requireRole('admin', 'pm', 'system_admin'),
+  async (req, res) => {
+    const db = getDb();
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job.contract_pdf_path) return res.status(400).json({ error: 'No contract PDF ready' });
 
-  try {
-    await sendEmail({
-      to: job.customer_email,
-      subject: `Your Project Proposal — Preferred Builders General Services`,
-      html: `
+    try {
+      await sendEmail({
+        to: job.customer_email,
+        subject: `Your Project Proposal — Preferred Builders General Services`,
+        html: `
         <p>Dear ${job.customer_name},</p>
         <p>Thank you for choosing Preferred Builders General Services Inc. Please find your project contract attached for review.</p>
         <p>Please review the document carefully. If you have any questions, please contact us at 978-377-1784.</p>
         <p>Best regards,<br>Jackson Deaquino<br>Preferred Builders General Services Inc.<br>LIC# HIC-197400</p>
       `,
-      attachmentPath: job.contract_pdf_path,
-      attachmentName: `PB_Contract_${job.customer_name?.replace(/\s/g, '_')}.pdf`,
-      emailType: 'contract',
-      jobId: job.id
-    });
+        attachmentPath: job.contract_pdf_path,
+        attachmentName: `PB_Contract_${job.customer_name?.replace(/\s/g, '_')}.pdf`,
+        emailType: 'contract',
+        jobId: job.id
+      });
 
-    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('contract_sent', job.id);
-    logAudit(job.id, 'contract_sent_to_customer', `Contract emailed to ${job.customer_email}`, 'admin');
-    res.json({ success: true, message: `Contract sent to ${job.customer_email}` });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+        'contract_sent',
+        job.id
+      );
+      logAudit(
+        job.id,
+        'contract_sent_to_customer',
+        `Contract emailed to ${job.customer_email}`,
+        'admin'
+      );
+      res.json({ success: true, message: `Contract sent to ${job.customer_email}` });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   }
-});
+);
 
 // POST extract text from uploaded images/PDFs (for wizard file attachments)
 router.post('/extract-from-files', requireAuth, async (req, res) => {
@@ -708,13 +944,17 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
           model: 'claude-opus-4-5',
           max_tokens: 4000,
           temperature: 0,
-          messages: [{
-            role: 'user',
-            content: [
-              { type: 'image', source: { type: 'base64', media_type: file.mimetype, data: base64 } },
-              {
-                type: 'text',
-                text: `This is a construction document — blueprint, floor plan, building plan, sketch, or site photo.
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image',
+                  source: { type: 'base64', media_type: file.mimetype, data: base64 }
+                },
+                {
+                  type: 'text',
+                  text: `This is a construction document — blueprint, floor plan, building plan, sketch, or site photo.
 
 Extract ALL technically relevant information:
 - Project address or job site address (street number, street name, city, state) if visible anywhere on the document
@@ -727,9 +967,10 @@ Extract ALL technically relevant information:
 - Quantities and specifications if labeled
 
 Format as a clear, detailed construction scope description. Include the project address at the very top if found, labeled "PROJECT ADDRESS: [address]". Do NOT include owner/client personal information (names, phone numbers, email). Focus on the technical scope.`
-              }
-            ]
-          }]
+                }
+              ]
+            }
+          ]
         });
         const extracted = response.content[0].text.trim();
         if (extracted.length > 20) {
@@ -744,7 +985,9 @@ Format as a clear, detailed construction scope description. Include the project 
 
   if (!extractedParts.length) {
     // Clean up temp dir if nothing extracted
-    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {}
     return res.status(400).json({ error: 'No readable content found in the uploaded files.' });
   }
 
@@ -757,12 +1000,17 @@ Format as a clear, detailed construction scope description. Include the project 
       model: 'claude-opus-4-5',
       max_tokens: 200,
       temperature: 0,
-      messages: [{
-        role: 'user',
-        content: `From the following construction document text, extract the PROJECT ADDRESS (job site address, not the owner's mailing address). Return ONLY a JSON object like: {"street":"123 Main St","city":"Boston","state":"MA","zip":"02101"} — or {"street":""} if no address is found. No explanation, just JSON.\n\n${allExtractedText.slice(0, 3000)}`
-      }]
+      messages: [
+        {
+          role: 'user',
+          content: `From the following construction document text, extract the PROJECT ADDRESS (job site address, not the owner's mailing address). Return ONLY a JSON object like: {"street":"123 Main St","city":"Boston","state":"MA","zip":"02101"} — or {"street":""} if no address is found. No explanation, just JSON.\n\n${allExtractedText.slice(0, 3000)}`
+        }
+      ]
     });
-    const raw = addrRes.content[0].text.trim().replace(/```json|```/g, '').trim();
+    const raw = addrRes.content[0].text
+      .trim()
+      .replace(/```json|```/g, '')
+      .trim();
     const parsed = JSON.parse(raw);
     if (parsed.street && parsed.street.length > 3) {
       extractedAddress = parsed;
@@ -788,41 +1036,60 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
 
   if (!req.files?.estimate) return res.status(400).json({ error: 'No file uploaded' });
   const file = req.files.estimate;
-  const { customerName = '', customerEmail = '', customerPhone = '', projectAddress = '' } = req.body;
+  const {
+    customerName = '',
+    customerEmail = '',
+    customerPhone = '',
+    projectAddress = ''
+  } = req.body;
 
   let rawText = '';
 
   try {
     if (file.mimetype === 'application/pdf') {
-      const fileBuffer = file.tempFilePath ? require('fs').readFileSync(file.tempFilePath) : file.data;
+      const fileBuffer = file.tempFilePath
+        ? require('fs').readFileSync(file.tempFilePath)
+        : file.data;
       const parsed = await pdfParse(fileBuffer);
       rawText = parsed.text.trim();
-      if (rawText.length < 50) return res.status(400).json({ error: 'PDF appears empty or unreadable. Please use a text-based PDF.' });
+      if (rawText.length < 50)
+        return res
+          .status(400)
+          .json({ error: 'PDF appears empty or unreadable. Please use a text-based PDF.' });
     } else if (file.mimetype.startsWith('image/')) {
       // Use Claude vision to extract text from image
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const fileBuffer = file.tempFilePath ? require('fs').readFileSync(file.tempFilePath) : file.data;
+      const fileBuffer = file.tempFilePath
+        ? require('fs').readFileSync(file.tempFilePath)
+        : file.data;
       const base64 = fileBuffer.toString('base64');
       const response = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 3000,
         temperature: 0,
-        messages: [{
-          role: 'user',
-          content: [{
-            type: 'image',
-            source: { type: 'base64', media_type: file.mimetype, data: base64 }
-          }, {
-            type: 'text',
-            text: 'This is a construction estimate or invoice image. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names, and project address (for jurisdiction). Do NOT include or repeat any customer personal information such as names, email addresses, or phone numbers — omit those entirely. Format as plain text.'
-          }]
-        }]
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: file.mimetype, data: base64 }
+              },
+              {
+                type: 'text',
+                text: 'This is a construction estimate or invoice image. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names, and project address (for jurisdiction). Do NOT include or repeat any customer personal information such as names, email addresses, or phone numbers — omit those entirely. Format as plain text.'
+              }
+            ]
+          }
+        ]
       });
       rawText = response.content[0].text.trim();
     } else if (file.mimetype.startsWith('text/')) {
       rawText = file.data.toString('utf8').trim();
     } else {
-      return res.status(400).json({ error: 'Unsupported file type. Use PDF, image (JPG/PNG), or text file.' });
+      return res
+        .status(400)
+        .json({ error: 'Unsupported file type. Use PDF, image (JPG/PNG), or text file.' });
     }
   } catch (err) {
     return res.status(500).json({ error: 'Failed to read file: ' + err.message });
@@ -835,10 +1102,16 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
   if (customerName || customerEmail) {
     try {
       contactRef = findOrCreateContact(db, {
-        name: customerName, email: customerEmail, phone: customerPhone,
-        address: projectAddress, city: '', state: 'MA'
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+        address: projectAddress,
+        city: '',
+        state: 'MA'
       });
-    } catch (e) { console.warn('[Upload] Contact upsert failed:', e.message); }
+    } catch (e) {
+      console.warn('[Upload] Contact upsert failed:', e.message);
+    }
   }
 
   // Strip PII from estimate text; use CSN as the only customer identifier sent to Claude
@@ -848,17 +1121,31 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     : `[Job ID: ${jobId}]\n\nESTIMATE DETAILS:\n${sanitizedText}`;
 
   const uploadedBy = req.session?.name ? `web:${req.session.name}` : 'web:upload';
-  db.prepare(`INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
+  db.prepare(
+    `INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)`
-  ).run(jobId, customerName, customerEmail, customerPhone, projectAddress, fullEstimate, uploadedBy, contactRef?.id || null);
+  ).run(
+    jobId,
+    customerName,
+    customerEmail,
+    customerPhone,
+    projectAddress,
+    fullEstimate,
+    uploadedBy,
+    contactRef?.id || null
+  );
 
   // Assign PB number + auto quote number immediately on job creation
   try {
     const pbNum = generatePBNumber(db);
     const extRef = extractExternalRef(rawText);
-    const qNum  = generateQuoteNumber(db);
-    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
-  } catch (e) { console.warn('[Upload] PB/Quote number generation failed:', e.message); }
+    const qNum = generateQuoteNumber(db);
+    db.prepare(
+      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
+    ).run(pbNum, extRef, qNum, jobId);
+  } catch (e) {
+    console.warn('[Upload] PB/Quote number generation failed:', e.message);
+  }
 
   try {
     logActivity({
@@ -868,23 +1155,47 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
       description: `Estimate created via file upload for ${projectAddress || customerName}`,
       recorded_by: req.session?.name || 'web:upload'
     });
-  } catch (e) { console.warn('[Upload] logActivity failed:', e.message); }
+  } catch (e) {
+    console.warn('[Upload] logActivity failed:', e.message);
+  }
 
   res.json({ jobId, status: 'received', message: 'File uploaded. Processing estimate...' });
 
   const { processEstimate } = require('../services/claudeService');
   (async () => {
     try {
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
-      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedText, contactId: contactRef?.id, projectAddress });
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+        'processing',
+        jobId
+      );
+      const { context: priorCtx } = findPriorQuoteContext(db, {
+        rawText: sanitizedText,
+        contactId: contactRef?.id,
+        projectAddress
+      });
+      const proposalData = await processEstimate(
+        fullEstimate,
+        jobId,
+        'en',
+        db,
+        projectAddress,
+        priorCtx
+      );
       mergeContactIntoProposal(db, jobId, proposalData);
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         finalizeJobVersioning(db, jobId, proposalData);
-        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+          'clarification',
+          jobId
+        );
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
-        logAudit(jobId, 'upload_estimate_clarification', `${proposalData.clarificationsNeeded.length} questions needed`, 'admin');
+        logAudit(
+          jobId,
+          'upload_estimate_clarification',
+          `${proposalData.clarificationsNeeded.length} questions needed`,
+          'admin'
+        );
       } else {
         finalizeJobVersioning(db, jobId, proposalData);
         const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
@@ -895,20 +1206,35 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
             versionNumber: proposalData.quoteVersion || 1,
             totalValue: proposalData.totalValue,
             lineItems: proposalData.lineItems,
-            scopeSummary: (proposalData.project?.description || '').slice(0, 300),
+            scopeSummary: (proposalData.project?.description || '').slice(0, 300)
           });
-        } catch (memErr) { console.warn('[JobMemory] saveVersion failed:', memErr.message); }
-        logAudit(jobId, 'upload_estimate_processed', `Proposal ready. Total: $${proposalData.totalValue}`, 'admin');
+        } catch (memErr) {
+          console.warn('[JobMemory] saveVersion failed:', memErr.message);
+        }
+        logAudit(
+          jobId,
+          'upload_estimate_processed',
+          `Proposal ready. Total: $${proposalData.totalValue}`,
+          'admin'
+        );
         tickQuoteCounter(db);
         notifyClients('job_updated', { jobId, status: 'proposal_ready' });
         if (process.env.OWNER_WHATSAPP) {
-          const ownerTo = process.env.OWNER_WHATSAPP.startsWith('whatsapp:') ? process.env.OWNER_WHATSAPP : `whatsapp:${process.env.OWNER_WHATSAPP}`;
-          await sendWhatsApp(ownerTo, `📋 Upload job ready for review.\nCustomer: *${proposalData.customer?.name || 'Unknown'}*\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review line items.`);
+          const ownerTo = process.env.OWNER_WHATSAPP.startsWith('whatsapp:')
+            ? process.env.OWNER_WHATSAPP
+            : `whatsapp:${process.env.OWNER_WHATSAPP}`;
+          await sendWhatsApp(
+            ownerTo,
+            `📋 Upload job ready for review.\nCustomer: *${proposalData.customer?.name || 'Unknown'}*\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review line items.`
+          );
         }
       }
     } catch (err) {
       console.error(`[Upload Job ${jobId}] ERROR:`, err.message);
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', jobId);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+        'error',
+        jobId
+      );
     }
   })();
 });
@@ -918,8 +1244,13 @@ router.post('/wizard', requireAuth, async (req, res) => {
   const { v4: uuidv4 } = require('uuid');
   const db = getDb();
   const {
-    contactName = '', contactPhone = '', contactEmail = '',
-    street = '', city = '', state = '', zip = '',
+    contactName = '',
+    contactPhone = '',
+    contactEmail = '',
+    street = '',
+    city = '',
+    state = '',
+    zip = '',
     scopeText = ''
   } = req.body;
 
@@ -936,25 +1267,46 @@ router.post('/wizard', requireAuth, async (req, res) => {
   if (contactName || contactEmail) {
     try {
       contactRef = findOrCreateContact(db, {
-        name: contactName, email: contactEmail, phone: contactPhone,
-        address: street, city, state: state || 'MA'
+        name: contactName,
+        email: contactEmail,
+        phone: contactPhone,
+        address: street,
+        city,
+        state: state || 'MA'
       });
-    } catch (e) { console.warn('[Wizard Job] Contact upsert failed:', e.message); }
+    } catch (e) {
+      console.warn('[Wizard Job] Contact upsert failed:', e.message);
+    }
   }
 
   const wizardBy = req.session?.name ? `web:${req.session.name}` : 'web:wizard';
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
     VALUES (?, ?, ?, ?, ?, ?, 'processing', ?, ?)
-  `).run(jobId, contactName, contactEmail, contactPhone, projectAddress, scopeText, wizardBy, contactRef?.id || null);
+  `
+  ).run(
+    jobId,
+    contactName,
+    contactEmail,
+    contactPhone,
+    projectAddress,
+    scopeText,
+    wizardBy,
+    contactRef?.id || null
+  );
 
   // Assign PB number + auto quote number immediately on job creation
   try {
     const pbNum = generatePBNumber(db);
     const extRef = extractExternalRef(scopeText);
-    const qNum  = generateQuoteNumber(db);
-    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
-  } catch (e) { console.warn('[Wizard] PB/Quote number generation failed:', e.message); }
+    const qNum = generateQuoteNumber(db);
+    db.prepare(
+      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
+    ).run(pbNum, extRef, qNum, jobId);
+  } catch (e) {
+    console.warn('[Wizard] PB/Quote number generation failed:', e.message);
+  }
 
   try {
     logActivity({
@@ -964,7 +1316,9 @@ router.post('/wizard', requireAuth, async (req, res) => {
       description: `Estimate created via wizard for ${projectAddress || contactName}`,
       recorded_by: req.session?.name || 'web:wizard'
     });
-  } catch (e) { console.warn('[Wizard] logActivity failed:', e.message); }
+  } catch (e) {
+    console.warn('[Wizard] logActivity failed:', e.message);
+  }
 
   notifyClients('job_updated', { jobId, status: 'processing' });
   res.json({ jobId, status: 'processing', message: 'Job created. Processing estimate...' });
@@ -979,26 +1333,44 @@ router.post('/wizard', requireAuth, async (req, res) => {
         ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nSCOPE OF WORK:\n${sanitizedScope}`
         : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nSCOPE OF WORK:\n${sanitizedScope}`;
 
-      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedScope, contactId: contactRef?.id, projectAddress });
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
+      const { context: priorCtx } = findPriorQuoteContext(db, {
+        rawText: sanitizedScope,
+        contactId: contactRef?.id,
+        projectAddress
+      });
+      const proposalData = await processEstimate(
+        fullEstimate,
+        jobId,
+        'en',
+        db,
+        projectAddress,
+        priorCtx
+      );
       mergeContactIntoProposal(db, jobId, proposalData);
-      console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
+      console.log(
+        `[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`
+      );
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         finalizeJobVersioning(db, jobId, proposalData);
-        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+          'clarification',
+          jobId
+        );
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
-        console.log(`[Wizard Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`);
+        console.log(
+          `[Wizard Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`
+        );
       } else {
         if (!proposalData.customer) proposalData.customer = {};
-        proposalData.customer.name  = contactName  || proposalData.customer.name  || '';
+        proposalData.customer.name = contactName || proposalData.customer.name || '';
         proposalData.customer.email = contactEmail || proposalData.customer.email || '';
         proposalData.customer.phone = contactPhone || proposalData.customer.phone || '';
         if (!proposalData.project) proposalData.project = {};
         proposalData.project.address = proposalData.project.address || street || '';
-        proposalData.project.city    = proposalData.project.city    || city   || '';
-        proposalData.project.state   = proposalData.project.state   || state  || 'MA';
+        proposalData.project.city = proposalData.project.city || city || '';
+        proposalData.project.state = proposalData.project.state || state || 'MA';
 
         finalizeJobVersioning(db, jobId, proposalData);
         saveReviewPending(db, proposalData, jobId);
@@ -1008,17 +1380,24 @@ router.post('/wizard', requireAuth, async (req, res) => {
             versionNumber: proposalData.quoteVersion || 1,
             totalValue: proposalData.totalValue,
             lineItems: proposalData.lineItems,
-            scopeSummary: (proposalData.project?.description || '').slice(0, 300),
+            scopeSummary: (proposalData.project?.description || '').slice(0, 300)
           });
-        } catch (memErr) { console.warn('[JobMemory] saveVersion failed:', memErr.message); }
+        } catch (memErr) {
+          console.warn('[JobMemory] saveVersion failed:', memErr.message);
+        }
         logAudit(jobId, 'wizard_estimate_processed', `Wizard entry — pending review`, 'admin');
-        console.log(`[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
+        console.log(
+          `[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`
+        );
         tickQuoteCounter(db);
         notifyClients('job_updated', { jobId, status: 'review_pending' });
       }
     } catch (err) {
       console.error(`[Wizard Job ${jobId}] ERROR:`, err.message, err.stack);
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', jobId);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+        'error',
+        jobId
+      );
     }
   })();
 });
@@ -1036,25 +1415,46 @@ router.post('/manual', requireAuth, async (req, res) => {
   if (customerName || customerEmail) {
     try {
       contactRef = findOrCreateContact(db, {
-        name: customerName, email: customerEmail, phone: customerPhone,
-        address: projectAddress, city: '', state: 'MA'
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+        address: projectAddress,
+        city: '',
+        state: 'MA'
       });
-    } catch (e) { console.warn('[Manual Job] Contact upsert failed:', e.message); }
+    } catch (e) {
+      console.warn('[Manual Job] Contact upsert failed:', e.message);
+    }
   }
 
   const manualBy = req.session?.name ? `web:${req.session.name}` : 'web:manual';
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
-  `).run(jobId, customerName, customerEmail, customerPhone, projectAddress, estimateText, manualBy, contactRef?.id || null);
+  `
+  ).run(
+    jobId,
+    customerName,
+    customerEmail,
+    customerPhone,
+    projectAddress,
+    estimateText,
+    manualBy,
+    contactRef?.id || null
+  );
 
   // Assign PB number + auto quote number immediately on job creation
   try {
     const pbNum = generatePBNumber(db);
     const extRef = extractExternalRef(estimateText);
-    const qNum  = generateQuoteNumber(db);
-    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
-  } catch (e) { console.warn('[Manual] PB/Quote number generation failed:', e.message); }
+    const qNum = generateQuoteNumber(db);
+    db.prepare(
+      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
+    ).run(pbNum, extRef, qNum, jobId);
+  } catch (e) {
+    console.warn('[Manual] PB/Quote number generation failed:', e.message);
+  }
 
   res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
 
@@ -1072,44 +1472,75 @@ router.post('/manual', requireAuth, async (req, res) => {
   (async () => {
     try {
       console.log(`[Manual Job ${jobId}] Starting Claude processEstimate...`);
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+        'processing',
+        jobId
+      );
 
       const sanitizedScope = stripPII(estimateText);
       const fullEstimate = contactRef
         ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`
         : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`;
-      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedScope, contactId: contactRef?.id, projectAddress });
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
+      const { context: priorCtx } = findPriorQuoteContext(db, {
+        rawText: sanitizedScope,
+        contactId: contactRef?.id,
+        projectAddress
+      });
+      const proposalData = await processEstimate(
+        fullEstimate,
+        jobId,
+        'en',
+        db,
+        projectAddress,
+        priorCtx
+      );
       mergeContactIntoProposal(db, jobId, proposalData);
-      console.log(`[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
+      console.log(
+        `[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`
+      );
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         finalizeJobVersioning(db, jobId, proposalData);
-        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+          'clarification',
+          jobId
+        );
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) {
           insertQ.run(jobId, q);
         }
-        console.log(`[Manual Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`);
+        console.log(
+          `[Manual Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`
+        );
 
         const ownerWhatsApp = process.env.OWNER_WHATSAPP;
         if (ownerWhatsApp) {
-          const to = ownerWhatsApp.startsWith('whatsapp:') ? ownerWhatsApp : `whatsapp:${ownerWhatsApp}`;
+          const to = ownerWhatsApp.startsWith('whatsapp:')
+            ? ownerWhatsApp
+            : `whatsapp:${ownerWhatsApp}`;
           const firstQ = proposalData.clarificationsNeeded[0];
           const total = proposalData.clarificationsNeeded.length;
-          await sendWhatsApp(to, `Hey! 👋 I'm working on the estimate for *${customerName}* at ${projectAddress} but I'm missing a few details.\n\nI'll ask you one question at a time — just reply and I'll move to the next one.\n\n❓ Question 1 of ${total}:\n${firstQ}`);
+          await sendWhatsApp(
+            to,
+            `Hey! 👋 I'm working on the estimate for *${customerName}* at ${projectAddress} but I'm missing a few details.\n\nI'll ask you one question at a time — just reply and I'll move to the next one.\n\n❓ Question 1 of ${total}:\n${firstQ}`
+          );
         }
       } else {
         finalizeJobVersioning(db, jobId, proposalData);
         saveReviewPending(db, proposalData, jobId);
         logAudit(jobId, 'manual_estimate_processed', `Manual entry — pending review`, 'admin');
-        console.log(`[Manual Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
+        console.log(
+          `[Manual Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`
+        );
         tickQuoteCounter(db);
         notifyClients('job_updated', { jobId, status: 'review_pending' });
       }
     } catch (err) {
       console.error(`[Manual Job ${jobId}] ERROR:`, err.message, err.stack);
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', jobId);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+        'error',
+        jobId
+      );
     }
   })();
 });
@@ -1120,32 +1551,52 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
   const { answer } = req.body;
   if (!answer) return res.status(400).json({ error: 'Answer is required' });
 
-  db.prepare('UPDATE clarifications SET answer = ?, answered_at = CURRENT_TIMESTAMP WHERE id = ? AND job_id = ?')
-    .run(answer, req.params.clarId, req.params.id);
+  db.prepare(
+    'UPDATE clarifications SET answer = ?, answered_at = CURRENT_TIMESTAMP WHERE id = ? AND job_id = ?'
+  ).run(answer, req.params.clarId, req.params.id);
 
-  const remaining = db.prepare(
-    'SELECT COUNT(*) as count FROM clarifications WHERE job_id = ? AND answer IS NULL'
-  ).get(req.params.id);
+  const remaining = db
+    .prepare('SELECT COUNT(*) as count FROM clarifications WHERE job_id = ? AND answer IS NULL')
+    .get(req.params.id);
 
   if (remaining.count === 0) {
-    res.json({ success: true, allAnswered: true, message: 'All questions answered. Generating proposal...' });
+    res.json({
+      success: true,
+      allAnswered: true,
+      message: 'All questions answered. Generating proposal...'
+    });
 
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
     if (job) {
       (async () => {
         try {
           console.log(`[Job ${job.id}] All clarifications answered. Generating proposal...`);
-          db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', job.id);
+          db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+            'processing',
+            job.id
+          );
 
-          const allAnswers = db.prepare('SELECT question, answer FROM clarifications WHERE job_id = ?').all(job.id);
-          const answersText = allAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join('\n\n');
+          const allAnswers = db
+            .prepare('SELECT question, answer FROM clarifications WHERE job_id = ?')
+            .all(job.id);
+          const answersText = allAnswers
+            .map((a) => `Q: ${a.question}\nA: ${a.answer}`)
+            .join('\n\n');
           const rawEstimate = job.raw_estimate_data || '';
 
           const { processEstimate } = require('../services/claudeService');
-          const { context: priorCtx } = findPriorQuoteContext(db, { rawText: rawEstimate, contactId: job.contact_id, projectAddress: job.project_address });
+          const { context: priorCtx } = findPriorQuoteContext(db, {
+            rawText: rawEstimate,
+            contactId: job.contact_id,
+            projectAddress: job.project_address
+          });
           const proposalData = await processEstimate(
             `${rawEstimate}\n\nCLARIFICATION ANSWERS:\n${answersText}`,
-            job.id, 'en', db, job.project_address || null, priorCtx
+            job.id,
+            'en',
+            db,
+            job.project_address || null,
+            priorCtx
           );
           mergeContactIntoProposal(db, job.id, proposalData);
 
@@ -1158,7 +1609,10 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
           notifyClients('job_updated', { jobId: job.id, status: 'proposal_ready' });
         } catch (err) {
           console.error(`[Job ${job.id}] Proposal generation error:`, err.message);
-          db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', job.id);
+          db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+            'error',
+            job.id
+          );
         }
       })();
     }
@@ -1166,7 +1620,6 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
     res.json({ success: true, allAnswered: false, remaining: remaining.count });
   }
 });
-
 
 // PATCH update job notes (and optionally status)
 router.patch('/:id/notes', requireAuth, (req, res) => {
@@ -1177,48 +1630,84 @@ router.patch('/:id/notes', requireAuth, (req, res) => {
     if (!req.session || !allowed.includes(req.session.role)) {
       return res.status(403).json({ error: 'Insufficient permissions to change job status' });
     }
-    const prevJob = db.prepare('SELECT status, contact_id, project_address FROM jobs WHERE id = ?').get(req.params.id);
-    db.prepare('UPDATE jobs SET notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(notes, status, req.params.id);
-    logAudit(req.params.id, `status_changed_to_${status}`, `Status set to ${status} by admin`, 'admin');
+    const prevJob = db
+      .prepare('SELECT status, contact_id, project_address FROM jobs WHERE id = ?')
+      .get(req.params.id);
+    db.prepare(
+      'UPDATE jobs SET notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).run(notes, status, req.params.id);
+    logAudit(
+      req.params.id,
+      `status_changed_to_${status}`,
+      `Status set to ${status} by admin`,
+      'admin'
+    );
     if (status === 'complete' && prevJob?.status !== 'complete') {
       try {
-        const contactRef3 = prevJob?.contact_id ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(prevJob.contact_id) : null;
-        logActivity({ customer_number: contactRef3?.pb_customer_number || null, job_id: req.params.id, event_type: 'JOB_COMPLETED', description: `Job marked complete for ${prevJob?.project_address || 'project'}`, recorded_by: req.session?.name || 'admin' });
+        const contactRef3 = prevJob?.contact_id
+          ? db
+              .prepare('SELECT pb_customer_number FROM contacts WHERE id = ?')
+              .get(prevJob.contact_id)
+          : null;
+        logActivity({
+          customer_number: contactRef3?.pb_customer_number || null,
+          job_id: req.params.id,
+          event_type: 'JOB_COMPLETED',
+          description: `Job marked complete for ${prevJob?.project_address || 'project'}`,
+          recorded_by: req.session?.name || 'admin'
+        });
       } catch (_) {}
     }
   } else {
-    db.prepare('UPDATE jobs SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(notes, req.params.id);
+    db.prepare('UPDATE jobs SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+      notes,
+      req.params.id
+    );
   }
   res.json({ success: true });
 });
 
 // PATCH /:id/customer — update customer name/email/phone directly on an existing job
-router.patch('/:id/customer', requireAuth, requireRole('admin', 'pm', 'system_admin'), (req, res) => {
-  const db = getDb();
-  const { name, email, phone } = req.body;
-  const job = db.prepare('SELECT id, contact_id FROM jobs WHERE id = ?').get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
+router.patch(
+  '/:id/customer',
+  requireAuth,
+  requireRole('admin', 'pm', 'system_admin'),
+  (req, res) => {
+    const db = getDb();
+    const { name, email, phone } = req.body;
+    const job = db.prepare('SELECT id, contact_id FROM jobs WHERE id = ?').get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
 
-  db.prepare(`UPDATE jobs SET
+    db.prepare(
+      `UPDATE jobs SET
     customer_name  = COALESCE(NULLIF(?, ''), customer_name),
     customer_email = COALESCE(NULLIF(?, ''), customer_email),
     customer_phone = COALESCE(NULLIF(?, ''), customer_phone),
     updated_at = CURRENT_TIMESTAMP
-  WHERE id = ?`).run(name || '', email || '', phone || '', job.id);
+  WHERE id = ?`
+    ).run(name || '', email || '', phone || '', job.id);
 
-  // Also update the linked contact record if one exists
-  if (job.contact_id) {
-    db.prepare(`UPDATE contacts SET
+    // Also update the linked contact record if one exists
+    if (job.contact_id) {
+      db.prepare(
+        `UPDATE contacts SET
       name  = COALESCE(NULLIF(?, ''), name),
       email = COALESCE(NULLIF(?, ''), email),
       phone = COALESCE(NULLIF(?, ''), phone),
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?`).run(name || '', email || '', phone || '', job.contact_id);
-  }
+    WHERE id = ?`
+      ).run(name || '', email || '', phone || '', job.contact_id);
+    }
 
-  logAudit(job.id, 'customer_info_updated', `Customer info updated by admin`, req.session?.name || 'admin');
-  res.json({ success: true });
-});
+    logAudit(
+      job.id,
+      'customer_info_updated',
+      `Customer info updated by admin`,
+      req.session?.name || 'admin'
+    );
+    res.json({ success: true });
+  }
+);
 
 // SSE endpoint — dashboard subscribes here to receive instant push notifications when a job status changes
 router.get('/events', requireAuth, (req, res) => {
@@ -1228,10 +1717,17 @@ router.get('/events', requireAuth, (req, res) => {
   res.flushHeaders();
 
   // Send a heartbeat every 30s to keep the connection alive
-  const heartbeat = setInterval(() => { try { res.write(': heartbeat\n\n'); } catch {} }, 30000);
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(': heartbeat\n\n');
+    } catch {}
+  }, 30000);
 
   addClient(res);
-  req.on('close', () => { clearInterval(heartbeat); removeClient(res); });
+  req.on('close', () => {
+    clearInterval(heartbeat);
+    removeClient(res);
+  });
 });
 
 // GET job stats for dashboard
@@ -1239,31 +1735,41 @@ router.get('/stats/summary', requireAuth, (req, res) => {
   const db = getDb();
 
   // Status breakdown (non-archived only)
-  const byStatus = db.prepare('SELECT status, COUNT(*) as count FROM jobs WHERE archived = 0 GROUP BY status').all();
+  const byStatus = db
+    .prepare('SELECT status, COUNT(*) as count FROM jobs WHERE archived = 0 GROUP BY status')
+    .all();
 
   // Total Jobs (YTD) — all quotes submitted this calendar year
-  const total = db.prepare(
-    "SELECT COUNT(*) as count FROM jobs WHERE archived = 0 AND created_at >= date('now','start of year')"
-  ).get();
+  const total = db
+    .prepare(
+      "SELECT COUNT(*) as count FROM jobs WHERE archived = 0 AND created_at >= date('now','start of year')"
+    )
+    .get();
 
   // Quotes Done (YTD) — proposals completed this year (reached proposal_ready or beyond)
-  const quotesCompleted = db.prepare(
-    `SELECT COUNT(*) as count FROM jobs WHERE archived = 0
+  const quotesCompleted = db
+    .prepare(
+      `SELECT COUNT(*) as count FROM jobs WHERE archived = 0
      AND status IN ('proposal_ready','proposal_sent','proposal_approved','customer_approved','contract_ready','contract_sent','contract_signed','complete')
      AND created_at >= date('now','start of year')`
-  ).get();
+    )
+    .get();
 
   // Pipeline Value — estimates done and actively sent to customer (not yet won)
-  const pipelineValue = db.prepare(
-    `SELECT SUM(total_value) as total FROM jobs WHERE archived = 0
+  const pipelineValue = db
+    .prepare(
+      `SELECT SUM(total_value) as total FROM jobs WHERE archived = 0
      AND status IN ('proposal_sent','proposal_approved','customer_approved','contract_ready','contract_sent','contract_signed')`
-  ).get();
+    )
+    .get();
 
   // Won Revenue (YTD) — contracts signed and won this calendar year
   // Uses updated_at so a job submitted last year but won this year counts correctly
-  const revenueWon = db.prepare(
-    "SELECT SUM(total_value) as value FROM jobs WHERE archived = 0 AND status = 'complete' AND updated_at >= date('now','start of year')"
-  ).get();
+  const revenueWon = db
+    .prepare(
+      "SELECT SUM(total_value) as value FROM jobs WHERE archived = 0 AND status = 'complete' AND updated_at >= date('now','start of year')"
+    )
+    .get();
 
   res.json({
     total: total.count,
@@ -1283,12 +1789,20 @@ router.delete('/:id', requireAuth, requireRole('admin', 'system_admin'), (req, r
   if (!job) return res.status(404).json({ error: 'Job not found' });
 
   const { closed_reason, closed_note } = req.body || {};
-  const validReasons = ['lost_price', 'lost_timing', 'lost_competitor', 'ghosted', 'mistake', 'completed'];
+  const validReasons = [
+    'lost_price',
+    'lost_timing',
+    'lost_competitor',
+    'ghosted',
+    'mistake',
+    'completed'
+  ];
   const reason = validReasons.includes(closed_reason) ? closed_reason : null;
   const note = typeof closed_note === 'string' ? closed_note.trim().slice(0, 500) : null;
 
-  db.prepare('UPDATE jobs SET archived = 1, archived_at = CURRENT_TIMESTAMP, closed_reason = ?, closed_note = ? WHERE id = ?')
-    .run(reason, note || null, req.params.id);
+  db.prepare(
+    'UPDATE jobs SET archived = 1, archived_at = CURRENT_TIMESTAMP, closed_reason = ?, closed_note = ? WHERE id = ?'
+  ).run(reason, note || null, req.params.id);
   const reasonLabel = reason ? ` (${reason}${note ? ': ' + note : ''})` : '';
   logAudit(req.params.id, 'archived', `Job archived${reasonLabel}`, 'admin');
   res.json({ success: true, message: 'Job archived' });
@@ -1297,7 +1811,9 @@ router.delete('/:id', requireAuth, requireRole('admin', 'system_admin'), (req, r
 // RESTORE an archived job
 router.post('/:id/restore', requireAuth, requireRole('admin', 'system_admin'), (req, res) => {
   const db = getDb();
-  db.prepare('UPDATE jobs SET archived = 0, archived_at = NULL, closed_reason = NULL, closed_note = NULL WHERE id = ?').run(req.params.id);
+  db.prepare(
+    'UPDATE jobs SET archived = 0, archived_at = NULL, closed_reason = NULL, closed_note = NULL WHERE id = ?'
+  ).run(req.params.id);
   logAudit(req.params.id, 'restored', 'Job restored from archive (outcome cleared)', 'admin');
   res.json({ success: true });
 });
@@ -1313,27 +1829,36 @@ router.post('/wizard/extract-text', requireAuth, async (req, res) => {
   let rawText = '';
   try {
     if (file.mimetype === 'application/pdf') {
-      const fileBuffer = file.tempFilePath ? require('fs').readFileSync(file.tempFilePath) : file.data;
+      const fileBuffer = file.tempFilePath
+        ? require('fs').readFileSync(file.tempFilePath)
+        : file.data;
       const parsed = await pdfParse(fileBuffer);
       rawText = parsed.text.trim();
     } else if (file.mimetype.startsWith('image/')) {
       const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const fileBuffer = file.tempFilePath ? require('fs').readFileSync(file.tempFilePath) : file.data;
+      const fileBuffer = file.tempFilePath
+        ? require('fs').readFileSync(file.tempFilePath)
+        : file.data;
       const base64 = fileBuffer.toString('base64');
       const response = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 3000,
         temperature: 0,
-        messages: [{
-          role: 'user',
-          content: [{
-            type: 'image',
-            source: { type: 'base64', media_type: file.mimetype, data: base64 }
-          }, {
-            type: 'text',
-            text: 'This is a construction estimate. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names. Do NOT include customer names, emails, or phone numbers. Format as plain text.'
-          }]
-        }]
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'image',
+                source: { type: 'base64', media_type: file.mimetype, data: base64 }
+              },
+              {
+                type: 'text',
+                text: 'This is a construction estimate. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names. Do NOT include customer names, emails, or phone numbers. Format as plain text.'
+              }
+            ]
+          }
+        ]
       });
       rawText = response.content[0].text.trim();
     } else if (file.mimetype.startsWith('text/')) {
@@ -1355,7 +1880,11 @@ router.post('/wizard/questions', requireAuth, async (req, res) => {
 
   const { generateWizardQuestions } = require('../services/claudeService');
   try {
-    const questions = await generateWizardQuestions(scopeText, projectAddress || '', budgetTarget || null);
+    const questions = await generateWizardQuestions(
+      scopeText,
+      projectAddress || '',
+      budgetTarget || null
+    );
     res.json({ questions });
   } catch (err) {
     console.error('[Wizard/Questions] Error:', err.message);
@@ -1369,7 +1898,16 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
   const fs = require('fs');
   const path = require('path');
   const db = getDb();
-  const { customerName, customerEmail, customerPhone, projectAddress, scopeText, qaAnswers, budgetTarget, plansTempId } = req.body;
+  const {
+    customerName,
+    customerEmail,
+    customerPhone,
+    projectAddress,
+    scopeText,
+    qaAnswers,
+    budgetTarget,
+    plansTempId
+  } = req.body;
 
   if (!scopeText || scopeText.trim().length < 10) {
     return res.status(400).json({ error: 'Scope text is required.' });
@@ -1381,26 +1919,42 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
   if (customerName || customerEmail) {
     try {
       contactRef = findOrCreateContact(db, {
-        name: customerName, email: customerEmail, phone: customerPhone,
-        address: projectAddress, city: '', state: 'MA'
+        name: customerName,
+        email: customerEmail,
+        phone: customerPhone,
+        address: projectAddress,
+        city: '',
+        state: 'MA'
       });
-    } catch (e) { console.warn('[Wizard] Contact upsert failed:', e.message); }
+    } catch (e) {
+      console.warn('[Wizard] Contact upsert failed:', e.message);
+    }
   }
 
   // Build a resolved scope that injects any demo line items the user said were NOT already included
   const demoAdditions = (qaAnswers || [])
-    .filter(qa => qa.questionType === 'demo_check' && qa.answer === 'no' && qa.demoCost)
-    .map(qa => `ADDITIONAL DEMO WORK (not in original scope): Remove/demo ${qa.trade} — cost $${qa.demoCost}`)
+    .filter((qa) => qa.questionType === 'demo_check' && qa.answer === 'no' && qa.demoCost)
+    .map(
+      (qa) =>
+        `ADDITIONAL DEMO WORK (not in original scope): Remove/demo ${qa.trade} — cost $${qa.demoCost}`
+    )
     .join('\n');
 
-  const answersNarrative = (qaAnswers || []).length > 0
-    ? '\n\nCLARIFICATION Q&A:\n' + (qaAnswers || []).map(qa =>
-        `Q: ${qa.question}\nA: ${qa.answer}${qa.demoCost ? ` ($${qa.demoCost} for demo)` : ''}`
-      ).join('\n\n')
-    : '';
+  const answersNarrative =
+    (qaAnswers || []).length > 0
+      ? '\n\nCLARIFICATION Q&A:\n' +
+        (qaAnswers || [])
+          .map(
+            (qa) =>
+              `Q: ${qa.question}\nA: ${qa.answer}${qa.demoCost ? ` ($${qa.demoCost} for demo)` : ''}`
+          )
+          .join('\n\n')
+      : '';
 
   const sanitizedScope = stripPII(scopeText);
-  const budgetLine = budgetTarget ? `\nBUDGET TARGET: $${Number(budgetTarget).toLocaleString()} (soft client-facing total — calibrate line item baseCosts so that after standard markup the total lands within ±8% of this figure)` : '';
+  const budgetLine = budgetTarget
+    ? `\nBUDGET TARGET: $${Number(budgetTarget).toLocaleString()} (soft client-facing total — calibrate line item baseCosts so that after standard markup the total lands within ±8% of this figure)`
+    : '';
   const fullEstimate = contactRef
     ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}${budgetLine}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`
     : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}${budgetLine}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`;
@@ -1410,26 +1964,43 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
 
   const submittedBy = req.session?.name
     ? `web:${req.session.name}`
-    : (req.session?.email ? `web:${req.session.email}` : 'web:wizard');
+    : req.session?.email
+      ? `web:${req.session.email}`
+      : 'web:wizard';
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
-  `).run(jobId, customerName || '', customerEmail || '', customerPhone || '', projectAddress || '', rawEstimateData, submittedBy, contactRef?.id || null);
+  `
+  ).run(
+    jobId,
+    customerName || '',
+    customerEmail || '',
+    customerPhone || '',
+    projectAddress || '',
+    rawEstimateData,
+    submittedBy,
+    contactRef?.id || null
+  );
 
   // Assign PB number + auto quote number immediately on job creation
   try {
     const pbNum = generatePBNumber(db);
     const extRef = extractExternalRef(scopeText);
-    const qNum  = generateQuoteNumber(db);
-    db.prepare('UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?').run(pbNum, extRef, qNum, jobId);
-  } catch (e) { console.warn('[Wizard] PB/Quote number generation failed:', e.message); }
+    const qNum = generateQuoteNumber(db);
+    db.prepare(
+      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
+    ).run(pbNum, extRef, qNum, jobId);
+  } catch (e) {
+    console.warn('[Wizard] PB/Quote number generation failed:', e.message);
+  }
 
   // Move uploaded plan files from temp dir to permanent job folder
   if (plansTempId) {
     try {
       const tempDir = path.join(__dirname, '../uploads/plans', `temp_${plansTempId}`);
-      const jobDir  = path.join(__dirname, '../uploads/plans', jobId);
+      const jobDir = path.join(__dirname, '../uploads/plans', jobId);
       if (fs.existsSync(tempDir)) {
         fs.mkdirSync(jobDir, { recursive: true });
         const files = fs.readdirSync(tempDir);
@@ -1441,11 +2012,20 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
         fs.rmdirSync(tempDir);
         // Store plan paths in attachments column (merge with any existing)
         let existing = [];
-        try { existing = JSON.parse(db.prepare('SELECT attachments FROM jobs WHERE id = ?').get(jobId)?.attachments || '[]'); } catch {}
-        db.prepare('UPDATE jobs SET attachments = ? WHERE id = ?').run(JSON.stringify([...existing, ...movedPaths]), jobId);
+        try {
+          existing = JSON.parse(
+            db.prepare('SELECT attachments FROM jobs WHERE id = ?').get(jobId)?.attachments || '[]'
+          );
+        } catch {}
+        db.prepare('UPDATE jobs SET attachments = ? WHERE id = ?').run(
+          JSON.stringify([...existing, ...movedPaths]),
+          jobId
+        );
         console.log(`[Wizard] Saved ${movedPaths.length} plan file(s) for job ${jobId}`);
       }
-    } catch (e) { console.warn('[Wizard] Plan file move failed:', e.message); }
+    } catch (e) {
+      console.warn('[Wizard] Plan file move failed:', e.message);
+    }
   }
 
   try {
@@ -1456,41 +2036,76 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
       description: `Estimate created via wizard/submit for ${projectAddress || customerName}`,
       recorded_by: req.session?.name || 'web:wizard'
     });
-  } catch (e) { console.warn('[WizardSubmit] logActivity failed:', e.message); }
+  } catch (e) {
+    console.warn('[WizardSubmit] logActivity failed:', e.message);
+  }
 
-  res.json({ jobId, status: 'received', message: 'Wizard submission received. Processing estimate...' });
+  res.json({
+    jobId,
+    status: 'received',
+    message: 'Wizard submission received. Processing estimate...'
+  });
 
   const { processEstimate } = require('../services/claudeService');
   (async () => {
     try {
       console.log(`[Wizard Job ${jobId}] Starting Claude processEstimate...`);
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', jobId);
-      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: sanitizedScope, contactId: contactRef?.id, projectAddress });
-      const proposalData = await processEstimate(fullEstimate, jobId, 'en', db, projectAddress, priorCtx);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+        'processing',
+        jobId
+      );
+      const { context: priorCtx } = findPriorQuoteContext(db, {
+        rawText: sanitizedScope,
+        contactId: contactRef?.id,
+        projectAddress
+      });
+      const proposalData = await processEstimate(
+        fullEstimate,
+        jobId,
+        'en',
+        db,
+        projectAddress,
+        priorCtx
+      );
       mergeContactIntoProposal(db, jobId, proposalData);
-      console.log(`[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`);
+      console.log(
+        `[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`
+      );
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         finalizeJobVersioning(db, jobId, proposalData);
-        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', jobId);
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+          'clarification',
+          jobId
+        );
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
       } else {
         finalizeJobVersioning(db, jobId, proposalData);
         saveReviewPending(db, proposalData, jobId);
         logAudit(jobId, 'wizard_estimate_processed', `Wizard submission — pending review`, 'admin');
-        console.log(`[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
+        console.log(
+          `[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`
+        );
         notifyClients('job_updated', { jobId, status: 'review_pending' });
         if (process.env.OWNER_WHATSAPP) {
-          const ownerTo = process.env.OWNER_WHATSAPP.startsWith('whatsapp:') ? process.env.OWNER_WHATSAPP : `whatsapp:${process.env.OWNER_WHATSAPP}`;
+          const ownerTo = process.env.OWNER_WHATSAPP.startsWith('whatsapp:')
+            ? process.env.OWNER_WHATSAPP
+            : `whatsapp:${process.env.OWNER_WHATSAPP}`;
           const cust = proposalData.customer?.name || customerName || 'Unknown';
           const addr = projectAddress || 'address not provided';
-          await sendWhatsApp(ownerTo, `🧾 Web wizard quote ready for review.\nCustomer: *${cust}*\nAddress: ${addr}\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review and generate proposal.`);
+          await sendWhatsApp(
+            ownerTo,
+            `🧾 Web wizard quote ready for review.\nCustomer: *${cust}*\nAddress: ${addr}\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review and generate proposal.`
+          );
         }
       }
     } catch (err) {
       console.error(`[Wizard Job ${jobId}] ERROR:`, err.message, err.stack);
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('error', jobId);
+      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+        'error',
+        jobId
+      );
     }
   })();
 });
@@ -1500,7 +2115,8 @@ router.post('/:id/revise', requireAuth, requireRole('admin', 'pm', 'system_admin
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ? AND archived = 0').get(req.params.id);
   if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.proposal_pdf_path && !job.proposal_data) return res.status(400).json({ error: 'No estimate found — generate one first' });
+  if (!job.proposal_pdf_path && !job.proposal_data)
+    return res.status(400).json({ error: 'No estimate found — generate one first' });
 
   const nextVersion = (job.version || 1) + 1;
 
@@ -1511,59 +2127,102 @@ router.post('/:id/revise', requireAuth, requireRole('admin', 'pm', 'system_admin
       const pd = JSON.parse(proposalDataStr);
       pd.quoteVersion = nextVersion;
       proposalDataStr = JSON.stringify(pd);
-    } catch { /* leave as-is */ }
+    } catch {
+      /* leave as-is */
+    }
   }
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE jobs
     SET status = 'review_pending', version = ?, proposal_data = ?, contract_pdf_path = NULL,
         updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(nextVersion, proposalDataStr, job.id);
+  `
+  ).run(nextVersion, proposalDataStr, job.id);
 
-  logAudit(job.id, 'estimate_revised', `Estimate reopened for revision — now version ${nextVersion}`, req.session?.name || 'admin');
+  logAudit(
+    job.id,
+    'estimate_revised',
+    `Estimate reopened for revision — now version ${nextVersion}`,
+    req.session?.name || 'admin'
+  );
   res.json({ success: true, version: nextVersion });
 });
 
 // POST /:id/reprocess — retry AI estimation for a job stuck in error status
-router.post('/:id/reprocess', requireAuth, requireRole('admin', 'pm', 'system_admin'), async (req, res) => {
-  const db = getDb();
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (!job.raw_estimate_data) return res.status(400).json({ error: 'No raw estimate data to reprocess' });
+router.post(
+  '/:id/reprocess',
+  requireAuth,
+  requireRole('admin', 'pm', 'system_admin'),
+  async (req, res) => {
+    const db = getDb();
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!job.raw_estimate_data)
+      return res.status(400).json({ error: 'No raw estimate data to reprocess' });
 
-  db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('processing', job.id);
-  res.json({ success: true, message: 'Reprocessing started' });
+    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+      'processing',
+      job.id
+    );
+    res.json({ success: true, message: 'Reprocessing started' });
 
-  const { processEstimate } = require('../services/claudeService');
-  (async () => {
-    try {
-      console.log(`[Reprocess Job ${job.id}] Starting Claude processEstimate...`);
-      const fullEstimate = `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${job.raw_estimate_data}`;
-      const { context: priorCtx } = findPriorQuoteContext(db, { rawText: job.raw_estimate_data, contactId: job.contact_id, projectAddress: job.project_address });
-      const proposalData = await processEstimate(fullEstimate, job.id, 'en', db, job.project_address || null, priorCtx);
-      mergeContactIntoProposal(db, job.id, proposalData);
-      console.log(`[Reprocess Job ${job.id}] Claude returned. readyToGenerate=${proposalData.readyToGenerate}`);
+    const { processEstimate } = require('../services/claudeService');
+    (async () => {
+      try {
+        console.log(`[Reprocess Job ${job.id}] Starting Claude processEstimate...`);
+        const fullEstimate = `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${job.raw_estimate_data}`;
+        const { context: priorCtx } = findPriorQuoteContext(db, {
+          rawText: job.raw_estimate_data,
+          contactId: job.contact_id,
+          projectAddress: job.project_address
+        });
+        const proposalData = await processEstimate(
+          fullEstimate,
+          job.id,
+          'en',
+          db,
+          job.project_address || null,
+          priorCtx
+        );
+        mergeContactIntoProposal(db, job.id, proposalData);
+        console.log(
+          `[Reprocess Job ${job.id}] Claude returned. readyToGenerate=${proposalData.readyToGenerate}`
+        );
 
-      if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
-        finalizeJobVersioning(db, job.id, proposalData);
-        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run('clarification', job.id);
-        const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
-        for (const q of proposalData.clarificationsNeeded) insertQ.run(job.id, q);
-      } else {
-        finalizeJobVersioning(db, job.id, proposalData);
-        saveReviewPending(db, proposalData, job.id);
-        logAudit(job.id, 'reprocessed', 'Job reprocessed after error', req.session?.name || 'admin');
-        notifyClients('job_updated', { jobId: job.id, status: 'review_pending' });
+        if (
+          proposalData.readyToGenerate === false &&
+          proposalData.clarificationsNeeded?.length > 0
+        ) {
+          finalizeJobVersioning(db, job.id, proposalData);
+          db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+            'clarification',
+            job.id
+          );
+          const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
+          for (const q of proposalData.clarificationsNeeded) insertQ.run(job.id, q);
+        } else {
+          finalizeJobVersioning(db, job.id, proposalData);
+          saveReviewPending(db, proposalData, job.id);
+          logAudit(
+            job.id,
+            'reprocessed',
+            'Job reprocessed after error',
+            req.session?.name || 'admin'
+          );
+          notifyClients('job_updated', { jobId: job.id, status: 'review_pending' });
+        }
+      } catch (err) {
+        const errMsg = err.message || String(err);
+        console.error(`[Reprocess Job ${job.id}] ERROR: ${errMsg}\n${err.stack || ''}`);
+        db.prepare(
+          'UPDATE jobs SET status = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        ).run('error', errMsg, job.id);
       }
-    } catch (err) {
-      const errMsg = err.message || String(err);
-      console.error(`[Reprocess Job ${job.id}] ERROR: ${errMsg}\n${err.stack || ''}`);
-      db.prepare('UPDATE jobs SET status = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run('error', errMsg, job.id);
-    }
-  })();
-});
+    })();
+  }
+);
 
 // GET /:id/margin — financial profit margin breakdown for a job
 router.get('/:id/margin', requireAuth, (req, res) => {
@@ -1575,26 +2234,29 @@ router.get('/:id/margin', requireAuth, (req, res) => {
 
   let proposalData;
   try {
-    proposalData = typeof job.proposal_data === 'string' ? JSON.parse(job.proposal_data) : job.proposal_data;
+    proposalData =
+      typeof job.proposal_data === 'string' ? JSON.parse(job.proposal_data) : job.proposal_data;
   } catch {
     return res.json({ hasData: false });
   }
 
   // Load current target rates from settings (for comparison)
-  const settingsRows = db.prepare('SELECT key, value FROM settings WHERE category = ?').all('markup');
+  const settingsRows = db
+    .prepare('SELECT key, value FROM settings WHERE category = ?')
+    .all('markup');
   const settingsMap = {};
   for (const row of settingsRows) settingsMap[row.key] = row.value;
-  const targetSubOandP    = Number(settingsMap['markup.subOandP'])    || 0.15;
-  const targetGcOandP     = Number(settingsMap['markup.gcOandP'])     || 0.25;
-  const targetContingency = Number(settingsMap['markup.contingency']) || 0.10;
+  const targetSubOandP = Number(settingsMap['markup.subOandP']) || 0.15;
+  const targetGcOandP = Number(settingsMap['markup.gcOandP']) || 0.25;
+  const targetContingency = Number(settingsMap['markup.contingency']) || 0.1;
 
   // Use the actual rates that were applied at proposal generation time (stored in pricing.appliedRates).
   // Fall back to current settings if the proposal was generated before this field existed.
   const pricing = proposalData.pricing || {};
   const stored = pricing.appliedRates || {};
   const hasStoredRates = stored.subOandP != null;
-  const actualSubOandP    = hasStoredRates ? Number(stored.subOandP)    : targetSubOandP;
-  const actualGcOandP     = hasStoredRates ? Number(stored.gcOandP)     : targetGcOandP;
+  const actualSubOandP = hasStoredRates ? Number(stored.subOandP) : targetSubOandP;
+  const actualGcOandP = hasStoredRates ? Number(stored.gcOandP) : targetGcOandP;
   const actualContingency = hasStoredRates ? Number(stored.contingency) : targetContingency;
 
   const items = proposalData.lineItems || [];
@@ -1609,38 +2271,40 @@ router.get('/:id/margin', requireAuth, (req, res) => {
   let stretchBaseCost = 0;
   for (const item of items) {
     if (item.isStretchCode) {
-      stretchBaseCost += (item.baseCost || 0);
+      stretchBaseCost += item.baseCost || 0;
     } else {
-      markupBaseCost += (item.baseCost || 0);
+      markupBaseCost += item.baseCost || 0;
     }
   }
   const totalBaseCost = markupBaseCost + stretchBaseCost;
 
   // Compute dollar contribution of each markup layer using actual applied rates on the markup-eligible base cost
-  const afterSubOandP    = Math.round(markupBaseCost * (1 + actualSubOandP));
-  const afterGcOandP     = Math.round(afterSubOandP * (1 + actualGcOandP));
+  const afterSubOandP = Math.round(markupBaseCost * (1 + actualSubOandP));
+  const afterGcOandP = Math.round(afterSubOandP * (1 + actualGcOandP));
   const afterContingency = Math.round(afterGcOandP * (1 + actualContingency));
 
-  const subOandPDollar    = afterSubOandP - markupBaseCost;
-  const gcOandPDollar     = afterGcOandP - afterSubOandP;
+  const subOandPDollar = afterSubOandP - markupBaseCost;
+  const gcOandPDollar = afterGcOandP - afterSubOandP;
   const contingencyDollar = afterContingency - afterGcOandP;
 
   // Compute target contract price for overall pass/fail comparison
-  const targetAfterSub  = Math.round(markupBaseCost * (1 + targetSubOandP));
-  const targetAfterGc   = Math.round(targetAfterSub * (1 + targetGcOandP));
+  const targetAfterSub = Math.round(markupBaseCost * (1 + targetSubOandP));
+  const targetAfterGc = Math.round(targetAfterSub * (1 + targetGcOandP));
   const targetAfterCont = Math.round(targetAfterGc * (1 + targetContingency));
   const targetContractPrice = targetAfterCont + stretchBaseCost;
 
   // Actual net profit margin: (contractPrice − totalBaseCost) / contractPrice
-  const actualNetMarginPct = contractPrice > 0
-    ? Math.round(((contractPrice - totalBaseCost) / contractPrice) * 1000) / 10
-    : 0;
+  const actualNetMarginPct =
+    contractPrice > 0
+      ? Math.round(((contractPrice - totalBaseCost) / contractPrice) * 1000) / 10
+      : 0;
 
   // Per-layer pass/fail: actual applied % within ±1% of configured target
   const layerPass = (actual, target) => Math.abs(actual - target) <= 0.01;
-  const overallPass = contractPrice > 0 && targetContractPrice > 0
-    ? Math.abs((contractPrice - targetContractPrice) / targetContractPrice) <= 0.01
-    : null;
+  const overallPass =
+    contractPrice > 0 && targetContractPrice > 0
+      ? Math.abs((contractPrice - targetContractPrice) / targetContractPrice) <= 0.01
+      : null;
 
   res.json({
     hasData: true,
@@ -1657,24 +2321,24 @@ router.get('/:id/margin', requireAuth, (req, res) => {
         targetPct: targetSubOandP,
         actualPct: actualSubOandP,
         dollarAdded: subOandPDollar,
-        pass: layerPass(actualSubOandP, targetSubOandP),
+        pass: layerPass(actualSubOandP, targetSubOandP)
       },
       {
         label: 'GC O&P',
         targetPct: targetGcOandP,
         actualPct: actualGcOandP,
         dollarAdded: gcOandPDollar,
-        pass: layerPass(actualGcOandP, targetGcOandP),
+        pass: layerPass(actualGcOandP, targetGcOandP)
       },
       {
         label: 'Contingency',
         targetPct: targetContingency,
         actualPct: actualContingency,
         dollarAdded: contingencyDollar,
-        pass: layerPass(actualContingency, targetContingency),
-      },
+        pass: layerPass(actualContingency, targetContingency)
+      }
     ],
-    overallPass,
+    overallPass
   });
 });
 
@@ -1682,14 +2346,21 @@ router.get('/:id/margin', requireAuth, (req, res) => {
 function purgeOldArchived() {
   try {
     const db = getDb();
-    const old = db.prepare("SELECT id FROM jobs WHERE archived = 1 AND archived_at < datetime('now', '-90 days')").all();
+    const old = db
+      .prepare(
+        "SELECT id FROM jobs WHERE archived = 1 AND archived_at < datetime('now', '-90 days')"
+      )
+      .all();
     for (const job of old) {
       db.prepare('DELETE FROM clarifications WHERE job_id = ?').run(job.id);
       db.prepare('DELETE FROM conversations WHERE job_id = ?').run(job.id);
       db.prepare('DELETE FROM audit_log WHERE job_id = ?').run(job.id);
       db.prepare('DELETE FROM jobs WHERE id = ?').run(job.id);
     }
-    if (old.length > 0) console.log(`[Auto-purge] Permanently deleted ${old.length} archived job(s) older than 90 days`);
+    if (old.length > 0)
+      console.log(
+        `[Auto-purge] Permanently deleted ${old.length} archived job(s) older than 90 days`
+      );
   } catch (e) {}
 }
 setInterval(purgeOldArchived, 24 * 60 * 60 * 1000);

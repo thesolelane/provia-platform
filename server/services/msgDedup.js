@@ -5,7 +5,7 @@
 const { getDb } = require('../db/database');
 
 const seen = new Map(); // sid → timestamp (in-process fast-path)
-const TTL_MS = 120000;  // 2 minutes
+const TTL_MS = 120000; // 2 minutes
 
 function isDuplicate(sid) {
   if (!sid) return false;
@@ -31,10 +31,12 @@ function claimMessage(sid) {
   if (isDuplicate(sid)) return false;
   try {
     const db = getDb();
-    const result = db.prepare('INSERT OR IGNORE INTO whatsapp_processed (message_sid) VALUES (?)').run(sid);
+    const result = db
+      .prepare('INSERT OR IGNORE INTO whatsapp_processed (message_sid) VALUES (?)')
+      .run(sid);
     if (result.changes === 0) {
       markSeen(sid); // keep in-process cache warm
-      return false;  // another process already claimed it
+      return false; // another process already claimed it
     }
     markSeen(sid);
     return true;

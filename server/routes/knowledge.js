@@ -16,7 +16,10 @@ router.get('/', requireAuth, (req, res) => {
   const { category } = req.query;
   let query = 'SELECT id, title, category, language, active, created_at FROM knowledge_base';
   const params = [];
-  if (category) { query += ' WHERE category = ?'; params.push(category); }
+  if (category) {
+    query += ' WHERE category = ?';
+    params.push(category);
+  }
   query += ' ORDER BY category, title';
   const docs = db.prepare(query).all(...params);
   res.json(docs);
@@ -37,9 +40,9 @@ router.post('/', requireAuth, (req, res) => {
   if (!title || !category || !content) {
     return res.status(400).json({ error: 'title, category, and content are required' });
   }
-  const result = db.prepare(
-    'INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)'
-  ).run(title, category, content, language);
+  const result = db
+    .prepare('INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)')
+    .run(title, category, content, language);
   res.json({ success: true, id: result.lastInsertRowid });
 });
 
@@ -58,7 +61,9 @@ router.post('/upload', requireAuth, async (req, res) => {
       const data = await pdfParse(fileBuffer);
       content = data.text;
     } else if (file.mimetype.startsWith('text/')) {
-      content = file.tempFilePath ? fs.readFileSync(file.tempFilePath, 'utf8') : file.data.toString('utf8');
+      content = file.tempFilePath
+        ? fs.readFileSync(file.tempFilePath, 'utf8')
+        : file.data.toString('utf8');
     } else {
       return res.status(400).json({ error: 'Only PDF and text files supported' });
     }
@@ -69,9 +74,11 @@ router.post('/upload', requireAuth, async (req, res) => {
     await file.mv(filePath);
 
     const db = getDb();
-    const result = db.prepare(
-      'INSERT INTO knowledge_base (title, category, content, file_path, language) VALUES (?, ?, ?, ?, ?)'
-    ).run(title || file.name, category, content, filePath, 'en');
+    const result = db
+      .prepare(
+        'INSERT INTO knowledge_base (title, category, content, file_path, language) VALUES (?, ?, ?, ?, ?)'
+      )
+      .run(title || file.name, category, content, filePath, 'en');
 
     res.json({
       success: true,
@@ -103,12 +110,12 @@ router.delete('/:id', requireAuth, (req, res) => {
 // GET categories list
 router.get('/meta/categories', requireAuth, (req, res) => {
   res.json([
-    { value: 'codes',          label: 'Building Codes & Regulations' },
-    { value: 'scope-templates',label: 'Scope of Work Templates' },
-    { value: 'legal',          label: 'Legal Requirements' },
-    { value: 'pricing',        label: 'Pricing Reference' },
+    { value: 'codes', label: 'Building Codes & Regulations' },
+    { value: 'scope-templates', label: 'Scope of Work Templates' },
+    { value: 'legal', label: 'Legal Requirements' },
+    { value: 'pricing', label: 'Pricing Reference' },
     { value: 'past_contracts', label: 'Past Contracts (for learning)' },
-    { value: 'faqs',           label: 'Customer FAQs' },
+    { value: 'faqs', label: 'Customer FAQs' }
   ]);
 });
 

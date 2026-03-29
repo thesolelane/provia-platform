@@ -2,9 +2,9 @@
 // Merges two PDF files into one and writes it to a temp path.
 // Keeps quality intact — pdf-lib does lossless page copying.
 const { PDFDocument } = require('pdf-lib');
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
-const os   = require('os');
+const os = require('os');
 
 /**
  * Merge an ordered list of PDF file paths into a single PDF.
@@ -16,7 +16,7 @@ const os   = require('os');
  * @returns {Promise<string>}  - Absolute path of the merged PDF
  */
 async function mergePDFs(pdfPaths, outName = 'merged.pdf') {
-  const validPaths = pdfPaths.filter(p => p && fs.existsSync(p));
+  const validPaths = pdfPaths.filter((p) => p && fs.existsSync(p));
   if (validPaths.length === 0) throw new Error('No valid PDF files provided to merge');
   if (validPaths.length === 1) return validPaths[0]; // nothing to merge
 
@@ -24,13 +24,13 @@ async function mergePDFs(pdfPaths, outName = 'merged.pdf') {
 
   for (const filePath of validPaths) {
     const bytes = fs.readFileSync(filePath);
-    const doc   = await PDFDocument.load(bytes, { ignoreEncryption: true });
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
     const pages = await merged.copyPages(doc, doc.getPageIndices());
-    pages.forEach(p => merged.addPage(p));
+    pages.forEach((p) => merged.addPage(p));
   }
 
-  const outBytes  = await merged.save({ useObjectStreams: true }); // useObjectStreams reduces file size
-  const outPath   = path.join(os.tmpdir(), outName);
+  const outBytes = await merged.save({ useObjectStreams: true }); // useObjectStreams reduces file size
+  const outPath = path.join(os.tmpdir(), outName);
   fs.writeFileSync(outPath, outBytes);
   return outPath;
 }

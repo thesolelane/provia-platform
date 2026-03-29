@@ -23,61 +23,146 @@ function classifyError(message, stack) {
   // Claude / Anthropic (check before generic auth patterns)
   if (/anthropic|claude|overloaded_error/.test(text)) {
     if (/credit|billing|quota|payment|balance/.test(text)) {
-      return { type: 'system', severity: 'critical', source: 'claude', suggestedCause: 'Claude credits may be exhausted — check Anthropic billing at console.anthropic.com.' };
+      return {
+        type: 'system',
+        severity: 'critical',
+        source: 'claude',
+        suggestedCause:
+          'Claude credits may be exhausted — check Anthropic billing at console.anthropic.com.'
+      };
     }
     if (/rate.?limit|too many requests/.test(text) || /\b429\b/.test(text)) {
-      return { type: 'system', severity: 'warning', source: 'claude', suggestedCause: 'Anthropic rate limit hit — requests are being throttled. Consider adding retry delays.' };
+      return {
+        type: 'system',
+        severity: 'warning',
+        source: 'claude',
+        suggestedCause:
+          'Anthropic rate limit hit — requests are being throttled. Consider adding retry delays.'
+      };
     }
     if (/overloaded|service unavailable/.test(text) || /\b529\b/.test(text)) {
-      return { type: 'system', severity: 'warning', source: 'claude', suggestedCause: 'Anthropic API is overloaded — temporary outage, will likely self-resolve.' };
+      return {
+        type: 'system',
+        severity: 'warning',
+        source: 'claude',
+        suggestedCause: 'Anthropic API is overloaded — temporary outage, will likely self-resolve.'
+      };
     }
-    return { type: 'system', severity: 'warning', source: 'claude', suggestedCause: 'Claude API error — check Anthropic status page and API key validity.' };
+    return {
+      type: 'system',
+      severity: 'warning',
+      source: 'claude',
+      suggestedCause: 'Claude API error — check Anthropic status page and API key validity.'
+    };
   }
 
   // PDF / Puppeteer / Chromium (check before generic "not found" user pattern)
-  if (/puppeteer|chromium|chrome|headless|browser/.test(text) ||
-      (/pdf/.test(text) && /error|fail|crash|timeout/.test(text))) {
+  if (
+    /puppeteer|chromium|chrome|headless|browser/.test(text) ||
+    (/pdf/.test(text) && /error|fail|crash|timeout/.test(text))
+  ) {
     if (/not found|no such file|enoent/.test(text)) {
-      return { type: 'system', severity: 'critical', source: 'pdf', suggestedCause: 'Chromium binary not found — PDF generation is broken. Reinstall or check Nix configuration.' };
+      return {
+        type: 'system',
+        severity: 'critical',
+        source: 'pdf',
+        suggestedCause:
+          'Chromium binary not found — PDF generation is broken. Reinstall or check Nix configuration.'
+      };
     }
-    return { type: 'system', severity: 'warning', source: 'pdf', suggestedCause: 'PDF/browser error — Chromium may have crashed or timed out. Check available memory.' };
+    return {
+      type: 'system',
+      severity: 'warning',
+      source: 'pdf',
+      suggestedCause:
+        'PDF/browser error — Chromium may have crashed or timed out. Check available memory.'
+    };
   }
 
   // Database / SQLite (check before generic patterns; all uppercase tokens lowercased)
   if (/sqlite|better-sqlite|db\.prepare|sqlite_/.test(text)) {
     if (/corrupt|malformed|sqlite_corrupt/.test(text)) {
-      return { type: 'system', severity: 'critical', source: 'database', suggestedCause: 'SQLite database appears corrupted — immediate attention required. Take a backup.' };
+      return {
+        type: 'system',
+        severity: 'critical',
+        source: 'database',
+        suggestedCause:
+          'SQLite database appears corrupted — immediate attention required. Take a backup.'
+      };
     }
     if (/locked|sqlite_busy|sqlite_locked/.test(text)) {
-      return { type: 'system', severity: 'warning', source: 'database', suggestedCause: 'Database is locked — too many concurrent writes. Check for long-running queries.' };
+      return {
+        type: 'system',
+        severity: 'warning',
+        source: 'database',
+        suggestedCause:
+          'Database is locked — too many concurrent writes. Check for long-running queries.'
+      };
     }
-    return { type: 'system', severity: 'warning', source: 'database', suggestedCause: 'Database error — check SQLite file integrity and disk space.' };
+    return {
+      type: 'system',
+      severity: 'warning',
+      source: 'database',
+      suggestedCause: 'Database error — check SQLite file integrity and disk space.'
+    };
   }
 
   // Email / Resend (check before generic "unauthorized"/"not found" user patterns)
   if (/resend|smtp|email send/.test(text)) {
     if (/unauthorized|invalid key|\b403\b/.test(text)) {
-      return { type: 'system', severity: 'critical', source: 'email', suggestedCause: 'Email API key rejected — check RESEND_API_KEY is correct and active.' };
+      return {
+        type: 'system',
+        severity: 'critical',
+        source: 'email',
+        suggestedCause: 'Email API key rejected — check RESEND_API_KEY is correct and active.'
+      };
     }
-    return { type: 'system', severity: 'warning', source: 'email', suggestedCause: 'Email delivery failed — check Resend dashboard for bounce/block details.' };
+    return {
+      type: 'system',
+      severity: 'warning',
+      source: 'email',
+      suggestedCause: 'Email delivery failed — check Resend dashboard for bounce/block details.'
+    };
   }
 
   // Port / network (all uppercase tokens lowercased)
   if (/eaddrinuse|address already in use/.test(text)) {
-    return { type: 'system', severity: 'critical', source: 'server', suggestedCause: 'Server port is already in use — another process may be running. Restart the server.' };
+    return {
+      type: 'system',
+      severity: 'critical',
+      source: 'server',
+      suggestedCause:
+        'Server port is already in use — another process may be running. Restart the server.'
+    };
   }
   if (/econnrefused|econnreset|etimedout|enotfound/.test(text)) {
-    return { type: 'system', severity: 'warning', source: 'server', suggestedCause: 'Network connection failed — an external service may be down or unreachable.' };
+    return {
+      type: 'system',
+      severity: 'warning',
+      source: 'server',
+      suggestedCause: 'Network connection failed — an external service may be down or unreachable.'
+    };
   }
 
   // Unhandled rejection / crash
   if (/unhandled (rejection|exception)|uncaughtexception/.test(text)) {
-    return { type: 'system', severity: 'critical', source: 'server', suggestedCause: 'Unhandled error crashed an async operation — check server logs for full stack trace.' };
+    return {
+      type: 'system',
+      severity: 'critical',
+      source: 'server',
+      suggestedCause:
+        'Unhandled error crashed an async operation — check server logs for full stack trace.'
+    };
   }
 
   // 5xx server errors
   if (/5\d\d\s|internal server error/.test(text)) {
-    return { type: 'system', severity: 'warning', source: 'server', suggestedCause: 'Server returned a 5xx error — check server logs for the root cause.' };
+    return {
+      type: 'system',
+      severity: 'warning',
+      source: 'server',
+      suggestedCause: 'Server returned a 5xx error — check server logs for the root cause.'
+    };
   }
 
   // ── User / auth errors — evaluated LAST, only when no system pattern matched ──
@@ -92,16 +177,26 @@ function classifyError(message, stack) {
     /login (failed|required)/,
     /\bunauthorized\b/,
     /\bforbidden\b/,
-    /\baccess denied\b/,
+    /\baccess denied\b/
   ];
   for (const p of userPatterns) {
     if (p.test(text)) {
-      return { type: 'user', severity: 'warning', source: 'auth', suggestedCause: 'User-level error (auth/validation) — no action needed.' };
+      return {
+        type: 'user',
+        severity: 'warning',
+        source: 'auth',
+        suggestedCause: 'User-level error (auth/validation) — no action needed.'
+      };
     }
   }
 
   // Default: treat as system warning
-  return { type: 'system', severity: 'warning', source: 'server', suggestedCause: 'Unexpected server error — review logs for details.' };
+  return {
+    type: 'system',
+    severity: 'warning',
+    source: 'server',
+    suggestedCause: 'Unexpected server error — review logs for details.'
+  };
 }
 
 // ─── Deduplication ───────────────────────────────────────────────────────────
@@ -114,7 +209,7 @@ function makeHash(source, message) {
 function shouldAlert(hash) {
   const last = dedupMap[hash];
   if (!last) return true;
-  return (Date.now() - last) > DEDUP_WINDOW_MS;
+  return Date.now() - last > DEDUP_WINDOW_MS;
 }
 
 function markAlerted(hash) {
@@ -132,38 +227,48 @@ async function createGithubIssue(title, body, labels) {
   const https = require('https');
   const payload = JSON.stringify({ title, body, labels: labels || [] });
   return new Promise((resolve) => {
-    const req = https.request({
-      hostname: 'api.github.com',
-      path: '/repos/thesolelane/preferredbuildersapp/issues',
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github+json',
-        'User-Agent': 'PreferredBuilders-AlertBot/1.0',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Length': Buffer.byteLength(payload),
-      }
-    }, (res) => {
-      let data = '';
-      res.on('data', chunk => { data += chunk; });
-      res.on('end', () => {
-        if (res.statusCode === 201) {
-          try {
-            const issue = JSON.parse(data);
-            console.log(`[GitHub] Created issue #${issue.number}: ${title}`);
-          } catch (_) {}
-        } else {
-          console.warn(`[GitHub] Issue creation returned HTTP ${res.statusCode}: ${data.slice(0, 200)}`);
+    const req = https.request(
+      {
+        hostname: 'api.github.com',
+        path: '/repos/thesolelane/preferredbuildersapp/issues',
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/vnd.github+json',
+          'User-Agent': 'PreferredBuilders-AlertBot/1.0',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Length': Buffer.byteLength(payload)
         }
-        resolve();
-      });
-    });
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          if (res.statusCode === 201) {
+            try {
+              const issue = JSON.parse(data);
+              console.log(`[GitHub] Created issue #${issue.number}: ${title}`);
+            } catch (_) {}
+          } else {
+            console.warn(
+              `[GitHub] Issue creation returned HTTP ${res.statusCode}: ${data.slice(0, 200)}`
+            );
+          }
+          resolve();
+        });
+      }
+    );
     req.on('error', (e) => {
       console.warn('[GitHub] Issue creation failed:', e.message);
       resolve();
     });
-    req.setTimeout(8000, () => { req.destroy(); resolve(); });
+    req.setTimeout(8000, () => {
+      req.destroy();
+      resolve();
+    });
     req.write(payload);
     req.end();
   });
@@ -175,7 +280,10 @@ async function sendSystemAlert({ classification, rawMessage, jobId, timestamp })
   const { type, severity, source, suggestedCause } = classification;
   const ownerEmails = (() => {
     const raw = process.env.OWNER_EMAIL || process.env.REPLY_TO_EMAIL || '';
-    return raw.split(',').map(e => e.trim()).filter(Boolean);
+    return raw
+      .split(',')
+      .map((e) => e.trim())
+      .filter(Boolean);
   })();
 
   const truncatedRaw = String(rawMessage).slice(0, 800);
@@ -227,7 +335,13 @@ async function sendSystemAlert({ classification, rawMessage, jobId, timestamp })
   await createGithubIssue(issueTitle, issueBody, labels);
 
   // Record in alert log
-  alertLog.push({ ts, source, severity, suggestedCause, message: String(rawMessage).slice(0, 200) });
+  alertLog.push({
+    ts,
+    source,
+    severity,
+    suggestedCause,
+    message: String(rawMessage).slice(0, 200)
+  });
   if (alertLog.length > MAX_ALERTS) alertLog.shift();
 }
 
@@ -249,7 +363,9 @@ function captureError(message, source, { jobId } = {}) {
     if (shouldAlert(hash)) {
       markAlerted(hash);
       // Fire-and-forget (don't block callers)
-      sendSystemAlert({ classification, rawMessage: message, jobId, timestamp: ts }).catch(() => {});
+      sendSystemAlert({ classification, rawMessage: message, jobId, timestamp: ts }).catch(
+        () => {}
+      );
     }
   }
 }
@@ -264,10 +380,10 @@ function clearErrors() {
 
 function getAlertsSummary() {
   const cutoff = Date.now() - 24 * 60 * 60 * 1000;
-  const last24h = alertLog.filter(a => new Date(a.ts).getTime() >= cutoff);
+  const last24h = alertLog.filter((a) => new Date(a.ts).getTime() >= cutoff);
   return {
     last24hCount: last24h.length,
-    last24h: last24h.slice(-20).reverse(),
+    last24h: last24h.slice(-20).reverse()
   };
 }
 
@@ -276,7 +392,7 @@ function getAlertsSummary() {
 const _origError = console.error.bind(console);
 console.error = (...args) => {
   _origError(...args);
-  captureError(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
+  captureError(args.map((a) => (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' '));
 };
 
 // Also capture unhandled promise rejections

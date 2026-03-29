@@ -13,10 +13,10 @@ async function getAccessToken() {
     return connectionSettings.settings.access_token;
   }
 
-  const hostname      = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  const replIdentity  = process.env.REPL_IDENTITY;
+  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
+  const replIdentity = process.env.REPL_IDENTITY;
   const webReplRenewal = process.env.WEB_REPL_RENEWAL;
-  const xReplitToken  = replIdentity
+  const xReplitToken = replIdentity
     ? 'repl ' + replIdentity
     : webReplRenewal
       ? 'depl ' + webReplRenewal
@@ -27,9 +27,11 @@ async function getAccessToken() {
   }
 
   const data = await fetch(
-    'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-calendar',
+    'https://' +
+      hostname +
+      '/api/v2/connection?include_secrets=true&connector_names=google-calendar',
     { headers: { Accept: 'application/json', 'X-Replit-Token': xReplitToken } }
-  ).then(r => r.json());
+  ).then((r) => r.json());
 
   connectionSettings = data.items?.[0];
   const accessToken =
@@ -43,7 +45,7 @@ async function getAccessToken() {
 }
 
 async function getCalendarClient() {
-  const accessToken  = await getAccessToken();
+  const accessToken = await getAccessToken();
   const oauth2Client = new google.auth.OAuth2();
   oauth2Client.setCredentials({ access_token: accessToken });
   return google.calendar({ version: 'v3', auth: oauth2Client });
@@ -58,25 +60,25 @@ async function getCalendarClient() {
 async function createCalendarEvent(task, calendarId = 'primary') {
   if (!task.due_at) return null;
 
-  const start   = new Date(task.due_at);
-  const end     = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour default
+  const start = new Date(task.due_at);
+  const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour default
 
   const event = {
     summary: task.title,
     description: task.description || '',
-    start:  { dateTime: start.toISOString(), timeZone: 'America/New_York' },
-    end:    { dateTime: end.toISOString(),   timeZone: 'America/New_York' },
+    start: { dateTime: start.toISOString(), timeZone: 'America/New_York' },
+    end: { dateTime: end.toISOString(), timeZone: 'America/New_York' },
     reminders: {
       useDefault: false,
       overrides: [
-        { method: 'email',  minutes: 60 },
-        { method: 'popup',  minutes: 30 },
+        { method: 'email', minutes: 60 },
+        { method: 'popup', minutes: 30 }
       ]
     }
   };
 
   try {
-    const cal    = await getCalendarClient();
+    const cal = await getCalendarClient();
     const result = await cal.events.insert({ calendarId, resource: event });
     return result.data.htmlLink || null;
   } catch (err) {
@@ -89,16 +91,16 @@ async function createCalendarEvent(task, calendarId = 'primary') {
  * List upcoming events from the calendar (next 7 days).
  */
 async function listUpcomingEvents(calendarId = 'primary', maxResults = 10) {
-  const cal  = await getCalendarClient();
-  const now  = new Date();
+  const cal = await getCalendarClient();
+  const now = new Date();
   const week = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-  const res  = await cal.events.list({
+  const res = await cal.events.list({
     calendarId,
     timeMin: now.toISOString(),
     timeMax: week.toISOString(),
     maxResults,
     singleEvents: true,
-    orderBy: 'startTime',
+    orderBy: 'startTime'
   });
   return res.data.items || [];
 }

@@ -4,8 +4,7 @@ const sessions = new Map();
 function requireAuth(req, res, next) {
   // Accept query token only on safe GET requests (e.g. photo/PDF file links in emails)
   // All mutating endpoints (POST/PATCH/DELETE) must use the x-auth-token header only
-  const token = req.headers['x-auth-token'] ||
-    (req.method === 'GET' ? req.query.token : undefined);
+  const token = req.headers['x-auth-token'] || (req.method === 'GET' ? req.query.token : undefined);
   if (!token || !sessions.has(token)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }

@@ -1,10 +1,10 @@
 // server/services/claudeService.js
 // Claude extracts structured data from estimates. The system does ALL math and PDF templating.
 
-const Anthropic      = require('@anthropic-ai/sdk');
-const { getDb }      = require('../db/database');
-const jobMemory      = require('./jobMemory');
-const perplexity     = require('./perplexityService');
+const Anthropic = require('@anthropic-ai/sdk');
+const { getDb } = require('../db/database');
+const jobMemory = require('./jobMemory');
+const perplexity = require('./perplexityService');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -14,8 +14,11 @@ function loadSettings() {
   const rows = db.prepare('SELECT key, value FROM settings').all();
   const settings = {};
   for (const row of rows) {
-    try { settings[row.key] = JSON.parse(row.value); }
-    catch { settings[row.key] = row.value; }
+    try {
+      settings[row.key] = JSON.parse(row.value);
+    } catch {
+      settings[row.key] = row.value;
+    }
   }
   return settings;
 }
@@ -23,17 +26,19 @@ function loadSettings() {
 // ── LOAD KNOWLEDGE BASE ──────────────────────────────────────────────
 function loadKnowledgeBase() {
   const db = getDb();
-  const docs = db.prepare('SELECT title, category, content FROM knowledge_base WHERE active = 1').all();
-  return docs.map(d => `## ${d.title} [${d.category}]\n${d.content}`).join('\n\n---\n\n');
+  const docs = db
+    .prepare('SELECT title, category, content FROM knowledge_base WHERE active = 1')
+    .all();
+  return docs.map((d) => `## ${d.title} [${d.category}]\n${d.content}`).join('\n\n---\n\n');
 }
 
 // ── GET MARKUP RATES ─────────────────────────────────────────────────
 function getMarkupRates(settings) {
   return {
-    subOandP:     Number(settings['markup.subOandP'])    || Number(settings['markup.subOP'])  || 0.15,
-    gcOandP:      Number(settings['markup.gcOandP'])     || Number(settings['markup.gcOP'])   || 0.25,
-    contingency:  Number(settings['markup.contingency']) || 0.10,
-    deposit:      Number(settings['markup.deposit'])     || 0.33
+    subOandP: Number(settings['markup.subOandP']) || Number(settings['markup.subOP']) || 0.15,
+    gcOandP: Number(settings['markup.gcOandP']) || Number(settings['markup.gcOP']) || 0.25,
+    contingency: Number(settings['markup.contingency']) || 0.1,
+    deposit: Number(settings['markup.deposit']) || 0.33
   };
 }
 
@@ -43,29 +48,29 @@ function buildRatesSection(settings) {
   const allowanceLines = [];
 
   const laborMap = {
-    'labor.framing':     'Framing labor',
-    'labor.roofing':     'Roofing labor',
-    'labor.siding':      'Siding labor',
-    'labor.electrical':  'Electrical labor',
-    'labor.plumbing':    'Plumbing labor',
-    'labor.hvac':        'HVAC labor',
-    'labor.drywall':     'Drywall labor',
-    'labor.insulation':  'Insulation labor',
-    'labor.tile':        'Tile labor',
-    'labor.flooring':    'Flooring (LVP/hardwood) install labor',
+    'labor.framing': 'Framing labor',
+    'labor.roofing': 'Roofing labor',
+    'labor.siding': 'Siding labor',
+    'labor.electrical': 'Electrical labor',
+    'labor.plumbing': 'Plumbing labor',
+    'labor.hvac': 'HVAC labor',
+    'labor.drywall': 'Drywall labor',
+    'labor.insulation': 'Insulation labor',
+    'labor.tile': 'Tile labor',
+    'labor.flooring': 'Flooring (LVP/hardwood) install labor'
   };
   const allowanceMap = {
-    'allowance.lvp':         'LVP flooring material allowance',
-    'allowance.hardwood':    'Hardwood flooring material allowance',
-    'allowance.carpet':      'Carpet material allowance',
-    'allowance.tileBath':    'Bath tile material allowance',
-    'allowance.tileShower':  'Shower tile material allowance',
-    'allowance.cabinets':    'Kitchen cabinets allowance (builder grade)',
-    'allowance.quartz':      'Quartz countertop allowance',
-    'allowance.vanity':      'Full bathroom vanity allowance (each)',
-    'allowance.toilet':      'Toilet allowance (each)',
-    'allowance.tub':         'Bathtub allowance (each)',
-    'allowance.intDoor':     'Interior door (slab) allowance (each)',
+    'allowance.lvp': 'LVP flooring material allowance',
+    'allowance.hardwood': 'Hardwood flooring material allowance',
+    'allowance.carpet': 'Carpet material allowance',
+    'allowance.tileBath': 'Bath tile material allowance',
+    'allowance.tileShower': 'Shower tile material allowance',
+    'allowance.cabinets': 'Kitchen cabinets allowance (builder grade)',
+    'allowance.quartz': 'Quartz countertop allowance',
+    'allowance.vanity': 'Full bathroom vanity allowance (each)',
+    'allowance.toilet': 'Toilet allowance (each)',
+    'allowance.tub': 'Bathtub allowance (each)',
+    'allowance.intDoor': 'Interior door (slab) allowance (each)'
   };
 
   for (const [key, label] of Object.entries(laborMap)) {
@@ -73,7 +78,9 @@ function buildRatesSection(settings) {
     if (val) {
       const v = typeof val === 'string' ? JSON.parse(val) : val;
       const mid = Math.round((v.low + v.high) / 2);
-      laborLines.push(`  ${label}: $${mid} per ${v.unit} (use this exact rate — range is $${v.low}–$${v.high})`);
+      laborLines.push(
+        `  ${label}: $${mid} per ${v.unit} (use this exact rate — range is $${v.low}–$${v.high})`
+      );
     }
   }
   for (const [key, label] of Object.entries(allowanceMap)) {
@@ -89,20 +96,20 @@ function buildRatesSection(settings) {
   }
 
   const markup = {
-    sub:  Math.round((Number(settings['markup.subOandP']) || 0.15) * 100),
-    gc:   Math.round((Number(settings['markup.gcOandP']) || 0.25) * 100),
-    cont: Math.round((Number(settings['markup.contingency']) || 0.10) * 100),
-    dep:  Math.round((Number(settings['markup.deposit']) || 0.33) * 100),
+    sub: Math.round((Number(settings['markup.subOandP']) || 0.15) * 100),
+    gc: Math.round((Number(settings['markup.gcOandP']) || 0.25) * 100),
+    cont: Math.round((Number(settings['markup.contingency']) || 0.1) * 100),
+    dep: Math.round((Number(settings['markup.deposit']) || 0.33) * 100)
   };
 
-  const sqftLow  = Number(settings['pricing.sqftLow'])  || 320;
+  const sqftLow = Number(settings['pricing.sqftLow']) || 320;
   const sqftHigh = Number(settings['pricing.sqftHigh']) || 350;
 
   return `## OUR PRICING STRUCTURE
 The system applies markups automatically AFTER extraction — do NOT add markup to baseCost values.
 baseCost = what Preferred Builders pays subs/materials (net cost to us).
 Markup chain applied by system: baseCost × (1 + ${markup.sub}% sub O&P) × (1 + ${markup.gc}% GC O&P) × (1 + ${markup.cont}% contingency) = client price.
-Combined multiplier ≈ ${(((1 + markup.sub/100) * (1 + markup.gc/100) * (1 + markup.cont/100))).toFixed(4)}×.
+Combined multiplier ≈ ${((1 + markup.sub / 100) * (1 + markup.gc / 100) * (1 + markup.cont / 100)).toFixed(4)}×.
 Deposit: ${markup.dep}% of total contract price.
 
 ## TARGET PRICE RANGE (finished space)
@@ -161,7 +168,9 @@ ${knowledgeBase}`;
 function buildMemoryContext(db, projectAddress) {
   if (!db || !projectAddress) return '';
   try {
-    const prior = db.prepare(`
+    const prior = db
+      .prepare(
+        `
       SELECT pb_number, external_ref, created_at, total_value, deposit_amount, proposal_data
       FROM jobs
       WHERE project_address LIKE ?
@@ -169,21 +178,25 @@ function buildMemoryContext(db, projectAddress) {
         AND archived = 0
       ORDER BY created_at DESC
       LIMIT 3
-    `).all(`%${projectAddress.trim()}%`);
+    `
+      )
+      .all(`%${projectAddress.trim()}%`);
 
     if (!prior.length) return '';
 
-    const lines = prior.map(j => {
-      let lineItems = '';
-      try {
-        const pd = JSON.parse(j.proposal_data);
-        lineItems = (pd.lineItems || [])
-          .map(li => `    - ${li.trade}: baseCost $${li.baseCost?.toLocaleString()}`)
-          .join('\n');
-      } catch {}
-      const ref = j.pb_number || j.external_ref || j.id;
-      return `  Quote ${ref} (${new Date(j.created_at).toLocaleDateString()}) — Total: $${Number(j.total_value || 0).toLocaleString()}\n${lineItems}`;
-    }).join('\n\n');
+    const lines = prior
+      .map((j) => {
+        let lineItems = '';
+        try {
+          const pd = JSON.parse(j.proposal_data);
+          lineItems = (pd.lineItems || [])
+            .map((li) => `    - ${li.trade}: baseCost $${li.baseCost?.toLocaleString()}`)
+            .join('\n');
+        } catch {}
+        const ref = j.pb_number || j.external_ref || j.id;
+        return `  Quote ${ref} (${new Date(j.created_at).toLocaleDateString()}) — Total: $${Number(j.total_value || 0).toLocaleString()}\n${lineItems}`;
+      })
+      .join('\n\n');
 
     return `\n\n## PRIOR ESTIMATES FOR THIS ADDRESS
 This address has been estimated before. Use these as your consistency anchor:
@@ -202,19 +215,29 @@ RULES:
 // ── LOOKUP PRIOR VERSION CONTEXT ─────────────────────────────────────
 function getPriorVersionContext(db, quoteNumber) {
   if (!quoteNumber) return null;
-  const prior = db.prepare(`
+  const prior = db
+    .prepare(
+      `
     SELECT j.id, j.version, j.total_value, j.created_at, j.proposal_data
     FROM jobs j
     WHERE j.quote_number = ? AND j.proposal_data IS NOT NULL
     ORDER BY j.version DESC
     LIMIT 1
-  `).get(quoteNumber);
+  `
+    )
+    .get(quoteNumber);
   if (!prior) return null;
   try {
-    const data = typeof prior.proposal_data === 'string' ? JSON.parse(prior.proposal_data) : prior.proposal_data;
-    const items = (data.lineItems || []).map(li =>
-      `  - ${li.trade}: baseCost $${(li.baseCost || 0).toLocaleString()} → client price $${(li.finalPrice || 0).toLocaleString()} | ${li.description || ''}`
-    ).join('\n');
+    const data =
+      typeof prior.proposal_data === 'string'
+        ? JSON.parse(prior.proposal_data)
+        : prior.proposal_data;
+    const items = (data.lineItems || [])
+      .map(
+        (li) =>
+          `  - ${li.trade}: baseCost $${(li.baseCost || 0).toLocaleString()} → client price $${(li.finalPrice || 0).toLocaleString()} | ${li.description || ''}`
+      )
+      .join('\n');
     return `## IMPORTANT: YOU ALREADY PRICED THIS QUOTE (Quote #${quoteNumber}, Version ${prior.version} — ${new Date(prior.created_at).toLocaleDateString('en-US')})
 You have already processed an estimate for this quote number. This is a revision of the same project. You MUST use your previous pricing as the baseline — do NOT re-estimate from scratch.
 
@@ -245,43 +268,54 @@ Keep queries specific and under 15 words. You may call this up to 3 times per es
     properties: {
       query: {
         type: 'string',
-        description: 'Targeted search query. Be specific. Example: "2x4 lumber price per board foot Massachusetts 2025"',
+        description:
+          'Targeted search query. Be specific. Example: "2x4 lumber price per board foot Massachusetts 2025"'
       },
       search_type: {
         type: 'string',
-        enum: ['material_price', 'permit_fee', 'labor_rate', 'building_code', 'supplier', 'general'],
-        description: 'material_price: lumber/concrete/roofing costs. permit_fee: municipal permit fees. labor_rate: subcontractor market rates. building_code: code requirements. supplier: local vendors. general: other.',
-      },
+        enum: [
+          'material_price',
+          'permit_fee',
+          'labor_rate',
+          'building_code',
+          'supplier',
+          'general'
+        ],
+        description:
+          'material_price: lumber/concrete/roofing costs. permit_fee: municipal permit fees. labor_rate: subcontractor market rates. building_code: code requirements. supplier: local vendors. general: other.'
+      }
     },
-    required: ['query', 'search_type'],
-  },
+    required: ['query', 'search_type']
+  }
 };
 
 // ── TOOL USE LOOP — runs Claude with Perplexity available as a tool ──
 async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3) {
   const messages = [{ role: 'user', content: userMessage }];
-  const tools    = perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [];
+  const tools = perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [];
   let toolCallCount = 0;
 
   while (true) {
     const response = await client.messages.create({
-      model:       'claude-sonnet-4-20250514',
-      max_tokens:  8000,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 8000,
       temperature: 0.1,
-      system:      systemPrompt,
+      system: systemPrompt,
       messages,
-      ...(tools.length ? { tools } : {}),
+      ...(tools.length ? { tools } : {})
     });
 
     if (response.stop_reason === 'tool_use' && toolCallCount < maxToolCalls) {
-      const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
+      const toolUseBlocks = response.content.filter((b) => b.type === 'tool_use');
       messages.push({ role: 'assistant', content: response.content });
 
       const toolResults = [];
       for (const block of toolUseBlocks) {
         if (block.name === 'web_search') {
           toolCallCount++;
-          console.log(`[Claude→Perplexity] #${toolCallCount} type=${block.input.search_type} query="${block.input.query}"`);
+          console.log(
+            `[Claude→Perplexity] #${toolCallCount} type=${block.input.search_type} query="${block.input.query}"`
+          );
           const result = await perplexity.search(block.input.query, block.input.search_type);
           toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
         }
@@ -289,27 +323,37 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3) {
       messages.push({ role: 'user', content: toolResults });
     } else {
       // End of tool use — extract text from final response
-      return response.content.find(b => b.type === 'text')?.text?.trim() || '';
+      return response.content.find((b) => b.type === 'text')?.text?.trim() || '';
     }
   }
 }
 
 // ── PROCESS ESTIMATE → EXTRACT DATA ─────────────────────────────────
-async function processEstimate(rawEstimateText, jobId, language = 'en', db = null, projectAddress = null, priorVersionContext = null) {
+async function processEstimate(
+  rawEstimateText,
+  jobId,
+  language = 'en',
+  db = null,
+  projectAddress = null,
+  priorVersionContext = null
+) {
   const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
   const memoryContext = buildMemoryContext(db, projectAddress);
-  const rates         = getMarkupRates(settings);
+  const rates = getMarkupRates(settings);
 
   // Inject job-specific memory file if it exists
   const jobMemoryContext = jobMemory.getContextForClaude(jobId);
 
-  const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language)
-    + memoryContext
-    + (jobMemoryContext ? `\n\n${jobMemoryContext}` : '')
-    + (priorVersionContext ? `\n\n${priorVersionContext}` : '');
+  const systemPrompt =
+    buildSystemPrompt(settings, knowledgeBase, language) +
+    memoryContext +
+    (jobMemoryContext ? `\n\n${jobMemoryContext}` : '') +
+    (priorVersionContext ? `\n\n${priorVersionContext}` : '');
 
-  const text = await runWithTools(systemPrompt, `Extract structured data from this estimate. Return ONLY valid JSON — no commentary, no markdown, no explanation.
+  const text = await runWithTools(
+    systemPrompt,
+    `Extract structured data from this estimate. Return ONLY valid JSON — no commentary, no markdown, no explanation.
 
 Job ID: ${jobId}
 
@@ -444,7 +488,9 @@ RULES:
     let parsed = null;
 
     // First attempt: plain parse
-    try { parsed = JSON.parse(jsonStr); } catch (_) {}
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch (_) {}
 
     // Second attempt: strip trailing commas before } or ] (common Claude quirk)
     if (!parsed) {
@@ -458,10 +504,14 @@ RULES:
     if (!parsed) {
       try {
         // Find the last valid closing brace position by walking backwards
-        let depth = 0, lastGood = -1;
+        let depth = 0,
+          lastGood = -1;
         for (let i = 0; i < jsonStr.length; i++) {
           if (jsonStr[i] === '{' || jsonStr[i] === '[') depth++;
-          else if (jsonStr[i] === '}' || jsonStr[i] === ']') { depth--; if (depth === 0) lastGood = i; }
+          else if (jsonStr[i] === '}' || jsonStr[i] === ']') {
+            depth--;
+            if (depth === 0) lastGood = i;
+          }
         }
         if (lastGood > 0) parsed = JSON.parse(jsonStr.slice(0, lastGood + 1));
       } catch (_) {}
@@ -478,12 +528,23 @@ RULES:
   }
 
   if (extractedData.stretchCodeItems?.length > 0) {
-    const stretchCosts = { 'HERS Rater': 1200, 'ERV System': 3500, 'EV-Ready Outlet': 350, 'Solar Conduit': 300 };
+    const stretchCosts = {
+      'HERS Rater': 1200,
+      'ERV System': 3500,
+      'EV-Ready Outlet': 350,
+      'Solar Conduit': 300
+    };
     for (const item of extractedData.stretchCodeItems) {
       const cost = stretchCosts[item] || 0;
       if (cost > 0) {
         extractedData.lineItems = extractedData.lineItems || [];
-        extractedData.lineItems.push({ trade: item, baseCost: cost, isStretchCode: true, scopeIncluded: [item], scopeExcluded: [] });
+        extractedData.lineItems.push({
+          trade: item,
+          baseCost: cost,
+          isStretchCode: true,
+          scopeIncluded: [item],
+          scopeExcluded: []
+        });
       }
     }
   }
@@ -501,7 +562,12 @@ function applyPricing(data, rates, settings) {
   // Always set validUntil to today + 15 days — every generated proposal is valid for 15 days from generation
   const validDate = new Date();
   validDate.setDate(validDate.getDate() + 15);
-  data.validUntil = validDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+  data.validUntil = validDate.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'America/New_York'
+  });
 
   const items = data.lineItems || [];
   const markupMultiplier = (1 + rates.subOandP) * (1 + rates.gcOandP) * (1 + rates.contingency);
@@ -520,13 +586,13 @@ function applyPricing(data, rates, settings) {
 
   // Waste removal / dumpster — folded into total, not shown as a line item
   // Under $10K: $600 (min), $10K–$25K: $1,200 (40-yard 5T), above $25K: +$1,200 per $15K
-  const hasDumpster = items.some(i =>
+  const hasDumpster = items.some((i) =>
     /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || '')
   );
   let implicitDumpsterBaseCost = 0;
   if (!hasDumpster) {
     let totalBase = 0;
-    for (const item of items) totalBase += (item.baseCost || 0);
+    for (const item of items) totalBase += item.baseCost || 0;
     let dumpsterCost;
     if (totalBase < 10000) {
       dumpsterCost = 600;
@@ -534,7 +600,7 @@ function applyPricing(data, rates, settings) {
       dumpsterCost = 1200;
     } else {
       const extraDumpsters = Math.ceil((totalBase - 25000) / 15000);
-      dumpsterCost = 1200 + (extraDumpsters * 1200);
+      dumpsterCost = 1200 + extraDumpsters * 1200;
     }
     implicitDumpsterBaseCost = dumpsterCost;
     totalContractPrice += Math.round(dumpsterCost * markupMultiplier);
@@ -543,7 +609,7 @@ function applyPricing(data, rates, settings) {
   const depositAmount = Math.round(totalContractPrice * rates.deposit);
 
   const sqft = Number(data.project?.sqft) || 0;
-  const sqftLow  = Number(settings['pricing.sqftLow'])  || 320;
+  const sqftLow = Number(settings['pricing.sqftLow']) || 320;
   const sqftHigh = Number(settings['pricing.sqftHigh']) || 350;
   const pricePerSqft = sqft > 0 ? Math.round(totalContractPrice / sqft) : null;
   let sqftWarning = null;
@@ -564,18 +630,22 @@ function applyPricing(data, rates, settings) {
     appliedRates: {
       subOandP: rates.subOandP,
       gcOandP: rates.gcOandP,
-      contingency: rates.contingency,
+      contingency: rates.contingency
     },
-    implicitDumpsterBaseCost,
+    implicitDumpsterBaseCost
   };
 
   data.totalValue = totalContractPrice;
   data.depositAmount = depositAmount;
 
   if (pricePerSqft !== null) {
-    console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → $${pricePerSqft}/sqft (target $${sqftLow}–$${sqftHigh}) → Deposit: $${depositAmount.toLocaleString()}`);
+    console.log(
+      `[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → $${pricePerSqft}/sqft (target $${sqftLow}–$${sqftHigh}) → Deposit: $${depositAmount.toLocaleString()}`
+    );
   } else {
-    console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
+    console.log(
+      `[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`
+    );
   }
 }
 
@@ -590,16 +660,15 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
   const knowledgeBase = loadKnowledgeBase();
   const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language);
 
-  const messages = [
-    ...conversationHistory,
-    { role: 'user', content: userMessage }
-  ];
+  const messages = [...conversationHistory, { role: 'user', content: userMessage }];
 
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2000,
     temperature: 0.1,
-    system: systemPrompt + `\n\nYou are in a clarification conversation about job ${jobId}. 
+    system:
+      systemPrompt +
+      `\n\nYou are in a clarification conversation about job ${jobId}. 
     If the user's answers complete all missing information, respond with JSON: {"type":"ready","message":"..."} 
     If more questions remain, respond with JSON: {"type":"question","message":"...","questionsRemaining":N}
     If responding to Jackson in Portuguese, use {"type":"question","message":"...em português...","questionsRemaining":N}`,
@@ -620,7 +689,8 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
 const ADMIN_TOOLS = [
   {
     name: 'lookup_contacts',
-    description: 'Search for customer/contact information in the database by name, email, or phone number. Use this whenever someone asks about a customer\'s contact info.',
+    description:
+      "Search for customer/contact information in the database by name, email, or phone number. Use this whenever someone asks about a customer's contact info.",
     input_schema: {
       type: 'object',
       properties: {
@@ -631,7 +701,8 @@ const ADMIN_TOOLS = [
   },
   {
     name: 'lookup_jobs',
-    description: 'Search for jobs/projects by customer name or project address. Returns recent status and value info.',
+    description:
+      'Search for jobs/projects by customer name or project address. Returns recent status and value info.',
     input_schema: {
       type: 'object',
       properties: {
@@ -642,15 +713,30 @@ const ADMIN_TOOLS = [
   },
   {
     name: 'create_task',
-    description: 'Create a task, reminder, or to-do item. Use this when someone says "remind me to", "schedule", "make a note", "add a task", or similar.',
+    description:
+      'Create a task, reminder, or to-do item. Use this when someone says "remind me to", "schedule", "make a note", "add a task", or similar.',
     input_schema: {
       type: 'object',
       properties: {
-        title:       { type: 'string',  description: 'Short task title (e.g. "Call for inspection at 123 Main St")' },
-        description: { type: 'string',  description: 'Additional details or notes about the task' },
-        due_at:      { type: 'string',  description: 'Due date/time in ISO 8601 format (e.g. "2026-03-15T17:00:00"). Use the current date as reference if the user says "tomorrow" or "next week".' },
-        priority:    { type: 'string',  enum: ['high', 'normal', 'low'], description: 'Priority level' },
-        job_address: { type: 'string',  description: 'Project address if the task relates to a specific job' }
+        title: {
+          type: 'string',
+          description: 'Short task title (e.g. "Call for inspection at 123 Main St")'
+        },
+        description: { type: 'string', description: 'Additional details or notes about the task' },
+        due_at: {
+          type: 'string',
+          description:
+            'Due date/time in ISO 8601 format (e.g. "2026-03-15T17:00:00"). Use the current date as reference if the user says "tomorrow" or "next week".'
+        },
+        priority: {
+          type: 'string',
+          enum: ['high', 'normal', 'low'],
+          description: 'Priority level'
+        },
+        job_address: {
+          type: 'string',
+          description: 'Project address if the task relates to a specific job'
+        }
       },
       required: ['title']
     }
@@ -662,53 +748,92 @@ async function runAdminTool(toolName, toolInput, db) {
 
   if (toolName === 'lookup_contacts') {
     const q = `%${toolInput.query}%`;
-    const results = db.prepare(
-      `SELECT name, email, phone, address, city, state, customer_number FROM contacts
+    const results = db
+      .prepare(
+        `SELECT name, email, phone, address, city, state, customer_number FROM contacts
        WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? LIMIT 5`
-    ).all(q, q, q);
+      )
+      .all(q, q, q);
     if (!results.length) return 'No contacts found matching that search.';
-    return results.map(c =>
-      `**${c.name}** (${c.customer_number || 'no ID'})\nEmail: ${c.email || '—'}\nPhone: ${c.phone || '—'}\nAddress: ${[c.address, c.city, c.state].filter(Boolean).join(', ') || '—'}`
-    ).join('\n\n');
+    return results
+      .map(
+        (c) =>
+          `**${c.name}** (${c.customer_number || 'no ID'})\nEmail: ${c.email || '—'}\nPhone: ${c.phone || '—'}\nAddress: ${[c.address, c.city, c.state].filter(Boolean).join(', ') || '—'}`
+      )
+      .join('\n\n');
   }
 
   if (toolName === 'lookup_jobs') {
     const q = `%${toolInput.query}%`;
-    const results = db.prepare(
-      `SELECT id, customer_name, customer_email, customer_phone, project_address, project_city, status, total_value, created_at
+    const results = db
+      .prepare(
+        `SELECT id, customer_name, customer_email, customer_phone, project_address, project_city, status, total_value, created_at
        FROM jobs WHERE archived = 0 AND (customer_name LIKE ? OR project_address LIKE ?) ORDER BY created_at DESC LIMIT 5`
-    ).all(q, q);
+      )
+      .all(q, q);
     if (!results.length) return 'No jobs found matching that search.';
-    return results.map(j =>
-      `**${j.customer_name}** — ${j.project_address}${j.project_city ? ', ' + j.project_city : ''}\nStatus: ${j.status?.replace(/_/g, ' ')}\nValue: ${j.total_value ? '$' + Number(j.total_value).toLocaleString() : '—'}\nEmail: ${j.customer_email || '—'} | Phone: ${j.customer_phone || '—'}`
-    ).join('\n\n');
+    return results
+      .map(
+        (j) =>
+          `**${j.customer_name}** — ${j.project_address}${j.project_city ? ', ' + j.project_city : ''}\nStatus: ${j.status?.replace(/_/g, ' ')}\nValue: ${j.total_value ? '$' + Number(j.total_value).toLocaleString() : '—'}\nEmail: ${j.customer_email || '—'} | Phone: ${j.customer_phone || '—'}`
+      )
+      .join('\n\n');
   }
 
   if (toolName === 'create_task') {
     const { title, description, due_at, priority, job_address } = toolInput;
     let job_id = null;
     if (job_address) {
-      const job = db.prepare(`SELECT id FROM jobs WHERE project_address LIKE ? LIMIT 1`).get(`%${job_address}%`);
+      const job = db
+        .prepare(`SELECT id FROM jobs WHERE project_address LIKE ? LIMIT 1`)
+        .get(`%${job_address}%`);
       job_id = job?.id || null;
     }
-    const task = { title, description: description || null, due_at: due_at || null, job_id, contact_id: null, priority: priority || 'normal', calendar_url: null };
-    const info = db.prepare(
-      `INSERT INTO tasks (title, description, due_at, job_id, priority) VALUES (?, ?, ?, ?, ?)`
-    ).run(task.title, task.description, task.due_at, task.job_id, task.priority);
+    const task = {
+      title,
+      description: description || null,
+      due_at: due_at || null,
+      job_id,
+      contact_id: null,
+      priority: priority || 'normal',
+      calendar_url: null
+    };
+    const info = db
+      .prepare(
+        `INSERT INTO tasks (title, description, due_at, job_id, priority) VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(task.title, task.description, task.due_at, task.job_id, task.priority);
     const saved = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
     const calURL = makeCalendarURL(saved);
-    if (calURL) { db.prepare('UPDATE tasks SET calendar_url = ? WHERE id = ?').run(calURL, saved.id); saved.calendar_url = calURL; }
-    return JSON.stringify({ created: true, task_id: saved.id, title: saved.title, due_at: saved.due_at, calendar_url: saved.calendar_url });
+    if (calURL) {
+      db.prepare('UPDATE tasks SET calendar_url = ? WHERE id = ?').run(calURL, saved.id);
+      saved.calendar_url = calURL;
+    }
+    return JSON.stringify({
+      created: true,
+      task_id: saved.id,
+      title: saved.title,
+      due_at: saved.due_at,
+      calendar_url: saved.calendar_url
+    });
   }
 
   return 'Unknown tool.';
 }
 
 async function adminChat(messages, language = 'en', db = null, sender = null) {
-  const settings     = loadSettings();
+  const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
 
-  const today = new Date().toLocaleString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' });
+  const today = new Date().toLocaleString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/New_York'
+  });
 
   const senderName = sender ? sender.name : null;
   const senderRole = sender ? sender.role : 'team member';
@@ -716,7 +841,9 @@ async function adminChat(messages, language = 'en', db = null, sender = null) {
     ? `IMPORTANT: You are speaking with ${senderName} (${senderRole}). Their identity is confirmed — they are registered in the system. NEVER ask who they are. Always address them by name.`
     : `You are speaking with an authorized team member. Do not ask who they are.`;
 
-  const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language) + `
+  const systemPrompt =
+    buildSystemPrompt(settings, knowledgeBase, language) +
+    `
 
 You are the Preferred Builders AI assistant in WhatsApp chat mode.
 Today is: ${today}
@@ -760,8 +887,11 @@ IMPORTANT STYLE RULES:
       messages: msgsToSend
     });
 
-    if (response.stop_reason === 'end_turn' || !response.content.some(b => b.type === 'tool_use')) {
-      const text = response.content.find(b => b.type === 'text')?.text || '';
+    if (
+      response.stop_reason === 'end_turn' ||
+      !response.content.some((b) => b.type === 'tool_use')
+    ) {
+      const text = response.content.find((b) => b.type === 'text')?.text || '';
       return { reply: text, createdTask };
     }
 
@@ -777,7 +907,10 @@ IMPORTANT STYLE RULES:
         result = await runAdminTool(block.name, block.input, db);
         // Track created tasks for the frontend
         if (block.name === 'create_task') {
-          try { const parsed = JSON.parse(result); if (parsed.created) createdTask = parsed; } catch {}
+          try {
+            const parsed = JSON.parse(result);
+            if (parsed.created) createdTask = parsed;
+          } catch {}
         }
       } catch (e) {
         result = `Error: ${e.message}`;
@@ -793,7 +926,9 @@ IMPORTANT STYLE RULES:
 
 // ── WIZARD QUESTION GENERATION ────────────────────────────────────────
 async function generateWizardQuestions(scopeText, projectAddress = '', budgetTarget = null) {
-  const budgetContext = budgetTarget ? `\nBudget Target: $${Number(budgetTarget).toLocaleString()} (client-facing total)` : '';
+  const budgetContext = budgetTarget
+    ? `\nBudget Target: $${Number(budgetTarget).toLocaleString()} (client-facing total)`
+    : '';
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2000,
@@ -808,9 +943,10 @@ TRADE SCOPE AMBIGUITY RULES — these questions are critical for accurate pricin
 - PLUMBING: When plumbing work goes beyond clearly specified fixture swaps, ask: Does this include repiping supply or drain lines, OR is it limited to fixture replacement and hookup only?
 
 Return ONLY valid JSON — no commentary, no markdown.`,
-    messages: [{
-      role: 'user',
-      content: `Read this scope of work and return a JSON array of clarifying questions. Return an empty array [] if the scope is completely clear and no questions are needed.
+    messages: [
+      {
+        role: 'user',
+        content: `Read this scope of work and return a JSON array of clarifying questions. Return an empty array [] if the scope is completely clear and no questions are needed.
 
 Project Address: ${projectAddress || 'not specified'}${budgetContext}
 
@@ -846,7 +982,8 @@ RULES:
 6. Trade clarification questions for electrical/HVAC/plumbing MUST be asked when those trades appear with vague extent — even if the scope seems complete otherwise.
 7. If the scope is clear and complete with no ambiguous trades, return an empty array [].
 8. Return ONLY the JSON array. Nothing else.`
-    }]
+      }
+    ]
   });
 
   const text = response.content[0].text.trim();
@@ -860,4 +997,12 @@ RULES:
   }
 }
 
-module.exports = { processEstimate, generateContract, handleClarification, adminChat, generateWizardQuestions, buildMemoryContext, getPriorVersionContext };
+module.exports = {
+  processEstimate,
+  generateContract,
+  handleClarification,
+  adminChat,
+  generateWizardQuestions,
+  buildMemoryContext,
+  getPriorVersionContext
+};

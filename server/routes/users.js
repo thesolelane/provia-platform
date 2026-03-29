@@ -17,7 +17,7 @@ const safe = (u) => ({
   phone: u.phone || '',
   language: u.language || 'en',
   active: u.active !== 0,
-  created_at: u.created_at,
+  created_at: u.created_at
 });
 
 router.get('/', requireAuth, (req, res) => {
@@ -28,20 +28,33 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 router.post('/', requireAuth, (req, res) => {
-  if (!hasLevel(req.session.role, 'system_admin')) return res.status(403).json({ error: 'Forbidden' });
+  if (!hasLevel(req.session.role, 'system_admin'))
+    return res.status(403).json({ error: 'Forbidden' });
   const { name, email, password, role, title, phone, language } = req.body;
-  if (!name || !email || !password) return res.status(400).json({ error: 'Name, email and password are required' });
+  if (!name || !email || !password)
+    return res.status(400).json({ error: 'Name, email and password are required' });
   if (!ROLE_LEVELS[role]) return res.status(400).json({ error: 'Invalid role' });
   const db = getDb();
   const hash = bcrypt.hashSync(password, 10);
   try {
-    const result = db.prepare(
-      'INSERT INTO users (name, email, password_hash, role, title, phone, language, active) VALUES (?,?,?,?,?,?,?,1)'
-    ).run(name, email.toLowerCase().trim(), hash, role, title || 'Team Member', phone || '', language || 'en');
+    const result = db
+      .prepare(
+        'INSERT INTO users (name, email, password_hash, role, title, phone, language, active) VALUES (?,?,?,?,?,?,?,1)'
+      )
+      .run(
+        name,
+        email.toLowerCase().trim(),
+        hash,
+        role,
+        title || 'Team Member',
+        phone || '',
+        language || 'en'
+      );
     const created = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
     res.json(safe(created));
   } catch (e) {
-    if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'Email already exists' });
+    if (e.message.includes('UNIQUE'))
+      return res.status(409).json({ error: 'Email already exists' });
     throw e;
   }
 });
@@ -54,19 +67,29 @@ router.put('/:id', requireAuth, (req, res) => {
   const isSysAdmin = hasLevel(req.session.role, 'system_admin');
   if (!isSelf && !isSysAdmin) return res.status(403).json({ error: 'Forbidden' });
   const { name, title, phone, language, active, role } = req.body;
-  if (role !== undefined && !isSysAdmin) return res.status(403).json({ error: 'Only system admin can change roles' });
-  if (role !== undefined && !ROLE_LEVELS[role]) return res.status(400).json({ error: 'Invalid role' });
+  if (role !== undefined && !isSysAdmin)
+    return res.status(403).json({ error: 'Only system admin can change roles' });
+  if (role !== undefined && !ROLE_LEVELS[role])
+    return res.status(400).json({ error: 'Invalid role' });
   const updated = {
     name: name !== undefined ? name : target.name,
-    title: title !== undefined ? title : (target.title || 'Team Member'),
-    phone: phone !== undefined ? phone : (target.phone || ''),
-    language: language !== undefined ? language : (target.language || 'en'),
-    active: active !== undefined ? (active ? 1 : 0) : (target.active !== 0 ? 1 : 0),
-    role: role !== undefined ? role : target.role,
+    title: title !== undefined ? title : target.title || 'Team Member',
+    phone: phone !== undefined ? phone : target.phone || '',
+    language: language !== undefined ? language : target.language || 'en',
+    active: active !== undefined ? (active ? 1 : 0) : target.active !== 0 ? 1 : 0,
+    role: role !== undefined ? role : target.role
   };
   db.prepare(
     'UPDATE users SET name=?, title=?, phone=?, language=?, active=?, role=? WHERE id=?'
-  ).run(updated.name, updated.title, updated.phone, updated.language, updated.active, updated.role, target.id);
+  ).run(
+    updated.name,
+    updated.title,
+    updated.phone,
+    updated.language,
+    updated.active,
+    updated.role,
+    target.id
+  );
   const refreshed = db.prepare('SELECT * FROM users WHERE id = ?').get(target.id);
   res.json(safe(refreshed));
 });
@@ -79,7 +102,8 @@ router.put('/:id/password', requireAuth, (req, res) => {
   const isSysAdmin = hasLevel(req.session.role, 'system_admin');
   if (!isSelf && !isSysAdmin) return res.status(403).json({ error: 'Forbidden' });
   const { currentPassword, newPassword } = req.body;
-  if (!newPassword || newPassword.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  if (!newPassword || newPassword.length < 8)
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
   if (isSelf && !isSysAdmin) {
     if (!currentPassword || !bcrypt.compareSync(currentPassword, target.password_hash)) {
       return res.status(401).json({ error: 'Current password is incorrect' });
@@ -91,8 +115,10 @@ router.put('/:id/password', requireAuth, (req, res) => {
 });
 
 router.delete('/:id', requireAuth, (req, res) => {
-  if (!hasLevel(req.session.role, 'system_admin')) return res.status(403).json({ error: 'Forbidden' });
-  if (String(req.session.userId) === String(req.params.id)) return res.status(400).json({ error: 'Cannot delete your own account' });
+  if (!hasLevel(req.session.role, 'system_admin'))
+    return res.status(403).json({ error: 'Forbidden' });
+  if (String(req.session.userId) === String(req.params.id))
+    return res.status(400).json({ error: 'Cannot delete your own account' });
   const db = getDb();
   const target = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id);
   if (!target) return res.status(404).json({ error: 'User not found' });
