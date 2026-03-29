@@ -255,8 +255,8 @@ export default function Dashboard({ token }) {
       )}
 
       {/* Jobs table */}
-      <div className="pb-table-wrap" style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+      <div className="pb-table-wrap" style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflowX: 'auto', overflowY: 'visible', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
           <thead>
             <tr style={{ background: '#1B3A6B' }}>
               {['PB Number', 'Customer', 'Address', 'Value', 'Status', 'Date', ''].map(h => (
