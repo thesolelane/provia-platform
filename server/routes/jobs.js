@@ -8,6 +8,7 @@ const { sendWhatsApp } = require('../services/whatsappService');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
 const { logActivity } = require('./activityLog');
+const jobMemory = require('../services/jobMemory');
 const { tickQuoteCounter } = require('../services/assessmentService');
 const { addClient, removeClient, notifyClients } = require('../services/sseManager');
 
@@ -888,6 +889,15 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
         finalizeJobVersioning(db, jobId, proposalData);
         const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
         saveProposalReady(db, proposalData, pdfPath, jobId);
+        try {
+          jobMemory.saveVersion(jobId, {
+            quoteNumber: proposalData.quoteNumber,
+            versionNumber: proposalData.quoteVersion || 1,
+            totalValue: proposalData.totalValue,
+            lineItems: proposalData.lineItems,
+            scopeSummary: (proposalData.project?.description || '').slice(0, 300),
+          });
+        } catch (memErr) { console.warn('[JobMemory] saveVersion failed:', memErr.message); }
         logAudit(jobId, 'upload_estimate_processed', `Proposal ready. Total: $${proposalData.totalValue}`, 'admin');
         tickQuoteCounter(db);
         notifyClients('job_updated', { jobId, status: 'proposal_ready' });
@@ -992,6 +1002,15 @@ router.post('/wizard', requireAuth, async (req, res) => {
 
         finalizeJobVersioning(db, jobId, proposalData);
         saveReviewPending(db, proposalData, jobId);
+        try {
+          jobMemory.saveVersion(jobId, {
+            quoteNumber: proposalData.quoteNumber,
+            versionNumber: proposalData.quoteVersion || 1,
+            totalValue: proposalData.totalValue,
+            lineItems: proposalData.lineItems,
+            scopeSummary: (proposalData.project?.description || '').slice(0, 300),
+          });
+        } catch (memErr) { console.warn('[JobMemory] saveVersion failed:', memErr.message); }
         logAudit(jobId, 'wizard_estimate_processed', `Wizard entry — pending review`, 'admin');
         console.log(`[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`);
         tickQuoteCounter(db);

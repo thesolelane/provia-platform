@@ -3,6 +3,7 @@ const express  = require('express');
 const { v4: uuidv4 } = require('uuid');
 const path     = require('path');
 const { getDb }      = require('../db/database');
+const jobMemory      = require('../services/jobMemory');
 const { requireAuth } = require('../middleware/auth');
 const { logAudit }   = require('../services/auditService');
 const { logActivity } = require('./activityLog');
@@ -333,6 +334,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
 
   if (session.doc_type === 'proposal') {
     db.prepare("UPDATE jobs SET status = 'proposal_approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(session.job_id);
+    try { jobMemory.markOutcome(session.job_id, 'approved'); } catch (_) {}
     logAudit(session.job_id, 'proposal_signed', `Proposal signed by ${signer_name} (IP: ${ip})`, 'customer');
     notifyClients('job_updated', {
       jobId: session.job_id, status: 'proposal_approved',
@@ -389,6 +391,7 @@ router.post('/api/signing/signed/:token', async (req, res) => {
 
   } else {
     db.prepare("UPDATE jobs SET status = 'contract_signed', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(session.job_id);
+    try { jobMemory.lock(session.job_id, 'contract_signed'); } catch (_) {}
     logAudit(session.job_id, 'contract_signed', `Contract signed by ${signer_name} (IP: ${ip})`, 'customer');
     // Auto-wipe stored email HTML previews for this job now that contract is signed
     try { db.prepare("UPDATE email_log SET html_body = NULL WHERE job_id = ?").run(session.job_id); } catch (_) {}
@@ -674,6 +677,7 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
   db.prepare(`INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'proposal', ?, CURRENT_TIMESTAMP, 'sent')`)
     .run(job.id, token);
   db.prepare("UPDATE jobs SET status = 'proposal_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(job.id);
+  try { jobMemory.markSent(job.id); } catch (_) {}
   logAudit(job.id, 'proposal_sent_for_signing', `Proposal signing link sent to ${job.customer_email}`, 'admin');
 
   const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';

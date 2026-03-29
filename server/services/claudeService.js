@@ -1,8 +1,10 @@
 // server/services/claudeService.js
 // Claude extracts structured data from estimates. The system does ALL math and PDF templating.
 
-const Anthropic = require('@anthropic-ai/sdk');
-const { getDb } = require('../db/database');
+const Anthropic      = require('@anthropic-ai/sdk');
+const { getDb }      = require('../db/database');
+const jobMemory      = require('./jobMemory');
+const perplexity     = require('./perplexityService');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -231,27 +233,83 @@ RULES FOR THIS REVISION:
   }
 }
 
+// ── WEB SEARCH TOOL DEFINITION ───────────────────────────────────────
+const WEB_SEARCH_TOOL = {
+  name: 'web_search',
+  description: `Search the web for current real-time data you cannot reliably know from training data.
+Use ONLY when the information is time-sensitive: material prices, permit fee schedules, current labor market rates, or specific building code requirements.
+Do NOT use for general construction knowledge or math — only for live data.
+Keep queries specific and under 15 words. You may call this up to 3 times per estimate.`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Targeted search query. Be specific. Example: "2x4 lumber price per board foot Massachusetts 2025"',
+      },
+      search_type: {
+        type: 'string',
+        enum: ['material_price', 'permit_fee', 'labor_rate', 'building_code', 'supplier', 'general'],
+        description: 'material_price: lumber/concrete/roofing costs. permit_fee: municipal permit fees. labor_rate: subcontractor market rates. building_code: code requirements. supplier: local vendors. general: other.',
+      },
+    },
+    required: ['query', 'search_type'],
+  },
+};
+
+// ── TOOL USE LOOP — runs Claude with Perplexity available as a tool ──
+async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3) {
+  const messages = [{ role: 'user', content: userMessage }];
+  const tools    = perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [];
+  let toolCallCount = 0;
+
+  while (true) {
+    const response = await client.messages.create({
+      model:       'claude-sonnet-4-20250514',
+      max_tokens:  8000,
+      temperature: 0.1,
+      system:      systemPrompt,
+      messages,
+      ...(tools.length ? { tools } : {}),
+    });
+
+    if (response.stop_reason === 'tool_use' && toolCallCount < maxToolCalls) {
+      const toolUseBlocks = response.content.filter(b => b.type === 'tool_use');
+      messages.push({ role: 'assistant', content: response.content });
+
+      const toolResults = [];
+      for (const block of toolUseBlocks) {
+        if (block.name === 'web_search') {
+          toolCallCount++;
+          console.log(`[Claude→Perplexity] #${toolCallCount} type=${block.input.search_type} query="${block.input.query}"`);
+          const result = await perplexity.search(block.input.query, block.input.search_type);
+          toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
+        }
+      }
+      messages.push({ role: 'user', content: toolResults });
+    } else {
+      // End of tool use — extract text from final response
+      return response.content.find(b => b.type === 'text')?.text?.trim() || '';
+    }
+  }
+}
+
 // ── PROCESS ESTIMATE → EXTRACT DATA ─────────────────────────────────
 async function processEstimate(rawEstimateText, jobId, language = 'en', db = null, projectAddress = null, priorVersionContext = null) {
   const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
   const memoryContext = buildMemoryContext(db, projectAddress);
-  const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language) + memoryContext;
-  const rates = getMarkupRates(settings);
+  const rates         = getMarkupRates(settings);
 
-  const priorContextSection = priorVersionContext
-    ? `\n\n${priorVersionContext}`
-    : '';
+  // Inject job-specific memory file if it exists
+  const jobMemoryContext = jobMemory.getContextForClaude(jobId);
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 8000,
-    temperature: 0.1,
-    system: systemPrompt + priorContextSection,
-    messages: [
-      {
-        role: 'user',
-        content: `Extract structured data from this estimate. Return ONLY valid JSON — no commentary, no markdown, no explanation.
+  const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language)
+    + memoryContext
+    + (jobMemoryContext ? `\n\n${jobMemoryContext}` : '')
+    + (priorVersionContext ? `\n\n${priorVersionContext}` : '');
+
+  const text = await runWithTools(systemPrompt, `Extract structured data from this estimate. Return ONLY valid JSON — no commentary, no markdown, no explanation.
 
 Job ID: ${jobId}
 
@@ -375,11 +433,8 @@ RULES:
 20. allowances: set true for each allowance item that is relevant to this project scope. Example: if bathrooms are in scope, set bath_vanity_full, bath_toilet, bath_faucet, bath_exhaust_fan etc. to true. If flooring is in scope, set flooring_lvp and/or flooring_tile to true. If kitchen is in scope, set kitchen_* items to true. If interior doors and trim are in scope, set doors_* items to true. Only include allowances that make sense for the actual scope — do not set all to true for a simple repair job.
 21. job.adu section: only populate if project.type === "adu". on_septic=true if the property uses a septic system. separate_metering=true if the ADU will have separate electric/gas metering. site_plan_required=true if the municipality requires site plan review. new_sewer_connection=true if a new sewer connection is required.
 22. project.hasBedrooms: set true ONLY if the scope includes sleeping/living space with bedrooms — a new residential home, a full ADU/in-law suite, or a renovation that adds/modifies bedrooms. Set false for garages, studios, workshops, art rooms, commercial spaces, or any structure without sleeping quarters. A half bath alone does not qualify — there must be actual bedrooms.`
-      }
-    ]
-  });
+  );
 
-  const text = response.content[0].text;
   let extractedData;
   try {
     const clean = text.replace(/```json|```/g, '').trim();
