@@ -52,7 +52,7 @@ export default function Dashboard({ token }) {
   const [jobs, setJobs] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
   const [showWizard, setShowWizard] = useState(false);
   const [showManual, setShowManual] = useState(false);
   const [submitTab, setSubmitTab] = useState('text');
@@ -86,7 +86,7 @@ export default function Dashboard({ token }) {
 
   // Re-fetch whenever navigating to the dashboard
   useEffect(() => {
-    const fn = () => setIsMobile(window.innerWidth < 768);
+    const fn = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener('resize', fn);
     return () => window.removeEventListener('resize', fn);
   }, []);
@@ -214,7 +214,7 @@ export default function Dashboard({ token }) {
   if (loading) return <div style={{ padding: 40, color: '#888' }}>Loading...</div>;
 
   return (
-    <div className="pb-page">
+    <div className="pb-page" style={{ padding: isMobile ? '16px 12px 90px' : '24px 28px 40px' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
         <div>
