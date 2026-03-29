@@ -265,6 +265,14 @@ router.post('/received', requireAuth, (req, res) => {
     recorded_by: recorder
   });
 
+  // When final payment is recorded, void all open signing sessions — job is complete
+  if (pType === 'final') {
+    db.prepare(
+      "UPDATE signing_sessions SET status = 'void' WHERE job_id = ? AND status != 'signed'"
+    ).run(job_id);
+    logAudit(job_id, 'signing_sessions_voided', 'Signing links voided — final payment recorded', recorder);
+  }
+
   res.json({ payment, summary: jobSummary(db, job_id) });
 
   // After responding, send deposit confirmation email if contract is signed

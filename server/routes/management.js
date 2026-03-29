@@ -335,6 +335,15 @@ router.delete('/:id', requireAuth, requireRole('admin', 'system_admin'), (req, r
   ).run(reason, note || null, req.params.id);
   const reasonLabel = reason ? ` (${reason}${note ? ': ' + note : ''})` : '';
   logAudit(req.params.id, 'archived', `Job archived${reasonLabel}`, 'admin');
+
+  // Void all open signing sessions when job is completed
+  if (reason === 'completed') {
+    db.prepare(
+      "UPDATE signing_sessions SET status = 'void' WHERE job_id = ? AND status != 'signed'"
+    ).run(req.params.id);
+    logAudit(req.params.id, 'signing_sessions_voided', 'Signing links voided — job marked completed', 'admin');
+  }
+
   res.json({ success: true, message: 'Job archived' });
 });
 
