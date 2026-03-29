@@ -8,8 +8,8 @@
     "dev": "nodemon server/index.js",
     "client": "cd client && npm start",
     "build": "cd client && npm run build",
-    "lint": "eslint server/ --ext .js",
-    "format": "prettier --write server/**/*.js"
+    "lint": "npx eslint server/ --ext .js",
+    "format": "npx prettier --write server/**/*.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",
