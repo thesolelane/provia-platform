@@ -47,14 +47,23 @@ function signingPageHTML({ docType, job, session, base: _base }) {
       <p style="color:#555;font-size:14px">This document was signed on ${new Date(session.signed_at).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/New_York' })}.<br>Thank you!</p>
     </div>`;
 
+  const downloadURL = pdfURLBase
+    ? `${pdfURLBase}?sign_token=${encodeURIComponent(session.token)}&download=1`
+    : null;
+
   const formHTML = `
     ${
       pdfURL
         ? `
     <div style="margin-bottom:24px">
-      <p style="font-size:12px;color:#888;margin-bottom:6px;text-align:center">
-        Scroll through the full ${docLabel.toLowerCase()} before signing
-      </p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <p style="font-size:12px;color:#888;margin:0">
+          Scroll through the full ${docLabel.toLowerCase()} before signing
+        </p>
+        <a href="${downloadURL}" download style="font-size:12px;font-weight:700;color:#1B3A6B;text-decoration:none;background:#f0f4ff;border:1px solid #c7d7f5;border-radius:6px;padding:5px 12px;display:inline-flex;align-items:center;gap:5px">
+          ⬇ Download PDF
+        </a>
+      </div>
       <iframe src="${pdfURL}" style="width:100%;height:540px;border:1px solid #C8D4E4;border-radius:8px;background:#f5f5f5"></iframe>
     </div>`
         : `

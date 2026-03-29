@@ -75,7 +75,12 @@ app.get('/outputs/:filename', (req, res) => {
     const session = db
       .prepare("SELECT id FROM signing_sessions WHERE token = ? AND status != 'void'")
       .get(signToken);
-    if (session) return res.sendFile(filePath);
+    if (session) {
+      if (req.query.download === '1') {
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      }
+      return res.sendFile(filePath);
+    }
   }
 
   return res.status(401).json({ error: 'Unauthorized' });
