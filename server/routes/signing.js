@@ -506,6 +506,8 @@ router.post('/api/signing/declined/:token', async (req, res) => {
     "UPDATE jobs SET status = 'proposal_declined', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
   ).run(session.job_id);
 
+  try { jobMemory.markOutcome(session.job_id, 'rejected'); } catch { /* ignore */ }
+
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
 
   logAudit(
