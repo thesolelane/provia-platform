@@ -4,6 +4,7 @@
 // Goal: smallest query, smallest response, just the fact Claude needs.
 
 const https = require('https');
+const { logTokenUsage } = require('../utils/tokenLogger');
 
 const API_KEY = process.env.PERPLEXITY_API_KEY;
 const ENDPOINT = 'api.perplexity.ai';
@@ -68,6 +69,13 @@ function callPerplexity(model, query) {
           console.log(
             `[Perplexity] model=${model} in=${usage.prompt_tokens || '?'} out=${usage.completion_tokens || '?'} query="${query.slice(0, 60)}"`
           );
+          logTokenUsage({
+            service: 'perplexity',
+            model,
+            inputTokens: usage.prompt_tokens || 0,
+            outputTokens: usage.completion_tokens || 0,
+            context: searchType || 'search'
+          });
           resolve(answer.trim());
         } catch (e) {
           resolve(`[Search parse error: ${e.message}]`);

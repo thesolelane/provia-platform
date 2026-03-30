@@ -859,6 +859,53 @@ export default function Settings({ token, userRole }) {
           ))}
         </div>
 
+        {/* Token Usage Summary */}
+        {statusData.tokenUsage && Object.keys(statusData.tokenUsage).length > 0 && (
+          <div style={{ borderTop: '1px solid #eee', paddingTop: 20, marginBottom: 20 }}>
+            <div style={{ fontSize: 13, fontWeight: 'bold', color: BLUE, marginBottom: 12 }}>
+              AI Token Usage
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+              {Object.entries(statusData.tokenUsage).map(([svc, data]) => {
+                const label = svc === 'claude' ? 'Claude (Anthropic)' : svc === 'perplexity' ? 'Perplexity Sonar' : svc;
+                const todayTotal = (data.today?.in || 0) + (data.today?.out || 0);
+                const monthTotal = (data.month?.in || 0) + (data.month?.out || 0);
+                const allTimeTotal = (data.allTime || []).reduce((s, r) => s + (r.in || 0) + (r.out || 0), 0);
+                const fmt = (n) => n >= 1000000 ? (n / 1000000).toFixed(2) + 'M' : n >= 1000 ? (n / 1000).toFixed(1) + 'K' : String(n);
+                return (
+                  <div key={svc} style={{ padding: '14px 16px', borderRadius: 8, background: '#f8faff', border: '1px solid #dce8ff' }}>
+                    <div style={{ fontSize: 13, fontWeight: 'bold', color: BLUE, marginBottom: 10 }}>{label}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                        <span style={{ color: '#555' }}>Today</span>
+                        <span style={{ fontWeight: 600, color: '#222' }}>{fmt(todayTotal)} tokens</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                        <span style={{ color: '#555' }}>This Month</span>
+                        <span style={{ fontWeight: 600, color: '#222' }}>{fmt(monthTotal)} tokens</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                        <span style={{ color: '#555' }}>All Time</span>
+                        <span style={{ fontWeight: 600, color: '#222' }}>{fmt(allTimeTotal)} tokens</span>
+                      </div>
+                      {(data.allTime || []).length > 0 && (
+                        <div style={{ marginTop: 6, borderTop: '1px solid #e0e8ff', paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {data.allTime.map((r, i) => (
+                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#666' }}>
+                              <span>{r.model || 'unknown'}</span>
+                              <span>{fmt(r.in)} in · {fmt(r.out)} out · {r.calls} call{r.calls !== 1 ? 's' : ''}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Alerts summary (last 24h) */}
         {statusData.alertsSummary && (
           <div style={{ borderTop: '1px solid #eee', paddingTop: 20, marginBottom: 20 }}>

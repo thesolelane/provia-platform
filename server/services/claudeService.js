@@ -5,6 +5,7 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { getDb } = require('../db/database');
 const jobMemory = require('./jobMemory');
 const perplexity = require('./perplexityService');
+const { logTokenUsage } = require('../utils/tokenLogger');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -290,10 +291,12 @@ Keep queries specific and under 15 words. You may call this up to 3 times per es
 };
 
 // ── TOOL USE LOOP — runs Claude with Perplexity available as a tool ──
-async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3) {
+async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3, jobId = null) {
   const messages = [{ role: 'user', content: userMessage }];
   const tools = perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [];
   let toolCallCount = 0;
+  let totalInput = 0;
+  let totalOutput = 0;
 
   while (true) {
     const response = await client.messages.create({
@@ -304,6 +307,9 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3) {
       messages,
       ...(tools.length ? { tools } : {})
     });
+
+    totalInput += response.usage?.input_tokens || 0;
+    totalOutput += response.usage?.output_tokens || 0;
 
     if (response.stop_reason === 'tool_use' && toolCallCount < maxToolCalls) {
       const toolUseBlocks = response.content.filter((b) => b.type === 'tool_use');
@@ -322,6 +328,7 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3) {
       }
       messages.push({ role: 'user', content: toolResults });
     } else {
+      logTokenUsage({ service: 'claude', model: 'claude-sonnet-4-20250514', inputTokens: totalInput, outputTokens: totalOutput, jobId, context: 'estimate' });
       // End of tool use — extract text from final response
       return response.content.find((b) => b.type === 'text')?.text?.trim() || '';
     }
@@ -690,6 +697,7 @@ Rules:
       ]
     });
 
+    logTokenUsage({ service: 'claude', model: 'claude-opus-4-5', inputTokens: response.usage?.input_tokens, outputTokens: response.usage?.output_tokens, context: 'contract' });
     const text = response.content.find((b) => b.type === 'text')?.text?.trim() || '';
     const clean = text.replace(/```json|```/g, '').trim();
     enrichment = JSON.parse(clean);
@@ -730,6 +738,7 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
     messages
   });
 
+  logTokenUsage({ service: 'claude', model: 'claude-sonnet-4-20250514', inputTokens: response.usage?.input_tokens, outputTokens: response.usage?.output_tokens, jobId, context: 'clarification' });
   const text = response.content[0].text;
   try {
     const clean = text.replace(/```json|```/g, '').trim();
@@ -942,6 +951,7 @@ IMPORTANT STYLE RULES:
       messages: msgsToSend
     });
 
+    logTokenUsage({ service: 'claude', model: 'claude-sonnet-4-20250514', inputTokens: response.usage?.input_tokens, outputTokens: response.usage?.output_tokens, context: 'admin_chat' });
     if (
       response.stop_reason === 'end_turn' ||
       !response.content.some((b) => b.type === 'tool_use')
@@ -1041,6 +1051,7 @@ RULES:
     ]
   });
 
+  logTokenUsage({ service: 'claude', model: 'claude-sonnet-4-20250514', inputTokens: response.usage?.input_tokens, outputTokens: response.usage?.output_tokens, context: 'wizard' });
   const text = response.content[0].text.trim();
   try {
     const clean = text.replace(/```json|```/g, '').trim();

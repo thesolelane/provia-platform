@@ -420,6 +420,58 @@ router.get('/signing-receipts', requireAuth, async (req, res) => {
   }
 });
 
+function getTokenUsageSummary() {
+  try {
+    const db = getDb();
+    const today = new Date().toISOString().slice(0, 10);
+    const monthStart = today.slice(0, 7) + '-01';
+
+    const rows = db.prepare(`
+      SELECT service, model,
+        SUM(input_tokens)  AS total_in,
+        SUM(output_tokens) AS total_out,
+        COUNT(*)           AS calls
+      FROM token_usage
+      GROUP BY service, model
+    `).all();
+
+    const todayRows = db.prepare(`
+      SELECT service,
+        SUM(input_tokens)  AS total_in,
+        SUM(output_tokens) AS total_out
+      FROM token_usage
+      WHERE DATE(created_at) = ?
+      GROUP BY service
+    `).all(today);
+
+    const monthRows = db.prepare(`
+      SELECT service,
+        SUM(input_tokens)  AS total_in,
+        SUM(output_tokens) AS total_out
+      FROM token_usage
+      WHERE DATE(created_at) >= ?
+      GROUP BY service
+    `).all(monthStart);
+
+    const byService = {};
+    for (const r of rows) {
+      if (!byService[r.service]) byService[r.service] = { allTime: [], today: { in: 0, out: 0 }, month: { in: 0, out: 0 } };
+      byService[r.service].allTime.push({ model: r.model, in: r.total_in, out: r.total_out, calls: r.calls });
+    }
+    for (const r of todayRows) {
+      if (!byService[r.service]) byService[r.service] = { allTime: [], today: { in: 0, out: 0 }, month: { in: 0, out: 0 } };
+      byService[r.service].today = { in: r.total_in, out: r.total_out };
+    }
+    for (const r of monthRows) {
+      if (!byService[r.service]) byService[r.service] = { allTime: [], today: { in: 0, out: 0 }, month: { in: 0, out: 0 } };
+      byService[r.service].month = { in: r.total_in, out: r.total_out };
+    }
+    return byService;
+  } catch (e) {
+    return {};
+  }
+}
+
 // GET /api/status — admin and system_admin only
 router.get('/', requireAuth, async (req, res) => {
   if (!['system_admin', 'admin'].includes(req.session?.role))
@@ -452,7 +504,8 @@ router.get('/', requireAuth, async (req, res) => {
       signing:    { label: 'Digital Signatures',     ...signing }
     },
     recentErrors: getRecentErrors(20),
-    alertsSummary: getAlertsSummary()
+    alertsSummary: getAlertsSummary(),
+    tokenUsage: getTokenUsageSummary()
   });
 });
 
