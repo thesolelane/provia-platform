@@ -15,6 +15,7 @@ import MaterialTakeOff from './pages/MaterialTakeOff';
 import Analytics from './pages/Analytics';
 import FieldCamera from './pages/FieldCamera';
 import Reports from './pages/Reports';
+import Agents from './pages/Agents';
 import Layout from './components/Layout';
 import Toast from './components/Toast';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -120,6 +121,7 @@ function App() {
           <Route path="/reports"   element={<Reports token={token} />} />
           <Route path="/field-camera" element={<FieldCamera token={token} />} />
           <Route path="/guide" element={<FieldGuide />} />
+          <Route path="/agents" element={<Agents token={token} userRole={userRole} />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Layout>

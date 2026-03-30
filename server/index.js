@@ -42,6 +42,21 @@ app.use(helmet({
   frameguard: false,                   // allow Replit preview iframe (removes X-Frame-Options)
 }));
 app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : '*' }));
+// Capture raw body for agent M2M routes (needed for HMAC signature verification).
+// express.raw() runs before express.json() so the body stream is not consumed twice.
+// Admin/SSE agent endpoints that don't send a body are unaffected (rawBody = '').
+app.use('/api/agents', express.raw({
+  type: '*/*',
+  limit: '1mb',
+  verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); }
+}), (req, res, next) => {
+  // Parse JSON body from rawBody for convenience on endpoints that need it
+  if (req.rawBody) {
+    try { req.body = JSON.parse(req.rawBody); } catch { req.body = {}; }
+  }
+  next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 }, useTempFiles: true }));
@@ -185,6 +200,7 @@ app.use('/api/reports',       require('./routes/reports'));
 app.use('/api/email-log',    require('./routes/emailLog'));
 app.use(require('./routes/emailTracking'));
 app.use('/api/field-photos', require('./routes/fieldPhotos'));
+app.use('/api/agents',       require('./routes/agents'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
 app.use(require('./routes/signing'));

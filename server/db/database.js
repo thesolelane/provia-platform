@@ -669,6 +669,32 @@ async function initDatabase() {
     db.exec('ALTER TABLE invoices ADD COLUMN full_contract_value REAL NOT NULL DEFAULT 0');
   }
 
+  // ── Agent keys + agent messages tables ──────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS agent_keys (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      name          TEXT NOT NULL,
+      key_hash      TEXT NOT NULL UNIQUE,
+      secret_hash   TEXT NOT NULL,
+      callback_url  TEXT,
+      last_seen     DATETIME,
+      request_count INTEGER NOT NULL DEFAULT 0,
+      key_displayed INTEGER NOT NULL DEFAULT 0,
+      created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS agent_messages (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id   INTEGER NOT NULL,
+      direction  TEXT NOT NULL,
+      message    TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (agent_id) REFERENCES agent_keys(id)
+    );
+  `);
+
+  seedAgentKeys(db);
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();
@@ -1219,6 +1245,43 @@ Harvard, Shirley, Lunenburg, Townsend, Pepperell, Groton, Ayer
   });
 
   insertMany(docs);
+}
+
+function seedAgentKeys(db) {
+  const crypto = require('crypto');
+  const agents = [
+    { name: 'Marbilism Agent 1' },
+    { name: 'Marbilism Agent 2' },
+  ];
+  for (const agent of agents) {
+    const existing = db.prepare('SELECT id FROM agent_keys WHERE name = ?').get(agent.name);
+    if (!existing) {
+      const rawKey    = crypto.randomBytes(32).toString('hex');
+      const rawSecret = crypto.randomBytes(32).toString('hex');
+      const keyHash    = crypto.createHash('sha256').update(rawKey).digest('hex');
+      const secretHash = crypto.createHash('sha256').update(rawSecret).digest('hex');
+      db.prepare(
+        'INSERT INTO agent_keys (name, key_hash, secret_hash, key_displayed) VALUES (?, ?, ?, 0)'
+      ).run(agent.name, keyHash, secretHash);
+      const row = db.prepare('SELECT id FROM agent_keys WHERE name = ?').get(agent.name);
+      console.log(`\n${'='.repeat(60)}`);
+      console.log(`MARBILISM AGENT CREDENTIALS — ${agent.name.toUpperCase()} (id=${row.id})`);
+      console.log(`  API Key    : ${rawKey}`);
+      console.log(`  API Secret : ${rawSecret}`);
+      console.log(`  (Stored as SHA-256 hashes only — this is the ONLY time they appear)`);
+      console.log(`${'='.repeat(60)}\n`);
+      db.prepare('UPDATE agent_keys SET key_displayed = 1 WHERE id = ?').run(row.id);
+    } else {
+      const row = db.prepare('SELECT id, key_displayed FROM agent_keys WHERE name = ?').get(agent.name);
+      if (row && row.key_displayed === 0) {
+        console.log(`\n${'='.repeat(60)}`);
+        console.log(`MARBILISM AGENT — ${agent.name.toUpperCase()} (id=${row.id})`);
+        console.log(`  Key/secret already stored; plaintext no longer available.`);
+        console.log(`${'='.repeat(60)}\n`);
+        db.prepare('UPDATE agent_keys SET key_displayed = 1 WHERE id = ?').run(row.id);
+      }
+    }
+  }
 }
 
 function seedUsers() {

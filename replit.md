@@ -98,6 +98,8 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 | `job_photos` | Photo records per job (filename, caption, uploaded_at) |
 | `payments_received` | Checks received (amount, date, time, check_number, payment_type, credit_debit, recorded_by, notes, job_id) |
 | `payments_made` | Checks paid out (amount, date, time, check_number, category, credit_debit, recorded_by, notes, job_id) |
+| `agent_keys` | Marbilism AI agent credentials (SHA-256 key_hash + secret_hash, callback_url, last_seen, request_count) |
+| `agent_messages` | Chat thread between admin and each agent (direction: inbound/outbound) |
 
 ---
 

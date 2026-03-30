@@ -20,6 +20,7 @@ const CONFIG_NAV = [
   { path: '/settings',  icon: '⚙️',  label: 'Settings' },
   { path: '/knowledge', icon: '📚', label: 'Knowledge Base' },
   { path: '/team',      icon: '👷', label: 'Team' },
+  { path: '/agents',    icon: '🤖', label: 'Agents' },
   { path: '/guide',     icon: '📋', label: 'Help Guide' },
 ];
 
