@@ -583,6 +583,29 @@ async function initDatabase() {
   addColIfMissing('payments_received', 'invoice_id', 'INTEGER');
   addColIfMissing('payments_received', 'line_item_ref', 'TEXT');
 
+  // ── Vendors / Subs directory ─────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vendors (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_name   TEXT NOT NULL,
+      type           TEXT NOT NULL DEFAULT 'subcontractor',
+      trade          TEXT,
+      phone          TEXT,
+      website        TEXT,
+      address        TEXT,
+      city           TEXT,
+      state          TEXT,
+      zip            TEXT,
+      license_number TEXT,
+      notes          TEXT,
+      active         INTEGER NOT NULL DEFAULT 1,
+      created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_vendors_type   ON vendors(type)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_vendors_active ON vendors(active)`);
+
   // ── Migration: add pb_customer_number to contacts (new format: PB-C-XXXX) ────
   // The existing customer_number column uses PB-C-YEAR-NNNN format.
   // We add pb_customer_number as a simpler sequential PB-C-XXXX identifier.

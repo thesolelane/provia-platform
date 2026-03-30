@@ -9,6 +9,7 @@ import AdminChat from './pages/AdminChat';
 import Team from './pages/Team';
 import FieldGuide from './pages/FieldGuide';
 import Contacts from './pages/Contacts';
+import Vendors from './pages/Vendors';
 import Tasks from './pages/Tasks';
 import Payments from './pages/Payments';
 import MaterialTakeOff from './pages/MaterialTakeOff';
@@ -114,6 +115,7 @@ function App() {
           <Route path="/team" element={<Team token={token} userRole={userRole} />} />
           <Route path="/whitelist" element={<Navigate to="/team" />} />
           <Route path="/contacts" element={<Contacts token={token} />} />
+          <Route path="/vendors"  element={<Vendors  token={token} />} />
           <Route path="/tasks" element={<Tasks token={token} />} />
           <Route path="/payments" element={<Payments token={token} />} />
           <Route path="/takeoff" element={<MaterialTakeOff />} />

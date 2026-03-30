@@ -11,6 +11,7 @@ const MAIN_NAV = [
   { path: '/field-camera', icon: '📷', label: 'Field Camera' },
   { path: '/chat',         icon: '🤖', label: 'Ask the Bot' },
   { path: '/contacts',     icon: '👥', label: 'Contacts' },
+  { path: '/vendors',      icon: '🏗️', label: 'Subs & Vendors' },
   { path: '/takeoff',      icon: '📐', label: 'Material Take-Off' },
   { path: '/analytics',    icon: '📈', label: 'Analytics' },
   { path: '/reports',      icon: '📋', label: 'Reports' },

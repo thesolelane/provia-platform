@@ -186,6 +186,7 @@ app.use('/api/conversations', require('./routes/conversations'));
 app.use('/api/chat',          require('./routes/adminChat'));
 app.use('/api/whitelist',     require('./routes/whitelist'));
 app.use('/api/contacts',      require('./routes/contacts'));
+app.use('/api/vendors',       require('./routes/vendors'));
 app.use('/api/tasks',         require('./routes/tasks').router);
 app.use('/api/jobs',          require('./routes/jobPhotos'));
 app.use('/api/secrets',       require('./routes/secrets'));

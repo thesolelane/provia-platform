@@ -76,6 +76,7 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 - `client/src/pages/Settings.jsx` — Tabs: Markup, Labor Rates, Allowances, Integrations, Bot Behavior, Calendar, Secrets
 - `client/src/pages/KnowledgeBase.jsx` — Upload + manage knowledge documents for the bot
 - `client/src/pages/Contacts.jsx` — Customer contact list (pseudonymized serial numbers)
+- `client/src/pages/Vendors.jsx` — Subs & Vendors directory (searchable, filterable, Add/Edit/Delete modal)
 - `client/src/pages/Whitelist.jsx` — Approved WhatsApp/email senders management
 - `client/src/pages/FieldGuide.jsx` — Bilingual on-site checklist at `/guide` (no auth required)
 - `client/src/pages/Login.jsx` — Email + password login
@@ -100,6 +101,7 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 | `payments_made` | Checks paid out (amount, date, time, check_number, category, credit_debit, recorded_by, notes, job_id) |
 | `agent_keys` | Marbilism AI agent credentials (SHA-256 key_hash + secret_hash, callback_url, last_seen, request_count) |
 | `agent_messages` | Chat thread between admin and each agent (direction: inbound/outbound) |
+| `vendors` | Subs & Vendors directory (company_name, type, trade, phone, website, address, city, state, zip, license_number, notes, active) |
 
 ---
 
