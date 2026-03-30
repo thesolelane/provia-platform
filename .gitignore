@@ -47,8 +47,8 @@ attached_assets/
 node_modules/
 client/node_modules/
 
-# React build
-client/build/
+# React build is committed so Windows server just needs git pull
+# client/build/
 
 # Docker
 docker/ssl/*.pem
