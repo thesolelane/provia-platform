@@ -505,10 +505,6 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
       .prepare('SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC')
       .all(job.id);
 
-    const activity = db
-      .prepare(`SELECT * FROM activity_log WHERE job_id = ? ORDER BY created_at ASC`)
-      .all(job.id);
-
     const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
     const fmtDate = (d) => {
       if (!d) return '—';
@@ -516,39 +512,27 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
       catch { return d; }
     };
 
-    // Build timeline: merge key activity events + invoices + payments into a sorted list
-    const timeline = [];
+    const sigSession = db.prepare(`SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`).get(job.id);
 
-    // Job created / received
+    const timeline = [];
     timeline.push({ date: job.created_at, icon: '📋', label: 'Job Created', sub: `Status: ${job.status || 'received'}`, color: '#1B3A6B' });
 
-    // Proposal / quote
     if (job.quote_number) {
-      const proposalEvent = activity.find((a) => a.event_type === 'PROPOSAL_SENT' || a.event_type === 'PROPOSAL_READY');
-      timeline.push({ date: proposalEvent?.created_at || job.updated_at, icon: '📄', label: `Proposal / Scope of Work`, sub: `PB-${job.quote_number}`, color: '#7C3AED' });
+      timeline.push({ date: job.updated_at, icon: '📄', label: 'Proposal / Scope of Work', sub: `PB-${job.quote_number}`, color: '#7C3AED' });
     }
 
-    // Contract signed
-    const signedEvent = activity.find((a) => a.event_type === 'CONTRACT_SIGNED');
-    if (signedEvent) {
-      timeline.push({ date: signedEvent.created_at, icon: '✍️', label: 'Contract Signed', sub: `Contract No. PB-${job.quote_number || job.id}`, color: '#0D9488' });
+    if (sigSession?.signed_at) {
+      timeline.push({ date: sigSession.signed_at, icon: '✍️', label: 'Contract Signed', sub: `Signed by ${sigSession.signer_name || '—'} · Contract No. PB-${job.quote_number || job.id}`, color: '#0D9488' });
     }
 
-    // Invoices
     for (const inv of invoices) {
       const typeMap = { contract_invoice: 'Deposit Invoice', pass_through_invoice: 'Pass-Through Invoice', change_order: 'Change Order Invoice', combined_invoice: 'Invoice' };
       const typeLabel = typeMap[inv.invoice_type] || 'Invoice';
       const statusBadge = inv.status === 'paid' ? ' ✓ PAID' : inv.status === 'sent' ? ' — Sent' : inv.status === 'void' ? ' — VOID' : ' — Draft';
-      let items = [];
-      try { items = inv.line_items ? JSON.parse(inv.line_items) : []; } catch { /* ignore */ }
       const pbDue = inv.pb_due_amount || inv.amount;
-      const sub = items.length
-        ? `${money(inv.amount)} total · ${money(pbDue)} due to PB${statusBadge}`
-        : `${money(inv.amount)}${statusBadge}`;
-      timeline.push({ date: inv.created_at, icon: '🧾', label: `${typeLabel} — ${inv.invoice_number}`, sub, color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A' });
+      timeline.push({ date: inv.created_at, icon: '🧾', label: `${typeLabel} — ${inv.invoice_number}`, sub: `${money(inv.amount)} total · ${money(pbDue)} due to PB${statusBadge}`, color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A' });
     }
 
-    // Payments received
     for (const pmt of payments) {
       timeline.push({
         date: pmt.date_received,
@@ -559,13 +543,10 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
       });
     }
 
-    // Job complete
     if (job.status === 'complete') {
-      const completeEvent = activity.find((a) => a.event_type === 'JOB_COMPLETE' || a.event_type === 'STATUS_CHANGE' && a.description?.includes('complete'));
-      timeline.push({ date: completeEvent?.created_at || job.updated_at, icon: '🏁', label: 'Job Complete', sub: '', color: '#2E7D32' });
+      timeline.push({ date: job.updated_at, icon: '🏁', label: 'Job Complete', sub: '', color: '#2E7D32' });
     }
 
-    // Sort by date ascending
     timeline.sort((a, b) => {
       const da = a.date ? new Date(a.date).getTime() : 0;
       const db2 = b.date ? new Date(b.date).getTime() : 0;
@@ -765,10 +746,9 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
         timeline.push({ date: job.updated_at, icon: '📄', label: 'Proposal / Scope of Work', sub: `PB-${job.quote_number}${job.total_value ? ' · ' + money(job.total_value) : ''}`, color: '#7C3AED' });
       }
 
-      const activity = db.prepare('SELECT * FROM activity_log WHERE job_id = ? ORDER BY created_at ASC').all(job.id);
-      const signedEvent = activity.find(a => a.event_type === 'CONTRACT_SIGNED');
-      if (signedEvent) {
-        timeline.push({ date: signedEvent.created_at, icon: '✍️', label: 'Contract Signed', sub: `Contract No. PB-${job.quote_number || job.id}`, color: '#0D9488' });
+      const sigSess = db.prepare(`SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`).get(job.id);
+      if (sigSess?.signed_at) {
+        timeline.push({ date: sigSess.signed_at, icon: '✍️', label: 'Contract Signed', sub: `Signed by ${sigSess.signer_name || '—'} · Contract No. PB-${job.quote_number || job.id}`, color: '#0D9488' });
       }
 
       for (const inv of invoices) {
