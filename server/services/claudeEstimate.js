@@ -98,8 +98,10 @@ function buildRatesSection(settings) {
     dep:  Math.round((Number(settings['markup.deposit'])     || 0.33) * 100)
   };
 
-  const sqftLow  = Number(settings['pricing.sqftLow'])  || 320;
-  const sqftHigh = Number(settings['pricing.sqftHigh']) || 350;
+  const sqftLow      = Number(settings['pricing.sqftLow'])      || 320;
+  const sqftHigh     = Number(settings['pricing.sqftHigh'])     || 350;
+  const sqftRenoLow  = Number(settings['pricing.sqftRenoLow'])  || 100;
+  const sqftRenoHigh = Number(settings['pricing.sqftRenoHigh']) || 150;
 
   return `## OUR PRICING STRUCTURE
 The system applies markups automatically AFTER extraction — do NOT add markup to baseCost values.
@@ -109,7 +111,11 @@ Combined multiplier ≈ ${((1 + markup.sub / 100) * (1 + markup.gc / 100) * (1 +
 Deposit: ${markup.dep}% of total contract price.
 
 ## TARGET PRICE RANGE (finished space)
-Our target client price is $${sqftLow}–$${sqftHigh} per finished square foot. After markup is applied, the total contract price should fall within this range per sqft of finished/livable space. Unfinished garage bays, unfinished basements, and utility spaces are excluded from this calculation. If your baseCost extractions would result in a price outside this range, adjust to bring the total in range and note the adjustment in the "notes" field.
+Set project.type based on the scope:
+- "new_construction": full ground-up builds, full additions from foundation up — target $${sqftLow}–$${sqftHigh} per finished sq ft
+- "renovation": interior work from stud surface to stud surface (gut remodels, full interior fit-outs, stud-to-stud renovations) — target $${sqftRenoLow}–$${sqftRenoHigh} per finished sq ft
+
+After markup is applied, the total contract price should fall within the applicable range per sqft of finished/livable space. Unfinished garage bays, unfinished basements, and utility spaces are excluded. If your baseCost extractions would result in a price outside the applicable range, adjust to bring the total in range and note the adjustment in the "notes" field.
 
 ## OUR LABOR RATES (Central MA — use these for baseCost estimates)
 ${laborLines.join('\n')}
@@ -364,7 +370,7 @@ Return this EXACT JSON structure:
     "state": "MA",
     "jurisdiction": "",
     "parcel_number": "",
-    "type": "renovation",
+    "type": "new_construction or renovation",
     "description": "",
     "sqft": 0,
     "stretchCodeTown": false,
@@ -489,8 +495,9 @@ function applyPricing(data, rates, settings) {
 
   const depositAmount = Math.round(totalContractPrice * rates.deposit);
   const sqft          = Number(data.project?.sqft) || 0;
-  const sqftLow       = Number(settings['pricing.sqftLow'])  || 320;
-  const sqftHigh      = Number(settings['pricing.sqftHigh']) || 350;
+  const isReno        = String(data.project?.type || '').toLowerCase().includes('reno');
+  const sqftLow       = isReno ? (Number(settings['pricing.sqftRenoLow'])  || 100) : (Number(settings['pricing.sqftLow'])  || 320);
+  const sqftHigh      = isReno ? (Number(settings['pricing.sqftRenoHigh']) || 150) : (Number(settings['pricing.sqftHigh']) || 350);
   const pricePerSqft  = sqft > 0 ? Math.round(totalContractPrice / sqft) : null;
   let sqftWarning     = null;
   if (pricePerSqft !== null) {
@@ -507,6 +514,7 @@ function applyPricing(data, rates, settings) {
     sqftTargetLow:    sqftLow,
     sqftTargetHigh:   sqftHigh,
     sqftWarning,
+    projectType:      isReno ? 'renovation' : 'new_construction',
     appliedRates: {
       subOandP:    rates.subOandP,
       gcOandP:     rates.gcOandP,
@@ -519,7 +527,7 @@ function applyPricing(data, rates, settings) {
   data.depositAmount = depositAmount;
 
   if (pricePerSqft !== null) {
-    console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → $${pricePerSqft}/sqft (target $${sqftLow}–$${sqftHigh}) → Deposit: $${depositAmount.toLocaleString()}`);
+    console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → $${pricePerSqft}/sqft (${isReno ? 'reno' : 'new-const'} target $${sqftLow}–$${sqftHigh}) → Deposit: $${depositAmount.toLocaleString()}`);
   } else {
     console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
   }

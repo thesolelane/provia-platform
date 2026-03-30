@@ -920,6 +920,18 @@ function seedDefaultSettings() {
       category: 'pricing',
       label: 'Target Price High ($/sqft)'
     },
+    {
+      key: 'pricing.sqftRenoLow',
+      value: '100',
+      category: 'pricing',
+      label: 'Renovation Target Price Low ($/sqft)'
+    },
+    {
+      key: 'pricing.sqftRenoHigh',
+      value: '150',
+      category: 'pricing',
+      label: 'Renovation Target Price High ($/sqft)'
+    },
     // Bot behavior
     {
       key: 'bot.maxClarifications',

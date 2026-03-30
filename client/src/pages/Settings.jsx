@@ -120,8 +120,10 @@ export default function Settings({ token, userRole }) {
   const renderMarkup = () => {
     const items = settings.markup || [];
     const pricingItems = settings.pricing || [];
-    const sqftLow  = pricingItems.find(s => s.key === 'pricing.sqftLow');
-    const sqftHigh = pricingItems.find(s => s.key === 'pricing.sqftHigh');
+    const sqftLow      = pricingItems.find(s => s.key === 'pricing.sqftLow');
+    const sqftHigh     = pricingItems.find(s => s.key === 'pricing.sqftHigh');
+    const sqftRenoLow  = pricingItems.find(s => s.key === 'pricing.sqftRenoLow');
+    const sqftRenoHigh = pricingItems.find(s => s.key === 'pricing.sqftRenoHigh');
     return (
       <div>
         <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>These percentages are applied to every estimate automatically.</p>
@@ -169,6 +171,39 @@ export default function Settings({ token, userRole }) {
             </div>
             <div style={{ marginTop: 16, padding: '6px 12px', background: '#f0f4ff', borderRadius: 6, fontSize: 12, color: BLUE, fontWeight: 500 }}>
               per finished sq ft
+            </div>
+          </div>
+        </div>
+
+        <div style={{ borderTop: '2px solid #e5e7eb', marginTop: 24, paddingTop: 20 }}>
+          <p style={{ fontSize: 13, fontWeight: 'bold', color: '#333', marginBottom: 6 }}>Interior Renovation Target Price Range (per finished sq ft)</p>
+          <p style={{ color: '#888', fontSize: 12, marginBottom: 16 }}>
+            Applied when the AI classifies a job as an interior renovation — stud surface to stud surface (gut remodels, full interior fit-outs). New construction and ground-up additions use the range above.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>Low ($/sqft)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ color: '#888' }}>$</span>
+                <input type="number" min="50" max="500" step="5"
+                  value={sqftRenoLow ? parseFloat(sqftRenoLow.value) || 100 : 100}
+                  onChange={e => sqftRenoLow && update(sqftRenoLow.key, parseFloat(e.target.value))}
+                  style={{ width: 80, padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14, fontWeight: 'bold' }} />
+              </div>
+            </div>
+            <span style={{ fontSize: 18, color: '#888', marginTop: 16 }}>—</span>
+            <div>
+              <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 4 }}>High ($/sqft)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ color: '#888' }}>$</span>
+                <input type="number" min="50" max="500" step="5"
+                  value={sqftRenoHigh ? parseFloat(sqftRenoHigh.value) || 150 : 150}
+                  onChange={e => sqftRenoHigh && update(sqftRenoHigh.key, parseFloat(e.target.value))}
+                  style={{ width: 80, padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14, fontWeight: 'bold' }} />
+              </div>
+            </div>
+            <div style={{ marginTop: 16, padding: '6px 12px', background: '#fff4e6', borderRadius: 6, fontSize: 12, color: ORANGE, fontWeight: 500 }}>
+              per finished sq ft · renovation
             </div>
           </div>
         </div>
