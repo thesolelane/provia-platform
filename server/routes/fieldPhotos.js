@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { requireFields } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 const path = require('path');
 const fs = require('fs');
@@ -105,7 +106,7 @@ router.get('/file/:filename', requireAuth, (req, res) => {
   res.sendFile(filePath);
 });
 
-router.patch('/:id/assign', requireAuth, (req, res) => {
+router.patch('/:id/assign', requireAuth, requireFields(['job_id']), (req, res) => {
   try {
     const db = getDb();
     const { job_id } = req.body;

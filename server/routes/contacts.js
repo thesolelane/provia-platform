@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const fs = require('fs');
 const { requireAuth } = require('../middleware/auth');
+const { requireFields, validateEmail } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 
 // GET all contacts (with optional search)
@@ -103,10 +104,9 @@ router.delete('/:id/documents/:docId', requireAuth, (req, res) => {
 });
 
 // POST create contact manually
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requireFields(['name']), validateEmail('email'), (req, res) => {
   const db = getDb();
   const { name, email, phone, address, city, state, zip, customer_type, notes } = req.body;
-  if (!name && !email) return res.status(400).json({ error: 'Name or email is required' });
 
   // Auto-assign pb_customer_number
   let pbCustomerNumber = null;
@@ -141,7 +141,7 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 // PATCH update contact
-router.patch('/:id', requireAuth, (req, res) => {
+router.patch('/:id', requireAuth, validateEmail('email'), (req, res) => {
   const db = getDb();
   const { name, email, phone, address, city, state, zip, customer_type, notes } = req.body;
   db.prepare(

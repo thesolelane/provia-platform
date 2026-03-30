@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { requireFields, validateEnum } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 const { logAudit } = require('../services/auditService');
 const gcal = require('../services/googleCalendar');
@@ -113,7 +114,7 @@ router.get('/calendars', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/tasks ───────────────────────────────────────────────────────────
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, requireFields(['title']), async (req, res) => {
   const db = getDb();
   const { title, description, due_at, job_id, contact_id, priority } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
@@ -160,7 +161,7 @@ router.post('/', requireAuth, async (req, res) => {
 });
 
 // ── PATCH /api/tasks/:id ──────────────────────────────────────────────────────
-router.patch('/:id', requireAuth, (req, res) => {
+router.patch('/:id', requireAuth, validateEnum('status', ['pending', 'in_progress', 'done', 'cancelled']), validateEnum('priority', ['low', 'normal', 'high', 'urgent']), (req, res) => {
   const db = getDb();
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
   if (!task) return res.status(404).json({ error: 'Task not found' });

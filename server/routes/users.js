@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { requireAuth } = require('../middleware/auth');
+const { requireFields, validateEmail, validateEnum, validateMinLength } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 
 const ROLE_LEVELS = { system_admin: 4, admin: 3, pm: 2, staff: 1 };
@@ -27,12 +28,10 @@ router.get('/', requireAuth, (req, res) => {
   res.json(users.map(safe));
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requireFields(['name', 'email', 'password', 'role']), validateEmail('email'), validateMinLength('password', 8), validateEnum('role', Object.keys(ROLE_LEVELS)), (req, res) => {
   if (!hasLevel(req.session.role, 'system_admin'))
     return res.status(403).json({ error: 'Forbidden' });
   const { name, email, password, role, title, phone, language } = req.body;
-  if (!name || !email || !password)
-    return res.status(400).json({ error: 'Name, email and password are required' });
   if (!ROLE_LEVELS[role]) return res.status(400).json({ error: 'Invalid role' });
   const db = getDb();
   const hash = bcrypt.hashSync(password, 10);
@@ -59,7 +58,7 @@ router.post('/', requireAuth, (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, validateEmail('email'), validateEnum('role', Object.keys(ROLE_LEVELS)), (req, res) => {
   const db = getDb();
   const target = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!target) return res.status(404).json({ error: 'User not found' });
@@ -94,7 +93,7 @@ router.put('/:id', requireAuth, (req, res) => {
   res.json(safe(refreshed));
 });
 
-router.put('/:id/password', requireAuth, (req, res) => {
+router.put('/:id/password', requireAuth, requireFields(['newPassword']), validateMinLength('newPassword', 8), (req, res) => {
   const db = getDb();
   const target = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id);
   if (!target) return res.status(404).json({ error: 'User not found' });
@@ -102,8 +101,6 @@ router.put('/:id/password', requireAuth, (req, res) => {
   const isSysAdmin = hasLevel(req.session.role, 'system_admin');
   if (!isSelf && !isSysAdmin) return res.status(403).json({ error: 'Forbidden' });
   const { currentPassword, newPassword } = req.body;
-  if (!newPassword || newPassword.length < 8)
-    return res.status(400).json({ error: 'Password must be at least 8 characters' });
   if (isSelf && !isSysAdmin) {
     if (!currentPassword || !bcrypt.compareSync(currentPassword, target.password_hash)) {
       return res.status(401).json({ error: 'Current password is incorrect' });

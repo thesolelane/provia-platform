@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { requireFields, validateEnum, validateNumber } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 const { logActivity } = require('./activityLog');
 const { sendEmail } = require('../services/emailService');
@@ -65,7 +66,7 @@ router.get('/job/:jobId', requireAuth, (req, res) => {
   res.json({ invoices });
 });
 
-router.post('/job/:jobId', requireAuth, (req, res) => {
+router.post('/job/:jobId', requireAuth, requireFields(['invoice_type', 'amount']), validateEnum('invoice_type', VALID_TYPES), validateNumber('amount', { min: 0 }), (req, res) => {
   const db = getDb();
   const { jobId } = req.params;
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
@@ -145,7 +146,7 @@ router.post('/job/:jobId', requireAuth, (req, res) => {
   res.json({ invoice });
 });
 
-router.patch('/:id', requireAuth, (req, res) => {
+router.patch('/:id', requireAuth, validateNumber('amount', { min: 0 }), validateNumber('amount_paid', { min: 0 }), (req, res) => {
   const db = getDb();
   const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
   if (!inv) return res.status(404).json({ error: 'Invoice not found' });

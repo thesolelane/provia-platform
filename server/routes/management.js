@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireFields } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
@@ -160,7 +161,7 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 // PATCH update job notes (and optionally status)
-router.patch('/:id/notes', requireAuth, (req, res) => {
+router.patch('/:id/notes', requireAuth, requireFields(['notes']), (req, res) => {
   const db = getDb();
   const { notes, status } = req.body;
   if (status) {

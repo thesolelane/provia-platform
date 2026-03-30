@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireFields } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 const { generatePDF } = require('../services/pdfService');
 const { sendWhatsApp } = require('../services/whatsappService');
@@ -369,7 +370,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
 });
 
 // POST manual estimate input (fallback if no Hearth/Wave)
-router.post('/manual', requireAuth, async (req, res) => {
+router.post('/manual', requireAuth, requireFields(['customerName', 'projectAddress', 'estimateText']), async (req, res) => {
   const { v4: uuidv4 } = require('uuid');
   const db = getDb();
   const { customerName, customerEmail, customerPhone, projectAddress, estimateText } = req.body;

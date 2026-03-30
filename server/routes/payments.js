@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { requireFields, validateNumber } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 const { logAudit } = require('../services/auditService');
 const { logActivity } = require('./activityLog');
@@ -188,7 +189,7 @@ router.get('/contact/:contactId', requireAuth, (req, res) => {
   });
 });
 
-router.post('/received', requireAuth, (req, res) => {
+router.post('/received', requireAuth, requireFields(['job_id', 'amount', 'date_received']), validateNumber('amount', { min: 0.01 }), (req, res) => {
   const db = getDb();
   const {
     job_id,
@@ -203,9 +204,6 @@ router.post('/received', requireAuth, (req, res) => {
     is_pass_through_reimbursement,
     invoice_id
   } = req.body;
-  if (!job_id) return res.status(400).json({ error: 'job_id is required' });
-  if (!date_received) return res.status(400).json({ error: 'date_received is required' });
-
   const parsedAmount = validateAmount(amount);
   if (parsedAmount === null)
     return res.status(400).json({ error: 'amount must be a positive number' });
@@ -375,7 +373,7 @@ router.post('/received', requireAuth, (req, res) => {
   });
 });
 
-router.post('/made', requireAuth, (req, res) => {
+router.post('/made', requireAuth, requireFields(['job_id', 'payee_name', 'amount', 'date_paid']), validateNumber('amount', { min: 0.01 }), (req, res) => {
   const db = getDb();
   const {
     job_id,
@@ -391,10 +389,6 @@ router.post('/made', requireAuth, (req, res) => {
     dept_code,
     paid_by
   } = req.body;
-  if (!job_id) return res.status(400).json({ error: 'job_id is required' });
-  if (!payee_name) return res.status(400).json({ error: 'payee_name is required' });
-  if (!date_paid) return res.status(400).json({ error: 'date_paid is required' });
-
   const parsedAmount = validateAmount(amount);
   if (parsedAmount === null)
     return res.status(400).json({ error: 'amount must be a positive number' });
@@ -479,7 +473,7 @@ router.post('/made', requireAuth, (req, res) => {
   res.json({ payment, summary: jobSummary(db, job_id) });
 });
 
-router.patch('/received/:id', requireAuth, (req, res) => {
+router.patch('/received/:id', requireAuth, validateNumber('amount', { min: 0.01 }), (req, res) => {
   const db = getDb();
   const row = db.prepare('SELECT * FROM payments_received WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Payment not found' });
@@ -537,7 +531,7 @@ router.patch('/received/:id', requireAuth, (req, res) => {
   res.json({ payment: updated, summary: jobSummary(db, row.job_id) });
 });
 
-router.patch('/made/:id', requireAuth, (req, res) => {
+router.patch('/made/:id', requireAuth, validateNumber('amount', { min: 0.01 }), (req, res) => {
   const db = getDb();
   const row = db.prepare('SELECT * FROM payments_made WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Payment not found' });

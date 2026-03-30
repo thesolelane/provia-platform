@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
+const { requireFields } = require('../middleware/validate');
 const path = require('path');
 const fs = require('fs');
 const pdfParse = require('pdf-parse');
@@ -34,12 +35,9 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 // POST add text document
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requireFields(['title', 'category', 'content']), (req, res) => {
   const db = getDb();
   const { title, category, content, language = 'en' } = req.body;
-  if (!title || !category || !content) {
-    return res.status(400).json({ error: 'title, category, and content are required' });
-  }
   const result = db
     .prepare('INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)')
     .run(title, category, content, language);
@@ -93,10 +91,13 @@ router.post('/upload', requireAuth, async (req, res) => {
 // PUT update document
 router.put('/:id', requireAuth, (req, res) => {
   const db = getDb();
-  const { title, content, active } = req.body;
+  const { title, category, content, active } = req.body;
+  if (title === undefined && category === undefined && content === undefined) {
+    return res.status(400).json({ error: 'At least one of title, category, or content is required' });
+  }
   db.prepare(
-    'UPDATE knowledge_base SET title = COALESCE(?, title), content = COALESCE(?, content), active = COALESCE(?, active) WHERE id = ?'
-  ).run(title, content, active, req.params.id);
+    'UPDATE knowledge_base SET title = COALESCE(?, title), category = COALESCE(?, category), content = COALESCE(?, content), active = COALESCE(?, active) WHERE id = ?'
+  ).run(title, category, content, active, req.params.id);
   res.json({ success: true });
 });
 

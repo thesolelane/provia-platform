@@ -2,15 +2,15 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { requireFields } = require('../middleware/validate');
 const { adminChat } = require('../services/claudeService');
 const { getDb } = require('../db/database');
 
 // In-memory chat history per session
 const chatHistories = new Map();
 
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, requireFields(['message']), async (req, res) => {
   const { message, sessionId = 'default', language = 'en' } = req.body;
-  if (!message) return res.status(400).json({ error: 'message required' });
 
   if (!chatHistories.has(sessionId)) chatHistories.set(sessionId, []);
   const history = chatHistories.get(sessionId);

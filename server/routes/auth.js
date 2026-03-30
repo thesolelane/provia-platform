@@ -3,13 +3,11 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { createSession, destroySession } = require('../middleware/auth');
+const { requireFields } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 
-router.post('/login', (req, res) => {
+router.post('/login', requireFields(['email', 'password']), (req, res) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
-  }
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {

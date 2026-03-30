@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { requireFields } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 
 router.get('/', requireAuth, (req, res) => {
@@ -9,10 +10,9 @@ router.get('/', requireAuth, (req, res) => {
   res.json(db.prepare('SELECT * FROM approved_senders ORDER BY name').all());
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requireFields(['identifier', 'type']), (req, res) => {
   const db = getDb();
   const { identifier, type, name, role, language = 'en' } = req.body;
-  if (!identifier || !type) return res.status(400).json({ error: 'identifier and type required' });
   try {
     db.prepare(
       'INSERT INTO approved_senders (identifier, type, name, role, language) VALUES (?, ?, ?, ?, ?)'

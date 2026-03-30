@@ -1,6 +1,7 @@
 'use strict';
 const express = require('express');
 const path = require('path');
+const { requireFields } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 const jobMemory = require('../services/jobMemory');
 const { logAudit } = require('../services/auditService');
@@ -385,7 +386,7 @@ router.post('/api/signing/opened/:token', (req, res) => {
 
 // ─── Record signature ─────────────────────────────────────────────────────────
 
-router.post('/api/signing/signed/:token', async (req, res) => {
+router.post('/api/signing/signed/:token', requireFields(['signer_name']), async (req, res) => {
   const db = getDb();
   const session = db
     .prepare('SELECT * FROM signing_sessions WHERE token = ?')
