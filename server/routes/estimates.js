@@ -68,22 +68,27 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
           extractedParts.push(`[From PDF: ${file.name}]\n${text}`);
         }
       } else if (file.mimetype.startsWith('image/')) {
-        const base64 = fileBuffer.toString('base64');
-        const response = await anthropic.messages.create({
-          model: 'claude-opus-4-5',
-          max_tokens: 4000,
-          temperature: 0,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                {
-                  type: 'image',
-                  source: { type: 'base64', media_type: file.mimetype, data: base64 }
-                },
-                {
-                  type: 'text',
-                  text: `This is a construction document — blueprint, floor plan, building plan, sketch, or site photo.
+        const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!SUPPORTED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())) {
+          extractedParts.push(`[Unsupported image format "${file.mimetype}" for ${file.name} — please convert to JPG or PNG and re-upload]`);
+        } else {
+          const base64 = fileBuffer.toString('base64');
+          const imgMime = file.mimetype.toLowerCase() === 'image/jpg' ? 'image/jpeg' : file.mimetype.toLowerCase();
+          const response = await anthropic.messages.create({
+            model: 'claude-opus-4-5',
+            max_tokens: 4000,
+            temperature: 0,
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image',
+                    source: { type: 'base64', media_type: imgMime, data: base64 }
+                  },
+                  {
+                    type: 'text',
+                    text: `This is a construction document — blueprint, floor plan, building plan, sketch, or site photo.
 
 Extract ALL technically relevant information:
 - Project address or job site address (street number, street name, city, state) if visible anywhere on the document
@@ -96,14 +101,15 @@ Extract ALL technically relevant information:
 - Quantities and specifications if labeled
 
 Format as a clear, detailed construction scope description. Include the project address at the very top if found, labeled "PROJECT ADDRESS: [address]". Do NOT include owner/client personal information (names, phone numbers, email). Focus on the technical scope.`
-                }
-              ]
-            }
-          ]
-        });
-        const extracted = response.content[0].text.trim();
-        if (extracted.length > 20) {
-          extractedParts.push(`[From Image: ${file.name}]\n${extracted}`);
+                  }
+                ]
+              }
+            ]
+          });
+          const extracted = response.content[0].text.trim();
+          if (extracted.length > 10) {
+            extractedParts.push(`[From Image: ${file.name}]\n${extracted}`);
+          }
         }
       }
     } catch (err) {

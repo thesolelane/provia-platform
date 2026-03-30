@@ -4,6 +4,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { logTokenUsage } = require('../utils/tokenLogger');
 const { loadSettings, loadKnowledgeBase, buildSystemPrompt } = require('./claudeEstimate');
+const perplexity = require('./perplexityService');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -37,6 +38,30 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
     return { type: 'message', message: text };
   }
 }
+
+// ── WEB SEARCH TOOL (Perplexity) ─────────────────────────────────────
+const WEB_SEARCH_TOOL = {
+  name: 'web_search',
+  description: `Search the web for current real-time data you cannot reliably know from training data.
+Use ONLY for time-sensitive information: current material prices, permit fee schedules, labor market rates, specific building code sections, or local supplier info.
+Do NOT use for general construction knowledge, math, or anything already in your training data.
+Keep queries specific and under 15 words.`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Targeted search query. Example: "Fitchburg MA building permit fee schedule 2025"'
+      },
+      search_type: {
+        type: 'string',
+        enum: ['material_price', 'permit_fee', 'labor_rate', 'building_code', 'supplier', 'general'],
+        description: 'material_price: lumber/concrete/roofing costs. permit_fee: municipal fees. labor_rate: sub market rates. building_code: code requirements. supplier: local vendors. general: other.'
+      }
+    },
+    required: ['query', 'search_type']
+  }
+};
 
 // ── ADMIN TOOLS (for tool calling) ───────────────────────────────────
 const ADMIN_TOOLS = [
@@ -146,6 +171,11 @@ async function runAdminTool(toolName, toolInput, db) {
     });
   }
 
+  if (toolName === 'web_search') {
+    console.log(`[Chat→Perplexity] type=${toolInput.search_type} query="${toolInput.query}"`);
+    return await perplexity.search(toolInput.query, toolInput.search_type);
+  }
+
   return 'Unknown tool.';
 }
 
@@ -177,12 +207,13 @@ You have live access to the database and can:
 - Look up any customer contact info (name, email, phone) using lookup_contacts
 - Look up job/project status and info using lookup_jobs
 - Create tasks, reminders, and to-do items using create_task
+${perplexity.isConfigured() ? '- Search the web for current real-time data using web_search (use for live prices, permit fees, code sections, supplier info — NOT for general knowledge)' : ''}
 
 Answer questions about:
 - Customer and contact information (always use the lookup tool)
 - Job status and project details (always use the lookup tool)
-- Pricing and estimates
-- Massachusetts building codes
+- Pricing and estimates (use web_search for current market prices if needed)
+- Massachusetts building codes (use web_search for specific code sections if needed)
 - Contract requirements
 - Task and reminder creation (use the create_task tool)
 - Construction best practices
@@ -205,7 +236,7 @@ IMPORTANT STYLE RULES:
       max_tokens: 2000,
       temperature: 0,
       system: systemPrompt,
-      tools: db ? ADMIN_TOOLS : [],
+      tools: db ? [...ADMIN_TOOLS, ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [])] : [],
       messages: msgsToSend
     });
 

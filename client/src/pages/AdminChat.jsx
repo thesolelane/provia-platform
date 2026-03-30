@@ -241,7 +241,7 @@ export default function AdminChat({ token }) {
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/*,.pdf"
+        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
         style={{ display: 'none' }}
         onChange={e => {
           const newFiles = Array.from(e.target.files || []);
