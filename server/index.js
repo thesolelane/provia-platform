@@ -188,6 +188,8 @@ app.use('/api/field-photos', require('./routes/fieldPhotos'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
 app.use(require('./routes/signing'));
+// ── SIGNING ADMIN (send-proposal, send-contract, status) ──────
+app.use(require('./routes/signingAdmin'));
 
 // ── WEBHOOKS (no auth — verified by signature) ────────────────
 app.use('/webhook/hearth',    require('./routes/webhookHearth'));
