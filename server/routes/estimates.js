@@ -763,6 +763,40 @@ router.post(
   }
 );
 
+// POST mark proposal as rejected by customer — resets to review_pending for revision
+router.post(
+  '/:id/reject-proposal',
+  requireAuth,
+  requireRole('admin', 'pm', 'system_admin'),
+  async (req, res) => {
+    const db  = getDb();
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (!['proposal_ready', 'proposal_sent'].includes(job.status)) {
+      return res.status(400).json({ error: 'Can only reject a proposal that is in proposal_ready or proposal_sent status' });
+    }
+
+    db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+      'review_pending',
+      job.id
+    );
+
+    try { jobMemory.markOutcome(job.id, 'rejected'); } catch { /* ignore */ }
+
+    logAudit(
+      job.id,
+      'proposal_rejected',
+      `Proposal v${job.version} marked as rejected by customer — returned to review_pending for revision`,
+      req.session?.name || 'admin'
+    );
+
+    const { notifyClients } = require('../services/sseManager');
+    notifyClients('job_updated', { jobId: job.id, status: 'review_pending' });
+
+    res.json({ success: true, message: 'Proposal marked as rejected. Job returned to review pending for revision.' });
+  }
+);
+
 // POST approve proposal → generate contract
 router.post(
   '/:id/approve',

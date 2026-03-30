@@ -158,6 +158,16 @@ export default function JobDetail({ token }) {
     setActionLoading(false);
   };
 
+  const rejectProposal = async () => {
+    if (!await showConfirm('Mark this proposal as rejected by the customer? The job will return to review so you can revise and resend.')) return;
+    setActionLoading(true);
+    const res  = await fetch(`/api/jobs/${id}/reject-proposal`, { method: 'POST', headers });
+    const data = await res.json();
+    if (res.ok) { load(); showToast('Proposal marked as rejected — job is back in review'); }
+    else        { showToast(data.error || 'Failed to mark rejected', 'error'); }
+    setActionLoading(false);
+  };
+
   const generateContract = async () => {
     if (!await showConfirm('Generate contract from this approved proposal?')) return;
     setActionLoading(true);
@@ -451,6 +461,14 @@ export default function JobDetail({ token }) {
             <button onClick={approveProposal} disabled={actionLoading}
               style={{ padding: '9px 18px', background: '#059669', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
               {actionLoading ? '...' : '✅ Mark Proposal Approved'}
+            </button>
+          )}
+
+          {/* Customer rejected — record in Claude memory and return to review */}
+          {['proposal_ready', 'proposal_sent'].includes(job.status) && (
+            <button onClick={rejectProposal} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: 'white', color: '#991b1b', border: '1.5px solid #fca5a5', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? '...' : '❌ Customer Rejected'}
             </button>
           )}
 
