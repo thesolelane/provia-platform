@@ -443,10 +443,36 @@ export default function Reports({ token }) {
   const [selectedType,   setSelectedType]   = useState('pl');
   const [selectedPeriod, setSelectedPeriod] = useState('ytd');
   const [running,        setRunning]        = useState(false);
-  const [current,        setCurrent]        = useState(null);   // { type, period, data, runAt, label }
+  const [current,        setCurrent]        = useState(null);
   const [saved,          setSaved]          = useState([]);
   const [loadingSaved,   setLoadingSaved]   = useState(true);
-  const [viewingSaved,   setViewingSaved]   = useState(null);   // { id, type, period, label, data, run_at }
+  const [viewingSaved,   setViewingSaved]   = useState(null);
+
+  const [custQuery,    setCustQuery]    = useState('');
+  const [custResults,  setCustResults]  = useState([]);
+  const [custLoading,  setCustLoading]  = useState(false);
+  const [custSelected, setCustSelected] = useState(null);
+
+  const searchCustomer = async (q) => {
+    setCustQuery(q);
+    setCustSelected(null);
+    if (!q.trim()) { setCustResults([]); return; }
+    setCustLoading(true);
+    try {
+      const r = await fetch(`/api/reports/customer/search?q=${encodeURIComponent(q)}`, { headers: { 'x-auth-token': token } });
+      const d = await r.json();
+      setCustResults(d.customers || []);
+    } catch { setCustResults([]); }
+    setCustLoading(false);
+  };
+
+  const openCustomerPDF = () => {
+    if (!custSelected) return;
+    const params = custSelected.type === 'contact'
+      ? `contact_id=${encodeURIComponent(custSelected.id)}`
+      : `customer_name=${encodeURIComponent(custSelected.name)}`;
+    window.open(`/api/reports/customer/pdf?${params}&token=${encodeURIComponent(token)}`, '_blank');
+  };
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
@@ -550,32 +576,35 @@ export default function Reports({ token }) {
               ))}
             </div>
 
-            <div style={{ fontSize: 11, fontWeight: 'bold', color: BLUE, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Period</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 14 }}>
-              {PERIODS.map(p => (
-                <button key={p.key} onClick={() => setSelectedPeriod(p.key)} style={{
-                  background: selectedPeriod === p.key ? ORANGE + '18' : 'transparent',
-                  color:      selectedPeriod === p.key ? ORANGE : '#555',
-                  border:     selectedPeriod === p.key ? `1px solid ${ORANGE}44` : '1px solid transparent',
-                  borderRadius: 6, padding: '7px 10px', cursor: 'pointer', textAlign: 'left',
-                  fontSize: 12, fontWeight: selectedPeriod === p.key ? 'bold' : 'normal',
+            {selectedType !== 'customer' && (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 'bold', color: BLUE, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Period</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 14 }}>
+                  {PERIODS.map(p => (
+                    <button key={p.key} onClick={() => setSelectedPeriod(p.key)} style={{
+                      background: selectedPeriod === p.key ? ORANGE + '18' : 'transparent',
+                      color:      selectedPeriod === p.key ? ORANGE : '#555',
+                      border:     selectedPeriod === p.key ? `1px solid ${ORANGE}44` : '1px solid transparent',
+                      borderRadius: 6, padding: '7px 10px', cursor: 'pointer', textAlign: 'left',
+                      fontSize: 12, fontWeight: selectedPeriod === p.key ? 'bold' : 'normal',
+                    }}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={runReport} disabled={running} style={{
+                  width: '100%', padding: '11px', background: running ? '#aaa' : GREEN, color: 'white',
+                  border: 'none', borderRadius: 8, cursor: running ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold', fontSize: 13, letterSpacing: '0.02em',
                 }}>
-                  {p.label}
+                  {running ? 'Running...' : '▶  Run Report'}
                 </button>
-              ))}
-            </div>
-
-            <button onClick={runReport} disabled={running} style={{
-              width: '100%', padding: '11px', background: running ? '#aaa' : GREEN, color: 'white',
-              border: 'none', borderRadius: 8, cursor: running ? 'not-allowed' : 'pointer',
-              fontWeight: 'bold', fontSize: 13, letterSpacing: '0.02em',
-            }}>
-              {running ? 'Running...' : '▶  Run Report'}
-            </button>
-            {current && !running && (
-              <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center', marginTop: 6 }}>
-                Running a new report auto-saves the current one
-              </div>
+                {current && !running && (
+                  <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center', marginTop: 6 }}>
+                    Running a new report auto-saves the current one
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -613,9 +642,76 @@ export default function Reports({ token }) {
           </div>
         </div>
 
-        {/* ── Right panel: current report display ── */}
+        {/* ── Right panel ── */}
         <div>
-          {!display ? (
+          {selectedType === 'customer' ? (
+            <div style={{ background: 'white', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+                <span style={{ fontSize: 22 }}>👤</span>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 'bold', color: BLUE }}>Customer Report</div>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Search by name, customer #, email or phone — generates a full PDF with all jobs, invoices, change orders and payments</div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                <input
+                  value={custQuery}
+                  onChange={e => searchCustomer(e.target.value)}
+                  placeholder="Search by name, customer #, email, or phone…"
+                  style={{ flex: 1, padding: '9px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 13, outline: 'none' }}
+                />
+                <button onClick={openCustomerPDF} disabled={!custSelected} style={{
+                  padding: '9px 18px', background: custSelected ? BLUE : '#ccc', color: 'white',
+                  border: 'none', borderRadius: 8, cursor: custSelected ? 'pointer' : 'not-allowed',
+                  fontWeight: 'bold', fontSize: 13, whiteSpace: 'nowrap'
+                }}>
+                  Generate PDF
+                </button>
+              </div>
+              {custLoading && <div style={{ color: '#aaa', fontSize: 13, padding: '8px 0' }}>Searching…</div>}
+              {!custLoading && custResults.length > 0 && (
+                <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden', marginBottom: 12 }}>
+                  {custResults.map((c, i) => {
+                    const isSel = custSelected?.id === c.id && custSelected?.name === c.name;
+                    return (
+                      <div key={c.id || c.name} onClick={() => setCustSelected(c)} style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer',
+                        borderBottom: i < custResults.length - 1 ? '1px solid #f0f0f0' : 'none',
+                        background: isSel ? BLUE + '12' : i % 2 === 0 ? 'white' : '#fafafa',
+                        borderLeft: isSel ? `3px solid ${BLUE}` : '3px solid transparent',
+                      }}>
+                        <span style={{ fontSize: 16, flexShrink: 0 }}>👤</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: isSel ? BLUE : '#222' }}>
+                            {c.name || '—'}
+                            {c.pb_customer_number && <span style={{ fontFamily: 'monospace', fontSize: 10, background: '#e0e8ff', color: BLUE, padding: '1px 6px', borderRadius: 4, marginLeft: 8, fontWeight: 'bold' }}>{c.pb_customer_number}</span>}
+                            {c.type === 'unlinked' && <span style={{ fontSize: 10, background: '#fff3e0', color: '#e65100', padding: '1px 6px', borderRadius: 4, marginLeft: 6 }}>unlinked</span>}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                            {[c.email, c.phone, `${c.job_count} job${c.job_count !== 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {!custLoading && custQuery && custResults.length === 0 && (
+                <div style={{ color: '#aaa', fontSize: 13, padding: '8px 0' }}>No customers found matching "{custQuery}"</div>
+              )}
+              {custSelected && (
+                <div style={{ background: '#f0f4ff', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: BLUE }}>
+                  Selected: <strong>{custSelected.name}</strong>{custSelected.pb_customer_number ? ` (${custSelected.pb_customer_number})` : ''} — {custSelected.job_count} job{custSelected.job_count !== 1 ? 's' : ''} &nbsp;·&nbsp; Click <strong>Generate PDF</strong> to open the full report.
+                </div>
+              )}
+              {!custQuery && (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#bbb' }}>
+                  <div style={{ fontSize: 36, marginBottom: 10 }}>👤</div>
+                  <div style={{ fontSize: 13 }}>Start typing a customer name or number above</div>
+                </div>
+              )}
+            </div>
+          ) : !display ? (
             <div style={{ background: 'white', borderRadius: 12, padding: 60, textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
               <div style={{ fontSize: 16, fontWeight: 'bold', color: BLUE, marginBottom: 8 }}>No Report Running</div>
@@ -623,17 +719,14 @@ export default function Reports({ token }) {
             </div>
           ) : (
             <div>
-              {/* Report header */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 22 }}>{typeIcon(display.type)}</span>
-                    <div>
-                      <h2 style={{ margin: 0, fontSize: 17, fontWeight: 'bold', color: BLUE }}>{display.label}</h2>
-                      <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
-                        {display.isSaved ? 'Saved report — ' : 'Run at '}{fmtRunAt(display.runAt)}
-                        {display.isSaved && <span style={{ marginLeft: 8, background: '#e0e8ff', color: BLUE, padding: '1px 7px', borderRadius: 10, fontSize: 10, fontWeight: 'bold' }}>SAVED</span>}
-                      </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 22 }}>{typeIcon(display.type)}</span>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 17, fontWeight: 'bold', color: BLUE }}>{display.label}</h2>
+                    <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                      {display.isSaved ? 'Saved report — ' : 'Run at '}{fmtRunAt(display.runAt)}
+                      {display.isSaved && <span style={{ marginLeft: 8, background: '#e0e8ff', color: BLUE, padding: '1px 7px', borderRadius: 10, fontSize: 10, fontWeight: 'bold' }}>SAVED</span>}
                     </div>
                   </div>
                 </div>
@@ -643,18 +736,11 @@ export default function Reports({ token }) {
                   </button>
                 )}
               </div>
-
               <ReportView type={display.type} data={display.data} />
             </div>
           )}
         </div>
       </div>
-
-      {/* ── Document History Report ── */}
-      <DocHistoryPanel token={token} />
-
-      {/* ── Customer Full Report ── */}
-      <CustomerReportPanel token={token} />
     </div>
   );
 }
