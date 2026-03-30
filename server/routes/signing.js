@@ -65,12 +65,20 @@ function signingPageHTML({ docType, job, session, base: _base }) {
   const pdfURL = pdfURLBase ? `${pdfURLBase}?sign_token=${encodeURIComponent(session.token)}` : null;
   const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
   const already = session.status === 'signed';
+  const alreadyDeclined = session.status === 'declined';
 
   const alreadySigned = `
     <div style="text-align:center;padding:60px 20px">
       <div style="font-size:64px;margin-bottom:20px">✅</div>
       <h2 style="color:#1B3A6B;margin-bottom:10px">Already Signed</h2>
       <p style="color:#555;font-size:14px">This document was signed on ${new Date(session.signed_at).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/New_York' })}.<br>Thank you!</p>
+    </div>`;
+
+  const alreadyDeclinedHTML = `
+    <div style="text-align:center;padding:60px 20px">
+      <div style="font-size:64px;margin-bottom:20px">📬</div>
+      <h2 style="color:#C62828;margin-bottom:10px">Feedback Submitted</h2>
+      <p style="color:#555;font-size:14px;line-height:1.6">Your change request has already been submitted.<br>Our team will follow up with you shortly with a revised proposal.</p>
     </div>`;
 
   const downloadURL = pdfURLBase
@@ -101,6 +109,7 @@ function signingPageHTML({ docType, job, session, base: _base }) {
     </div>`
     }
 
+    <div id="sigSection">
     <div style="background:#f8f9ff;border-left:4px solid #1B3A6B;padding:14px 16px;margin-bottom:20px;border-radius:0 8px 8px 0">
       <p style="margin:0;font-size:13px;color:#1B3A6B;font-weight:700">
         ${
@@ -143,7 +152,35 @@ function signingPageHTML({ docType, job, session, base: _base }) {
     <button id="submitBtn" onclick="submitSig()" type="button"
       style="width:100%;padding:14px;background:#1B3A6B;color:white;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px">
       ✍️ ${isProposal ? 'Approve &amp; Sign Proposal' : 'Sign Contract'}
-    </button>`;
+    </button>
+    </div>
+
+    ${isProposal ? `
+    <div id="declineToggle" style="margin-top:16px;text-align:center">
+      <button onclick="toggleDecline()" type="button"
+        style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;text-decoration:underline;padding:4px">
+        Request Changes / Decline
+      </button>
+    </div>
+
+    <div id="declinePanel" style="display:none;margin-top:16px;border-top:1px solid #eee;padding-top:16px">
+      <p style="font-size:13px;color:#555;margin-bottom:10px;font-weight:600">Request Changes</p>
+      <p style="font-size:12px;color:#888;margin-bottom:10px">Please describe your concerns or what you'd like changed. Our team will follow up with you shortly.</p>
+      <textarea id="declineReason" rows="5" placeholder="Describe the changes you'd like or your concerns..."
+        style="width:100%;padding:10px 12px;border:1.5px solid #C8D4E4;border-radius:6px;font-size:13px;box-sizing:border-box;resize:vertical;outline:none;font-family:inherit"
+        onfocus="this.style.borderColor='#C62828'" onblur="this.style.borderColor='#C8D4E4'"></textarea>
+      <div id="declineErr" style="color:#C62828;font-size:12px;margin-top:6px;display:none"></div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button onclick="toggleDecline()" type="button"
+          style="flex:1;padding:11px;background:white;border:1.5px solid #C8D4E4;border-radius:8px;font-size:13px;cursor:pointer;color:#666">
+          Cancel
+        </button>
+        <button id="declineBtn" onclick="submitDecline()" type="button"
+          style="flex:2;padding:11px;background:#C62828;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+          Send Feedback
+        </button>
+      </div>
+    </div>` : ''}` ;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -187,7 +224,7 @@ function signingPageHTML({ docType, job, session, base: _base }) {
     ${amount ? `<div class="info-item"><div class="lbl">${isProposal ? 'Proposal Value' : 'Contract Value'}</div><div class="val">${amount}</div></div>` : ''}
   </div>
 
-  ${already ? alreadySigned : formHTML}
+  ${already ? alreadySigned : alreadyDeclined ? alreadyDeclinedHTML : formHTML}
 </div>
 
 <div class="ftr">
@@ -196,7 +233,7 @@ function signingPageHTML({ docType, job, session, base: _base }) {
 </div>
 
 ${
-  already
+  (already || alreadyDeclined)
     ? ''
     : `
 <script>
@@ -240,6 +277,61 @@ ${
   window.clearSig = function() {
     ctx.clearRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
     hasSig = false;
+  };
+
+  window.toggleDecline = function() {
+    const panel = document.getElementById('declinePanel');
+    const toggle = document.getElementById('declineToggle');
+    if (!panel) return;
+    const isHidden = panel.style.display === 'none';
+    panel.style.display = isHidden ? 'block' : 'none';
+    if (toggle) toggle.style.display = isHidden ? 'none' : 'block';
+    // Hide / restore the signature form when decline mode is active
+    const sigSection = document.getElementById('sigSection');
+    if (sigSection) sigSection.style.display = isHidden ? 'none' : 'block';
+  };
+
+  window.submitDecline = async function() {
+    const reason = (document.getElementById('declineReason')?.value || '').trim();
+    const err = document.getElementById('declineErr');
+    err.style.display = 'none';
+    if (!reason) {
+      err.textContent = 'Please describe your concerns before submitting.';
+      err.style.display = 'block';
+      return;
+    }
+    const btn = document.getElementById('declineBtn');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    try {
+      const res = await fetch('/api/signing/declined/${session.token}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decline_reason: reason })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        document.querySelector('.card').innerHTML = \`
+          <div style="text-align:center;padding:40px 20px">
+            <div style="font-size:64px;margin-bottom:20px">📬</div>
+            <h2 style="color:#1B3A6B;margin-bottom:10px">Feedback Received</h2>
+            <p style="color:#555;font-size:14px;line-height:1.6">
+              Thank you for letting us know. Our team has been notified and will follow up with you shortly to address your concerns.
+            </p>
+            <p style="color:#aaa;font-size:12px;margin-top:16px">Submitted: \${new Date().toLocaleString()}</p>
+          </div>\`;
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Send Feedback';
+        err.textContent = data.error || 'Submission failed. Please try again.';
+        err.style.display = 'block';
+      }
+    } catch (ex) {
+      btn.disabled = false;
+      btn.textContent = 'Send Feedback';
+      err.textContent = 'Network error. Please try again.';
+      err.style.display = 'block';
+    }
   };
 
   window.submitSig = async function() {
@@ -384,6 +476,85 @@ router.post('/api/signing/opened/:token', (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── Record decline ───────────────────────────────────────────────────────────
+
+router.post('/api/signing/declined/:token', async (req, res) => {
+  const db = getDb();
+  const session = db
+    .prepare('SELECT * FROM signing_sessions WHERE token = ?')
+    .get(req.params.token);
+  if (!session) return res.status(404).json({ error: 'Not found' });
+  if (session.status === 'signed') return res.status(400).json({ error: 'This session has already been signed' });
+  if (session.status === 'declined') return res.status(400).json({ error: 'Already declined' });
+  if (session.doc_type !== 'proposal') return res.status(400).json({ error: 'Decline is only available for proposals' });
+
+  const { decline_reason } = req.body;
+  if (!decline_reason || !String(decline_reason).trim()) {
+    return res.status(400).json({ error: 'Please provide a reason for requesting changes' });
+  }
+
+  if (isSessionExpired(session)) return res.status(410).json({ error: 'This signing link has expired. Please contact Preferred Builders for a new link.' });
+
+  const ip = clientIP(req);
+  const reason = String(decline_reason).trim();
+
+  db.prepare(
+    `UPDATE signing_sessions SET status = 'declined', decline_reason = ? WHERE token = ?`
+  ).run(reason, req.params.token);
+
+  db.prepare(
+    "UPDATE jobs SET status = 'proposal_declined', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+  ).run(session.job_id);
+
+  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
+
+  logAudit(
+    session.job_id,
+    'proposal_declined',
+    `Proposal declined by customer (IP: ${ip}). Reason: ${reason}`,
+    'customer'
+  );
+
+  notifyClients('job_updated', {
+    jobId: session.job_id,
+    status: 'proposal_declined',
+    message: `❌ ${job?.customer_name || 'Customer'} requested changes — ${reason.slice(0, 80)}${reason.length > 80 ? '…' : ''}`
+  });
+
+  setImmediate(async () => {
+    try {
+      const { getOwnerEmails } = require('../services/emailService');
+      const owners = getOwnerEmails();
+      if (owners.length) {
+        const when = new Date().toLocaleString('en-US', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+          timeZone: 'America/New_York'
+        });
+        const jobLink = `${process.env.APP_URL || ''}/jobs/${session.job_id}`;
+        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        await sendEmail({
+          to: owners,
+          subject: `❌ Proposal changes requested — ${job?.customer_name || 'Customer'}`,
+          html: `<p><strong>${escapeHtml(job?.customer_name || 'The customer')}</strong> has requested changes to their proposal.</p>
+                 <p><strong>Project:</strong> ${escapeHtml(job?.project_address || '—')}</p>
+                 <p><strong>Time:</strong> ${when}</p>
+                 <div style="background:#fff3f3;border-left:4px solid #c62828;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0">
+                   <strong>Customer comments:</strong><br>${escapeHtml(reason).replace(/\n/g, '<br>')}
+                 </div>
+                 <p><a href="${jobLink}">View job →</a></p>`,
+          emailType: 'system_alert',
+          jobId: session.job_id
+        });
+      }
+    } catch (e) {
+      console.warn('[ProposalDeclinedAlert]', e.message);
+    }
+  });
+
+  res.json({ ok: true });
+});
+
 // ─── Record signature ─────────────────────────────────────────────────────────
 
 router.post('/api/signing/signed/:token', requireFields(['signer_name']), async (req, res) => {
@@ -393,6 +564,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
     .get(req.params.token);
   if (!session) return res.status(404).json({ error: 'Not found' });
   if (session.status === 'signed') return res.status(400).json({ error: 'Already signed' });
+  if (session.status === 'declined') return res.status(400).json({ error: 'This session has been declined. Please contact Preferred Builders for a revised proposal.' });
   if (isSessionExpired(session)) return res.status(410).json({ error: 'This signing link has expired. Please contact Preferred Builders for a new link.' });
 
   const { signer_name, signature_data } = req.body;

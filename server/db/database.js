@@ -452,6 +452,7 @@ async function initDatabase() {
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
     }
   };
+  addColIfMissing('signing_sessions', 'decline_reason', 'TEXT');
   addColIfMissing('payments_received', 'time_received', 'TEXT');
   addColIfMissing('payments_received', 'credit_debit', "TEXT NOT NULL DEFAULT 'credit'");
   addColIfMissing('payments_received', 'recorded_by', 'TEXT');

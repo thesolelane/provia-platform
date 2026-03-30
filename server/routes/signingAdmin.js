@@ -271,7 +271,7 @@ router.get('/api/signing/status/:jobId', requireAuth, (req, res) => {
   const db       = getDb();
   const sessions = db
     .prepare(
-      'SELECT id, doc_type, status, email_sent_at, opened_at, opened_ip, signed_at, signer_name, created_at FROM signing_sessions WHERE job_id = ? ORDER BY created_at DESC'
+      'SELECT id, doc_type, status, email_sent_at, opened_at, opened_ip, signed_at, signer_name, decline_reason, created_at FROM signing_sessions WHERE job_id = ? ORDER BY created_at DESC'
     )
     .all(req.params.jobId);
   res.json({ sessions });

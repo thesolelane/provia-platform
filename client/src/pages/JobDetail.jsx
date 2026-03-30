@@ -14,33 +14,35 @@ const RED    = '#C62828';
 const PURPLE = '#7C3AED';
 
 const STATUS_COLORS = {
-  received:          '#888',
-  processing:        ORANGE,
-  clarification:     '#F59E0B',
-  review_pending:    '#E07B2A',
-  proposal_ready:    '#3B82F6',
-  proposal_sent:     '#8B5CF6',
-  proposal_approved: '#059669',
-  contract_ready:    '#0D9488',
-  contract_sent:     '#047857',
-  contract_signed:   '#1B3A6B',
-  complete:          '#111827',
-  error:             RED,
+  received:           '#888',
+  processing:         ORANGE,
+  clarification:      '#F59E0B',
+  review_pending:     '#E07B2A',
+  proposal_ready:     '#3B82F6',
+  proposal_sent:      '#8B5CF6',
+  proposal_approved:  '#059669',
+  proposal_declined:  RED,
+  contract_ready:     '#0D9488',
+  contract_sent:      '#047857',
+  contract_signed:    '#1B3A6B',
+  complete:           '#111827',
+  error:              RED,
 };
 
 const STATUS_LABELS = {
-  received:          'Received',
-  processing:        'Processing',
-  clarification:     'Needs Clarification',
-  review_pending:    'Review Line Items',
-  proposal_ready:    'Proposal Ready',
-  proposal_sent:     'Sent for Approval',
-  proposal_approved: 'Proposal Approved ✓',
-  contract_ready:    'Contract Ready',
-  contract_sent:     'Contract Sent',
-  contract_signed:   'Contract Signed ✓',
-  complete:          'Complete',
-  error:             'Error',
+  received:           'Received',
+  processing:         'Processing',
+  clarification:      'Needs Clarification',
+  review_pending:     'Review Line Items',
+  proposal_ready:     'Proposal Ready',
+  proposal_sent:      'Sent for Approval',
+  proposal_approved:  'Proposal Approved ✓',
+  proposal_declined:  'Changes Requested',
+  contract_ready:     'Contract Ready',
+  contract_sent:      'Contract Sent',
+  contract_signed:    'Contract Signed ✓',
+  complete:           'Complete',
+  error:              'Error',
 };
 
 export default function JobDetail({ token }) {
@@ -456,6 +458,14 @@ export default function JobDetail({ token }) {
             </button>
           )}
 
+          {/* Customer declined — resend revised proposal */}
+          {job.status === 'proposal_declined' && job.customer_email && job.proposal_pdf_path && (
+            <button onClick={sendForApproval} disabled={actionLoading}
+              style={{ padding: '9px 18px', background: '#8B5CF6', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
+              {actionLoading ? '...' : '📨 Send Revised Proposal'}
+            </button>
+          )}
+
           {/* Manual approve — for in-person or verbal approvals */}
           {['proposal_ready', 'proposal_sent'].includes(job.status) && (
             <button onClick={approveProposal} disabled={actionLoading}
@@ -587,6 +597,31 @@ export default function JobDetail({ token }) {
           <ReadReceiptBadge session={contractSession} label="Contract" />
         )}
       </div>
+
+      {/* ── Proposal Declined Banner ── */}
+      {job.status === 'proposal_declined' && (() => {
+        const declinedSession = sigSessions.find(s => s.doc_type === 'proposal' && s.status === 'declined');
+        return (
+          <div style={{ background: '#FEF2F2', border: `2px solid ${RED}`, borderRadius: 10, padding: '18px 20px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <span style={{ fontSize: 20 }}>❌</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, color: RED, fontSize: 14, marginBottom: 4 }}>Customer Requested Changes</div>
+                {declinedSession?.decline_reason ? (
+                  <div style={{ background: 'white', border: '1px solid #fca5a5', borderRadius: 6, padding: '10px 14px', fontSize: 13, color: '#333', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+                    {declinedSession.decline_reason}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 13, color: '#666' }}>No written comments were provided.</div>
+                )}
+                <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>
+                  Revise the estimate and resend the proposal to continue.
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Processing indicator ── auto-refreshes when done */}
       {['processing', 'received'].includes(job.status) && (
