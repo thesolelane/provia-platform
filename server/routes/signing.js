@@ -1,10 +1,8 @@
 'use strict';
 const express = require('express');
-const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const { getDb } = require('../db/database');
 const jobMemory = require('../services/jobMemory');
-const { requireAuth } = require('../middleware/auth');
 const { logAudit } = require('../services/auditService');
 const { logActivity } = require('./activityLog');
 const { sendEmail } = require('../services/emailService');

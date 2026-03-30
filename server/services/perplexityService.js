@@ -28,7 +28,7 @@ const MAX_TOKENS = {
 // System prompt for all Perplexity calls — instructs it to be concise and factual
 const SONAR_SYSTEM = `You are a concise construction data assistant. Respond with ONLY the specific data point requested — no introductions, no caveats, no lists of options unless specifically asked. Return a single direct answer in 1–3 sentences maximum. If you cannot find current data, say so in one sentence.`;
 
-function callPerplexity(model, query) {
+function callPerplexity(model, query, searchType = 'general') {
   return new Promise((resolve, _reject) => {
     if (!API_KEY) {
       return resolve('[Perplexity] API key not configured — web search unavailable.');
@@ -98,7 +98,7 @@ function callPerplexity(model, query) {
 async function search(query, search_type = 'general') {
   const model = MODEL_MAP[search_type] || 'sonar';
   try {
-    return await callPerplexity(model, query);
+    return await callPerplexity(model, query, search_type);
   } catch (e) {
     console.error('[perplexityService] Error:', e.message);
     return `[Search failed: ${e.message}]`;

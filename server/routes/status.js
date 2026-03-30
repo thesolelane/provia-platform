@@ -467,7 +467,7 @@ function getTokenUsageSummary() {
       byService[r.service].month = { in: r.total_in, out: r.total_out };
     }
     return byService;
-  } catch (e) {
+  } catch {
     return {};
   }
 }
