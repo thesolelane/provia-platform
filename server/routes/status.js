@@ -40,6 +40,33 @@ async function checkClaude() {
   return { ok: true, detail: 'API key configured' };
 }
 
+async function checkPerplexity() {
+  const key = process.env.PERPLEXITY_API_KEY;
+  if (!key) return { ok: false, detail: 'PERPLEXITY_API_KEY not set' };
+  if (!key.startsWith('pplx-'))
+    return { ok: false, detail: 'Key format looks wrong (should start with pplx-)' };
+  try {
+    const https = require('https');
+    const result = await new Promise((resolve) => {
+      const req = https.request({
+        hostname: 'api.perplexity.ai',
+        path: '/chat/completions',
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }
+      }, (res) => resolve({ status: res.statusCode }));
+      req.on('error', () => resolve({ status: 0 }));
+      req.write(JSON.stringify({ model: 'sonar', messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 }));
+      req.end();
+    });
+    if (result.status === 200) return { ok: true, detail: 'API key valid and reachable' };
+    if (result.status === 401) return { ok: false, detail: 'API key rejected (401)' };
+    if (result.status === 400) return { ok: true, detail: 'API key valid (400 = bad request body, key accepted)' };
+    return { ok: false, detail: `Perplexity returned HTTP ${result.status}` };
+  } catch (e) {
+    return { ok: false, detail: e.message };
+  }
+}
+
 async function checkSmtp() {
   const user = process.env.SMTP_USER;
   const pass = process.env.SMTP_PASS;
@@ -398,9 +425,10 @@ router.get('/', requireAuth, async (req, res) => {
   if (!['system_admin', 'admin'].includes(req.session?.role))
     return res.status(403).json({ error: 'Admin only' });
 
-  const [database, claude, resend, twilio, whatsapp, calendar, pdf, signing] = await Promise.all([
+  const [database, claude, perplexity, resend, twilio, whatsapp, calendar, pdf, signing] = await Promise.all([
     checkDatabase(),
     checkClaude(),
+    checkPerplexity(),
     checkSmtp(),
     checkTwilio(),
     checkWhatsApp(),
@@ -413,14 +441,15 @@ router.get('/', requireAuth, async (req, res) => {
     version: require('../../package.json').version,
     checkedAt: new Date().toISOString(),
     services: {
-      database: { label: 'Database (SQLite)', ...database },
-      claude: { label: 'Claude AI (Anthropic)', ...claude },
-      resend: { label: 'Email (SMTP)', ...resend },
-      twilio: { label: 'Twilio SMS', ...twilio },
-      whatsapp: { label: 'WhatsApp (Twilio)', ...whatsapp },
-      calendar: { label: 'Google Calendar', ...calendar },
-      pdf: { label: 'PDF Generation', ...pdf },
-      signing: { label: 'Digital Signatures', ...signing }
+      database:   { label: 'Database (SQLite)',      ...database },
+      claude:     { label: 'Claude AI (Anthropic)',  ...claude },
+      perplexity: { label: 'Perplexity Sonar',       ...perplexity },
+      resend:     { label: 'Email (SMTP)',            ...resend },
+      twilio:     { label: 'Twilio SMS',             ...twilio },
+      whatsapp:   { label: 'WhatsApp (Twilio)',       ...whatsapp },
+      calendar:   { label: 'Google Calendar',        ...calendar },
+      pdf:        { label: 'PDF Generation',         ...pdf },
+      signing:    { label: 'Digital Signatures',     ...signing }
     },
     recentErrors: getRecentErrors(20),
     alertsSummary: getAlertsSummary()
