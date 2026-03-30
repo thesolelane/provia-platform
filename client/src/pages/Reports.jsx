@@ -18,6 +18,7 @@ const REPORT_TYPES = [
   { key: 'profitability', icon: '📈', label: 'Job Profitability',      desc: 'Per-job revenue, costs and margin' },
   { key: 'passthrough',   icon: '🔄', label: 'Pass-Through Balance',   desc: 'Fronted costs vs reimbursements' },
   { key: 'deposits',      icon: '🏦', label: 'Deposit Tracker',        desc: 'Signed jobs and deposit status' },
+  { key: 'customer',      icon: '👤', label: 'Customer Report',        desc: 'All jobs, invoices & payments by customer' },
 ];
 
 function DocHistoryPanel({ token }) {
