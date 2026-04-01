@@ -98,8 +98,15 @@ function buildProposalHTML(data) {
   const customer  = data.customer  || {};
   const project   = data.project   || {};
   const lineItems = data.lineItems || [];
-  const exclusions = data.exclusions || [];
   const pricing   = data.pricing   || {};
+  const exclusions = [...(data.exclusions || [])];
+  if (pricing.dumpsterExcluded) {
+    exclusions.unshift({
+      name: 'Dumpster & Debris Removal',
+      reason: 'Not included in this contract. Customer is responsible for all debris removal and disposal.',
+      budget: 'Approx. $600–$1,500 depending on volume'
+    });
+  }
   const fmt       = (n) => (n ? `$${Number(n).toLocaleString()}` : '$0');
   const quoteNum  = data.quoteNumber || '—';
   const validUntil = data.validUntil || '—';

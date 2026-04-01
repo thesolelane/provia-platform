@@ -529,7 +529,8 @@ function applyPricing(data, rates, settings) {
       gcOandP:     rates.gcOandP,
       contingency: rates.contingency
     },
-    implicitDumpsterBaseCost
+    implicitDumpsterBaseCost,
+    dumpsterExcluded: dumpsterExplicitlyExcluded || false
   };
 
   data.totalValue    = totalContractPrice;

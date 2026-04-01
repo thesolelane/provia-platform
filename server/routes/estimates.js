@@ -691,7 +691,8 @@ router.patch(
       totalContractPrice: total,
       depositPercent: Math.round(deposit * 100),
       depositAmount,
-      appliedRates: { subOandP, gcOandP, contingency }
+      appliedRates: { subOandP, gcOandP, contingency },
+      dumpsterExcluded: dumpsterExplicitlyExcluded || false
     };
     proposalData.totalValue = total;
     proposalData.depositAmount = depositAmount;
