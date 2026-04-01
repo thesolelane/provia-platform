@@ -648,10 +648,19 @@ router.patch(
         : Math.round(Math.max(0, Number(li.baseCost) || 0) * multiplier)
     }));
 
-    const hasDumpster = updatedItems.some((i) =>
+    const dumpsterItem = updatedItems.find((i) =>
       /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || '')
     );
-    if (!hasDumpster) {
+    const dumpsterExplicitlyExcluded = dumpsterItem && (Number(dumpsterItem.baseCost) || 0) === 0;
+    const hasDumpster = !!dumpsterItem && !dumpsterExplicitlyExcluded;
+
+    // $0 dumpster = explicitly excluded — remove so it never appears in scope
+    if (dumpsterExplicitlyExcluded) {
+      const idx = updatedItems.indexOf(dumpsterItem);
+      if (idx !== -1) updatedItems.splice(idx, 1);
+    }
+
+    if (!hasDumpster && !dumpsterExplicitlyExcluded) {
       const totalBase = updatedItems.reduce((s, i) => s + (i.baseCost || 0), 0);
       const dumpsterBase =
         totalBase < 10000

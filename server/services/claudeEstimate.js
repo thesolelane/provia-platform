@@ -473,11 +473,20 @@ function applyPricing(data, rates, settings) {
     totalContractPrice += item.finalPrice;
   }
 
-  const hasDumpster = items.some((i) =>
+  const dumpsterItem = items.find((i) =>
     /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || '')
   );
+  const dumpsterExplicitlyExcluded = dumpsterItem && (Number(dumpsterItem.baseCost) || 0) === 0;
+  const hasDumpster = !!dumpsterItem && !dumpsterExplicitlyExcluded;
+
+  // If user zeroed out the dumpster line, remove it so it never appears in scope
+  if (dumpsterExplicitlyExcluded) {
+    const idx = items.indexOf(dumpsterItem);
+    if (idx !== -1) items.splice(idx, 1);
+  }
+
   let implicitDumpsterBaseCost = 0;
-  if (!hasDumpster) {
+  if (!hasDumpster && !dumpsterExplicitlyExcluded) {
     let totalBase = 0;
     for (const item of items) totalBase += item.baseCost || 0;
     let dumpsterCost;
