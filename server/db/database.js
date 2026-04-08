@@ -728,6 +728,26 @@ async function initDatabase() {
 
   seedAgentKeys(db);
 
+  // ── Leads table ──────────────────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS leads (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      caller_name  TEXT NOT NULL DEFAULT 'Unknown caller',
+      caller_phone TEXT NOT NULL DEFAULT 'Unknown number',
+      source       TEXT NOT NULL DEFAULT 'marblism',
+      stage        TEXT NOT NULL DEFAULT 'incoming',
+      notes        TEXT,
+      contact_id   INTEGER,
+      archived     INTEGER NOT NULL DEFAULT 0,
+      archive_reason TEXT,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_stage     ON leads(stage)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_archived  ON leads(archived)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_contact_id ON leads(contact_id)`);
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();

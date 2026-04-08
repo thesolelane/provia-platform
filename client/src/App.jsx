@@ -11,6 +11,7 @@ import FieldGuide from './pages/FieldGuide';
 import Contacts from './pages/Contacts';
 import Vendors from './pages/Vendors';
 import Tasks from './pages/Tasks';
+import Leads from './pages/Leads';
 import Payments from './pages/Payments';
 import MaterialTakeOff from './pages/MaterialTakeOff';
 import Analytics from './pages/Analytics';
@@ -117,6 +118,7 @@ function App() {
           <Route path="/contacts" element={<Contacts token={token} />} />
           <Route path="/vendors"  element={<Vendors  token={token} />} />
           <Route path="/tasks" element={<Tasks token={token} />} />
+          <Route path="/leads" element={<Leads token={token} />} />
           <Route path="/payments" element={<Payments token={token} />} />
           <Route path="/takeoff" element={<MaterialTakeOff />} />
           <Route path="/analytics" element={<Analytics token={token} />} />

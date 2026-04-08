@@ -6,6 +6,7 @@ const ORANGE = '#E07B2A';
 
 const MAIN_NAV = [
   { path: '/',             icon: '📊', label: 'Dashboard' },
+  { path: '/leads',        icon: '📞', label: 'Leads' },
   { path: '/tasks',        icon: '✅', label: 'Tasks' },
   { path: '/payments',     icon: '💰', label: 'Payments' },
   { path: '/field-camera', icon: '📷', label: 'Field Camera' },

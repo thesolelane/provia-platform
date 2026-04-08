@@ -69,37 +69,26 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
               ? callSummary.slice(0, 117) + '…'
               : callSummary;
 
-            // Detect if Marblism captured a specific callback time window
-            const urgentTimeMatch = callSummary.match(
-              /\bin\s+(\d+)\s+hour|\bwithin\s+(\d+)\s+hour|\bthis\s+(morning|afternoon|evening)\b|\bwithin\s+the\s+hour\b|\bsoon\s+as\s+possible\b|\basap\b/i
-            );
-            const explicitHoursMatch = callSummary.match(/\bin\s+(\d+)\s+hour/i) || callSummary.match(/\bwithin\s+(\d+)\s+hour/i);
-            let remindIntervalHours = 168; // default 7 days
-            if (urgentTimeMatch) {
-              const h = explicitHoursMatch ? Math.min(parseInt(explicitHoursMatch[1], 10), 3) : 2;
-              remindIntervalHours = Math.max(2, h);
-            }
-
             const db = getDb();
-            const remindAt = new Date(Date.now() + remindIntervalHours * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-            const taskResult = db.prepare(
-              `INSERT INTO tasks (title, description, status, priority, remind_at, remind_interval_hours, created_at, updated_at)
-               VALUES (?, ?, 'pending', 'high', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+
+            // Create a Lead instead of a plain task
+            const leadResult = db.prepare(
+              `INSERT INTO leads (caller_name, caller_phone, source, notes, stage, created_at, updated_at)
+               VALUES (?, ?, 'marblism', ?, 'incoming', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
             ).run(
-              `📞 Missed call: ${callerName} (${callerPhone})`,
-              `Call summary from Marblism:\n\n${callSummary}\n\nCaller phone: ${callerPhone}`,
-              remindAt,
-              remindIntervalHours
+              callerName,
+              callerPhone,
+              `Call summary from Marblism:\n\n${callSummary}`
             );
 
-            logAudit(null, 'marblism_call_task', `Task #${taskResult.lastInsertRowid} created from Marblism call — ${callerName} ${callerPhone} — "${shortSummary}"`, 'marblism-poller');
-            console.log(`[Email Poller] Marblism call → Task #${taskResult.lastInsertRowid} created for ${callerName} (${callerPhone})`);
+            logAudit(null, 'marblism_call_lead', `Lead #${leadResult.lastInsertRowid} created from Marblism call — ${callerName} ${callerPhone} — "${shortSummary}"`, 'marblism-poller');
+            console.log(`[Email Poller] Marblism call → Lead #${leadResult.lastInsertRowid} created for ${callerName} (${callerPhone})`);
 
             const { notifyClients } = require('./sseManager');
-            notifyClients('task_created', {
-              taskId: taskResult.lastInsertRowid,
-              title: `📞 Missed call: ${callerName} (${callerPhone})`,
-              message: `New missed call task from Marblism — ${callerName}`
+            notifyClients('lead_created', {
+              leadId: leadResult.lastInsertRowid,
+              title: `📞 New lead: ${callerName} (${callerPhone})`,
+              message: `New Marblism missed-call lead — ${callerName}`
             });
 
             // Send immediate creation email to all admin/system_admin users
@@ -118,21 +107,21 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
               if (adminEmails.length > 0) {
                 const appUrl = process.env.APP_URL ||
                   (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '');
-                const tasksLink = appUrl ? `${appUrl}/tasks` : '/tasks';
+                const leadsLink = appUrl ? `${appUrl}/leads` : '/leads';
                 await sendEmail({
                   to: adminEmails,
-                  subject: `📞 New Missed Call Task: ${callerName} (${callerPhone})`,
+                  subject: `📞 New Missed Call Lead: ${callerName} (${callerPhone})`,
                   html: `
                     <div style="font-family:sans-serif;max-width:600px">
-                      <h2 style="color:#1B3A6B">📞 New Missed Call Task</h2>
+                      <h2 style="color:#1B3A6B">📞 New Missed Call Lead</h2>
                       <table style="width:100%;border-collapse:collapse">
                         <tr><td style="padding:8px;color:#555">Caller</td><td style="padding:8px;font-weight:bold">${callerName}</td></tr>
                         <tr style="background:#f9f9f9"><td style="padding:8px;color:#555">Phone</td><td style="padding:8px">${callerPhone}</td></tr>
                         <tr><td style="padding:8px;color:#555">Summary</td><td style="padding:8px">${callSummary.replace(/\n/g, '<br>')}</td></tr>
                       </table>
-                      <p><a href="${tasksLink}" style="background:#1B3A6B;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:12px">View Tasks</a></p>
+                      <p><a href="${leadsLink}" style="background:#1B3A6B;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:12px">View Leads</a></p>
                     </div>`,
-                  emailType: 'task_creation_alert'
+                  emailType: 'lead_creation_alert'
                 });
                 console.log(`[Email Poller] Marblism creation email sent to ${adminEmails.join(', ')}`);
               }
