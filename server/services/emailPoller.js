@@ -50,6 +50,52 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
 
         console.log(`[Email Poller] Processing: "${subject}" from ${from}`);
 
+        // ── Marblism missed-call handler ────────────────────────────────
+        const isMarblism =
+          from.includes('marblism.com') ||
+          /i['']ve just handled a call/i.test(subject);
+
+        if (isMarblism) {
+          try {
+            const phoneMatch = bodyText.match(/received a call from\s*([+\d\s\-().]{7,20})/i);
+            const nameMatch  = bodyText.match(/(?:The user|The caller|caller)[,\s]+([A-Z][a-z]+)/);
+            const summaryMatch = bodyText.match(/Here['']s the summary[:\s]*([\s\S]+?)(?:\n\n|You can head|Speak soon)/i);
+
+            const callerPhone   = phoneMatch  ? phoneMatch[1].trim()   : 'Unknown number';
+            const callerName    = nameMatch   ? nameMatch[1].trim()    : 'Unknown caller';
+            const callSummary   = summaryMatch ? summaryMatch[1].trim() : bodyText.slice(0, 400).trim();
+
+            const shortSummary  = callSummary.length > 120
+              ? callSummary.slice(0, 117) + '…'
+              : callSummary;
+
+            const db = getDb();
+            const taskResult = db.prepare(
+              `INSERT INTO tasks (title, description, status, priority, created_at, updated_at)
+               VALUES (?, ?, 'pending', 'high', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+            ).run(
+              `📞 Missed call: ${callerName} (${callerPhone})`,
+              `Call summary from Marblism:\n\n${callSummary}\n\nCaller phone: ${callerPhone}`
+            );
+
+            logAudit(null, 'marblism_call_task', `Task #${taskResult.lastInsertRowid} created from Marblism call — ${callerName} ${callerPhone} — "${shortSummary}"`, 'marblism-poller');
+            console.log(`[Email Poller] Marblism call → Task #${taskResult.lastInsertRowid} created for ${callerName} (${callerPhone})`);
+
+            const { notifyClients } = require('./sseManager');
+            notifyClients('task_created', {
+              taskId: taskResult.lastInsertRowid,
+              title: `📞 Missed call: ${callerName} (${callerPhone})`,
+              message: `New missed call task from Marblism — ${callerName}`
+            });
+          } catch (err) {
+            console.error('[Email Poller] Marblism parse error:', err.message);
+          }
+
+          await client.messageFlagsAdd(uid, ['\\Seen']);
+          continue;
+        }
+        // ── end Marblism handler ────────────────────────────────────────
+
         // Extract text from PDF attachments
         let estimateText = bodyText.trim();
         let _hasPdf = false;
