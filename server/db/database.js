@@ -466,11 +466,11 @@ async function initDatabase() {
 
   // Migration: task reminder columns
   addColIfMissing('tasks', 'remind_at', 'DATETIME');
-  addColIfMissing('tasks', 'remind_interval_hours', 'INTEGER DEFAULT 48');
+  addColIfMissing('tasks', 'remind_interval_hours', 'INTEGER DEFAULT 168');
 
-  // Backfill existing pending/in_progress tasks with remind_at = now + 48h
+  // Backfill existing pending/in_progress tasks with remind_at = now + 7 days
   db.prepare(
-    `UPDATE tasks SET remind_at = datetime('now', '+48 hours'), remind_interval_hours = 48
+    `UPDATE tasks SET remind_at = datetime('now', '+168 hours'), remind_interval_hours = 168
      WHERE status NOT IN ('done','cancelled') AND remind_at IS NULL`
   ).run();
 

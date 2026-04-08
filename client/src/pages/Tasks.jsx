@@ -12,6 +12,8 @@ const PRIORITY_COLORS = { high: RED, normal: ORANGE, low: '#888' };
 const PRIORITY_LABELS = { high: '🔴 High', normal: '🟡 Normal', low: '🟢 Low' };
 
 const SNOOZE_OPTIONS = [
+  { label: '2 hours', hours: 2 },
+  { label: '3 hours', hours: 3 },
   { label: '1 day', hours: 24 },
   { label: '2 days', hours: 48 },
   { label: '3 days', hours: 72 },

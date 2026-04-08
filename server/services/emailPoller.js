@@ -69,15 +69,27 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
               ? callSummary.slice(0, 117) + '…'
               : callSummary;
 
+            // Detect if Marblism captured a specific callback time window
+            const urgentTimeMatch = callSummary.match(
+              /\bin\s+(\d+)\s+hour|\bwithin\s+(\d+)\s+hour|\bthis\s+(morning|afternoon|evening)\b|\bwithin\s+the\s+hour\b|\bsoon\s+as\s+possible\b|\basap\b/i
+            );
+            const explicitHoursMatch = callSummary.match(/\bin\s+(\d+)\s+hour/i) || callSummary.match(/\bwithin\s+(\d+)\s+hour/i);
+            let remindIntervalHours = 168; // default 7 days
+            if (urgentTimeMatch) {
+              const h = explicitHoursMatch ? Math.min(parseInt(explicitHoursMatch[1], 10), 3) : 2;
+              remindIntervalHours = Math.max(2, h);
+            }
+
             const db = getDb();
-            const defaultRemindAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+            const remindAt = new Date(Date.now() + remindIntervalHours * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
             const taskResult = db.prepare(
               `INSERT INTO tasks (title, description, status, priority, remind_at, remind_interval_hours, created_at, updated_at)
-               VALUES (?, ?, 'pending', 'high', ?, 48, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+               VALUES (?, ?, 'pending', 'high', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
             ).run(
               `📞 Missed call: ${callerName} (${callerPhone})`,
               `Call summary from Marblism:\n\n${callSummary}\n\nCaller phone: ${callerPhone}`,
-              defaultRemindAt
+              remindAt,
+              remindIntervalHours
             );
 
             logAudit(null, 'marblism_call_task', `Task #${taskResult.lastInsertRowid} created from Marblism call — ${callerName} ${callerPhone} — "${shortSummary}"`, 'marblism-poller');

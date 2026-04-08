@@ -119,13 +119,13 @@ router.post('/', requireAuth, requireFields(['title']), async (req, res) => {
   const { title, description, due_at, job_id, contact_id, priority } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
 
-  const defaultRemindAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+  const defaultRemindAt = new Date(Date.now() + 168 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
   const info = db
     .prepare(
       `
     INSERT INTO tasks (title, description, due_at, job_id, contact_id, priority, calendar_url, remind_at, remind_interval_hours)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 48)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 168)
   `
     )
     .run(
@@ -176,12 +176,12 @@ router.patch('/:id', requireAuth, validateEnum('status', ['pending', 'in_progres
   const newStatus = status !== undefined ? status : task.status;
   const newPriority = priority !== undefined ? priority : task.priority;
   const newRemindAt = remind_at !== undefined ? remind_at : task.remind_at;
-  const VALID_INTERVALS = [24, 48, 72, 168, 336];
+  const VALID_INTERVALS = [2, 3, 24, 48, 72, 168, 336];
   const parsedInterval = remind_interval_hours !== undefined ? parseInt(remind_interval_hours, 10) : null;
   const newRemindIntervalHours =
     parsedInterval !== null && VALID_INTERVALS.includes(parsedInterval)
       ? parsedInterval
-      : task.remind_interval_hours || 48;
+      : task.remind_interval_hours || 168;
 
   const updated = { ...task, title: newTitle, description: newDescription, due_at: newDueAt };
   const calURL = makeCalendarURL(updated);

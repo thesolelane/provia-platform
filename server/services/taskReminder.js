@@ -52,7 +52,7 @@ async function runReminderTick() {
   const tasksLink = appUrl ? `${appUrl}/tasks` : '/tasks';
 
   for (const task of dueTasks) {
-    const intervalHours = Math.max(1, Math.min(task.remind_interval_hours || 48, 8760));
+    const intervalHours = Math.max(1, Math.min(task.remind_interval_hours || 168, 8760));
     const nextRemindAt = new Date(Date.now() + intervalHours * 60 * 60 * 1000);
     const nextRemindStr = nextRemindAt.toLocaleString('en-US', {
       month: 'short',
