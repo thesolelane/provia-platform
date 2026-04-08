@@ -464,6 +464,16 @@ async function initDatabase() {
   addColIfMissing('jobs', 'closed_note', 'TEXT');
   addColIfMissing('jobs', 'error_message', 'TEXT');
 
+  // Migration: task reminder columns
+  addColIfMissing('tasks', 'remind_at', 'DATETIME');
+  addColIfMissing('tasks', 'remind_interval_hours', 'INTEGER DEFAULT 48');
+
+  // Backfill existing pending/in_progress tasks with remind_at = now + 48h
+  db.prepare(
+    `UPDATE tasks SET remind_at = datetime('now', '+48 hours'), remind_interval_hours = 48
+     WHERE status NOT IN ('done','cancelled') AND remind_at IS NULL`
+  ).run();
+
   // Email log table
   db.exec(`
     CREATE TABLE IF NOT EXISTS email_log (

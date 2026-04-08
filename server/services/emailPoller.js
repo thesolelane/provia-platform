@@ -70,12 +70,14 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
               : callSummary;
 
             const db = getDb();
+            const defaultRemindAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
             const taskResult = db.prepare(
-              `INSERT INTO tasks (title, description, status, priority, created_at, updated_at)
-               VALUES (?, ?, 'pending', 'high', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+              `INSERT INTO tasks (title, description, status, priority, remind_at, remind_interval_hours, created_at, updated_at)
+               VALUES (?, ?, 'pending', 'high', ?, 48, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
             ).run(
               `📞 Missed call: ${callerName} (${callerPhone})`,
-              `Call summary from Marblism:\n\n${callSummary}\n\nCaller phone: ${callerPhone}`
+              `Call summary from Marblism:\n\n${callSummary}\n\nCaller phone: ${callerPhone}`,
+              defaultRemindAt
             );
 
             logAudit(null, 'marblism_call_task', `Task #${taskResult.lastInsertRowid} created from Marblism call — ${callerName} ${callerPhone} — "${shortSummary}"`, 'marblism-poller');
@@ -87,6 +89,44 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
               title: `📞 Missed call: ${callerName} (${callerPhone})`,
               message: `New missed call task from Marblism — ${callerName}`
             });
+
+            // Send immediate creation email to all admin/system_admin users
+            try {
+              let adminUsers;
+              try {
+                adminUsers = db.prepare(
+                  `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL AND active != 0`
+                ).all();
+              } catch {
+                adminUsers = db.prepare(
+                  `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL`
+                ).all();
+              }
+              const adminEmails = adminUsers.map(u => u.email).filter(Boolean);
+              if (adminEmails.length > 0) {
+                const appUrl = process.env.APP_URL ||
+                  (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '');
+                const tasksLink = appUrl ? `${appUrl}/tasks` : '/tasks';
+                await sendEmail({
+                  to: adminEmails,
+                  subject: `📞 New Missed Call Task: ${callerName} (${callerPhone})`,
+                  html: `
+                    <div style="font-family:sans-serif;max-width:600px">
+                      <h2 style="color:#1B3A6B">📞 New Missed Call Task</h2>
+                      <table style="width:100%;border-collapse:collapse">
+                        <tr><td style="padding:8px;color:#555">Caller</td><td style="padding:8px;font-weight:bold">${callerName}</td></tr>
+                        <tr style="background:#f9f9f9"><td style="padding:8px;color:#555">Phone</td><td style="padding:8px">${callerPhone}</td></tr>
+                        <tr><td style="padding:8px;color:#555">Summary</td><td style="padding:8px">${callSummary.replace(/\n/g, '<br>')}</td></tr>
+                      </table>
+                      <p><a href="${tasksLink}" style="background:#1B3A6B;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:12px">View Tasks</a></p>
+                    </div>`,
+                  emailType: 'task_creation_alert'
+                });
+                console.log(`[Email Poller] Marblism creation email sent to ${adminEmails.join(', ')}`);
+              }
+            } catch (emailErr) {
+              console.error('[Email Poller] Failed to send Marblism creation email:', emailErr.message);
+            }
           } catch (err) {
             console.error('[Email Poller] Marblism parse error:', err.message);
           }

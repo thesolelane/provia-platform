@@ -119,11 +119,13 @@ router.post('/', requireAuth, requireFields(['title']), async (req, res) => {
   const { title, description, due_at, job_id, contact_id, priority } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
 
+  const defaultRemindAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+
   const info = db
     .prepare(
       `
-    INSERT INTO tasks (title, description, due_at, job_id, contact_id, priority, calendar_url)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO tasks (title, description, due_at, job_id, contact_id, priority, calendar_url, remind_at, remind_interval_hours)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 48)
   `
     )
     .run(
@@ -133,7 +135,8 @@ router.post('/', requireAuth, requireFields(['title']), async (req, res) => {
       job_id || null,
       contact_id || null,
       priority || 'normal',
-      null
+      null,
+      defaultRemindAt
     );
 
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
@@ -166,21 +169,29 @@ router.patch('/:id', requireAuth, validateEnum('status', ['pending', 'in_progres
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
-  const { title, description, due_at, status, priority } = req.body;
+  const { title, description, due_at, status, priority, remind_at, remind_interval_hours } = req.body;
   const newTitle = title !== undefined ? title.trim() : task.title;
   const newDescription = description !== undefined ? description.trim() : task.description;
   const newDueAt = due_at !== undefined ? due_at : task.due_at;
   const newStatus = status !== undefined ? status : task.status;
   const newPriority = priority !== undefined ? priority : task.priority;
+  const newRemindAt = remind_at !== undefined ? remind_at : task.remind_at;
+  const VALID_INTERVALS = [24, 48, 72, 168, 336];
+  const parsedInterval = remind_interval_hours !== undefined ? parseInt(remind_interval_hours, 10) : null;
+  const newRemindIntervalHours =
+    parsedInterval !== null && VALID_INTERVALS.includes(parsedInterval)
+      ? parsedInterval
+      : task.remind_interval_hours || 48;
 
   const updated = { ...task, title: newTitle, description: newDescription, due_at: newDueAt };
   const calURL = makeCalendarURL(updated);
 
   db.prepare(
     `
-    UPDATE tasks SET title=?, description=?, due_at=?, status=?, priority=?, calendar_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
+    UPDATE tasks SET title=?, description=?, due_at=?, status=?, priority=?, calendar_url=?,
+      remind_at=?, remind_interval_hours=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
   `
-  ).run(newTitle, newDescription, newDueAt, newStatus, newPriority, calURL, task.id);
+  ).run(newTitle, newDescription, newDueAt, newStatus, newPriority, calURL, newRemindAt, newRemindIntervalHours, task.id);
 
   if (task.job_id && status && status !== task.status) {
     logAudit(task.job_id, 'task_status_changed', `Task "${newTitle}" → ${newStatus}`, 'admin');

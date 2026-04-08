@@ -298,6 +298,9 @@ async function start() {
     const { startEmailPolling } = require('./services/emailPoller');
     startEmailPolling(15 * 60 * 1000);
 
+    const { startTaskReminderScheduler } = require('./services/taskReminder');
+    startTaskReminderScheduler();
+
   } catch (err) {
     console.error('Failed to start:', err);
     process.exit(1);
