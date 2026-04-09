@@ -18,7 +18,14 @@ const TYPE_COLORS = {
   unknown: { bg: '#f5f5f5', color: '#757575' }
 };
 
-const PAST_STATUSES = new Set(['complete', 'completed', 'rejected', 'closed']);
+const PAST_STATUSES = new Set(['complete', 'completed', 'rejected', 'closed', 'archived']);
+
+const STAGE_GROUPS = [
+  { key: 'early', label: 'Received / Estimating', statuses: new Set(['received', 'estimating', 'clarification']) },
+  { key: 'proposal', label: 'Proposal Sent', statuses: new Set(['proposal_ready', 'proposal_sent', 'proposal_approved']) },
+  { key: 'contract', label: 'Contract', statuses: new Set(['contract_ready', 'contract_sent', 'contract_signed']) },
+  { key: 'progress', label: 'In Progress', statuses: new Set(['in_progress']) },
+];
 
 const STATUS_META = {
   received:          { label: 'Received',           bg: '#f0f0f0', color: '#555' },
@@ -69,11 +76,10 @@ function StatusBadge({ status }) {
 function OpenContractsPanel({ jobs }) {
   const [pastExpanded, setPastExpanded] = useState(false);
 
-  const activeJobs = jobs
-    .filter((j) => !PAST_STATUSES.has(j.status))
-    .sort((a, b) => STATUS_ORDER.indexOf(b.status) - STATUS_ORDER.indexOf(a.status));
+  const isPast = (j) => j.archived === 1 || PAST_STATUSES.has(j.status);
 
-  const pastJobs = jobs.filter((j) => PAST_STATUSES.has(j.status));
+  const activeJobs = jobs.filter((j) => !isPast(j));
+  const pastJobs   = jobs.filter((j) => isPast(j));
 
   const totalContracted = activeJobs.reduce((s, j) => s + (j.total_value || 0), 0);
   const totalReceived   = activeJobs.reduce((s, j) => s + (j.total_received || 0), 0);
@@ -192,7 +198,32 @@ function OpenContractsPanel({ jobs }) {
         <p style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>No open contracts.</p>
       )}
 
-      {activeJobs.map((j) => <JobRow key={j.id} j={j} />)}
+      {STAGE_GROUPS.map((group) => {
+        const groupJobs = activeJobs.filter((j) => group.statuses.has(j.status));
+        if (groupJobs.length === 0) return null;
+        return (
+          <div key={group.key} style={{ marginBottom: 12 }}>
+            <div style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#888',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              marginBottom: 6,
+              paddingBottom: 3,
+              borderBottom: '1px solid #e8edf5'
+            }}>
+              {group.label}
+            </div>
+            {groupJobs.map((j) => <JobRow key={j.id} j={j} />)}
+          </div>
+        );
+      })}
+
+      {/* Ungrouped active jobs (unrecognised statuses) */}
+      {activeJobs.filter((j) => !STAGE_GROUPS.some((g) => g.statuses.has(j.status))).map((j) => (
+        <JobRow key={j.id} j={j} />
+      ))}
 
       {pastJobs.length > 0 && (
         <div style={{ marginTop: 12 }}>

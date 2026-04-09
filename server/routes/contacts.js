@@ -42,8 +42,8 @@ router.get('/:id', requireAuth, (req, res) => {
     .prepare(
       `
     SELECT id, customer_name, project_address, total_value, status, created_at,
-           pb_number, quote_number, contract_pdf_path, deposit_amount
-    FROM jobs WHERE archived = 0 AND (
+           pb_number, quote_number, contract_pdf_path, deposit_amount, archived, closed_reason
+    FROM jobs WHERE (
       (customer_email IS NOT NULL AND customer_email = ?) OR
       (customer_phone IS NOT NULL AND customer_phone = ?) OR
       (customer_name IS NOT NULL AND customer_name = ?)
