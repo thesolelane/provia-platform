@@ -18,6 +18,212 @@ const TYPE_COLORS = {
   unknown: { bg: '#f5f5f5', color: '#757575' }
 };
 
+const PAST_STATUSES = new Set(['complete', 'completed', 'rejected', 'closed']);
+
+const STATUS_META = {
+  received:          { label: 'Received',           bg: '#f0f0f0', color: '#555' },
+  estimating:        { label: 'Estimating',          bg: '#fff8e1', color: '#f59e0b' },
+  clarification:     { label: 'Needs Clarification', bg: '#fff3e0', color: '#e65100' },
+  proposal_ready:    { label: 'Proposal Ready',      bg: '#e3f2fd', color: '#1565c0' },
+  proposal_sent:     { label: 'Proposal Sent',       bg: '#ede7f6', color: '#6a1b9a' },
+  proposal_approved: { label: 'Proposal Approved',   bg: '#e8f5e9', color: '#2e7d32' },
+  contract_ready:    { label: 'Contract Ready',      bg: '#e0f2f1', color: '#00695c' },
+  contract_sent:     { label: 'Contract Sent',       bg: '#e0f7fa', color: '#006064' },
+  contract_signed:   { label: 'Contract Signed ✓',  bg: '#e8eaf6', color: '#1B3A6B' },
+  in_progress:       { label: 'In Progress',         bg: '#f1f8e9', color: '#33691e' },
+  complete:          { label: 'Completed',            bg: '#f5f5f5', color: '#333' },
+  completed:         { label: 'Completed',            bg: '#f5f5f5', color: '#333' },
+  rejected:          { label: 'Rejected',             bg: '#ffebee', color: '#c62828' },
+  closed:            { label: 'Closed',               bg: '#fff3e0', color: '#e65100' },
+};
+
+const STATUS_ORDER = [
+  'received', 'estimating', 'clarification',
+  'proposal_ready', 'proposal_sent', 'proposal_approved',
+  'contract_ready', 'contract_sent', 'contract_signed',
+  'in_progress', 'complete', 'completed'
+];
+
+function fmt(n) {
+  if (!n && n !== 0) return '—';
+  return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function StatusBadge({ status }) {
+  const m = STATUS_META[status] || { label: status, bg: '#f0f0f0', color: '#555' };
+  return (
+    <span style={{
+      background: m.bg,
+      color: m.color,
+      fontSize: 10,
+      fontWeight: 700,
+      padding: '2px 8px',
+      borderRadius: 10,
+      whiteSpace: 'nowrap'
+    }}>
+      {m.label}
+    </span>
+  );
+}
+
+function OpenContractsPanel({ jobs }) {
+  const [pastExpanded, setPastExpanded] = useState(false);
+
+  const activeJobs = jobs
+    .filter((j) => !PAST_STATUSES.has(j.status))
+    .sort((a, b) => STATUS_ORDER.indexOf(b.status) - STATUS_ORDER.indexOf(a.status));
+
+  const pastJobs = jobs.filter((j) => PAST_STATUSES.has(j.status));
+
+  const totalContracted = activeJobs.reduce((s, j) => s + (j.total_value || 0), 0);
+  const totalReceived   = activeJobs.reduce((s, j) => s + (j.total_received || 0), 0);
+  const totalOutstanding = activeJobs.reduce((s, j) => s + (j.outstanding || 0), 0);
+
+  const cardStyle = {
+    border: '1px solid #e2e8f0',
+    borderRadius: 8,
+    padding: '10px 12px',
+    marginBottom: 8,
+    background: '#fff',
+    fontSize: 12
+  };
+
+  const JobRow = ({ j }) => (
+    <div style={cardStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+            {j.pb_number && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#1B3A6B', background: '#e8eeff', padding: '1px 6px', borderRadius: 4 }}>
+                {j.pb_number}
+              </span>
+            )}
+            {!j.pb_number && j.quote_number && (
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#555', background: '#f0f0f0', padding: '1px 6px', borderRadius: 4 }}>
+                #{j.quote_number}
+              </span>
+            )}
+            <StatusBadge status={j.status} />
+          </div>
+          <div style={{ color: '#333', fontWeight: 500, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {j.project_address || '(no address)'}
+          </div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', color: '#555' }}>
+            <span>
+              <span style={{ color: '#888', fontSize: 10 }}>CONTRACTED </span>
+              <strong>{fmt(j.total_value)}</strong>
+            </span>
+            <span>
+              <span style={{ color: '#888', fontSize: 10 }}>RECEIVED </span>
+              <strong style={{ color: '#2e7d32' }}>{fmt(j.total_received)}</strong>
+            </span>
+            <span>
+              <span style={{ color: '#888', fontSize: 10 }}>OUTSTANDING </span>
+              <strong style={{ color: j.outstanding > 0 ? '#c62828' : '#2e7d32' }}>
+                {fmt(j.outstanding)}
+              </strong>
+            </span>
+          </div>
+        </div>
+        <a
+          href={`/jobs/${j.id}`}
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#1B3A6B',
+            textDecoration: 'none',
+            background: '#e8eeff',
+            padding: '5px 10px',
+            borderRadius: 6,
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}
+        >
+          Open Job →
+        </a>
+      </div>
+    </div>
+  );
+
+  if (jobs.length === 0) {
+    return (
+      <div style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: 14, color: '#1B3A6B', marginBottom: 8 }}>Open Contracts</h3>
+        <p style={{ fontSize: 12, color: '#888', textAlign: 'center', padding: 16 }}>
+          No jobs linked to this contact yet.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <h3 style={{ fontSize: 14, color: '#1B3A6B', marginBottom: 10 }}>
+        Open Contracts ({activeJobs.length})
+      </h3>
+
+      {activeJobs.length > 0 && (
+        <div style={{
+          display: 'flex',
+          gap: 12,
+          background: '#f8faff',
+          border: '1px solid #dde8ff',
+          borderRadius: 8,
+          padding: '10px 14px',
+          marginBottom: 12,
+          flexWrap: 'wrap'
+        }}>
+          <div style={{ flex: 1, minWidth: 100 }}>
+            <div style={{ fontSize: 10, color: '#888', fontWeight: 700, marginBottom: 2 }}>TOTAL CONTRACTED</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>{fmt(totalContracted)}</div>
+          </div>
+          <div style={{ flex: 1, minWidth: 100 }}>
+            <div style={{ fontSize: 10, color: '#888', fontWeight: 700, marginBottom: 2 }}>TOTAL RECEIVED</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#2e7d32' }}>{fmt(totalReceived)}</div>
+          </div>
+          <div style={{ flex: 1, minWidth: 100 }}>
+            <div style={{ fontSize: 10, color: '#888', fontWeight: 700, marginBottom: 2 }}>OUTSTANDING</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: totalOutstanding > 0 ? '#c62828' : '#2e7d32' }}>{fmt(totalOutstanding)}</div>
+          </div>
+        </div>
+      )}
+
+      {activeJobs.length === 0 && (
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>No open contracts.</p>
+      )}
+
+      {activeJobs.map((j) => <JobRow key={j.id} j={j} />)}
+
+      {pastJobs.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <button
+            onClick={() => setPastExpanded((v) => !v)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 12,
+              color: '#888',
+              fontWeight: 600,
+              padding: '4px 0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4
+            }}
+          >
+            {pastExpanded ? '▾' : '▸'} Past Jobs ({pastJobs.length})
+          </button>
+          {pastExpanded && (
+            <div style={{ marginTop: 8 }}>
+              {pastJobs.map((j) => <JobRow key={j.id} j={j} />)}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Contacts({ token }) {
   const [contacts, setContacts] = useState([]);
   const [total, setTotal] = useState(0);
@@ -822,47 +1028,8 @@ export default function Contacts({ token }) {
                   </div>
                 )}
 
-                {/* Job history */}
-                <h3 style={{ fontSize: 14, color: '#1B3A6B', marginBottom: 10 }}>
-                  Job History ({selectedJobs.length})
-                </h3>
-                {selectedJobs.length === 0 ? (
-                  <p style={{ fontSize: 12, color: '#888', textAlign: 'center', padding: 16 }}>
-                    No jobs linked to this contact yet.
-                  </p>
-                ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                    <tbody>
-                      {selectedJobs.map((j) => (
-                        <tr key={j.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                          <td style={{ padding: '8px 0', color: '#555' }}>
-                            {j.project_address || '—'}
-                          </td>
-                          <td style={{ padding: '8px 4px', fontWeight: 'bold', color: '#1B3A6B' }}>
-                            {j.total_value ? `$${j.total_value.toLocaleString()}` : '—'}
-                          </td>
-                          <td style={{ padding: '8px 4px' }}>
-                            <span
-                              style={{
-                                background: '#f0f4ff',
-                                color: '#1B3A6B',
-                                padding: '2px 8px',
-                                borderRadius: 10,
-                                fontSize: 10,
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              {j.status}
-                            </span>
-                          </td>
-                          <td style={{ padding: '8px 0', color: '#aaa' }}>
-                            {new Date(j.created_at).toLocaleDateString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                {/* Open Contracts & Jobs Summary */}
+                <OpenContractsPanel jobs={selectedJobs} />
 
                 {/* Client Payment Ledger */}
                 <div style={{ marginTop: 24 }}>

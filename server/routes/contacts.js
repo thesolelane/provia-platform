@@ -41,7 +41,8 @@ router.get('/:id', requireAuth, (req, res) => {
   const jobs = db
     .prepare(
       `
-    SELECT id, customer_name, project_address, total_value, status, created_at
+    SELECT id, customer_name, project_address, total_value, status, created_at,
+           pb_number, quote_number, contract_pdf_path, deposit_amount
     FROM jobs WHERE archived = 0 AND (
       (customer_email IS NOT NULL AND customer_email = ?) OR
       (customer_phone IS NOT NULL AND customer_phone = ?) OR
@@ -59,6 +60,7 @@ router.get('/:id', requireAuth, (req, res) => {
 
   const jobIds = jobs.map((j) => j.id);
   let paymentSummary = { total_received: 0, total_paid_out: 0, balance: 0 };
+  let perJobReceived = {};
   if (jobIds.length > 0) {
     const placeholders = jobIds.map(() => '?').join(',');
     const recRows = db
@@ -82,9 +84,31 @@ router.get('/:id', requireAuth, (req, res) => {
       total_paid_out: totalOut,
       balance: totalIn - totalOut
     };
+
+    // Per-job received totals for the Open Contracts panel
+    const perJobRows = db
+      .prepare(
+        `SELECT job_id,
+                SUM(CASE WHEN credit_debit = 'debit' THEN -amount ELSE amount END) AS total_received
+         FROM payments_received WHERE job_id IN (${placeholders})
+         GROUP BY job_id`
+      )
+      .all(...jobIds);
+    for (const r of perJobRows) {
+      perJobReceived[r.job_id] = Number(r.total_received) || 0;
+    }
   }
 
-  res.json({ contact, jobs, documents, paymentSummary });
+  const enrichedJobs = jobs.map((j) => {
+    const received = perJobReceived[j.id] || 0;
+    return {
+      ...j,
+      total_received: received,
+      outstanding: Math.max(0, (j.total_value || 0) - received)
+    };
+  });
+
+  res.json({ contact, jobs: enrichedJobs, documents, paymentSummary });
 });
 
 // DELETE a contact document
