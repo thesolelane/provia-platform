@@ -99,12 +99,39 @@ router.get('/:id', requireAuth, (req, res) => {
     }
   }
 
+  // Per-job PO totals
+  let perJobPO = {};
+  if (jobIds.length > 0) {
+    const placeholders2 = jobIds.map(() => '?').join(',');
+    try {
+      const poRows = db
+        .prepare(
+          `SELECT job_id,
+                  COUNT(*) AS po_count,
+                  SUM(CASE WHEN status != 'cancelled' THEN amount ELSE 0 END) AS po_total,
+                  SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS po_paid
+           FROM purchase_orders WHERE job_id IN (${placeholders2})
+           GROUP BY job_id`
+        )
+        .all(...jobIds);
+      for (const r of poRows) {
+        perJobPO[r.job_id] = { po_count: r.po_count || 0, po_total: Number(r.po_total) || 0, po_paid: Number(r.po_paid) || 0 };
+      }
+    } catch {
+      // purchase_orders table may not exist in older installs
+    }
+  }
+
   const enrichedJobs = jobs.map((j) => {
     const received = perJobReceived[j.id] || 0;
+    const poInfo = perJobPO[j.id] || { po_count: 0, po_total: 0, po_paid: 0 };
     return {
       ...j,
       total_received: received,
-      outstanding: Math.max(0, (j.total_value || 0) - received)
+      outstanding: Math.max(0, (j.total_value || 0) - received),
+      po_count: poInfo.po_count,
+      po_total: poInfo.po_total,
+      po_paid: poInfo.po_paid
     };
   });
 

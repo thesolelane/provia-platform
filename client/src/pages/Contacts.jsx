@@ -129,6 +129,13 @@ function OpenContractsPanel({ jobs }) {
                 {fmt(j.outstanding)}
               </strong>
             </span>
+            {j.po_count > 0 && (
+              <span>
+                <span style={{ color: '#888', fontSize: 10 }}>PO SPEND </span>
+                <strong style={{ color: '#7C3AED' }}>{fmt(j.po_total)}</strong>
+                <span style={{ color: '#aaa', fontSize: 10 }}> ({j.po_count} PO{j.po_count !== 1 ? 's' : ''})</span>
+              </span>
+            )}
           </div>
         </div>
         <a

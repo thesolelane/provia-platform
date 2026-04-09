@@ -764,6 +764,41 @@ async function initDatabase() {
   addColIfMissing('leads', 'pb_customer_number', 'TEXT');
   addColIfMissing('leads', 'job_id', 'TEXT');
 
+  // ── Purchase Orders table ─────────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS purchase_orders (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      po_number    TEXT NOT NULL UNIQUE,
+      job_id       TEXT NOT NULL,
+      vendor_id    INTEGER,
+      vendor_name  TEXT,
+      description  TEXT NOT NULL,
+      category     TEXT NOT NULL DEFAULT 'materials',
+      amount       REAL NOT NULL DEFAULT 0,
+      status       TEXT NOT NULL DEFAULT 'pending',
+      issued_date  TEXT,
+      notes        TEXT,
+      created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_job_id    ON purchase_orders(job_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_status    ON purchase_orders(status)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_category  ON purchase_orders(category)`);
+
+  // ── PO counter seed ───────────────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS po_counter (
+      id       INTEGER PRIMARY KEY CHECK (id = 1),
+      next_seq INTEGER NOT NULL DEFAULT 1
+    )
+  `);
+  try {
+    db.prepare('INSERT OR IGNORE INTO po_counter (id, next_seq) VALUES (1, 1)').run();
+  } catch (e) {
+    console.warn('[DB] po_counter seed failed:', e.message);
+  }
+
   // ── Migration: job metadata JSON blob (trade selection, etc.) ────────────────
   try {
     db.prepare('SELECT metadata FROM jobs LIMIT 1').get();

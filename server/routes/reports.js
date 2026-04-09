@@ -451,6 +451,61 @@ function runReport(db, type, period) {
     return { jobs: rows, depositPct, summary };
   }
 
+  // ── PURCHASE ORDERS ─────────────────────────────────────────────────────────
+  if (type === 'purchase_orders') {
+    const dFilter = dateFrom ? `AND po.created_at >= '${dateFrom}'` : '';
+
+    const totals = db.prepare(`
+      SELECT
+        COUNT(*) AS count,
+        SUM(CASE WHEN po.status != 'cancelled' THEN po.amount ELSE 0 END) AS total_spend,
+        SUM(CASE WHEN po.status = 'paid'       THEN po.amount ELSE 0 END) AS paid,
+        SUM(CASE WHEN po.status = 'approved'   THEN po.amount ELSE 0 END) AS approved,
+        SUM(CASE WHEN po.status = 'pending'    THEN po.amount ELSE 0 END) AS pending,
+        SUM(CASE WHEN po.status = 'cancelled'  THEN po.amount ELSE 0 END) AS cancelled
+      FROM purchase_orders po
+      WHERE 1=1 ${dFilter}
+    `).get();
+
+    const byCategory = db.prepare(`
+      SELECT po.category, COUNT(*) AS count, SUM(po.amount) AS total
+      FROM purchase_orders po
+      WHERE po.status != 'cancelled' ${dFilter}
+      GROUP BY po.category
+      ORDER BY total DESC
+    `).all();
+
+    const byJob = db.prepare(`
+      SELECT po.job_id, j.pb_number, j.customer_name, j.project_address,
+             COUNT(*) AS po_count, SUM(po.amount) AS po_total
+      FROM purchase_orders po
+      LEFT JOIN jobs j ON j.id = po.job_id
+      WHERE po.status != 'cancelled' ${dFilter}
+      GROUP BY po.job_id
+      ORDER BY po_total DESC
+      LIMIT 20
+    `).all();
+
+    const byStatus = db.prepare(`
+      SELECT po.status, COUNT(*) AS count, SUM(po.amount) AS total
+      FROM purchase_orders po
+      WHERE 1=1 ${dFilter}
+      GROUP BY po.status
+      ORDER BY total DESC
+    `).all();
+
+    const recent = db.prepare(`
+      SELECT po.*, j.pb_number, j.customer_name, j.project_address
+      FROM purchase_orders po
+      LEFT JOIN jobs j ON j.id = po.job_id
+      WHERE 1=1 ${dFilter}
+      ORDER BY po.created_at DESC
+      LIMIT 50
+    `).all();
+
+    return { totals, byCategory, byJob, byStatus, recent };
+  }
+
   return null;
 }
 

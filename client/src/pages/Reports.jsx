@@ -40,6 +40,12 @@ const REPORT_TYPES = [
     icon: '👤',
     label: 'Customer Report',
     desc: 'All jobs, invoices & payments by customer'
+  },
+  {
+    key: 'purchase_orders',
+    icon: '📦',
+    label: 'Purchase Orders',
+    desc: 'PO spend by category, job, and status'
   }
 ];
 
@@ -1008,6 +1014,89 @@ function DynTable({ rows, cols }) {
 }
 
 // ── Main renderer — dispatches to the right report component ──────────────────
+function PurchaseOrdersReport({ data }) {
+  const { totals, byCategory, byJob, byStatus, recent } = data || {};
+  const STATUS_COLORS_PO = { pending: '#F59E0B', approved: '#3B82F6', paid: GREEN, cancelled: '#aaa' };
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: 12, marginBottom: 24 }}>
+        <KpiCard label="Total PO Spend" value={fmt(totals?.total_spend)} color={BLUE} />
+        <KpiCard label="Paid Out" value={fmt(totals?.paid)} color={GREEN} small />
+        <KpiCard label="Approved (Unpaid)" value={fmt(totals?.approved)} color="#3B82F6" small />
+        <KpiCard label="Pending" value={fmt(totals?.pending)} color={ORANGE} small />
+        <KpiCard label="Total POs" value={totals?.count || 0} color={PURPLE} small />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+        <Section title="Spend by Category">
+          {!byCategory?.length ? <Empty msg="No PO data" /> : (
+            <DynTable
+              rows={byCategory}
+              cols={[
+                { key: 'category', label: 'Category', render: (v) => <span style={{ textTransform: 'capitalize' }}>{v || '—'}</span> },
+                { key: 'count', label: 'POs', align: 'right' },
+                { key: 'total', label: 'Amount', align: 'right', render: (v) => <strong style={{ color: BLUE }}>{fmt(v)}</strong> }
+              ]}
+            />
+          )}
+        </Section>
+
+        <Section title="Spend by Status">
+          {!byStatus?.length ? <Empty msg="No PO data" /> : (
+            <DynTable
+              rows={byStatus}
+              cols={[
+                { key: 'status', label: 'Status', render: (v) => <span style={{ textTransform: 'capitalize', color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600 }}>{v || '—'}</span> },
+                { key: 'count', label: 'POs', align: 'right' },
+                { key: 'total', label: 'Amount', align: 'right', render: (v) => <strong>{fmt(v)}</strong> }
+              ]}
+            />
+          )}
+        </Section>
+      </div>
+
+      <Section title="Top Jobs by PO Spend" style={{ marginBottom: 16 }}>
+        {!byJob?.length ? <Empty msg="No POs linked to jobs yet" /> : (
+          <DynTable
+            rows={byJob}
+            cols={[
+              { key: 'pb_number', label: 'PB #', render: (v, row) => (
+                <a href={`/jobs/${row.job_id}`} style={{ color: BLUE, fontWeight: 700, textDecoration: 'none', fontSize: 11 }}>{v || '—'}</a>
+              )},
+              { key: 'customer_name', label: 'Customer' },
+              { key: 'project_address', label: 'Address', render: (v) => <span style={{ color: '#555', fontSize: 11 }}>{v || '—'}</span> },
+              { key: 'po_count', label: 'POs', align: 'right' },
+              { key: 'po_total', label: 'Total Spend', align: 'right', render: (v) => <strong style={{ color: BLUE }}>{fmt(v)}</strong> }
+            ]}
+          />
+        )}
+      </Section>
+
+      <Section title="Recent Purchase Orders">
+        {!recent?.length ? <Empty msg="No POs in this period" /> : (
+          <DynTable
+            rows={recent}
+            cols={[
+              { key: 'po_number', label: 'PO #', render: (v, row) => (
+                <a href={`/jobs/${row.job_id}`} style={{ color: BLUE, fontWeight: 700, textDecoration: 'none' }}>{v}</a>
+              )},
+              { key: 'pb_number', label: 'Job' },
+              { key: 'description', label: 'Description', render: (v) => <span style={{ fontSize: 11 }}>{v}</span> },
+              { key: 'vendor_name', label: 'Vendor', render: (v) => v || '—' },
+              { key: 'category', label: 'Category', render: (v) => <span style={{ textTransform: 'capitalize', fontSize: 11 }}>{v}</span> },
+              { key: 'status', label: 'Status', render: (v) => (
+                <span style={{ textTransform: 'capitalize', color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600, fontSize: 11 }}>{v}</span>
+              )},
+              { key: 'amount', label: 'Amount', align: 'right', render: (v) => fmt(v) }
+            ]}
+          />
+        )}
+      </Section>
+    </div>
+  );
+}
+
 function ReportView({ type, data }) {
   if (!data) return null;
   if (type === 'pl') return <PLReport data={data} />;
@@ -1016,6 +1105,7 @@ function ReportView({ type, data }) {
   if (type === 'profitability') return <ProfitabilityReport data={data} />;
   if (type === 'passthrough') return <PassThroughReport data={data} />;
   if (type === 'deposits') return <DepositsReport data={data} />;
+  if (type === 'purchase_orders') return <PurchaseOrdersReport data={data} />;
   return <div style={{ color: '#888', padding: 24 }}>Unknown report type.</div>;
 }
 
