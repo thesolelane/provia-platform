@@ -3,9 +3,9 @@ set -e
 
 echo "=== Post-merge setup ==="
 
-# Install root dependencies
+# Install root dependencies (--legacy-peer-deps for eslint-plugin-react peer dep gap with eslint v10)
 echo "Installing server dependencies..."
-npm install --prefer-offline 2>/dev/null || npm install
+npm install --prefer-offline --legacy-peer-deps 2>/dev/null || npm install --legacy-peer-deps
 
 # Install and build client
 echo "Installing client dependencies..."
