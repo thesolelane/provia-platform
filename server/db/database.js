@@ -593,6 +593,15 @@ async function initDatabase() {
   addColIfMissing('payments_received', 'invoice_id', 'INTEGER');
   addColIfMissing('payments_received', 'line_item_ref', 'TEXT');
 
+  // ── Leads pipeline extra fields ───────────────────────────────────────────────
+  addColIfMissing('leads', 'appointment_at', 'DATETIME');
+  addColIfMissing('leads', 'job_address', 'TEXT');
+  addColIfMissing('leads', 'job_city', 'TEXT');
+  addColIfMissing('leads', 'job_email', 'TEXT');
+  addColIfMissing('leads', 'job_scope', 'TEXT');
+  addColIfMissing('leads', 'job_type', 'TEXT');
+  addColIfMissing('leads', 'pb_customer_number', 'TEXT');
+
   // ── Vendors / Subs directory ─────────────────────────────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS vendors (

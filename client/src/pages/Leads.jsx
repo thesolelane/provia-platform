@@ -7,20 +7,20 @@ const BLUE   = '#1B3A6B';
 const ORANGE = '#E07B2A';
 const GREEN  = '#2e7d32';
 const RED    = '#c62828';
+const GREY   = '#64748b';
 
 const STAGES = [
-  { key: 'incoming',            label: 'Incoming',             color: '#7B8EA0', bg: '#eef1f5' },
-  { key: 'callback_done',       label: 'Callback Done',        color: '#5C6BC0', bg: '#e8eaf6' },
-  { key: 'appointment_booked',  label: 'Appointment Booked',   color: '#0288D1', bg: '#e1f5fe' },
-  { key: 'site_visit_complete', label: 'Site Visit Complete',  color: '#00838F', bg: '#e0f7fa' },
-  { key: 'quote_draft',         label: 'Quote Draft',          color: '#F57C00', bg: '#fff3e0' },
-  { key: 'quote_sent',          label: 'Quote Sent',           color: '#558B2F', bg: '#f1f8e9' },
-  { key: 'follow_up_1',         label: 'Follow-up 1',          color: '#7B1FA2', bg: '#f3e5f5' },
-  { key: 'follow_up_2',         label: 'Follow-up 2',          color: '#AD1457', bg: '#fce4ec' },
-  { key: 'signed',              label: 'Signed',               color: GREEN,     bg: '#e8f5e9' },
-  { key: 'rejected',            label: 'Rejected',             color: RED,       bg: '#ffebee' },
+  { key: 'incoming',            label: 'Incoming',            color: '#7B8EA0', bg: '#eef1f5' },
+  { key: 'callback_done',       label: 'Callback Done',       color: '#5C6BC0', bg: '#e8eaf6' },
+  { key: 'appointment_booked',  label: 'Appointment Booked',  color: '#0288D1', bg: '#e1f5fe' },
+  { key: 'site_visit_complete', label: 'Site Visit Complete', color: '#00838F', bg: '#e0f7fa' },
+  { key: 'quote_draft',         label: 'Quote Draft',         color: '#F57C00', bg: '#fff3e0' },
+  { key: 'quote_sent',          label: 'Quote Sent',          color: '#558B2F', bg: '#f1f8e9' },
+  { key: 'follow_up_1',         label: 'Follow-up 1',         color: '#7B1FA2', bg: '#f3e5f5' },
+  { key: 'follow_up_2',         label: 'Follow-up 2',         color: '#AD1457', bg: '#fce4ec' },
+  { key: 'signed',              label: 'Signed ✓',            color: GREEN,     bg: '#e8f5e9' },
+  { key: 'rejected',            label: 'Rejected',            color: RED,       bg: '#ffebee' },
 ];
-
 const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.key, s]));
 
 const NEXT_STAGE = {
@@ -34,64 +34,242 @@ const NEXT_STAGE = {
   follow_up_2:         'signed',
 };
 
-const NEXT_LABEL = {
-  incoming:            'Mark Callback Done',
-  callback_done:       'Book Appointment',
-  appointment_booked:  'Mark Site Visit Done',
-  site_visit_complete: 'Start Quote Draft',
-  quote_draft:         'Mark as Sent to Customer',
-  quote_sent:          'Log Follow-up 1',
-  follow_up_1:         'Log Follow-up 2',
-  follow_up_2:         'Mark as Signed',
+const SOURCE_LABELS = {
+  marblism: '📱 Marblism', referral: '🤝 Referral',
+  web: '🌐 Web', 'walk-in': '🚶 Walk-in', other: 'Other',
 };
 
-const SOURCE_LABELS = {
-  marblism: 'Marblism',
-  referral: 'Referral',
-  web: 'Web',
-  'walk-in': 'Walk-in',
-  other: 'Other',
+const JOB_TYPE_LABELS = {
+  residential: 'Residential', commercial: 'Commercial',
+  new_construction: 'New Construction', renovation: 'Renovation',
 };
 
 const ARCHIVE_REASONS = [
   { value: 'price',       label: 'Price — too expensive' },
   { value: 'timing',      label: 'Timing — not ready yet' },
-  { value: 'no_response', label: 'No response (x3)' },
+  { value: 'no_response', label: 'No response (×3)' },
   { value: 'other',       label: 'Other' },
 ];
 
+// ── local date/time string for datetime-local input ──────────────────────────
+function toLocalDTInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fmtDateTime(iso) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleString('en-US', {
+    timeZone: 'America/New_York', month: 'short', day: 'numeric',
+    year: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+const inputStyle = {
+  border: '1px solid #dde3ed', borderRadius: 6, padding: '8px 11px',
+  fontSize: 13, color: '#333', outline: 'none', width: '100%',
+  fontFamily: 'inherit', background: 'white', boxSizing: 'border-box',
+};
+const btnPrimary = (bg = BLUE) => ({
+  background: bg, color: 'white', border: 'none', borderRadius: 6,
+  padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+});
+const btnSecondary = {
+  background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1',
+  borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12,
+};
+const overlayStyle = {
+  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+  zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+};
+const modalStyle = {
+  background: 'white', borderRadius: 12, padding: 24, width: '100%',
+  maxWidth: 480, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxHeight: '90vh', overflowY: 'auto',
+};
+
+// ── Appointment modal ─────────────────────────────────────────────────────────
+function AppointmentModal({ lead, onConfirm, onClose }) {
+  const [apptAt,  setApptAt]  = useState(toLocalDTInput(lead.appointment_at) || '');
+  const [address, setAddress] = useState(lead.job_address || '');
+  const [city,    setCity]    = useState(lead.job_city    || '');
+  const [email,   setEmail]   = useState(lead.job_email   || '');
+  const [saving,  setSaving]  = useState(false);
+
+  const submit = async () => {
+    if (!apptAt) return showToast('Please pick a date and time', 'error');
+    setSaving(true);
+    await onConfirm({ appointment_at: new Date(apptAt).toISOString(), job_address: address, job_city: city, job_email: email });
+    setSaving(false);
+  };
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={e => e.stopPropagation()}>
+        <div style={{ fontWeight: 700, color: BLUE, fontSize: 16, marginBottom: 16 }}>📅 Book Appointment</div>
+        <div style={{ color: '#555', fontSize: 13, marginBottom: 16 }}>
+          Scheduling appointment with <strong>{lead.caller_name}</strong> ({lead.caller_phone})
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Date & Time *</label>
+            <input type="datetime-local" value={apptAt} onChange={e => setApptAt(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Job Site Address</label>
+            <input placeholder="123 Main St" value={address} onChange={e => setAddress(e.target.value)} style={inputStyle} />
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 2 }}>
+              <label style={labelStyle}>City</label>
+              <input placeholder="Worcester" value={city} onChange={e => setCity(e.target.value)} style={inputStyle} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>State</label>
+              <input value="MA" disabled style={{ ...inputStyle, background: '#f8f8f8', color: '#999' }} />
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Customer Email</label>
+            <input type="email" placeholder="customer@email.com" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+          <button onClick={onClose} style={btnSecondary}>Cancel</button>
+          <button onClick={submit} disabled={saving} style={btnPrimary('#0288D1')}>
+            {saving ? 'Saving…' : '📅 Confirm Appointment'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Job Details modal (before quote draft) ────────────────────────────────────
+function JobDetailsModal({ lead, onConfirm, onClose }) {
+  const [address, setAddress] = useState(lead.job_address || '');
+  const [city,    setCity]    = useState(lead.job_city    || '');
+  const [email,   setEmail]   = useState(lead.job_email   || '');
+  const [scope,   setScope]   = useState(lead.job_scope   || '');
+  const [jobType, setJobType] = useState(lead.job_type    || 'residential');
+  const [saving,  setSaving]  = useState(false);
+
+  const submit = async () => {
+    setSaving(true);
+    await onConfirm({ job_address: address, job_city: city, job_email: email, job_scope: scope, job_type: jobType });
+    setSaving(false);
+  };
+
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={modalStyle} onClick={e => e.stopPropagation()}>
+        <div style={{ fontWeight: 700, color: ORANGE, fontSize: 16, marginBottom: 16 }}>📋 Job Details</div>
+        <div style={{ color: '#555', fontSize: 13, marginBottom: 16 }}>
+          Fill in what you know about <strong>{lead.caller_name}</strong>'s job before drafting the quote. You can update this later.
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <label style={labelStyle}>Job Site Address</label>
+            <input placeholder="123 Main St" value={address} onChange={e => setAddress(e.target.value)} style={inputStyle} />
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 2 }}>
+              <label style={labelStyle}>City</label>
+              <input placeholder="Worcester" value={city} onChange={e => setCity(e.target.value)} style={inputStyle} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>State</label>
+              <input value="MA" disabled style={{ ...inputStyle, background: '#f8f8f8', color: '#999' }} />
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Customer Email</label>
+            <input type="email" placeholder="customer@email.com" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Job Type</label>
+            <select value={jobType} onChange={e => setJobType(e.target.value)} style={inputStyle}>
+              {Object.entries(JOB_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Scope / Description</label>
+            <textarea
+              rows={3}
+              placeholder="e.g. Full bathroom renovation — tile, fixtures, drywall..."
+              value={scope}
+              onChange={e => setScope(e.target.value)}
+              style={{ ...inputStyle, resize: 'vertical' }}
+            />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
+          <button onClick={onClose} style={btnSecondary}>Cancel</button>
+          <button onClick={submit} disabled={saving} style={btnPrimary(ORANGE)}>
+            {saving ? 'Saving…' : '📋 Start Quote Draft'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Archive modal ─────────────────────────────────────────────────────────────
+function ArchiveModal({ lead, onConfirm, onClose }) {
+  const [reason, setReason] = useState('price');
+  return (
+    <div style={overlayStyle} onClick={onClose}>
+      <div style={{ ...modalStyle, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontWeight: 700, color: RED, fontSize: 15, marginBottom: 12 }}>Archive Lead</div>
+        <div style={{ color: '#444', fontSize: 13, marginBottom: 14 }}>
+          Archiving <strong>{lead.caller_name}</strong>. Select a reason:
+        </div>
+        <select value={reason} onChange={e => setReason(e.target.value)} style={{ ...inputStyle, marginBottom: 18 }}>
+          {ARCHIVE_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+        </select>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={btnSecondary}>Cancel</button>
+          <button onClick={() => onConfirm(reason)} style={btnPrimary(RED)}>Archive</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const labelStyle = { fontSize: 11, color: '#888', display: 'block', marginBottom: 4, fontWeight: 600 };
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function Leads({ token }) {
-  const [leads, setLeads]           = useState([]);
-  const [loading, setLoading]       = useState(true);
+  const [leads,        setLeads]        = useState([]);
+  const [loading,      setLoading]      = useState(true);
   const [showArchived, setShowArchived] = useState(false);
-  const [showNewForm, setShowNewForm]   = useState(false);
-  const [newForm, setNewForm]       = useState({ caller_name: '', caller_phone: '', source: 'other', notes: '' });
-  const [savingNew, setSavingNew]   = useState(false);
-  const [archiveModal, setArchiveModal] = useState(null);
-  const [archiveReason, setArchiveReason] = useState('price');
+  const [showNewForm,  setShowNewForm]  = useState(false);
+  const [newForm,      setNewForm]      = useState({ caller_name: '', caller_phone: '', source: 'other', notes: '' });
+  const [savingNew,    setSavingNew]    = useState(false);
+
+  // Active modal state
+  const [apptModal,    setApptModal]    = useState(null);  // lead
+  const [jobModal,     setJobModal]     = useState(null);  // lead
+  const [archiveModal, setArchiveModal] = useState(null);  // lead
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/leads?archived=${showArchived ? 1 : 0}`, { headers });
+      const res  = await fetch(`/api/leads?archived=${showArchived ? 1 : 0}`, { headers });
       const data = await res.json();
       setLeads(data.leads || []);
-    } catch {
-      showToast('Failed to load leads', 'error');
-    }
+    } catch { showToast('Failed to load leads', 'error'); }
     setLoading(false);
   }, [showArchived, token]);
 
   useEffect(() => { load(); }, [load]);
 
   const patchLead = async (id, body) => {
-    const res = await fetch(`/api/leads/${id}`, {
-      method: 'PATCH',
-      headers,
-      body: JSON.stringify(body),
-    });
+    const res = await fetch(`/api/leads/${id}`, { method: 'PATCH', headers, body: JSON.stringify(body) });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to update lead');
@@ -99,43 +277,58 @@ export default function Leads({ token }) {
     return res.json();
   };
 
+  const updateLead = (updated) =>
+    setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+
+  // ── Appointment booking ───────────────────────────────────────────────────
+  const confirmAppointment = async (fields) => {
+    try {
+      const data = await patchLead(apptModal.id, { stage: 'appointment_booked', ...fields });
+      updateLead(data.lead);
+      showToast(`Appointment booked — task & calendar link created`, 'success');
+      setApptModal(null);
+    } catch (err) { showToast(err.message, 'error'); }
+  };
+
+  // ── Job details / start quote draft ──────────────────────────────────────
+  const confirmJobDetails = async (fields) => {
+    try {
+      const data = await patchLead(jobModal.id, { stage: 'quote_draft', ...fields });
+      updateLead(data.lead);
+      showToast('Quote draft started — task created', 'success');
+      setJobModal(null);
+    } catch (err) { showToast(err.message, 'error'); }
+  };
+
+  // ── Generic advance (all other stages) ───────────────────────────────────
   const advanceStage = async (lead) => {
     const next = NEXT_STAGE[lead.stage];
     if (!next) return;
+    if (next === 'appointment_booked') { setApptModal(lead); return; }
+    if (next === 'quote_draft')        { setJobModal(lead);  return; }
     try {
       const data = await patchLead(lead.id, { stage: next });
-      setLeads(prev => prev.map(l => l.id === lead.id ? data.lead : l));
-      showToast(`Lead moved to ${STAGE_MAP[next]?.label || next}`, 'success');
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
+      updateLead(data.lead);
+      const stg = STAGE_MAP[next];
+      showToast(`${lead.caller_name} moved to ${stg?.label || next}`, 'success');
+    } catch (err) { showToast(err.message, 'error'); }
   };
 
   const saveNotes = async (lead, notes) => {
     try {
-      await patchLead(lead.id, { notes });
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
+      const data = await patchLead(lead.id, { notes });
+      updateLead(data.lead);
+    } catch (err) { showToast(err.message, 'error'); }
   };
 
-  const openArchiveModal = (lead) => {
-    setArchiveModal(lead);
-    setArchiveReason('price');
-  };
-
-  const confirmArchive = async () => {
-    if (!archiveModal) return;
+  const confirmArchive = async (reason) => {
     try {
-      const data = await patchLead(archiveModal.id, { stage: 'rejected', archive_reason: archiveReason });
+      const data = await patchLead(archiveModal.id, { stage: 'rejected', archive_reason: reason });
       setLeads(prev => showArchived
         ? prev.map(l => l.id === archiveModal.id ? data.lead : l)
-        : prev.filter(l => l.id !== archiveModal.id)
-      );
+        : prev.filter(l => l.id !== archiveModal.id));
       showToast('Lead archived', 'success');
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
+    } catch (err) { showToast(err.message, 'error'); }
     setArchiveModal(null);
   };
 
@@ -147,9 +340,7 @@ export default function Leads({ token }) {
       if (!res.ok) throw new Error('Delete failed');
       setLeads(prev => prev.filter(l => l.id !== lead.id));
       showToast('Lead deleted', 'success');
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
+    } catch (err) { showToast(err.message, 'error'); }
   };
 
   const createLead = async (e) => {
@@ -161,40 +352,34 @@ export default function Leads({ token }) {
     setSavingNew(true);
     try {
       const res = await fetch('/api/leads', { method: 'POST', headers, body: JSON.stringify(newForm) });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to create lead');
-      }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed'); }
       const data = await res.json();
       setLeads(prev => [data.lead, ...prev]);
       setNewForm({ caller_name: '', caller_phone: '', source: 'other', notes: '' });
       setShowNewForm(false);
       showToast('Lead created', 'success');
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
+    } catch (err) { showToast(err.message, 'error'); }
     setSavingNew(false);
   };
 
-  // Group active leads by stage
+  // Group by stage
   const byStage = {};
   for (const s of STAGES) byStage[s.key] = [];
   for (const l of leads) {
     if (byStage[l.stage]) byStage[l.stage].push(l);
     else byStage['incoming'].push(l);
   }
-
-  const activeStageCounts = STAGES.filter(s => s.key !== 'rejected').reduce((sum, s) => sum + byStage[s.key].length, 0);
+  const totalActive = STAGES.filter(s => s.key !== 'rejected').reduce((n, s) => n + byStage[s.key].length, 0);
 
   return (
-    <div style={{ padding: '24px 20px', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: '24px 20px', maxWidth: 1100, margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, color: BLUE, fontSize: 22, fontWeight: 700 }}>📞 Lead Pipeline</h1>
           <div style={{ color: '#666', fontSize: 13, marginTop: 3 }}>
-            {activeStageCounts} active lead{activeStageCounts !== 1 ? 's' : ''}
+            {totalActive} active lead{totalActive !== 1 ? 's' : ''} · Stages auto-create tasks &amp; calendar events
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -202,137 +387,107 @@ export default function Leads({ token }) {
             <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
             Show archived
           </label>
-          <button
-            onClick={() => setShowNewForm(v => !v)}
-            style={{ background: ORANGE, color: 'white', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-          >
-            + New Lead
-          </button>
+          <button onClick={() => setShowNewForm(v => !v)} style={btnPrimary(ORANGE)}>+ New Lead</button>
         </div>
       </div>
 
       {/* New lead form */}
       {showNewForm && (
-        <div style={{ background: 'white', border: `1px solid #dde3ed`, borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+        <div style={{ background: 'white', border: '1px solid #dde3ed', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
           <div style={{ fontWeight: 700, color: BLUE, marginBottom: 14, fontSize: 15 }}>New Lead</div>
-          <form onSubmit={createLead} style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-            <input
-              placeholder="Caller name *"
-              value={newForm.caller_name}
-              onChange={e => setNewForm(f => ({ ...f, caller_name: e.target.value }))}
-              required
-              style={inputStyle}
-            />
-            <input
-              placeholder="Phone *"
-              value={newForm.caller_phone}
-              onChange={e => setNewForm(f => ({ ...f, caller_phone: e.target.value }))}
-              required
-              style={inputStyle}
-            />
-            <select
-              value={newForm.source}
-              onChange={e => setNewForm(f => ({ ...f, source: e.target.value }))}
-              style={inputStyle}
-            >
+          <form onSubmit={createLead} style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            <input placeholder="Name *" value={newForm.caller_name} onChange={e => setNewForm(f => ({ ...f, caller_name: e.target.value }))} required style={{ ...inputStyle, flex: '1 1 160px' }} />
+            <input placeholder="Phone *" value={newForm.caller_phone} onChange={e => setNewForm(f => ({ ...f, caller_phone: e.target.value }))} required style={{ ...inputStyle, flex: '1 1 140px' }} />
+            <select value={newForm.source} onChange={e => setNewForm(f => ({ ...f, source: e.target.value }))} style={{ ...inputStyle, flex: '1 1 130px' }}>
               {Object.entries(SOURCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            <input
-              placeholder="Notes (optional)"
-              value={newForm.notes}
-              onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))}
-              style={{ ...inputStyle, flex: '1 1 260px' }}
-            />
+            <input placeholder="Notes (optional)" value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inputStyle, flex: '2 1 200px' }} />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-              <button type="submit" disabled={savingNew} style={{ background: BLUE, color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
-                {savingNew ? 'Saving…' : 'Save'}
-              </button>
-              <button type="button" onClick={() => setShowNewForm(false)} style={{ background: '#eee', border: 'none', borderRadius: 6, padding: '8px 14px', cursor: 'pointer', fontSize: 13 }}>Cancel</button>
+              <button type="submit" disabled={savingNew} style={btnPrimary()}>{savingNew ? 'Saving…' : 'Save'}</button>
+              <button type="button" onClick={() => setShowNewForm(false)} style={btnSecondary}>Cancel</button>
             </div>
           </form>
         </div>
       )}
 
+      {/* Pipeline */}
       {loading ? (
         <div style={{ textAlign: 'center', color: '#888', padding: 48 }}>Loading…</div>
       ) : leads.length === 0 ? (
         <div style={{ textAlign: 'center', color: '#aaa', padding: 48 }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-          <div>No leads yet. Marblism missed calls will appear here automatically.</div>
+          <div>No leads yet. Marblism missed calls appear here automatically.</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-          {STAGES.filter(s => showArchived ? s.key === 'rejected' : s.key !== 'rejected').map(stg => {
-            const stageLeads = byStage[stg.key] || [];
-            if (!showArchived && stageLeads.length === 0) return null;
-            return (
-              <section key={stg.key}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <span style={{ background: stg.bg, color: stg.color, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700, border: `1px solid ${stg.color}30` }}>
-                    {stg.label}
-                  </span>
-                  <span style={{ color: '#aaa', fontSize: 12 }}>{stageLeads.length} lead{stageLeads.length !== 1 ? 's' : ''}</span>
-                </div>
-                {stageLeads.length === 0 ? (
-                  <div style={{ color: '#ccc', fontSize: 13, paddingLeft: 8 }}>—</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {stageLeads.map(lead => (
-                      <LeadCard
-                        key={lead.id}
-                        lead={lead}
-                        onAdvance={() => advanceStage(lead)}
-                        onArchive={() => openArchiveModal(lead)}
-                        onDelete={() => deleteLead(lead)}
-                        onSaveNotes={(notes) => saveNotes(lead, notes)}
-                        headers={headers}
-                        setLeads={setLeads}
-                      />
-                    ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {STAGES
+            .filter(s => showArchived ? s.key === 'rejected' : s.key !== 'rejected')
+            .map(stg => {
+              const stageLeads = byStage[stg.key] || [];
+              if (!showArchived && stageLeads.length === 0) return null;
+              return (
+                <section key={stg.key}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ background: stg.bg, color: stg.color, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700, border: `1px solid ${stg.color}30` }}>
+                      {stg.label}
+                    </span>
+                    <span style={{ color: '#aaa', fontSize: 12 }}>{stageLeads.length} lead{stageLeads.length !== 1 ? 's' : ''}</span>
                   </div>
-                )}
-              </section>
-            );
-          })}
+                  {stageLeads.length === 0 ? (
+                    <div style={{ color: '#ddd', fontSize: 13, paddingLeft: 8 }}>—</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {stageLeads.map(lead => (
+                        <LeadCard
+                          key={lead.id}
+                          lead={lead}
+                          onAdvance={() => advanceStage(lead)}
+                          onArchive={() => setArchiveModal(lead)}
+                          onDelete={() => deleteLead(lead)}
+                          onSaveNotes={notes => saveNotes(lead, notes)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
         </div>
       )}
 
-      {/* Archive modal */}
-      {archiveModal && (
-        <div style={overlayStyle} onClick={() => setArchiveModal(null)}>
-          <div style={modalStyle} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 700, color: RED, fontSize: 16, marginBottom: 12 }}>Archive Lead</div>
-            <div style={{ color: '#444', fontSize: 14, marginBottom: 16 }}>
-              Archiving <strong>{archiveModal.caller_name}</strong>. Select a reason:
-            </div>
-            <select
-              value={archiveReason}
-              onChange={e => setArchiveReason(e.target.value)}
-              style={{ ...inputStyle, width: '100%', marginBottom: 18 }}
-            >
-              {ARCHIVE_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => setArchiveModal(null)} style={{ background: '#eee', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13 }}>Cancel</button>
-              <button onClick={confirmArchive} style={{ background: RED, color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>Archive</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modals */}
+      {apptModal    && <AppointmentModal lead={apptModal}  onConfirm={confirmAppointment} onClose={() => setApptModal(null)} />}
+      {jobModal     && <JobDetailsModal  lead={jobModal}   onConfirm={confirmJobDetails}  onClose={() => setJobModal(null)} />}
+      {archiveModal && <ArchiveModal     lead={archiveModal} onConfirm={confirmArchive}   onClose={() => setArchiveModal(null)} />}
     </div>
   );
 }
 
-function LeadCard({ lead, onAdvance, onArchive, onDelete, onSaveNotes, headers, setLeads }) {
-  const [notes, setNotes]   = useState(lead.notes || '');
+// ── Lead Card ─────────────────────────────────────────────────────────────────
+function LeadCard({ lead, onAdvance, onArchive, onDelete, onSaveNotes }) {
+  const [notes,  setNotes]  = useState(lead.notes || '');
   const [saving, setSaving] = useState(false);
 
-  const stg = STAGE_MAP[lead.stage] || STAGE_MAP['incoming'];
-  const nextLabel = NEXT_LABEL[lead.stage];
-  const canAdvance = !!NEXT_STAGE[lead.stage];
+  // Keep notes in sync if lead prop updates
+  useEffect(() => { setNotes(lead.notes || ''); }, [lead.notes]);
+
+  const stg        = STAGE_MAP[lead.stage] || STAGE_MAP['incoming'];
+  const nextStage  = NEXT_STAGE[lead.stage];
+  const canAdvance = !!nextStage;
   const isArchived = lead.archived === 1;
   const isSigned   = lead.stage === 'signed';
   const isQuoteDraft = lead.stage === 'quote_draft';
+
+  const nextLabel = {
+    incoming:            '📞 Log Callback Done',
+    callback_done:       '📅 Book Appointment',
+    appointment_booked:  '🏠 Mark Site Visit Done',
+    site_visit_complete: '📋 Start Quote Draft',
+    quote_draft:         '✉ Mark as Sent to Customer',
+    quote_sent:          '📞 Log Follow-up 1',
+    follow_up_1:         '📞 Log Follow-up 2',
+    follow_up_2:         '✅ Mark as Signed',
+  }[lead.stage];
 
   const handleBlur = async () => {
     if (notes === (lead.notes || '')) return;
@@ -341,124 +496,134 @@ function LeadCard({ lead, onAdvance, onArchive, onDelete, onSaveNotes, headers, 
     setSaving(false);
   };
 
+  const jobAddr  = [lead.job_address, lead.job_city].filter(Boolean).join(', ');
+  const apptFmt  = fmtDateTime(lead.appointment_at);
+  const calURL   = lead.appointment_at
+    ? buildCalURL(lead)
+    : null;
+
   return (
     <div style={{
-      background: 'white',
-      border: '1px solid #dde3ed',
-      borderRadius: 10,
-      padding: '14px 16px',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 10,
+      background: 'white', border: '1px solid #dde3ed', borderRadius: 10,
+      padding: '14px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+      borderLeft: `4px solid ${stg.color}`,
     }}>
       {/* Top row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-        <div>
-          <div style={{ fontWeight: 700, color: '#1a1a2e', fontSize: 15 }}>{lead.caller_name}</div>
-          <div style={{ color: '#555', fontSize: 13, marginTop: 2 }}>{lead.caller_phone}</div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 700, color: '#1a1a2e', fontSize: 15 }}>{lead.caller_name}</span>
+            <a href={`tel:${lead.caller_phone}`} style={{ color: BLUE, fontSize: 13, textDecoration: 'none' }}>
+              {lead.caller_phone}
+            </a>
+          </div>
+
+          {/* Badges */}
+          <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ background: stg.bg, color: stg.color, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700, border: `1px solid ${stg.color}30` }}>
               {stg.label}
             </span>
-            <span style={{ background: '#f0f0f0', color: '#666', borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>
+            <span style={{ background: '#f0f4f8', color: GREY, borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>
               {SOURCE_LABELS[lead.source] || lead.source}
             </span>
-            {lead.contact_id && (
-              <span style={{ background: '#e8f5e9', color: '#2e7d32', borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>
-                Contact linked
+            {lead.pb_customer_number && (
+              <span style={{ background: '#e0e8ff', color: BLUE, borderRadius: 20, padding: '2px 9px', fontSize: 11, fontWeight: 700, fontFamily: 'monospace' }}>
+                {lead.pb_customer_number}
               </span>
             )}
-            {isSigned && (
-              <span style={{ background: '#e8f5e9', color: '#2e7d32', borderRadius: 20, padding: '2px 9px', fontSize: 11, fontWeight: 700 }}>
-                ✓ Signed
+            {lead.contact_id && !lead.pb_customer_number && (
+              <span style={{ background: '#e8f5e9', color: GREEN, borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>✓ Contact linked</span>
+            )}
+            {lead.job_type && (
+              <span style={{ background: '#fdf4e7', color: '#92400e', borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>
+                {JOB_TYPE_LABELS[lead.job_type] || lead.job_type}
               </span>
             )}
             {isArchived && lead.archive_reason && (
-              <span style={{ background: '#ffebee', color: '#c62828', borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>
+              <span style={{ background: '#ffebee', color: RED, borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>
                 {lead.archive_reason.replace(/_/g, ' ')}
               </span>
             )}
           </div>
+
+          {/* Appointment date */}
+          {apptFmt && (
+            <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, color: '#0288D1', fontWeight: 600 }}>📅 {apptFmt}</span>
+              {calURL && (
+                <a href={calURL} target="_blank" rel="noreferrer"
+                  style={{ fontSize: 11, color: BLUE, textDecoration: 'underline' }}>
+                  Add to Calendar
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Job address / scope summary */}
+          {jobAddr && (
+            <div style={{ marginTop: 5, fontSize: 12, color: '#555' }}>
+              📍 {jobAddr}
+            </div>
+          )}
+          {lead.job_email && (
+            <div style={{ marginTop: 3, fontSize: 12, color: '#555' }}>
+              ✉ {lead.job_email}
+            </div>
+          )}
+          {lead.job_scope && (
+            <div style={{ marginTop: 4, fontSize: 12, color: '#777', fontStyle: 'italic' }}>
+              {lead.job_scope.length > 120 ? lead.job_scope.slice(0, 117) + '…' : lead.job_scope}
+            </div>
+          )}
         </div>
-        <div style={{ color: '#aaa', fontSize: 11, whiteSpace: 'nowrap' }}>
+
+        <div style={{ color: '#aaa', fontSize: 11, whiteSpace: 'nowrap', paddingTop: 2 }}>
           {new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
         </div>
       </div>
 
       {/* Notes */}
-      <div>
-        <textarea
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-          onBlur={handleBlur}
-          placeholder="Add notes…"
-          rows={2}
-          style={{
-            width: '100%',
-            border: '1px solid #dde3ed',
-            borderRadius: 6,
-            padding: '7px 10px',
-            fontSize: 13,
-            color: '#333',
-            resize: 'vertical',
-            boxSizing: 'border-box',
-            fontFamily: 'inherit',
-            background: saving ? '#fffbe6' : 'white',
-          }}
-        />
-      </div>
+      <textarea
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        onBlur={handleBlur}
+        placeholder="Add notes…"
+        rows={2}
+        style={{
+          width: '100%', border: '1px solid #dde3ed', borderRadius: 6, padding: '7px 10px',
+          fontSize: 13, color: '#333', resize: 'vertical', boxSizing: 'border-box',
+          fontFamily: 'inherit', background: saving ? '#fffbe6' : '#fafafa',
+        }}
+      />
 
-      {/* Actions */}
+      {/* Action buttons */}
       {!isArchived && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
           {canAdvance && !isSigned && (
-            <button
-              onClick={onAdvance}
-              style={{
-                background: isQuoteDraft ? '#558B2F' : '#1B3A6B',
-                color: 'white',
-                border: 'none',
-                borderRadius: 6,
-                padding: '7px 14px',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 600,
-              }}
-            >
-              {isQuoteDraft ? '✉ Mark as Sent to Customer' : nextLabel}
+            <button onClick={onAdvance} style={btnPrimary(isQuoteDraft ? GREEN : BLUE)}>
+              {nextLabel}
             </button>
           )}
           {isQuoteDraft && (
-            <button
-              onClick={() => showToast('Open the Jobs page to regenerate the quote.', 'info')}
-              style={{ background: '#FFF3E0', color: '#E65100', border: '1px solid #FFB74D', borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
-            >
-              Regenerate Quote
-            </button>
+            <a href="/estimate-wizard" style={{
+              ...btnPrimary('#F57C00'), textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
+            }}>
+              📝 Open Quote Wizard
+            </a>
           )}
           {!isSigned && (
-            <button
-              onClick={onArchive}
-              style={{ background: '#fff', color: '#c62828', border: '1px solid #ef9a9a', borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}
-            >
+            <button onClick={onArchive} style={{ background: '#fff', color: RED, border: '1px solid #ef9a9a', borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
               Archive
             </button>
           )}
-          <button
-            onClick={onDelete}
-            style={{ background: '#fff', color: '#aaa', border: '1px solid #ddd', borderRadius: 6, padding: '7px 10px', cursor: 'pointer', fontSize: 11 }}
-          >
+          <button onClick={onDelete} style={{ background: '#fff', color: '#aaa', border: '1px solid #ddd', borderRadius: 6, padding: '7px 10px', cursor: 'pointer', fontSize: 11 }}>
             Delete
           </button>
         </div>
       )}
       {isArchived && (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={onDelete}
-            style={{ background: '#fff', color: '#aaa', border: '1px solid #ddd', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 11 }}
-          >
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button onClick={onDelete} style={{ background: '#fff', color: '#aaa', border: '1px solid #ddd', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 11 }}>
             Delete permanently
           </button>
         </div>
@@ -467,33 +632,21 @@ function LeadCard({ lead, onAdvance, onArchive, onDelete, onSaveNotes, headers, 
   );
 }
 
-const inputStyle = {
-  border: '1px solid #dde3ed',
-  borderRadius: 6,
-  padding: '8px 11px',
-  fontSize: 13,
-  color: '#333',
-  outline: 'none',
-  flex: '1 1 160px',
-  fontFamily: 'inherit',
-  background: 'white',
-};
-
-const overlayStyle = {
-  position: 'fixed',
-  inset: 0,
-  background: 'rgba(0,0,0,0.45)',
-  zIndex: 2000,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-};
-
-const modalStyle = {
-  background: 'white',
-  borderRadius: 12,
-  padding: '24px',
-  width: '100%',
-  maxWidth: 400,
-  boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-};
+function buildCalURL(lead) {
+  if (!lead.appointment_at) return null;
+  try {
+    const calDate = iso => iso.replace(/[-:]/g, '').replace(/\.\d{3}Z?$/, '').slice(0, 15);
+    const start   = calDate(new Date(lead.appointment_at).toISOString());
+    const endDt   = new Date(new Date(lead.appointment_at).getTime() + 2 * 3600000);
+    const end     = calDate(endDt.toISOString());
+    const addr    = [lead.job_address, lead.job_city].filter(Boolean).join(', ');
+    const parts   = [
+      'action=TEMPLATE',
+      `text=${encodeURIComponent(`Appointment: ${lead.caller_name}`)}`,
+      `dates=${start}/${end}`,
+      `details=${encodeURIComponent(`Site visit with ${lead.caller_name} (${lead.caller_phone})`)}`,
+    ];
+    if (addr) parts.push(`location=${encodeURIComponent(addr)}`);
+    return `https://calendar.google.com/calendar/render?${parts.join('&')}`;
+  } catch { return null; }
+}
