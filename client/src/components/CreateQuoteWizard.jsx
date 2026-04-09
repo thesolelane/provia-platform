@@ -870,7 +870,7 @@ function buildTradesContext(selectedTrades) {
 }
 
 // ── Main wizard component ──────────────────────────────────────────────────
-export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
+export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefillLead }) {
   // STEPS: 0=Contact, 1=Job Address, 2=Scope, 3=Trades, 4=AI Questions (dynamic), 5=Review
   const TRADE_STEP = 3;
   const BASE_STEPS = ['Contact', 'Job Address', 'Scope of Work', 'Trades', 'Review'];
@@ -880,9 +880,18 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   const [busy, setBusy] = useState(false);
   const [fetchingQuestions, setFetchingQuestions] = useState(false);
 
-  const [contact, setContact] = useState({ name: '', phone: '', email: '' });
-  const [address, setAddress] = useState({ street: '', city: '', state: '', zip: '' });
-  const [scope, setScope] = useState('');
+  const [contact, setContact] = useState({
+    name:  prefillLead?.caller_name  || '',
+    phone: prefillLead?.caller_phone || '',
+    email: prefillLead?.job_email    || '',
+  });
+  const [address, setAddress] = useState({
+    street: prefillLead?.job_address || '',
+    city:   prefillLead?.job_city    || '',
+    state:  '',
+    zip:    '',
+  });
+  const [scope, setScope] = useState(prefillLead?.job_scope || '');
   const [budgetTarget, setBudgetTarget] = useState('');
 
   const [selectedTrades, setSelectedTrades] = useState(new Set());
@@ -1110,7 +1119,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
       setBusy(false);
       if (res.ok) {
         showToast('Proposal submitted — processing now');
-        onSubmitted();
+        onSubmitted(data.jobId);
         onClose();
         navigate(`/jobs/${data.jobId}`);
       } else {

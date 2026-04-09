@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
+import CreateQuoteWizard from '../components/CreateQuoteWizard';
 
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -385,6 +386,7 @@ export default function Leads({ token }) {
   const [apptModal, setApptModal] = useState(null); // lead
   const [jobModal, setJobModal] = useState(null); // lead
   const [archiveModal, setArchiveModal] = useState(null); // lead
+  const [wizardLead, setWizardLead] = useState(null); // lead to open wizard for
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
@@ -735,6 +737,7 @@ export default function Leads({ token }) {
                           onArchive={() => setArchiveModal(lead)}
                           onDelete={() => deleteLead(lead)}
                           onSaveNotes={(notes) => saveNotes(lead, notes)}
+                          onOpenWizard={() => setWizardLead(lead)}
                         />
                       ))}
                     </div>
@@ -744,6 +747,26 @@ export default function Leads({ token }) {
             }
           )}
         </div>
+      )}
+
+      {/* Wizard modal */}
+      {wizardLead && (
+        <CreateQuoteWizard
+          token={token}
+          prefillLead={wizardLead}
+          onClose={() => setWizardLead(null)}
+          onSubmitted={async (jobId) => {
+            if (jobId) {
+              await fetch(`/api/leads/${wizardLead.id}`, {
+                method: 'PATCH',
+                headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stage: 'quote_sent', job_id: String(jobId) })
+              });
+              load();
+            }
+            setWizardLead(null);
+          }}
+        />
       )}
 
       {/* Modals */}
@@ -858,7 +881,7 @@ function LeadPhotoThumb({ photo, token }) {
 }
 
 // ── Lead Card ─────────────────────────────────────────────────────────────────
-function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) {
+function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, onOpenWizard }) {
   const [notes, setNotes] = useState(lead.notes || '');
   const [saving, setSaving] = useState(false);
   const [leadPhotos, setLeadPhotos] = useState([]);
@@ -1098,6 +1121,30 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) 
         </div>
       </div>
 
+      {/* Linked job badge */}
+      {lead.job_id && (
+        <div style={{ marginBottom: 6 }}>
+          <a
+            href={`/jobs/${lead.job_id}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 11,
+              fontWeight: 600,
+              color: GREEN,
+              background: '#e8f5e9',
+              border: '1px solid #a5d6a7',
+              borderRadius: 12,
+              padding: '3px 10px',
+              textDecoration: 'none'
+            }}
+          >
+            🔗 Linked Job #{lead.job_id}
+          </a>
+        </div>
+      )}
+
       {/* Notes */}
       <textarea
         value={notes}
@@ -1128,17 +1175,12 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) 
             </button>
           )}
           {isQuoteDraft && (
-            <a
-              href="/estimate-wizard"
-              style={{
-                ...btnPrimary('#F57C00'),
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center'
-              }}
+            <button
+              onClick={onOpenWizard}
+              style={btnPrimary('#F57C00')}
             >
               📝 Open Proposal Wizard
-            </a>
+            </button>
           )}
           {!isSigned && (
             <button

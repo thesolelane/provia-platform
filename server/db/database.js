@@ -762,6 +762,7 @@ async function initDatabase() {
   addColIfMissing('leads', 'job_scope', 'TEXT');
   addColIfMissing('leads', 'job_type', 'TEXT');
   addColIfMissing('leads', 'pb_customer_number', 'TEXT');
+  addColIfMissing('leads', 'job_id', 'TEXT');
 
   // ── Migration: job metadata JSON blob (trade selection, etc.) ────────────────
   try {

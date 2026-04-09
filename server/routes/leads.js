@@ -310,7 +310,8 @@ router.patch('/:id', requireAuth, async (req, res) => {
       job_city,
       job_email,
       job_scope,
-      job_type
+      job_type,
+      job_id,
     } = req.body;
 
     const updates = [];
@@ -324,6 +325,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
         params.push(val);
       }
     }
+    if (job_id !== undefined) { updates.push('job_id = ?'); params.push(job_id || null); }
     if (job_type !== undefined && (VALID_JOB_TYPES.includes(job_type) || job_type === '')) {
       updates.push('job_type = ?');
       params.push(job_type);
