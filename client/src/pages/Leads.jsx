@@ -757,11 +757,19 @@ export default function Leads({ token }) {
           onClose={() => setWizardLead(null)}
           onSubmitted={async (jobId) => {
             if (jobId) {
-              await fetch(`/api/leads/${wizardLead.id}`, {
-                method: 'PATCH',
-                headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ stage: 'quote_sent', job_id: String(jobId) })
-              });
+              try {
+                const r = await fetch(`/api/leads/${wizardLead.id}`, {
+                  method: 'PATCH',
+                  headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ stage: 'quote_sent', job_id: String(jobId) })
+                });
+                if (!r.ok) {
+                  const e = await r.json().catch(() => ({}));
+                  showToast(e.error || 'Could not link job to lead', 'error');
+                }
+              } catch {
+                showToast('Network error linking job to lead', 'error');
+              }
               load();
             }
             setWizardLead(null);

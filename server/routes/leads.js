@@ -220,7 +220,7 @@ router.get('/', requireAuth, (req, res) => {
       .prepare(`
         SELECT l.*, j.pb_number AS job_pb_number
         FROM leads l
-        LEFT JOIN jobs j ON CAST(l.job_id AS INTEGER) = j.id
+        LEFT JOIN jobs j ON l.job_id = j.id
         WHERE l.archived = ?
         ORDER BY l.updated_at DESC
       `)
