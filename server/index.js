@@ -215,6 +215,9 @@ app.use('/webhook/email',     require('./routes/webhookEmail'));
 app.use('/webhook/whatsapp',  require('./routes/webhookWhatsapp'));
 app.use('/webhook',           require('./routes/emailLog'));
 
+// ── TRADE SELECT (public — tokenized one-time mobile selection page) ──
+app.use(require('./routes/tradeSelect'));
+
 // ── SERVE REACT FRONTEND (production) ────────────────────────
 const clientBuild = path.join(__dirname, '../client/build');
 if (fs.existsSync(clientBuild)) {

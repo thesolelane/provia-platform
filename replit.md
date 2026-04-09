@@ -61,6 +61,9 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 - `server/services/whatsappService.js` — `sendWhatsApp()` via Twilio
 - `config/parameters.js` — Company info, pricing defaults, team contact info
 
+### Shared Data
+- `shared/departments.json` — Master list of trade departments and sub-departments (with hidden `meaning` descriptions for AI context). Mirrored to `client/src/data/departments.json` for frontend use. Includes: Demo, Framing, Roofing, Siding, Insulation, Drywall, Electrical, Plumbing, HVAC, Flooring, Tile, Cabinets/Countertops, Painting, Permits.
+
 ### Client
 - `client/src/App.jsx` — React router; persists token + user name/role in localStorage; auto-logout on 401
 - `client/src/components/Layout.jsx` — Sidebar nav; shows "Logged in as [Name] (Role)" in footer

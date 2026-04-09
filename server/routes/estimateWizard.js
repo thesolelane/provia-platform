@@ -23,6 +23,13 @@ const {
   extractExternalRef
 } = require('../services/jobHelpers');
 
+// ── Build trades narrative from selected trades payload ────────────────────
+function buildTradesNarrative(selectedTrades) {
+  if (!Array.isArray(selectedTrades) || selectedTrades.length === 0) return '';
+  const lines = selectedTrades.map(t => `- ${t.name} (${t.deptName}): ${t.meaning}`);
+  return `\n\nEXPLICITLY SELECTED TRADES (user-confirmed):\n${lines.join('\n')}\nUse this list to calibrate line items and pricing — these trades are confirmed to be in scope.`;
+}
+
 // ── POST /wizard — simple wizard (scope text only, immediate processing) ──
 router.post('/wizard', requireAuth, async (req, res) => {
   const { v4: uuidv4 } = require('uuid');
@@ -198,14 +205,14 @@ router.post('/wizard/extract-text', requireAuth, async (req, res) => {
 
 // ── POST /wizard/questions — AI generates clarifying questions from scope text ──
 router.post('/wizard/questions', requireAuth, async (req, res) => {
-  const { scopeText, projectAddress, budgetTarget } = req.body;
+  const { scopeText, projectAddress, budgetTarget, selectedTrades } = req.body;
   if (!scopeText || scopeText.trim().length < 20) {
     return res.status(400).json({ error: 'Scope text is required (at least 20 characters).' });
   }
 
   const { generateWizardQuestions } = require('../services/claudeService');
   try {
-    const questions = await generateWizardQuestions(scopeText, projectAddress || '', budgetTarget || null);
+    const questions = await generateWizardQuestions(scopeText, projectAddress || '', budgetTarget || null, selectedTrades || []);
     res.json({ questions });
   } catch (err) {
     console.error('[Wizard/Questions] Error:', err.message);
@@ -227,7 +234,8 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     scopeText,
     qaAnswers,
     budgetTarget,
-    plansTempId
+    plansTempId,
+    selectedTrades
   } = req.body;
 
   if (!scopeText || scopeText.trim().length < 10) {
@@ -265,9 +273,12 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
   const budgetLine = budgetTarget
     ? `\nBUDGET TARGET: $${Number(budgetTarget).toLocaleString()} (soft client-facing total — calibrate line item baseCosts so that after standard markup the total lands within ±8% of this figure)`
     : '';
+
+  const tradesNarrative = buildTradesNarrative(selectedTrades);
+
   const fullEstimate = contactRef
-    ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}${budgetLine}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`
-    : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}${budgetLine}\n\nESTIMATE DETAILS:\n${sanitizedScope}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`;
+    ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}${budgetLine}\n\nESTIMATE DETAILS:\n${sanitizedScope}${tradesNarrative}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`
+    : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}${budgetLine}\n\nESTIMATE DETAILS:\n${sanitizedScope}${tradesNarrative}${demoAdditions ? '\n\n' + demoAdditions : ''}${answersNarrative}`;
 
   const rawEstimateData = scopeText + answersNarrative;
   const submittedBy     = req.session?.name

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../utils/toast';
+import DEPARTMENTS from '../data/departments.json';
 
 const inputStyle = {
   width: '100%',
@@ -22,6 +23,132 @@ const labelStyle = {
   textTransform: 'uppercase',
   letterSpacing: '0.03em',
 };
+
+// ── Trade Selection step ───────────────────────────────────────────────────
+function TradeSelectionStep({ selectedTrades, onToggleTrade, onBack, onNext, fetchingQuestions, extractingFiles }) {
+  const [openDepts, setOpenDepts] = useState({});
+
+  const toggleDept = (deptId) => {
+    setOpenDepts(prev => ({ ...prev, [deptId]: !prev[deptId] }));
+  };
+
+  const isDeptPartiallySelected = (dept) =>
+    dept.subDepartments.some(s => selectedTrades.has(s.id));
+
+  const isDeptFullySelected = (dept) =>
+    dept.subDepartments.every(s => selectedTrades.has(s.id));
+
+  const toggleDeptAll = (dept) => {
+    const allSelected = isDeptFullySelected(dept);
+    const next = new Set(selectedTrades);
+    for (const sub of dept.subDepartments) {
+      if (allSelected) next.delete(sub.id);
+      else next.add(sub.id);
+    }
+    onToggleTrade(next);
+  };
+
+  const toggleSub = (subId) => {
+    const next = new Set(selectedTrades);
+    if (next.has(subId)) next.delete(subId);
+    else next.add(subId);
+    onToggleTrade(next);
+  };
+
+  const totalSelected = selectedTrades.size;
+
+  return (
+    <div style={{ padding: '24px 28px' }}>
+      <div style={{ marginBottom: 14 }}>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>Trades Involved</h3>
+        <p style={{ fontSize: 12, color: '#777', margin: '6px 0 0' }}>
+          Select the trades that apply to this project. The AI uses these to generate more accurate questions and line items.
+          {' '}<span style={{ color: '#aaa' }}>This step is optional — skip if unsure.</span>
+        </p>
+      </div>
+
+      {totalSelected > 0 && (
+        <div style={{ marginBottom: 12, padding: '6px 10px', background: '#eef3ff', borderRadius: 6, fontSize: 12, color: '#1B3A6B', fontWeight: 600 }}>
+          {totalSelected} sub-department{totalSelected !== 1 ? 's' : ''} selected
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto', paddingRight: 2 }}>
+        {DEPARTMENTS.map(dept => {
+          const isOpen = !!openDepts[dept.id];
+          const partial = isDeptPartiallySelected(dept);
+          const full = isDeptFullySelected(dept);
+
+          return (
+            <div key={dept.id} style={{ border: `1px solid ${partial ? '#1B3A6B' : '#e2e8f0'}`, borderRadius: 8, overflow: 'hidden', background: partial ? '#f5f8ff' : 'white' }}>
+              {/* Department header row */}
+              <div
+                style={{ display: 'flex', alignItems: 'center', padding: '10px 14px', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => toggleDept(dept.id)}
+              >
+                <input
+                  type="checkbox"
+                  checked={full}
+                  ref={el => { if (el) el.indeterminate = partial && !full; }}
+                  onChange={e => { e.stopPropagation(); toggleDeptAll(dept); }}
+                  onClick={e => e.stopPropagation()}
+                  style={{ width: 15, height: 15, cursor: 'pointer', flexShrink: 0, accentColor: '#1B3A6B' }}
+                />
+                <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: '#1e293b', marginLeft: 10 }}>{dept.name}</span>
+                <span style={{ fontSize: 11, color: partial ? '#1B3A6B' : '#bbb', marginRight: 8 }}>
+                  {partial ? `${dept.subDepartments.filter(s => selectedTrades.has(s.id)).length}/${dept.subDepartments.length}` : ''}
+                </span>
+                <span style={{ fontSize: 11, color: '#94a3b8', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', display: 'inline-block' }}>▶</span>
+              </div>
+
+              {/* Sub-departments */}
+              {isOpen && (
+                <div style={{ borderTop: '1px solid #e8edf5', background: '#f8fafc' }}>
+                  {dept.subDepartments.map(sub => (
+                    <label
+                      key={sub.id}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px 9px 30px', cursor: 'pointer', borderBottom: '1px solid #f0f3f8' }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedTrades.has(sub.id)}
+                        onChange={() => toggleSub(sub.id)}
+                        style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#1B3A6B', flexShrink: 0 }}
+                      />
+                      <span style={{ fontSize: 13, color: '#374151' }}>{sub.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 18 }}>
+        <button onClick={onBack} disabled={fetchingQuestions || extractingFiles} style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: fetchingQuestions || extractingFiles ? 'not-allowed' : 'pointer', fontSize: 13, color: '#555' }}>
+          ← Back
+        </button>
+        <button
+          onClick={onNext}
+          disabled={fetchingQuestions || extractingFiles}
+          style={{
+            padding: '10px 24px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700,
+            background: fetchingQuestions || extractingFiles ? '#c5ccd8' : '#1B3A6B',
+            color: 'white', cursor: fetchingQuestions || extractingFiles ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}
+        >
+          {extractingFiles ? (
+            <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 14 }}>⟳</span>Reading files...</>
+          ) : fetchingQuestions ? (
+            <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 14 }}>⟳</span>AI is thinking...</>
+          ) : totalSelected === 0 ? 'Skip →' : 'Next →'}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ── AI Questions step ──────────────────────────────────────────────────────
 function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
@@ -233,9 +360,11 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
 }
 
 // ── Review step (Phase 2 — includes Q&A summary and demo additions) ─────────
-function ReviewStep({ contact, address, scope, budgetTarget, answers, onBack, onSubmit, busy }) {
+function ReviewStep({ contact, address, scope, budgetTarget, selectedTrades, answers, onBack, onSubmit, busy }) {
   const demoAdditions = answers.filter(a => a.questionType === 'demo_check' && a.answer === 'no' && a.demoCost);
   const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
+
+  const selectedSubNames = buildSelectedTradesList(selectedTrades);
 
   const sections = [
     {
@@ -275,6 +404,17 @@ function ReviewStep({ contact, address, scope, budgetTarget, answers, onBack, on
           ))}
         </div>
       ))}
+
+      {selectedSubNames.length > 0 && (
+        <div style={{ background: '#f8f9fc', borderRadius: 8, padding: '14px 16px', marginBottom: 12, border: '1px solid #e8eaf0' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Trades Selected</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {selectedSubNames.map((name, i) => (
+              <span key={i} style={{ background: '#e8f0fe', color: '#1B3A6B', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>{name}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {demoAdditions.length > 0 && (
         <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '14px 16px', marginBottom: 12 }}>
@@ -325,10 +465,38 @@ function ReviewStep({ contact, address, scope, budgetTarget, answers, onBack, on
   );
 }
 
+// Build a flat list of selected sub-department names (for display and AI context)
+function buildSelectedTradesList(selectedTrades) {
+  if (!selectedTrades || selectedTrades.size === 0) return [];
+  const names = [];
+  for (const dept of DEPARTMENTS) {
+    for (const sub of dept.subDepartments) {
+      if (selectedTrades.has(sub.id)) names.push(sub.name);
+    }
+  }
+  return names;
+}
+
+// Build the AI context block from selected trades
+function buildTradesContext(selectedTrades) {
+  if (!selectedTrades || selectedTrades.size === 0) return '';
+  const lines = [];
+  for (const dept of DEPARTMENTS) {
+    const selected = dept.subDepartments.filter(s => selectedTrades.has(s.id));
+    if (selected.length === 0) continue;
+    for (const sub of selected) {
+      lines.push(`- ${sub.name} (${dept.name}): ${sub.meaning}`);
+    }
+  }
+  if (lines.length === 0) return '';
+  return `\n\nEXPLICITLY SELECTED TRADES (user-confirmed before AI questions):\n${lines.join('\n')}\nUse this list to calibrate line items and clarifying questions — these trades are confirmed to be in scope.`;
+}
+
 // ── Main wizard component ──────────────────────────────────────────────────
 export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
-  // STEPS: 0=Contact, 1=Job Address, 2=Scope, 3=AI Questions (dynamic), 4=Review
-  const BASE_STEPS = ['Contact', 'Job Address', 'Scope of Work', 'Review'];
+  // STEPS: 0=Contact, 1=Job Address, 2=Scope, 3=Trades, 4=AI Questions (dynamic), 5=Review
+  const TRADE_STEP = 3;
+  const BASE_STEPS = ['Contact', 'Job Address', 'Scope of Work', 'Trades', 'Review'];
 
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -339,6 +507,8 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   const [address, setAddress] = useState({ street: '', city: '', state: '', zip: '' });
   const [scope, setScope] = useState('');
   const [budgetTarget, setBudgetTarget] = useState('');
+
+  const [selectedTrades, setSelectedTrades] = useState(new Set());
 
   const [wizardQuestions, setWizardQuestions] = useState([]);
   const [wizardAnswers, setWizardAnswers] = useState([]);
@@ -356,12 +526,14 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
 
   const headers = { 'x-auth-token': token };
 
+  // Step layout: Trades step is always step 3.
+  // AI Questions step is inserted at step 4 if questions are returned.
   const STEPS = aiStepInserted
-    ? ['Contact', 'Job Address', 'Scope of Work', 'AI Questions', 'Review']
+    ? ['Contact', 'Job Address', 'Scope of Work', 'Trades', 'AI Questions', 'Review']
     : BASE_STEPS;
 
   const REVIEW_STEP = STEPS.length - 1;
-  const AI_STEP = aiStepInserted ? 3 : -1;
+  const AI_STEP = aiStepInserted ? 4 : -1;
 
   const fetchSuggestions = (query) => {
     clearTimeout(suggestTimeout.current);
@@ -414,7 +586,12 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
     return true;
   };
 
-  const handleNextFromScope = async () => {
+  const handleNextFromScope = () => {
+    // Move to trade selection step — file extraction and AI questions come after trades
+    setStep(TRADE_STEP);
+  };
+
+  const handleNextFromTrades = async () => {
     setFetchingQuestions(true);
 
     // If files are attached, extract text from them first and append to scope
@@ -438,7 +615,6 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
               : extractedText;
             setScope(finalScope);
           }
-          // Auto-fill address from plans if fields are empty or incomplete
           if (extractedAddress?.street) {
             const addrEmpty = !address.street.trim() && !address.city.trim();
             const addrIncomplete = !address.street.trim() || !address.city.trim();
@@ -464,12 +640,20 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
       setExtractingFiles(false);
     }
 
+    const tradesContext = buildTradesContext(selectedTrades);
+    const scopeWithTrades = finalScope + tradesContext;
+
     try {
       const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
       const res = await fetch('/api/jobs/wizard/questions', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scopeText: finalScope, projectAddress, budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null }),
+        body: JSON.stringify({
+          scopeText: scopeWithTrades,
+          projectAddress,
+          budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null,
+          selectedTrades: buildSelectedTradesPayload(selectedTrades),
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -478,20 +662,20 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           setWizardQuestions(questions);
           setWizardAnswers([]);
           setAiStepInserted(true);
-          setStep(3);
+          setStep(4);
         } else {
           setAiStepInserted(false);
-          setStep(3);
+          setStep(REVIEW_STEP);
         }
       } else {
         showToast('Could not load AI questions — you can still generate the proposal.', 'warning');
         setAiStepInserted(false);
-        setStep(3);
+        setStep(REVIEW_STEP);
       }
     } catch {
       showToast('Network error. Proceeding to review.', 'warning');
       setAiStepInserted(false);
-      setStep(3);
+      setStep(REVIEW_STEP);
     }
     setFetchingQuestions(false);
   };
@@ -522,6 +706,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           qaAnswers: wizardAnswers,
           budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null,
           plansTempId: plansTempId || null,
+          selectedTrades: buildSelectedTradesPayload(selectedTrades),
         }),
       });
       const data = await res.json();
@@ -530,7 +715,6 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
         showToast('Quote submitted — processing now');
         onSubmitted();
         onClose();
-        // Navigate to the job detail page so user lands on the review/edit screen
         navigate(`/jobs/${data.jobId}`);
       } else {
         showToast(data.error || 'Error submitting quote', 'error');
@@ -544,6 +728,10 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   const handleBack = () => {
     if (step === REVIEW_STEP && aiStepInserted) {
       setStep(AI_STEP);
+    } else if (step === REVIEW_STEP && !aiStepInserted) {
+      setStep(TRADE_STEP);
+    } else if (step === AI_STEP) {
+      setStep(TRADE_STEP);
     } else if (step > 0) {
       setStep(s => s - 1);
     } else {
@@ -581,8 +769,17 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           </div>
         </div>
 
-        {/* AI Questions step */}
-        {step === AI_STEP && aiStepInserted ? (
+        {/* Trade Selection step */}
+        {step === TRADE_STEP ? (
+          <TradeSelectionStep
+            selectedTrades={selectedTrades}
+            onToggleTrade={setSelectedTrades}
+            onBack={handleBack}
+            onNext={handleNextFromTrades}
+            fetchingQuestions={fetchingQuestions}
+            extractingFiles={extractingFiles}
+          />
+        ) : step === AI_STEP && aiStepInserted ? (
           <AIQuestionsStep
             questions={wizardQuestions}
             answers={wizardAnswers}
@@ -596,6 +793,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
             address={address}
             scope={scope}
             budgetTarget={budgetTarget}
+            selectedTrades={selectedTrades}
             answers={wizardAnswers}
             onBack={handleBack}
             onSubmit={submit}
@@ -807,26 +1005,15 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
               {step === 2 ? (
                 <button
                   onClick={handleNextFromScope}
-                  disabled={fetchingQuestions || extractingFiles || !canNext()}
+                  disabled={!canNext()}
                   style={{
                     padding: '10px 24px', borderRadius: 6, border: 'none',
-                    background: fetchingQuestions || extractingFiles || !canNext() ? '#c5ccd8' : '#1B3A6B',
+                    background: !canNext() ? '#c5ccd8' : '#1B3A6B',
                     color: 'white', fontWeight: 700, fontSize: 13,
-                    cursor: fetchingQuestions || extractingFiles || !canNext() ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 8,
+                    cursor: !canNext() ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  {extractingFiles ? (
-                    <>
-                      <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 14 }}>⟳</span>
-                      Reading files...
-                    </>
-                  ) : fetchingQuestions ? (
-                    <>
-                      <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 14 }}>⟳</span>
-                      AI is thinking...
-                    </>
-                  ) : 'Next →'}
+                  Next →
                 </button>
               ) : (
                 <button
@@ -848,4 +1035,18 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
       </div>
     </div>
   );
+}
+
+// Build serializable payload for selectedTrades (array of {id, name, deptName, meaning})
+function buildSelectedTradesPayload(selectedTrades) {
+  if (!selectedTrades || selectedTrades.size === 0) return [];
+  const result = [];
+  for (const dept of DEPARTMENTS) {
+    for (const sub of dept.subDepartments) {
+      if (selectedTrades.has(sub.id)) {
+        result.push({ id: sub.id, name: sub.name, deptName: dept.name, meaning: sub.meaning });
+      }
+    }
+  }
+  return result;
 }

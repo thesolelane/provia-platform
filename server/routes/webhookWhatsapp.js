@@ -13,6 +13,7 @@ const { tickQuoteCounter } = require('../services/assessmentService');
 const pdfParse = require('pdf-parse');
 const https = require('https');
 const http = require('http');
+const DEPARTMENTS = require('../../shared/departments.json');
 
 // Download media from Twilio (requires basic auth)
 function downloadTwilioMedia(url) {
@@ -78,8 +79,8 @@ async function handleNewEstimateSubmission(
 
     db.prepare('UPDATE jobs SET status = ?, proposal_data = ? WHERE id = ?').run(
       'awaiting_start',
-      jobId,
-      JSON.stringify(proposalData)
+      JSON.stringify(proposalData),
+      jobId
     );
 
     const questionCount = proposalData.clarificationsNeeded.length;
@@ -327,7 +328,14 @@ async function handleIncomingWhatsApp(data) {
         );
         return;
       }
-      await handleNewEstimateSubmission(rawText, from, db, sender, senderName, language);
+      // Create job record first, then route through trade selection before AI processing
+      const newJobId = uuidv4();
+      db.prepare(
+        `INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'received', ?)`
+      ).run(newJobId, rawText, from);
+      logAudit(newJobId, 'estimate_received', `WhatsApp submission from ${senderName}`, from);
+      const newJob = db.prepare('SELECT * FROM jobs WHERE id = ?').get(newJobId);
+      await startTradeSelection(newJob, from, db, language, senderName);
       return;
     }
 
@@ -337,7 +345,7 @@ async function handleIncomingWhatsApp(data) {
         `
       SELECT * FROM jobs 
       WHERE (submitted_by = ? OR submitted_by = 'hearth_api')
-      AND status IN ('awaiting_start', 'clarification', 'proposal_ready', 'proposal_sent')
+      AND status IN ('awaiting_start', 'trade_selection_dept', 'trade_selection_sub', 'clarification', 'proposal_ready', 'proposal_sent')
       ORDER BY created_at DESC LIMIT 1
     `
       )
@@ -424,49 +432,8 @@ async function handleIncomingWhatsApp(data) {
     // ── AWAITING START — waiting for yes/no to begin questions ───────
     if (activeJob && activeJob.status === 'awaiting_start') {
       if (isYes(body)) {
-        const hasClarifications = db
-          .prepare('SELECT COUNT(*) as count FROM clarifications WHERE job_id = ?')
-          .get(activeJob.id);
-        const firstQ =
-          hasClarifications.count > 0
-            ? db
-                .prepare(
-                  'SELECT * FROM clarifications WHERE job_id = ? AND answer IS NULL ORDER BY asked_at ASC LIMIT 1'
-                )
-                .get(activeJob.id)
-            : null;
-
-        if (firstQ) {
-          // Pre-loaded clarification questions from Hearth/prior processing
-          db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', activeJob.id);
-          const shortId = activeJob.id.slice(0, 8).toUpperCase();
-          const customerLabel = activeJob.customer_name ? ` for *${activeJob.customer_name}*` : '';
-
-          await sendWhatsApp(
-            from,
-            isPortuguese
-              ? `Ótimo, ${senderName}! Vamos começar.\n\n📋 Pré-orçamento #${shortId}${customerLabel}\n\n❓ Pergunta 1 de ${hasClarifications.count}:\n${firstQ.question}`
-              : `Great, ${senderName}! Let's do it.\n\n📋 Pre-quote #${shortId}${customerLabel}\n\n❓ Question 1 of ${hasClarifications.count}:\n${firstQ.question}`
-          );
-        } else {
-          // No pre-loaded questions — process the raw estimate fresh (smart-detect or clean estimate)
-          db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', activeJob.id);
-          await sendWhatsApp(
-            from,
-            isPortuguese
-              ? `Ótimo, ${senderName}! Processando o orçamento agora...`
-              : `Great, ${senderName}! Processing the estimate now...`
-          );
-          await handleNewEstimateSubmission(
-            activeJob.raw_estimate_data,
-            from,
-            db,
-            sender,
-            senderName,
-            language,
-            activeJob.id
-          );
-        }
+        // Before processing, ask the user to select trades
+        await startTradeSelection(activeJob, from, db, language, senderName);
       } else if (isNo(body)) {
         const shortId = activeJob.id.slice(0, 8).toUpperCase();
         await sendWhatsApp(
@@ -485,6 +452,18 @@ async function handleIncomingWhatsApp(data) {
             : `Hey ${senderName}, I have pre-quote #${shortId} waiting. Reply *YES* when you have a moment and we'll work through it together!`
         );
       }
+      return;
+    }
+
+    // ── TRADE SELECTION — department selection step ───────────────────
+    if (activeJob && activeJob.status === 'trade_selection_dept') {
+      await handleTradeSelectionDept(activeJob, body, from, db, language, senderName, sender);
+      return;
+    }
+
+    // ── TRADE SELECTION — sub-department selection step ───────────────
+    if (activeJob && activeJob.status === 'trade_selection_sub') {
+      await handleTradeSelectionSub(activeJob, body, from, db, language, senderName, sender);
       return;
     }
 
@@ -815,5 +794,233 @@ function logConversation(db, jobId, direction, channel, from, to, message) {
   ).run(jobId, direction, channel, from, to, message);
 }
 
+// ── TRADE SELECTION HELPERS ───────────────────────────────────────────────
+
+function buildDeptListMessage(isPortuguese) {
+  const lines = DEPARTMENTS.map((d, i) => `${i + 1}. ${d.name}`);
+  const header = isPortuguese
+    ? `🔨 *Quais departamentos se aplicam a este projeto?*\nResponda com os números separados por vírgula (ex: *1, 3, 5*) ou *PULAR* para continuar sem selecionar.`
+    : `🔨 *Which trade departments apply to this project?*\nReply with the numbers separated by commas (e.g. *1, 3, 5*) or *SKIP* to continue without selecting.`;
+  return `${header}\n\n${lines.join('\n')}`;
+}
+
+function buildSubListMessage(selectedDeptIndexes, isPortuguese) {
+  const header = isPortuguese
+    ? `✅ Departamentos selecionados. Agora escolha os *sub-departamentos* que se aplicam:\nResponda com os números separados por vírgula ou *PULAR* para continuar.`
+    : `✅ Departments selected. Now choose the *sub-departments* that apply:\nReply with the numbers separated by commas or *SKIP* to continue.`;
+
+  const lines = [];
+  let idx = 1;
+  for (const di of selectedDeptIndexes) {
+    const dept = DEPARTMENTS[di];
+    if (!dept) continue;
+    lines.push(`*${dept.name}*`);
+    for (const sub of dept.subDepartments) {
+      lines.push(`  ${idx}. ${sub.name}`);
+      idx++;
+    }
+  }
+  return `${header}\n\n${lines.join('\n')}`;
+}
+
+function parseNumberList(text) {
+  return text
+    .split(/[,\s]+/)
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => !isNaN(n) && n > 0);
+}
+
+function buildTradesNarrativeFromSubs(selectedSubs) {
+  if (!selectedSubs || selectedSubs.length === 0) return '';
+  const lines = selectedSubs.map(s => `- ${s.name} (${s.deptName}): ${s.meaning}`);
+  return `\n\nEXPLICITLY SELECTED TRADES (user-confirmed via WhatsApp):\n${lines.join('\n')}\nUse this list to calibrate line items and pricing — these trades are confirmed to be in scope.`;
+}
+
+async function sendMobileTradeSelectLink(job, from, db, language, senderName) {
+  const isPortuguese = language === 'pt-BR';
+  const { v4: uuidv4 } = require('uuid');
+  const token = uuidv4();
+
+  let meta = {};
+  try { meta = JSON.parse(job.metadata || '{}'); } catch { /* ignore */ }
+  meta.tradeSelectToken = token;
+  meta.tradeSelectDone = false;
+
+  db.prepare('UPDATE jobs SET status = ?, metadata = ? WHERE id = ?').run(
+    'trade_selection_sub',
+    JSON.stringify(meta),
+    job.id
+  );
+
+  const baseUrl = process.env.APP_URL ||
+    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000');
+  const link = `${baseUrl}/trade-select/${token}`;
+
+  await sendWhatsApp(
+    from,
+    isPortuguese
+      ? `📱 Muitos departamentos selecionados! Use este link para escolher os sub-departamentos:\n\n${link}\n\nApós enviar, o orçamento será processado automaticamente.`
+      : `📱 You selected quite a few departments! Use this link to pick the specific sub-departments:\n\n${link}\n\nAfter you submit, the estimate will be processed automatically.`
+  );
+}
+
+async function startTradeSelection(job, from, db, language, senderName) {
+  const isPortuguese = language === 'pt-BR';
+  const shortId = job.id.slice(0, 8).toUpperCase();
+
+  db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('trade_selection_dept', job.id);
+
+  const intro = isPortuguese
+    ? `Ótimo, ${senderName}! Antes de processar o pré-orçamento #${shortId}, me diga quais *departamentos de trade* estão envolvidos neste projeto.`
+    : `Great, ${senderName}! Before I process pre-quote #${shortId}, let me know which *trade departments* are involved in this project.`;
+
+  await sendWhatsApp(from, `${intro}\n\n${buildDeptListMessage(isPortuguese)}`);
+}
+
+async function handleTradeSelectionDept(job, body, from, db, language, senderName, sender) {
+  const isPortuguese = language === 'pt-BR';
+  const upperBody = body.toUpperCase().trim();
+
+  if (upperBody === 'SKIP' || upperBody === 'PULAR') {
+    await proceedAfterTradeSelection(job, [], from, db, language, senderName, sender);
+    return;
+  }
+
+  const nums = parseNumberList(body);
+  const validNums = nums.filter(n => n >= 1 && n <= DEPARTMENTS.length);
+
+  if (validNums.length === 0) {
+    await sendWhatsApp(from, isPortuguese
+      ? `⚠️ Não entendi. Responda com os números dos departamentos (ex: *1, 3, 5*) ou *PULAR* para continuar.`
+      : `⚠️ I didn't catch that. Reply with the department numbers (e.g. *1, 3, 5*) or *SKIP* to continue.`
+    );
+    return;
+  }
+
+  const selectedDeptIndexes = validNums.map(n => n - 1);
+  const totalSubs = selectedDeptIndexes.reduce((acc, di) => acc + (DEPARTMENTS[di]?.subDepartments?.length || 0), 0);
+
+  if (totalSubs === 0) {
+    await proceedAfterTradeSelection(job, [], from, db, language, senderName, sender);
+    return;
+  }
+
+  // If the sub-department list would be unwieldy (more than 12 items), send a mobile link instead
+  if (totalSubs > 12) {
+    await sendMobileTradeSelectLink(job, from, db, language, senderName);
+    return;
+  }
+
+  const meta = { selectedDeptIndexes };
+  db.prepare('UPDATE jobs SET status = ?, metadata = ? WHERE id = ?').run(
+    'trade_selection_sub',
+    JSON.stringify(meta),
+    job.id
+  );
+
+  await sendWhatsApp(from, buildSubListMessage(selectedDeptIndexes, isPortuguese));
+}
+
+async function handleTradeSelectionSub(job, body, from, db, language, senderName, sender) {
+  const isPortuguese = language === 'pt-BR';
+  const upperBody = body.toUpperCase().trim();
+
+  let meta = {};
+  try { meta = JSON.parse(job.metadata || '{}'); } catch { /* ignore */ }
+
+  if (upperBody === 'SKIP' || upperBody === 'PULAR') {
+    await proceedAfterTradeSelection(job, [], from, db, language, senderName, sender);
+    return;
+  }
+
+  // If this job is using the mobile link flow (token present), wait for the web submission
+  if (meta.tradeSelectToken && !meta.tradeSelectDone) {
+    await sendWhatsApp(
+      from,
+      isPortuguese
+        ? `⏳ Aguardando sua seleção pelo link enviado. Complete a seleção no link ou responda *PULAR* para continuar sem selecionar.`
+        : `⏳ Waiting for your selection via the link I sent. Complete your selection there, or reply *SKIP* to continue without selecting.`
+    );
+    return;
+  }
+
+  const selectedDeptIndexes = meta.selectedDeptIndexes || [];
+
+  const nums = parseNumberList(body);
+
+  // Build the sequential sub-department list matching what was shown
+  const subList = [];
+  for (const di of selectedDeptIndexes) {
+    const dept = DEPARTMENTS[di];
+    if (!dept) continue;
+    for (const sub of dept.subDepartments) {
+      subList.push({ ...sub, deptName: dept.name });
+    }
+  }
+
+  const validNums = nums.filter(n => n >= 1 && n <= subList.length);
+
+  if (validNums.length === 0) {
+    await sendWhatsApp(from, isPortuguese
+      ? `⚠️ Não entendi. Responda com os números dos sub-departamentos ou *PULAR* para continuar.`
+      : `⚠️ I didn't catch that. Reply with the sub-department numbers or *SKIP* to continue.`
+    );
+    return;
+  }
+
+  const selectedSubs = validNums.map(n => subList[n - 1]).filter(Boolean);
+  await proceedAfterTradeSelection(job, selectedSubs, from, db, language, senderName, sender);
+}
+
+async function proceedAfterTradeSelection(job, selectedSubs, from, db, language, senderName, sender) {
+  const isPortuguese = language === 'pt-BR';
+
+  const tradesNarrative = buildTradesNarrativeFromSubs(selectedSubs);
+
+  const hasClarifications = db
+    .prepare('SELECT COUNT(*) as count FROM clarifications WHERE job_id = ?')
+    .get(job.id);
+  const firstQ =
+    hasClarifications.count > 0
+      ? db
+          .prepare(
+            'SELECT * FROM clarifications WHERE job_id = ? AND answer IS NULL ORDER BY asked_at ASC LIMIT 1'
+          )
+          .get(job.id)
+      : null;
+
+  // Always persist trades narrative into raw_estimate_data so all downstream AI calls
+  // (clarifications, finishClarifications, processEstimate) automatically include it.
+  if (tradesNarrative) {
+    const updatedRaw = (job.raw_estimate_data || '') + tradesNarrative;
+    db.prepare('UPDATE jobs SET raw_estimate_data = ? WHERE id = ?').run(updatedRaw, job.id);
+    job = { ...job, raw_estimate_data: updatedRaw };
+  }
+
+  if (firstQ) {
+    db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('clarification', job.id);
+    const shortId = job.id.slice(0, 8).toUpperCase();
+    const customerLabel = job.customer_name ? ` for *${job.customer_name}*` : '';
+
+    await sendWhatsApp(
+      from,
+      isPortuguese
+        ? `Ótimo! Vamos começar.\n\n📋 Pré-orçamento #${shortId}${customerLabel}\n\n❓ Pergunta 1 de ${hasClarifications.count}:\n${firstQ.question}`
+        : `Got it${selectedSubs.length ? ` — ${selectedSubs.length} trade${selectedSubs.length !== 1 ? 's' : ''} noted` : ''}! Let's go.\n\n📋 Pre-quote #${shortId}${customerLabel}\n\n❓ Question 1 of ${hasClarifications.count}:\n${firstQ.question}`
+    );
+  } else {
+    db.prepare('UPDATE jobs SET status = ? WHERE id = ?').run('processing', job.id);
+    await sendWhatsApp(
+      from,
+      isPortuguese
+        ? `Ótimo! Processando o orçamento agora...`
+        : `Got it${selectedSubs.length ? ` — ${selectedSubs.length} trade${selectedSubs.length !== 1 ? 's' : ''} noted` : ''}! Processing the estimate now...`
+    );
+
+    await handleNewEstimateSubmission(job.raw_estimate_data, from, db, sender, senderName, language, job.id);
+  }
+}
+
 module.exports = router;
 module.exports.handleIncomingWhatsApp = handleIncomingWhatsApp;
+module.exports.proceedAfterTradeSelection = proceedAfterTradeSelection;

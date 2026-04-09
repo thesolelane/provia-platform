@@ -760,6 +760,13 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_archived  ON leads(archived)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_contact_id ON leads(contact_id)`);
 
+  // ── Migration: job metadata JSON blob (trade selection, etc.) ────────────────
+  try {
+    db.prepare('SELECT metadata FROM jobs LIMIT 1').get();
+  } catch {
+    db.exec('ALTER TABLE jobs ADD COLUMN metadata TEXT');
+  }
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();

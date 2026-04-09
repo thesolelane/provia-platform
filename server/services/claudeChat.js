@@ -277,9 +277,13 @@ IMPORTANT STYLE RULES:
 }
 
 // ── WIZARD QUESTION GENERATION ────────────────────────────────────────
-async function generateWizardQuestions(scopeText, projectAddress = '', budgetTarget = null) {
+async function generateWizardQuestions(scopeText, projectAddress = '', budgetTarget = null, selectedTrades = []) {
   const budgetContext = budgetTarget
     ? `\nBudget Target: $${Number(budgetTarget).toLocaleString()} (client-facing total)`
+    : '';
+
+  const tradesContext = selectedTrades.length > 0
+    ? `\n\nEXPLICITLY SELECTED TRADES (user-confirmed):\n${selectedTrades.map(t => `- ${t.name} (${t.deptName}): ${t.meaning}`).join('\n')}\nThese trades are confirmed in scope — focus demo_check and trade_clarification questions on these trades specifically. Do NOT ask about trades not in this list unless the scope text itself mentions them.`
     : '';
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
@@ -300,7 +304,7 @@ Return ONLY valid JSON — no commentary, no markdown.`,
         role: 'user',
         content: `Read this scope of work and return a JSON array of clarifying questions. Return an empty array [] if the scope is completely clear and no questions are needed.
 
-Project Address: ${projectAddress || 'not specified'}${budgetContext}
+Project Address: ${projectAddress || 'not specified'}${budgetContext}${tradesContext}
 
 SCOPE OF WORK:
 ${scopeText}
