@@ -83,7 +83,7 @@ export default function JobDetail({ token }) {
 
   const [pos, setPOs] = useState([]);
   const [poLoading, setPOLoading] = useState(false);
-  const [newPO, setNewPO] = useState({ vendor_name: '', description: '', category: 'materials', amount: '', status: 'pending', issued_date: '', notes: '' });
+  const [newPO, setNewPO] = useState({ vendor_name: '', description: '', category: 'materials', amount: '', status: 'draft', notes: '' });
   const [savingPO, setSavingPO] = useState(false);
   const [editingPO, setEditingPO] = useState(null);
 
@@ -2152,13 +2152,14 @@ export default function JobDetail({ token }) {
         {/* PURCHASE ORDERS */}
         {activeTab === 'purchase_orders' && (() => {
           const PO_CATEGORIES = ['materials', 'subcontractor', 'equipment', 'permits', 'other'];
-          const PO_STATUSES = ['pending', 'approved', 'paid', 'cancelled'];
-          const STATUS_COLORS_PO = { pending: '#F59E0B', approved: '#3B82F6', paid: '#2E7D32', cancelled: '#aaa' };
-          const STATUS_BG = { pending: '#fffbeb', approved: '#eff6ff', paid: '#f0fdf4', cancelled: '#f9fafb' };
+          const PO_STATUSES = ['draft', 'issued', 'received', 'closed'];
+          const STATUS_COLORS_PO = { draft: '#888', issued: '#F59E0B', received: '#3B82F6', closed: '#2E7D32' };
+          const STATUS_BG = { draft: '#f8fafc', issued: '#fffbeb', received: '#eff6ff', closed: '#f0fdf4' };
+          const STATUS_LABEL = { draft: 'Draft', issued: 'Issued', received: 'Received', closed: 'Closed' };
 
-          const totalSpend = pos.filter(p => p.status !== 'cancelled').reduce((s, p) => s + (Number(p.amount) || 0), 0);
-          const paidOut = pos.filter(p => p.status === 'paid').reduce((s, p) => s + (Number(p.amount) || 0), 0);
-          const pendingAmt = pos.filter(p => p.status === 'pending' || p.status === 'approved').reduce((s, p) => s + (Number(p.amount) || 0), 0);
+          const totalSpend = pos.filter(p => p.status !== 'closed').reduce((s, p) => s + (Number(p.amount) || 0), 0);
+          const receivedAmt = pos.filter(p => p.status === 'received').reduce((s, p) => s + (Number(p.amount) || 0), 0);
+          const openAmt = pos.filter(p => p.status === 'draft' || p.status === 'issued').reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
           const submitNewPO = async () => {
             if (!newPO.description.trim()) { showToast('Description is required', 'error'); return; }
@@ -2172,7 +2173,7 @@ export default function JobDetail({ token }) {
             const d = await res.json();
             setSavingPO(false);
             if (res.ok) {
-              setNewPO({ vendor_name: '', description: '', category: 'materials', amount: '', status: 'pending', issued_date: '', notes: '' });
+              setNewPO({ vendor_name: '', description: '', category: 'materials', amount: '', status: 'draft', notes: '' });
               loadPOs();
               showToast(`PO ${d.purchase_order.po_number} created`);
             } else {
@@ -2223,16 +2224,16 @@ export default function JobDetail({ token }) {
                 <h3 style={{ color: BLUE, margin: 0 }}>Purchase Orders</h3>
                 {pos.length > 0 && (
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <div style={{ textAlign: 'center', background: '#f0fdf4', borderRadius: 8, padding: '8px 16px', border: '1px solid #bbf7d0' }}>
-                      <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>PAID OUT</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: GREEN }}>${Number(paidOut).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                    <div style={{ textAlign: 'center', background: '#eff6ff', borderRadius: 8, padding: '8px 16px', border: '1px solid #bfdbfe' }}>
+                      <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>OPEN (DRAFT / ISSUED)</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: '#3B82F6' }}>${Number(openAmt).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                     </div>
-                    <div style={{ textAlign: 'center', background: '#fffbeb', borderRadius: 8, padding: '8px 16px', border: '1px solid #fde68a' }}>
-                      <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>PENDING / APPROVED</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: '#b45309' }}>${Number(pendingAmt).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                    <div style={{ textAlign: 'center', background: '#f0fdf4', borderRadius: 8, padding: '8px 16px', border: '1px solid #bbf7d0' }}>
+                      <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>RECEIVED</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: GREEN }}>${Number(receivedAmt).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                     </div>
                     <div style={{ textAlign: 'center', background: '#f8faff', borderRadius: 8, padding: '8px 16px', border: '1px solid #dde8ff' }}>
-                      <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>TOTAL SPEND</div>
+                      <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>TOTAL ACTIVE SPEND</div>
                       <div style={{ fontSize: 16, fontWeight: 700, color: BLUE }}>${Number(totalSpend).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
                     </div>
                   </div>
@@ -2261,23 +2262,18 @@ export default function JobDetail({ token }) {
                   <input style={inputStyle} placeholder="What is being ordered / purchased?" value={newPO.description}
                     onChange={e => setNewPO(p => ({ ...p, description: e.target.value }))} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                   <div>
                     <label style={labelStyle}>AMOUNT *</label>
                     <input style={inputStyle} type="number" min="0" step="0.01" placeholder="0.00" value={newPO.amount}
                       onChange={e => setNewPO(p => ({ ...p, amount: e.target.value }))} />
                   </div>
                   <div>
-                    <label style={labelStyle}>STATUS</label>
+                    <label style={labelStyle}>INITIAL STATUS</label>
                     <select style={inputStyle} value={newPO.status}
                       onChange={e => setNewPO(p => ({ ...p, status: e.target.value }))}>
-                      {PO_STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                      {PO_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABEL[s] || s}</option>)}
                     </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>ISSUE DATE</label>
-                    <input style={inputStyle} type="date" value={newPO.issued_date}
-                      onChange={e => setNewPO(p => ({ ...p, issued_date: e.target.value }))} />
                   </div>
                 </div>
                 <div style={{ marginBottom: 14 }}>
@@ -2322,7 +2318,7 @@ export default function JobDetail({ token }) {
                             <label style={labelStyle}>DESCRIPTION</label>
                             <input style={inputStyle} value={editingPO.description || ''} onChange={e => setEditingPO(p => ({ ...p, description: e.target.value }))} />
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                             <div>
                               <label style={labelStyle}>AMOUNT</label>
                               <input style={inputStyle} type="number" min="0" step="0.01" value={editingPO.amount || ''} onChange={e => setEditingPO(p => ({ ...p, amount: e.target.value }))} />
@@ -2330,12 +2326,8 @@ export default function JobDetail({ token }) {
                             <div>
                               <label style={labelStyle}>STATUS</label>
                               <select style={inputStyle} value={editingPO.status} onChange={e => setEditingPO(p => ({ ...p, status: e.target.value }))}>
-                                {PO_STATUSES.map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+                                {PO_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABEL[s] || s}</option>)}
                               </select>
-                            </div>
-                            <div>
-                              <label style={labelStyle}>ISSUE DATE</label>
-                              <input style={inputStyle} type="date" value={editingPO.issued_date || ''} onChange={e => setEditingPO(p => ({ ...p, issued_date: e.target.value }))} />
                             </div>
                           </div>
                           <div style={{ marginBottom: 12 }}>
@@ -2356,24 +2348,28 @@ export default function JobDetail({ token }) {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                               <span style={{ fontSize: 11, fontWeight: 700, color: BLUE, background: '#e8eeff', padding: '2px 8px', borderRadius: 4 }}>{po.po_number}</span>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: STATUS_COLORS_PO[po.status] || '#888', background: STATUS_BG[po.status] || '#f0f0f0', padding: '2px 8px', borderRadius: 4, textTransform: 'capitalize' }}>{po.status}</span>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: STATUS_COLORS_PO[po.status] || '#888', background: STATUS_BG[po.status] || '#f0f0f0', padding: '2px 8px', borderRadius: 4 }}>{STATUS_LABEL[po.status] || po.status}</span>
                               <span style={{ fontSize: 11, color: '#888', textTransform: 'capitalize' }}>{po.category}</span>
-                              {po.issued_date && <span style={{ fontSize: 11, color: '#aaa' }}>{new Date(po.issued_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' })}</span>}
+                              {po.issued_at && <span style={{ fontSize: 11, color: '#aaa' }}>Issued {new Date(po.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })}</span>}
+                              {po.received_at && <span style={{ fontSize: 11, color: '#3B82F6' }}>Received {new Date(po.received_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })}</span>}
                             </div>
                             <div style={{ fontWeight: 600, fontSize: 13, color: '#333', marginBottom: 2 }}>{po.description}</div>
                             {po.vendor_name && <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>🏪 {po.vendor_name}</div>}
                             {po.notes && <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic' }}>{po.notes}</div>}
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: po.status === 'cancelled' ? '#aaa' : BLUE }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: po.status === 'closed' ? '#aaa' : BLUE }}>
                               ${Number(po.amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                             </div>
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                              {po.status === 'pending' && (
-                                <button onClick={() => updatePOStatus(po.id, 'approved')} style={{ fontSize: 11, padding: '4px 10px', background: '#eff6ff', color: '#3B82F6', border: '1px solid #bfdbfe', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Approve</button>
+                              {po.status === 'draft' && (
+                                <button onClick={() => updatePOStatus(po.id, 'issued')} style={{ fontSize: 11, padding: '4px 10px', background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Mark Issued</button>
                               )}
-                              {(po.status === 'pending' || po.status === 'approved') && (
-                                <button onClick={() => updatePOStatus(po.id, 'paid')} style={{ fontSize: 11, padding: '4px 10px', background: '#f0fdf4', color: GREEN, border: '1px solid #bbf7d0', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Mark Paid</button>
+                              {po.status === 'issued' && (
+                                <button onClick={() => updatePOStatus(po.id, 'received')} style={{ fontSize: 11, padding: '4px 10px', background: '#eff6ff', color: '#3B82F6', border: '1px solid #bfdbfe', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Mark Received</button>
+                              )}
+                              {(po.status === 'draft' || po.status === 'issued' || po.status === 'received') && (
+                                <button onClick={() => updatePOStatus(po.id, 'closed')} style={{ fontSize: 11, padding: '4px 10px', background: '#f0fdf4', color: GREEN, border: '1px solid #bbf7d0', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Close PO</button>
                               )}
                               <button onClick={() => setEditingPO({ ...po })} style={{ fontSize: 11, padding: '4px 10px', background: '#f8fafc', color: '#555', border: '1px solid #e2e8f0', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Edit</button>
                               <button onClick={() => deletePO(po.id, po.po_number)} style={{ fontSize: 11, padding: '4px 10px', background: '#fff5f5', color: RED, border: '1px solid #fecaca', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Delete</button>

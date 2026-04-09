@@ -108,14 +108,20 @@ router.get('/:id', requireAuth, (req, res) => {
         .prepare(
           `SELECT job_id,
                   COUNT(*) AS po_count,
-                  SUM(CASE WHEN status != 'cancelled' THEN amount ELSE 0 END) AS po_total,
-                  SUM(CASE WHEN status = 'paid' THEN amount ELSE 0 END) AS po_paid
+                  SUM(CASE WHEN status != 'closed' THEN amount ELSE 0 END) AS po_total,
+                  SUM(CASE WHEN status IN ('draft','issued') THEN amount ELSE 0 END) AS po_open,
+                  SUM(CASE WHEN status = 'received' THEN amount ELSE 0 END) AS po_received
            FROM purchase_orders WHERE job_id IN (${placeholders2})
            GROUP BY job_id`
         )
         .all(...jobIds);
       for (const r of poRows) {
-        perJobPO[r.job_id] = { po_count: r.po_count || 0, po_total: Number(r.po_total) || 0, po_paid: Number(r.po_paid) || 0 };
+        perJobPO[r.job_id] = {
+          po_count:    r.po_count || 0,
+          po_total:    Number(r.po_total)    || 0,
+          po_open:     Number(r.po_open)     || 0,
+          po_received: Number(r.po_received) || 0
+        };
       }
     } catch {
       // purchase_orders table may not exist in older installs
@@ -124,14 +130,15 @@ router.get('/:id', requireAuth, (req, res) => {
 
   const enrichedJobs = jobs.map((j) => {
     const received = perJobReceived[j.id] || 0;
-    const poInfo = perJobPO[j.id] || { po_count: 0, po_total: 0, po_paid: 0 };
+    const poInfo = perJobPO[j.id] || { po_count: 0, po_total: 0, po_open: 0, po_received: 0 };
     return {
       ...j,
       total_received: received,
       outstanding: Math.max(0, (j.total_value || 0) - received),
-      po_count: poInfo.po_count,
-      po_total: poInfo.po_total,
-      po_paid: poInfo.po_paid
+      po_count:    poInfo.po_count,
+      po_total:    poInfo.po_total,
+      po_open:     poInfo.po_open,
+      po_received: poInfo.po_received
     };
   });
 

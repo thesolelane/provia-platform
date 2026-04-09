@@ -458,11 +458,10 @@ function runReport(db, type, period) {
     const totals = db.prepare(`
       SELECT
         COUNT(*) AS count,
-        SUM(CASE WHEN po.status != 'cancelled' THEN po.amount ELSE 0 END) AS total_spend,
-        SUM(CASE WHEN po.status = 'paid'       THEN po.amount ELSE 0 END) AS paid,
-        SUM(CASE WHEN po.status = 'approved'   THEN po.amount ELSE 0 END) AS approved,
-        SUM(CASE WHEN po.status = 'pending'    THEN po.amount ELSE 0 END) AS pending,
-        SUM(CASE WHEN po.status = 'cancelled'  THEN po.amount ELSE 0 END) AS cancelled
+        SUM(CASE WHEN po.status NOT IN ('closed') THEN po.amount ELSE 0 END) AS total_spend,
+        SUM(CASE WHEN po.status IN ('draft','issued') THEN po.amount ELSE 0 END) AS open_total,
+        SUM(CASE WHEN po.status = 'received' THEN po.amount ELSE 0 END) AS received,
+        SUM(CASE WHEN po.status = 'closed'   THEN po.amount ELSE 0 END) AS closed
       FROM purchase_orders po
       WHERE 1=1 ${dFilter}
     `).get();
@@ -470,17 +469,17 @@ function runReport(db, type, period) {
     const byCategory = db.prepare(`
       SELECT po.category, COUNT(*) AS count, SUM(po.amount) AS total
       FROM purchase_orders po
-      WHERE po.status != 'cancelled' ${dFilter}
+      WHERE po.status != 'closed' ${dFilter}
       GROUP BY po.category
       ORDER BY total DESC
     `).all();
 
-    const byJob = db.prepare(`
+    const openByJob = db.prepare(`
       SELECT po.job_id, j.pb_number, j.customer_name, j.project_address,
              COUNT(*) AS po_count, SUM(po.amount) AS po_total
       FROM purchase_orders po
       LEFT JOIN jobs j ON j.id = po.job_id
-      WHERE po.status != 'cancelled' ${dFilter}
+      WHERE po.status IN ('draft','issued') ${dFilter}
       GROUP BY po.job_id
       ORDER BY po_total DESC
       LIMIT 20
@@ -503,7 +502,7 @@ function runReport(db, type, period) {
       LIMIT 50
     `).all();
 
-    return { totals, byCategory, byJob, byStatus, recent };
+    return { totals, byCategory, openByJob, byStatus, recent };
   }
 
   return null;

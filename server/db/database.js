@@ -770,34 +770,43 @@ async function initDatabase() {
       id           INTEGER PRIMARY KEY AUTOINCREMENT,
       po_number    TEXT NOT NULL UNIQUE,
       job_id       TEXT NOT NULL,
+      contact_id   INTEGER,
       vendor_id    INTEGER,
       vendor_name  TEXT,
       description  TEXT NOT NULL,
       category     TEXT NOT NULL DEFAULT 'materials',
       amount       REAL NOT NULL DEFAULT 0,
-      status       TEXT NOT NULL DEFAULT 'pending',
-      issued_date  TEXT,
+      status       TEXT NOT NULL DEFAULT 'draft',
+      issued_at    DATETIME,
+      received_at  DATETIME,
+      closed_at    DATETIME,
+      created_by   TEXT,
       notes        TEXT,
       created_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at   DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_job_id    ON purchase_orders(job_id)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_status    ON purchase_orders(status)`);
-  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_category  ON purchase_orders(category)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_job_id     ON purchase_orders(job_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_status     ON purchase_orders(status)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_category   ON purchase_orders(category)`);
 
-  // ── PO counter seed ───────────────────────────────────────────────────────────
+  // ── PO counter table (per-year sequential number, format PO-YYYY-NNNN) ────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS po_counter (
-      id       INTEGER PRIMARY KEY CHECK (id = 1),
-      next_seq INTEGER NOT NULL DEFAULT 1
+      year     INTEGER NOT NULL,
+      next_seq INTEGER NOT NULL DEFAULT 1,
+      PRIMARY KEY (year)
     )
   `);
-  try {
-    db.prepare('INSERT OR IGNORE INTO po_counter (id, next_seq) VALUES (1, 1)').run();
-  } catch (e) {
-    console.warn('[DB] po_counter seed failed:', e.message);
-  }
+
+  // ── Purchase Orders migrations (safe addColIfMissing for existing DBs) ───────
+  addColIfMissing('purchase_orders', 'contact_id',  'INTEGER');
+  addColIfMissing('purchase_orders', 'issued_at',   'DATETIME');
+  addColIfMissing('purchase_orders', 'received_at', 'DATETIME');
+  addColIfMissing('purchase_orders', 'closed_at',   'DATETIME');
+  addColIfMissing('purchase_orders', 'created_by',  'TEXT');
+  // Index on contact_id must come AFTER addColIfMissing for existing databases
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_po_contact_id ON purchase_orders(contact_id)`);
 
   // ── Migration: job metadata JSON blob (trade selection, etc.) ────────────────
   try {

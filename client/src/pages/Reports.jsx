@@ -1015,16 +1015,17 @@ function DynTable({ rows, cols }) {
 
 // ── Main renderer — dispatches to the right report component ──────────────────
 function PurchaseOrdersReport({ data }) {
-  const { totals, byCategory, byJob, byStatus, recent } = data || {};
-  const STATUS_COLORS_PO = { pending: '#F59E0B', approved: '#3B82F6', paid: GREEN, cancelled: '#aaa' };
+  const { totals, byCategory, openByJob, byStatus, recent } = data || {};
+  const STATUS_COLORS_PO = { draft: '#888', issued: '#F59E0B', received: '#3B82F6', closed: GREEN };
+  const STATUS_LABEL_PO = { draft: 'Draft', issued: 'Issued', received: 'Received', closed: 'Closed' };
 
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: 12, marginBottom: 24 }}>
-        <KpiCard label="Total PO Spend" value={fmt(totals?.total_spend)} color={BLUE} />
-        <KpiCard label="Paid Out" value={fmt(totals?.paid)} color={GREEN} small />
-        <KpiCard label="Approved (Unpaid)" value={fmt(totals?.approved)} color="#3B82F6" small />
-        <KpiCard label="Pending" value={fmt(totals?.pending)} color={ORANGE} small />
+        <KpiCard label="Total Active Spend" value={fmt(totals?.total_spend)} color={BLUE} />
+        <KpiCard label="Open (Draft+Issued)" value={fmt(totals?.open_total)} color={ORANGE} small />
+        <KpiCard label="Received" value={fmt(totals?.received)} color={GREEN} small />
+        <KpiCard label="Closed" value={fmt(totals?.closed)} color="#888" small />
         <KpiCard label="Total POs" value={totals?.count || 0} color={PURPLE} small />
       </div>
 
@@ -1047,7 +1048,7 @@ function PurchaseOrdersReport({ data }) {
             <DynTable
               rows={byStatus}
               cols={[
-                { key: 'status', label: 'Status', render: (v) => <span style={{ textTransform: 'capitalize', color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600 }}>{v || '—'}</span> },
+                { key: 'status', label: 'Status', render: (v) => <span style={{ color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600 }}>{STATUS_LABEL_PO[v] || v || '—'}</span> },
                 { key: 'count', label: 'POs', align: 'right' },
                 { key: 'total', label: 'Amount', align: 'right', render: (v) => <strong>{fmt(v)}</strong> }
               ]}
@@ -1056,18 +1057,18 @@ function PurchaseOrdersReport({ data }) {
         </Section>
       </div>
 
-      <Section title="Top Jobs by PO Spend" style={{ marginBottom: 16 }}>
-        {!byJob?.length ? <Empty msg="No POs linked to jobs yet" /> : (
+      <Section title="Open PO Spend by Job (Draft + Issued)" style={{ marginBottom: 16 }}>
+        {!openByJob?.length ? <Empty msg="No open POs linked to jobs" /> : (
           <DynTable
-            rows={byJob}
+            rows={openByJob}
             cols={[
               { key: 'pb_number', label: 'PB #', render: (v, row) => (
                 <a href={`/jobs/${row.job_id}`} style={{ color: BLUE, fontWeight: 700, textDecoration: 'none', fontSize: 11 }}>{v || '—'}</a>
               )},
               { key: 'customer_name', label: 'Customer' },
               { key: 'project_address', label: 'Address', render: (v) => <span style={{ color: '#555', fontSize: 11 }}>{v || '—'}</span> },
-              { key: 'po_count', label: 'POs', align: 'right' },
-              { key: 'po_total', label: 'Total Spend', align: 'right', render: (v) => <strong style={{ color: BLUE }}>{fmt(v)}</strong> }
+              { key: 'po_count', label: 'Open POs', align: 'right' },
+              { key: 'po_total', label: 'Open Spend', align: 'right', render: (v) => <strong style={{ color: BLUE }}>{fmt(v)}</strong> }
             ]}
           />
         )}
@@ -1086,7 +1087,7 @@ function PurchaseOrdersReport({ data }) {
               { key: 'vendor_name', label: 'Vendor', render: (v) => v || '—' },
               { key: 'category', label: 'Category', render: (v) => <span style={{ textTransform: 'capitalize', fontSize: 11 }}>{v}</span> },
               { key: 'status', label: 'Status', render: (v) => (
-                <span style={{ textTransform: 'capitalize', color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600, fontSize: 11 }}>{v}</span>
+                <span style={{ color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600, fontSize: 11 }}>{STATUS_LABEL_PO[v] || v}</span>
               )},
               { key: 'amount', label: 'Amount', align: 'right', render: (v) => fmt(v) }
             ]}
