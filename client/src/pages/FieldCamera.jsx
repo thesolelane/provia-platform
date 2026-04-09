@@ -2,6 +2,16 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { showToast } from '../utils/toast';
 import { reverseGeocode, getGpsPosition } from '../utils/reverseGeocode';
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 1024);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 1024);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 const BLUE   = '#1B3A6B';
 const ORANGE = '#E07B2A';
 const GREEN  = '#2e7d32';
@@ -140,6 +150,7 @@ export default function FieldCamera({ token }) {
   const [linkModal,       setLinkModal]       = useState(null);  // 'camera' | 'file'
   const [pendingLink,     setPendingLink]     = useState({ job_id: null, lead_id: null });
 
+  const isMobile  = useIsMobile();
   const cameraRef = useRef(null);
   const fileRef   = useRef(null);
   const headers   = { 'x-auth-token': token };
@@ -236,11 +247,20 @@ export default function FieldCamera({ token }) {
 
   const openLinkModal = (type) => setLinkModal(type);
 
+  // ── Resolve a selectedTarget value → { job_id, lead_id } ────────────────────
+  const resolveTarget = (val) => {
+    if (!val) return null;
+    if (String(val).startsWith('lead:')) return { lead_id: String(val).slice(5) };
+    return assignMode === 'lead' ? { lead_id: val } : { job_id: val };
+  };
+
   // ── Assign inbox photo to job or lead ──────────────────────────────────────
   const handleAssign = async (photoId) => {
     const val = selectedTarget[photoId];
     if (!val) return showToast('Select a job or lead first', 'error');
-    const body = assignMode === 'lead' ? { lead_id: val } : { job_id: val };
+    const resolved = resolveTarget(val);
+    if (!resolved) return showToast('Select a job or lead first', 'error');
+    const body = resolved;
     try {
       const res = await fetch(`/api/field-photos/${photoId}/assign`, {
         method: 'PATCH',
@@ -262,19 +282,20 @@ export default function FieldCamera({ token }) {
     const key = `group_${groupPhotos.map(p => p.id).join('_')}`;
     const val = selectedTarget[key];
     if (!val) return showToast('Select a job or lead first', 'error');
-    const body = assignMode === 'lead' ? { lead_id: val } : { job_id: val };
+    const resolved = resolveTarget(val);
+    if (!resolved) return showToast('Select a job or lead first', 'error');
     let count  = 0;
     for (const photo of groupPhotos) {
       try {
         const res = await fetch(`/api/field-photos/${photo.id}/assign`, {
           method: 'PATCH',
           headers: { ...headers, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify(resolved),
         });
         if (res.ok) count++;
       } catch { /* skip */ }
     }
-    showToast(`${count} photo(s) ${assignMode === 'lead' ? 'linked to lead' : 'moved to job'}`);
+    showToast(`${count} photo(s) ${resolved.lead_id ? 'linked to lead' : 'moved to job'}`);
     loadPhotos();
   };
 
@@ -351,15 +372,17 @@ export default function FieldCamera({ token }) {
         <h3 style={{ color: BLUE, margin: 0, fontSize: 15 }}>
           Photo Inbox {unassigned.length > 0 && <span style={{ fontWeight: 'normal', color: '#888', fontSize: 13 }}>({unassigned.length} unassigned)</span>}
         </h3>
-        {/* Global assign mode toggle for group assignment */}
-        <div style={{ display: 'flex', gap: 6 }}>
-          {['job','lead'].map(m => (
-            <button key={m} onClick={() => setAssignMode(m)}
-              style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', background: assignMode === m ? BLUE : '#f1f5f9', color: assignMode === m ? 'white' : '#64748b', borderColor: assignMode === m ? BLUE : '#cbd5e1' }}>
-              {m === 'job' ? '🏠 Job' : '📞 Lead'}
-            </button>
-          ))}
-        </div>
+        {/* Global assign mode toggle — mobile/tablet only */}
+        {isMobile && (
+          <div style={{ display: 'flex', gap: 6 }}>
+            {['job','lead'].map(m => (
+              <button key={m} onClick={() => setAssignMode(m)}
+                style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: '1px solid', background: assignMode === m ? BLUE : '#f1f5f9', color: assignMode === m ? 'white' : '#64748b', borderColor: assignMode === m ? BLUE : '#cbd5e1' }}>
+                {m === 'job' ? '🏠 Job' : '📞 Lead'}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {loading && <div style={{ color: '#888', padding: 20 }}>Loading photos…</div>}
@@ -389,14 +412,42 @@ export default function FieldCamera({ token }) {
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} onClick={e => e.stopPropagation()}>
-                <select
-                  value={selectedTarget[locGroupKey] || ''}
-                  onChange={e => setSelectedTarget(prev => ({ ...prev, [locGroupKey]: e.target.value }))}
-                  style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #ccc' }}
-                >
-                  <option value="">— Move all to {assignMode} —</option>
-                  {assignOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+                {isMobile ? (
+                  <select
+                    value={selectedTarget[locGroupKey] || ''}
+                    onChange={e => setSelectedTarget(prev => ({ ...prev, [locGroupKey]: e.target.value }))}
+                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #ccc' }}
+                  >
+                    <option value="">— Move all to {assignMode} —</option>
+                    {assignOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                ) : (
+                  <select
+                    value={selectedTarget[locGroupKey] || ''}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setSelectedTarget(prev => ({ ...prev, [locGroupKey]: val }));
+                      if (val.startsWith('lead:')) setAssignMode('lead');
+                      else if (val) setAssignMode('job');
+                    }}
+                    style={{ fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #ccc', minWidth: 220 }}
+                  >
+                    <option value="">— Move all to job or lead —</option>
+                    {jobs.length > 0 && (
+                      <optgroup label="Jobs">
+                        {jobs.map(j => <option key={j.id} value={j.id}>{j.customer_name}{j.project_address ? ` · ${j.project_address}` : ''}</option>)}
+                      </optgroup>
+                    )}
+                    {activeLeads.length > 0 && (
+                      <optgroup label="Leads (pipeline)">
+                        {activeLeads.map(l => {
+                          const addr = [l.job_address, l.job_city].filter(Boolean).join(', ');
+                          return <option key={`lead:${l.id}`} value={`lead:${l.id}`}>{l.caller_name}{addr ? ` · ${addr}` : ''}</option>;
+                        })}
+                      </optgroup>
+                    )}
+                  </select>
+                )}
                 <button onClick={() => handleAssignGroup(allPhotosInLoc)}
                   style={{ padding: '4px 12px', background: ORANGE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}>
                   Move All
@@ -436,22 +487,51 @@ export default function FieldCamera({ token }) {
 
                         {assigningId === photo.id ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                            <div style={{ display: 'flex', gap: 4 }}>
-                              {['job','lead'].map(m => (
-                                <button key={m} onClick={() => setAssignMode(m)}
-                                  style={{ flex: 1, padding: '2px 0', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: '1px solid', background: assignMode === m ? BLUE : '#f1f5f9', color: assignMode === m ? 'white' : '#64748b', borderColor: assignMode === m ? BLUE : '#cbd5e1' }}>
-                                  {m === 'job' ? 'Job' : 'Lead'}
-                                </button>
-                              ))}
-                            </div>
-                            <select
-                              value={selectedTarget[photo.id] || ''}
-                              onChange={e => setSelectedTarget(prev => ({ ...prev, [photo.id]: e.target.value }))}
-                              style={{ fontSize: 11, padding: '3px 6px', borderRadius: 4, border: '1px solid #ccc', width: '100%' }}
-                            >
-                              <option value="">— Select {assignMode} —</option>
-                              {assignOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </select>
+                            {isMobile ? (
+                              <>
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  {['job','lead'].map(m => (
+                                    <button key={m} onClick={() => setAssignMode(m)}
+                                      style={{ flex: 1, padding: '2px 0', borderRadius: 4, fontSize: 10, fontWeight: 600, cursor: 'pointer', border: '1px solid', background: assignMode === m ? BLUE : '#f1f5f9', color: assignMode === m ? 'white' : '#64748b', borderColor: assignMode === m ? BLUE : '#cbd5e1' }}>
+                                      {m === 'job' ? 'Job' : 'Lead'}
+                                    </button>
+                                  ))}
+                                </div>
+                                <select
+                                  value={selectedTarget[photo.id] || ''}
+                                  onChange={e => setSelectedTarget(prev => ({ ...prev, [photo.id]: e.target.value }))}
+                                  style={{ fontSize: 11, padding: '3px 6px', borderRadius: 4, border: '1px solid #ccc', width: '100%' }}
+                                >
+                                  <option value="">— Select {assignMode} —</option>
+                                  {assignOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
+                              </>
+                            ) : (
+                              <select
+                                value={selectedTarget[photo.id] || ''}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setSelectedTarget(prev => ({ ...prev, [photo.id]: val }));
+                                  setAssignMode(val.startsWith('lead:') ? 'lead' : 'job');
+                                }}
+                                style={{ fontSize: 11, padding: '3px 6px', borderRadius: 4, border: '1px solid #ccc', width: '100%' }}
+                              >
+                                <option value="">— Assign to job or lead —</option>
+                                {jobs.length > 0 && (
+                                  <optgroup label="Jobs">
+                                    {jobs.map(j => <option key={j.id} value={j.id}>{j.customer_name}{j.project_address ? ` · ${j.project_address}` : ''}</option>)}
+                                  </optgroup>
+                                )}
+                                {activeLeads.length > 0 && (
+                                  <optgroup label="Leads (pipeline)">
+                                    {activeLeads.map(l => {
+                                      const addr = [l.job_address, l.job_city].filter(Boolean).join(', ');
+                                      return <option key={`lead:${l.id}`} value={`lead:${l.id}`}>{l.caller_name}{addr ? ` · ${addr}` : ''}</option>;
+                                    })}
+                                  </optgroup>
+                                )}
+                              </select>
+                            )}
                             <div style={{ display: 'flex', gap: 4 }}>
                               <button onClick={() => handleAssign(photo.id)}
                                 style={{ flex: 1, padding: '3px 0', background: ORANGE, color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 11, fontWeight: 'bold' }}>
