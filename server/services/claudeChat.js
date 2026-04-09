@@ -10,9 +10,9 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── HANDLE CLARIFICATION CONVERSATION ────────────────────────────────
 async function handleClarification(jobId, userMessage, conversationHistory, language = 'en') {
-  const settings      = loadSettings();
+  const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
-  const systemPrompt  = buildSystemPrompt(settings, knowledgeBase, language);
+  const systemPrompt = buildSystemPrompt(settings, knowledgeBase, language);
 
   const messages = [...conversationHistory, { role: 'user', content: userMessage }];
 
@@ -29,7 +29,14 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
     messages
   });
 
-  logTokenUsage({ service: 'claude', model: 'claude-sonnet-4-20250514', inputTokens: response.usage?.input_tokens, outputTokens: response.usage?.output_tokens, jobId, context: 'clarification' });
+  logTokenUsage({
+    service: 'claude',
+    model: 'claude-sonnet-4-20250514',
+    inputTokens: response.usage?.input_tokens,
+    outputTokens: response.usage?.output_tokens,
+    jobId,
+    context: 'clarification'
+  });
   const text = response.content[0].text;
   try {
     const clean = text.replace(/```json|```/g, '').trim();
@@ -51,12 +58,21 @@ Keep queries specific and under 15 words.`,
     properties: {
       query: {
         type: 'string',
-        description: 'Targeted search query. Example: "Fitchburg MA building permit fee schedule 2025"'
+        description:
+          'Targeted search query. Example: "Fitchburg MA building permit fee schedule 2025"'
       },
       search_type: {
         type: 'string',
-        enum: ['material_price', 'permit_fee', 'labor_rate', 'building_code', 'supplier', 'general'],
-        description: 'material_price: lumber/concrete/roofing costs. permit_fee: municipal fees. labor_rate: sub market rates. building_code: code requirements. supplier: local vendors. general: other.'
+        enum: [
+          'material_price',
+          'permit_fee',
+          'labor_rate',
+          'building_code',
+          'supplier',
+          'general'
+        ],
+        description:
+          'material_price: lumber/concrete/roofing costs. permit_fee: municipal fees. labor_rate: sub market rates. building_code: code requirements. supplier: local vendors. general: other.'
       }
     },
     required: ['query', 'search_type']
@@ -96,11 +112,25 @@ const ADMIN_TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        title:       { type: 'string', description: 'Short task title (e.g. "Call for inspection at 123 Main St")' },
+        title: {
+          type: 'string',
+          description: 'Short task title (e.g. "Call for inspection at 123 Main St")'
+        },
         description: { type: 'string', description: 'Additional details or notes about the task' },
-        due_at:      { type: 'string', description: 'Due date/time in ISO 8601 format (e.g. "2026-03-15T17:00:00"). Use the current date as reference if the user says "tomorrow" or "next week".' },
-        priority:    { type: 'string', enum: ['high', 'normal', 'low'], description: 'Priority level' },
-        job_address: { type: 'string', description: 'Project address if the task relates to a specific job' }
+        due_at: {
+          type: 'string',
+          description:
+            'Due date/time in ISO 8601 format (e.g. "2026-03-15T17:00:00"). Use the current date as reference if the user says "tomorrow" or "next week".'
+        },
+        priority: {
+          type: 'string',
+          enum: ['high', 'normal', 'low'],
+          description: 'Priority level'
+        },
+        job_address: {
+          type: 'string',
+          description: 'Project address if the task relates to a specific job'
+        }
       },
       required: ['title']
     }
@@ -154,7 +184,9 @@ async function runAdminTool(toolName, toolInput, db) {
       job_id = job?.id || null;
     }
     const info = db
-      .prepare(`INSERT INTO tasks (title, description, due_at, job_id, priority) VALUES (?, ?, ?, ?, ?)`)
+      .prepare(
+        `INSERT INTO tasks (title, description, due_at, job_id, priority) VALUES (?, ?, ?, ?, ?)`
+      )
       .run(title, description || null, due_at || null, job_id, priority || 'normal');
     const saved = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
     const calURL = makeCalendarURL(saved);
@@ -163,10 +195,10 @@ async function runAdminTool(toolName, toolInput, db) {
       saved.calendar_url = calURL;
     }
     return JSON.stringify({
-      created:      true,
-      task_id:      saved.id,
-      title:        saved.title,
-      due_at:       saved.due_at,
+      created: true,
+      task_id: saved.id,
+      title: saved.title,
+      due_at: saved.due_at,
       calendar_url: saved.calendar_url
     });
   }
@@ -180,12 +212,17 @@ async function runAdminTool(toolName, toolInput, db) {
 }
 
 async function adminChat(messages, language = 'en', db = null, sender = null) {
-  const settings      = loadSettings();
+  const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
 
   const today = new Date().toLocaleString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York'
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/New_York'
   });
 
   const senderName = sender ? sender.name : null;
@@ -227,8 +264,8 @@ IMPORTANT STYLE RULES:
 - If someone just says hi or starts a conversation with no specific request, reply only with: "👷 Hey ${senderName || 'there'}, what do you need?"
 - Keep all responses short and direct.`;
 
-  const msgsToSend  = [...messages];
-  let createdTask   = null;
+  const msgsToSend = [...messages];
+  let createdTask = null;
 
   for (let turn = 0; turn < 5; turn++) {
     const response = await client.messages.create({
@@ -240,7 +277,13 @@ IMPORTANT STYLE RULES:
       messages: msgsToSend
     });
 
-    logTokenUsage({ service: 'claude', model: 'claude-sonnet-4-20250514', inputTokens: response.usage?.input_tokens, outputTokens: response.usage?.output_tokens, context: 'admin_chat' });
+    logTokenUsage({
+      service: 'claude',
+      model: 'claude-sonnet-4-20250514',
+      inputTokens: response.usage?.input_tokens,
+      outputTokens: response.usage?.output_tokens,
+      context: 'admin_chat'
+    });
 
     if (
       response.stop_reason === 'end_turn' ||
@@ -262,7 +305,9 @@ IMPORTANT STYLE RULES:
           try {
             const parsed = JSON.parse(result);
             if (parsed.created) createdTask = parsed;
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
       } catch (e) {
         result = `Error: ${e.message}`;
@@ -277,14 +322,20 @@ IMPORTANT STYLE RULES:
 }
 
 // ── WIZARD QUESTION GENERATION ────────────────────────────────────────
-async function generateWizardQuestions(scopeText, projectAddress = '', budgetTarget = null, selectedTrades = []) {
+async function generateWizardQuestions(
+  scopeText,
+  projectAddress = '',
+  budgetTarget = null,
+  selectedTrades = []
+) {
   const budgetContext = budgetTarget
     ? `\nBudget Target: $${Number(budgetTarget).toLocaleString()} (client-facing total)`
     : '';
 
-  const tradesContext = selectedTrades.length > 0
-    ? `\n\nEXPLICITLY SELECTED TRADES (user-confirmed):\n${selectedTrades.map(t => `- ${t.name} (${t.deptName}): ${t.meaning}`).join('\n')}\nThese trades are confirmed in scope — focus demo_check and trade_clarification questions on these trades specifically. Do NOT ask about trades not in this list unless the scope text itself mentions them.`
-    : '';
+  const tradesContext =
+    selectedTrades.length > 0
+      ? `\n\nEXPLICITLY SELECTED TRADES (user-confirmed):\n${selectedTrades.map((t) => `- ${t.name} (${t.deptName}): ${t.meaning}`).join('\n')}\nThese trades are confirmed in scope — focus demo_check and trade_clarification questions on these trades specifically. Do NOT ask about trades not in this list unless the scope text itself mentions them.`
+      : '';
   const response = await client.messages.create({
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2000,
@@ -342,10 +393,16 @@ RULES:
     ]
   });
 
-  logTokenUsage({ service: 'claude', model: 'claude-sonnet-4-20250514', inputTokens: response.usage?.input_tokens, outputTokens: response.usage?.output_tokens, context: 'wizard' });
+  logTokenUsage({
+    service: 'claude',
+    model: 'claude-sonnet-4-20250514',
+    inputTokens: response.usage?.input_tokens,
+    outputTokens: response.usage?.output_tokens,
+    context: 'wizard'
+  });
   const text = response.content[0].text.trim();
   try {
-    const clean  = text.replace(/```json|```/g, '').trim();
+    const clean = text.replace(/```json|```/g, '').trim();
     const parsed = JSON.parse(clean);
     return Array.isArray(parsed) ? parsed : [];
   } catch (e) {

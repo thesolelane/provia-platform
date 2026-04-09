@@ -201,7 +201,9 @@ router.get('/pipeline', requireAuth, (req, res) => {
         marginSum += ((clientTotal - subTotal) / clientTotal) * 100;
         marginCount++;
       }
-    } catch { /* skip malformed row */ }
+    } catch {
+      /* skip malformed row */
+    }
   }
 
   const avgWonMargin = marginCount > 0 ? Math.round((marginSum / marginCount) * 10) / 10 : null;
@@ -326,7 +328,9 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
       if (sqft > 0 && clientTotal > 0) {
         sqftPrices.push(Math.round(clientTotal / sqft));
       }
-    } catch { /* skip malformed row */ }
+    } catch {
+      /* skip malformed row */
+    }
   }
 
   const avgWonMargin =

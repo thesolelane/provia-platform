@@ -15,8 +15,11 @@ function loadSettings() {
   const rows = db.prepare('SELECT key, value FROM settings').all();
   const settings = {};
   for (const row of rows) {
-    try { settings[row.key] = JSON.parse(row.value); }
-    catch { settings[row.key] = row.value; }
+    try {
+      settings[row.key] = JSON.parse(row.value);
+    } catch {
+      settings[row.key] = row.value;
+    }
   }
   return settings;
 }
@@ -33,50 +36,52 @@ function loadKnowledgeBase() {
 // ── GET MARKUP RATES ─────────────────────────────────────────────────
 function getMarkupRates(settings) {
   return {
-    subOandP:    Number(settings['markup.subOandP'])    || Number(settings['markup.subOP'])  || 0.15,
-    gcOandP:     Number(settings['markup.gcOandP'])     || Number(settings['markup.gcOP'])   || 0.25,
+    subOandP: Number(settings['markup.subOandP']) || Number(settings['markup.subOP']) || 0.15,
+    gcOandP: Number(settings['markup.gcOandP']) || Number(settings['markup.gcOP']) || 0.25,
     contingency: Number(settings['markup.contingency']) || 0.1,
-    deposit:     Number(settings['markup.deposit'])     || 0.33
+    deposit: Number(settings['markup.deposit']) || 0.33
   };
 }
 
 // ── FORMAT LABOR/ALLOWANCE RATES FOR PROMPT ──────────────────────────
 function buildRatesSection(settings) {
-  const laborLines     = [];
+  const laborLines = [];
   const allowanceLines = [];
 
   const laborMap = {
-    'labor.framing':    'Framing labor',
-    'labor.roofing':    'Roofing labor',
-    'labor.siding':     'Siding labor',
+    'labor.framing': 'Framing labor',
+    'labor.roofing': 'Roofing labor',
+    'labor.siding': 'Siding labor',
     'labor.electrical': 'Electrical labor',
-    'labor.plumbing':   'Plumbing labor',
-    'labor.hvac':       'HVAC labor',
-    'labor.drywall':    'Drywall labor',
+    'labor.plumbing': 'Plumbing labor',
+    'labor.hvac': 'HVAC labor',
+    'labor.drywall': 'Drywall labor',
     'labor.insulation': 'Insulation labor',
-    'labor.tile':       'Tile labor',
-    'labor.flooring':   'Flooring (LVP/hardwood) install labor'
+    'labor.tile': 'Tile labor',
+    'labor.flooring': 'Flooring (LVP/hardwood) install labor'
   };
   const allowanceMap = {
-    'allowance.lvp':       'LVP flooring material allowance',
-    'allowance.hardwood':  'Hardwood flooring material allowance',
-    'allowance.carpet':    'Carpet material allowance',
-    'allowance.tileBath':  'Bath tile material allowance',
-    'allowance.tileShower':'Shower tile material allowance',
-    'allowance.cabinets':  'Kitchen cabinets allowance (builder grade)',
-    'allowance.quartz':    'Quartz countertop allowance',
-    'allowance.vanity':    'Full bathroom vanity allowance (each)',
-    'allowance.toilet':    'Toilet allowance (each)',
-    'allowance.tub':       'Bathtub allowance (each)',
-    'allowance.intDoor':   'Interior door (slab) allowance (each)'
+    'allowance.lvp': 'LVP flooring material allowance',
+    'allowance.hardwood': 'Hardwood flooring material allowance',
+    'allowance.carpet': 'Carpet material allowance',
+    'allowance.tileBath': 'Bath tile material allowance',
+    'allowance.tileShower': 'Shower tile material allowance',
+    'allowance.cabinets': 'Kitchen cabinets allowance (builder grade)',
+    'allowance.quartz': 'Quartz countertop allowance',
+    'allowance.vanity': 'Full bathroom vanity allowance (each)',
+    'allowance.toilet': 'Toilet allowance (each)',
+    'allowance.tub': 'Bathtub allowance (each)',
+    'allowance.intDoor': 'Interior door (slab) allowance (each)'
   };
 
   for (const [key, label] of Object.entries(laborMap)) {
     const val = settings[key];
     if (val) {
-      const v   = typeof val === 'string' ? JSON.parse(val) : val;
+      const v = typeof val === 'string' ? JSON.parse(val) : val;
       const mid = Math.round((v.low + v.high) / 2);
-      laborLines.push(`  ${label}: $${mid} per ${v.unit} (use this exact rate — range is $${v.low}–$${v.high})`);
+      laborLines.push(
+        `  ${label}: $${mid} per ${v.unit} (use this exact rate — range is $${v.low}–$${v.high})`
+      );
     }
   }
   for (const [key, label] of Object.entries(allowanceMap)) {
@@ -92,15 +97,15 @@ function buildRatesSection(settings) {
   }
 
   const markup = {
-    sub:  Math.round((Number(settings['markup.subOandP'])    || 0.15) * 100),
-    gc:   Math.round((Number(settings['markup.gcOandP'])     || 0.25) * 100),
-    cont: Math.round((Number(settings['markup.contingency']) || 0.1)  * 100),
-    dep:  Math.round((Number(settings['markup.deposit'])     || 0.33) * 100)
+    sub: Math.round((Number(settings['markup.subOandP']) || 0.15) * 100),
+    gc: Math.round((Number(settings['markup.gcOandP']) || 0.25) * 100),
+    cont: Math.round((Number(settings['markup.contingency']) || 0.1) * 100),
+    dep: Math.round((Number(settings['markup.deposit']) || 0.33) * 100)
   };
 
-  const sqftLow      = Number(settings['pricing.sqftLow'])      || 320;
-  const sqftHigh     = Number(settings['pricing.sqftHigh'])     || 350;
-  const sqftRenoLow  = Number(settings['pricing.sqftRenoLow'])  || 100;
+  const sqftLow = Number(settings['pricing.sqftLow']) || 320;
+  const sqftHigh = Number(settings['pricing.sqftHigh']) || 350;
+  const sqftRenoLow = Number(settings['pricing.sqftRenoLow']) || 100;
   const sqftRenoHigh = Number(settings['pricing.sqftRenoHigh']) || 150;
 
   return `## OUR PRICING STRUCTURE
@@ -171,7 +176,8 @@ function buildMemoryContext(db, projectAddress) {
   if (!db || !projectAddress) return '';
   try {
     const prior = db
-      .prepare(`
+      .prepare(
+        `
       SELECT pb_number, external_ref, created_at, total_value, deposit_amount, proposal_data
       FROM jobs
       WHERE project_address LIKE ?
@@ -179,7 +185,8 @@ function buildMemoryContext(db, projectAddress) {
         AND archived = 0
       ORDER BY created_at DESC
       LIMIT 3
-    `)
+    `
+      )
       .all(`%${projectAddress.trim()}%`);
 
     if (!prior.length) return '';
@@ -192,7 +199,9 @@ function buildMemoryContext(db, projectAddress) {
           lineItems = (pd.lineItems || [])
             .map((li) => `    - ${li.trade}: baseCost $${li.baseCost?.toLocaleString()}`)
             .join('\n');
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         const ref = j.pb_number || j.external_ref || j.id;
         return `  Quote ${ref} (${new Date(j.created_at).toLocaleDateString()}) — Total: $${Number(j.total_value || 0).toLocaleString()}\n${lineItems}`;
       })
@@ -216,13 +225,15 @@ RULES:
 function getPriorVersionContext(db, quoteNumber) {
   if (!quoteNumber) return null;
   const prior = db
-    .prepare(`
+    .prepare(
+      `
     SELECT j.id, j.version, j.total_value, j.created_at, j.proposal_data
     FROM jobs j
     WHERE j.quote_number = ? AND j.proposal_data IS NOT NULL
     ORDER BY j.version DESC
     LIMIT 1
-  `)
+  `
+    )
     .get(quoteNumber);
   if (!prior) return null;
   try {
@@ -266,12 +277,21 @@ Keep queries specific and under 15 words. You may call this up to 3 times per es
     properties: {
       query: {
         type: 'string',
-        description: 'Targeted search query. Be specific. Example: "2x4 lumber price per board foot Massachusetts 2025"'
+        description:
+          'Targeted search query. Be specific. Example: "2x4 lumber price per board foot Massachusetts 2025"'
       },
       search_type: {
         type: 'string',
-        enum: ['material_price', 'permit_fee', 'labor_rate', 'building_code', 'supplier', 'general'],
-        description: 'material_price: lumber/concrete/roofing costs. permit_fee: municipal permit fees. labor_rate: subcontractor market rates. building_code: code requirements. supplier: local vendors. general: other.'
+        enum: [
+          'material_price',
+          'permit_fee',
+          'labor_rate',
+          'building_code',
+          'supplier',
+          'general'
+        ],
+        description:
+          'material_price: lumber/concrete/roofing costs. permit_fee: municipal permit fees. labor_rate: subcontractor market rates. building_code: code requirements. supplier: local vendors. general: other.'
       }
     },
     required: ['query', 'search_type']
@@ -280,11 +300,11 @@ Keep queries specific and under 15 words. You may call this up to 3 times per es
 
 // ── TOOL USE LOOP — runs Claude with Perplexity available as a tool ──
 async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3, jobId = null) {
-  const messages     = [{ role: 'user', content: userMessage }];
-  const tools        = perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [];
-  let toolCallCount  = 0;
-  let totalInput     = 0;
-  let totalOutput    = 0;
+  const messages = [{ role: 'user', content: userMessage }];
+  const tools = perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [];
+  let toolCallCount = 0;
+  let totalInput = 0;
+  let totalOutput = 0;
 
   while (true) {
     const response = await client.messages.create({
@@ -296,7 +316,7 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3, jobId =
       ...(tools.length ? { tools } : {})
     });
 
-    totalInput  += response.usage?.input_tokens  || 0;
+    totalInput += response.usage?.input_tokens || 0;
     totalOutput += response.usage?.output_tokens || 0;
 
     if (response.stop_reason === 'tool_use' && toolCallCount < maxToolCalls) {
@@ -307,14 +327,23 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3, jobId =
       for (const block of toolUseBlocks) {
         if (block.name === 'web_search') {
           toolCallCount++;
-          console.log(`[Claude→Perplexity] #${toolCallCount} type=${block.input.search_type} query="${block.input.query}"`);
+          console.log(
+            `[Claude→Perplexity] #${toolCallCount} type=${block.input.search_type} query="${block.input.query}"`
+          );
           const result = await perplexity.search(block.input.query, block.input.search_type);
           toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
         }
       }
       messages.push({ role: 'user', content: toolResults });
     } else {
-      logTokenUsage({ service: 'claude', model: 'claude-sonnet-4-20250514', inputTokens: totalInput, outputTokens: totalOutput, jobId, context: 'estimate' });
+      logTokenUsage({
+        service: 'claude',
+        model: 'claude-sonnet-4-20250514',
+        inputTokens: totalInput,
+        outputTokens: totalOutput,
+        jobId,
+        context: 'estimate'
+      });
       return response.content.find((b) => b.type === 'text')?.text?.trim() || '';
     }
   }
@@ -329,18 +358,18 @@ async function processEstimate(
   projectAddress = null,
   priorVersionContext = null
 ) {
-  const settings      = loadSettings();
+  const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
   const memoryContext = buildMemoryContext(db, projectAddress);
-  const rates         = getMarkupRates(settings);
+  const rates = getMarkupRates(settings);
 
   const jobMemoryContext = jobMemory.getContextForClaude(jobId);
 
   const systemPrompt =
     buildSystemPrompt(settings, knowledgeBase, language) +
     memoryContext +
-    (jobMemoryContext      ? `\n\n${jobMemoryContext}`      : '') +
-    (priorVersionContext   ? `\n\n${priorVersionContext}`   : '');
+    (jobMemoryContext ? `\n\n${jobMemoryContext}` : '') +
+    (priorVersionContext ? `\n\n${priorVersionContext}` : '');
 
   const text = await runWithTools(
     systemPrompt,
@@ -416,18 +445,33 @@ Return this EXACT JSON structure:
   // Apply stretch-code line items that Claude flagged as missing
   const scItems = extractedData.stretchCodeItems || [];
   const STRETCH_CODE_COSTS = {
-    'HERS Rater':           { cost: 1800,  desc: 'HERS energy rating and blower door test (Stretch Code compliance)' },
-    'ERV System':           { cost: 3200,  desc: 'Energy Recovery Ventilator (ERV) — Stretch Code requirement' },
-    'EV-Ready Outlet':      { cost: 850,   desc: 'EV-ready 240V outlet in garage (Stretch Code requirement)' },
-    'Solar Conduit':        { cost: 1200,  desc: 'Solar-ready conduit and panel capacity (Stretch Code requirement)' },
-    'LED Lighting Package': { cost: 2400,  desc: 'LED lighting package (Stretch Code energy compliance)' }
+    'HERS Rater': {
+      cost: 1800,
+      desc: 'HERS energy rating and blower door test (Stretch Code compliance)'
+    },
+    'ERV System': {
+      cost: 3200,
+      desc: 'Energy Recovery Ventilator (ERV) — Stretch Code requirement'
+    },
+    'EV-Ready Outlet': {
+      cost: 850,
+      desc: 'EV-ready 240V outlet in garage (Stretch Code requirement)'
+    },
+    'Solar Conduit': {
+      cost: 1200,
+      desc: 'Solar-ready conduit and panel capacity (Stretch Code requirement)'
+    },
+    'LED Lighting Package': {
+      cost: 2400,
+      desc: 'LED lighting package (Stretch Code energy compliance)'
+    }
   };
 
   for (const item of scItems) {
     const cfg = STRETCH_CODE_COSTS[item];
     if (!cfg) continue;
-    const already = (extractedData.lineItems || []).some(
-      (li) => li.trade?.toLowerCase().includes(item.toLowerCase())
+    const already = (extractedData.lineItems || []).some((li) =>
+      li.trade?.toLowerCase().includes(item.toLowerCase())
     );
     if (!already) {
       extractedData.lineItems = extractedData.lineItems || [];
@@ -455,15 +499,18 @@ function applyPricing(data, rates, settings) {
   const validDate = new Date();
   validDate.setDate(validDate.getDate() + 15);
   data.validUntil = validDate.toLocaleDateString('en-US', {
-    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York'
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'America/New_York'
   });
 
-  const items           = data.lineItems || [];
+  const items = data.lineItems || [];
   const markupMultiplier = (1 + rates.subOandP) * (1 + rates.gcOandP) * (1 + rates.contingency);
   let totalContractPrice = 0;
 
   for (const item of items) {
-    const cost    = item.baseCost || 0;
+    const cost = item.baseCost || 0;
     item.baseCost = cost;
     if (item.isStretchCode) {
       item.finalPrice = cost;
@@ -503,43 +550,53 @@ function applyPricing(data, rates, settings) {
   }
 
   const depositAmount = Math.round(totalContractPrice * rates.deposit);
-  const sqft          = Number(data.project?.sqft) || 0;
-  const isReno        = String(data.project?.type || '').toLowerCase().includes('reno');
-  const sqftLow       = isReno ? (Number(settings['pricing.sqftRenoLow'])  || 100) : (Number(settings['pricing.sqftLow'])  || 320);
-  const sqftHigh      = isReno ? (Number(settings['pricing.sqftRenoHigh']) || 150) : (Number(settings['pricing.sqftHigh']) || 350);
-  const pricePerSqft  = sqft > 0 ? Math.round(totalContractPrice / sqft) : null;
-  let sqftWarning     = null;
+  const sqft = Number(data.project?.sqft) || 0;
+  const isReno = String(data.project?.type || '')
+    .toLowerCase()
+    .includes('reno');
+  const sqftLow = isReno
+    ? Number(settings['pricing.sqftRenoLow']) || 100
+    : Number(settings['pricing.sqftLow']) || 320;
+  const sqftHigh = isReno
+    ? Number(settings['pricing.sqftRenoHigh']) || 150
+    : Number(settings['pricing.sqftHigh']) || 350;
+  const pricePerSqft = sqft > 0 ? Math.round(totalContractPrice / sqft) : null;
+  let sqftWarning = null;
   if (pricePerSqft !== null) {
-    if (pricePerSqft < sqftLow)  sqftWarning = 'below';
+    if (pricePerSqft < sqftLow) sqftWarning = 'below';
     else if (pricePerSqft > sqftHigh) sqftWarning = 'above';
   }
 
   data.pricing = {
     markupMultiplier: Math.round(markupMultiplier * 10000) / 10000,
     totalContractPrice,
-    depositPercent:   Math.round(rates.deposit * 100),
+    depositPercent: Math.round(rates.deposit * 100),
     depositAmount,
     pricePerSqft,
-    sqftTargetLow:    sqftLow,
-    sqftTargetHigh:   sqftHigh,
+    sqftTargetLow: sqftLow,
+    sqftTargetHigh: sqftHigh,
     sqftWarning,
-    projectType:      isReno ? 'renovation' : 'new_construction',
+    projectType: isReno ? 'renovation' : 'new_construction',
     appliedRates: {
-      subOandP:    rates.subOandP,
-      gcOandP:     rates.gcOandP,
+      subOandP: rates.subOandP,
+      gcOandP: rates.gcOandP,
       contingency: rates.contingency
     },
     implicitDumpsterBaseCost,
     dumpsterExcluded: dumpsterExplicitlyExcluded || false
   };
 
-  data.totalValue    = totalContractPrice;
+  data.totalValue = totalContractPrice;
   data.depositAmount = depositAmount;
 
   if (pricePerSqft !== null) {
-    console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → $${pricePerSqft}/sqft (${isReno ? 'reno' : 'new-const'} target $${sqftLow}–$${sqftHigh}) → Deposit: $${depositAmount.toLocaleString()}`);
+    console.log(
+      `[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → $${pricePerSqft}/sqft (${isReno ? 'reno' : 'new-const'} target $${sqftLow}–$${sqftHigh}) → Deposit: $${depositAmount.toLocaleString()}`
+    );
   } else {
-    console.log(`[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`);
+    console.log(
+      `[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`
+    );
   }
 }
 

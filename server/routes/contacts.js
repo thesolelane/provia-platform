@@ -97,7 +97,9 @@ router.delete('/:id/documents/:docId', requireAuth, (req, res) => {
   if (doc.file_path && fs.existsSync(doc.file_path)) {
     try {
       fs.unlinkSync(doc.file_path);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   db.prepare('DELETE FROM contact_documents WHERE id = ?').run(doc.id);
   res.json({ success: true });

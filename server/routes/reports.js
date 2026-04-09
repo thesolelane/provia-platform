@@ -293,7 +293,9 @@ function runReport(db, type, period) {
         const price = lineItems.reduce((s, li) => s + (Number(li.finalPrice) || 0), 0);
         if (base > 0 && price > 0)
           estimatedMargin = Math.round(((price - base) / price) * 10000) / 100;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       return {
         id: j.id,
         customerName: j.customer_name,
@@ -417,7 +419,9 @@ function runReport(db, type, period) {
       const db2 = getDb();
       const setting = db2.prepare("SELECT value FROM settings WHERE key='markup.deposit'").get();
       if (setting?.value) depositPct = parseFloat(setting.value);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     const rows = jobs.map((j) => {
       const expected = (j.total_value || 0) * depositPct;
@@ -502,35 +506,85 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
       .all(job.id);
 
     const payments = db
-      .prepare('SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC')
+      .prepare(
+        'SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC'
+      )
       .all(job.id);
 
     const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
     const fmtDate = (d) => {
       if (!d) return '—';
-      try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' }); }
-      catch { return d; }
+      try {
+        return new Date(d).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          timeZone: 'America/New_York'
+        });
+      } catch {
+        return d;
+      }
     };
 
-    const sigSession = db.prepare(`SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`).get(job.id);
+    const sigSession = db
+      .prepare(
+        `SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`
+      )
+      .get(job.id);
 
     const timeline = [];
-    timeline.push({ date: job.created_at, icon: '📋', label: 'Job Created', sub: `Status: ${job.status || 'received'}`, color: '#1B3A6B' });
+    timeline.push({
+      date: job.created_at,
+      icon: '📋',
+      label: 'Job Created',
+      sub: `Status: ${job.status || 'received'}`,
+      color: '#1B3A6B'
+    });
 
     if (job.quote_number) {
-      timeline.push({ date: job.updated_at, icon: '📄', label: 'Proposal / Scope of Work', sub: `PB-${job.quote_number}`, color: '#7C3AED' });
+      timeline.push({
+        date: job.updated_at,
+        icon: '📄',
+        label: 'Proposal / Scope of Work',
+        sub: `PB-${job.quote_number}`,
+        color: '#7C3AED'
+      });
     }
 
     if (sigSession?.signed_at) {
-      timeline.push({ date: sigSession.signed_at, icon: '✍️', label: 'Contract Signed', sub: `Signed by ${sigSession.signer_name || '—'} · Contract No. PB-${job.quote_number || job.id}`, color: '#0D9488' });
+      timeline.push({
+        date: sigSession.signed_at,
+        icon: '✍️',
+        label: 'Contract Signed',
+        sub: `Signed by ${sigSession.signer_name || '—'} · Contract No. PB-${job.quote_number || job.id}`,
+        color: '#0D9488'
+      });
     }
 
     for (const inv of invoices) {
-      const typeMap = { contract_invoice: 'Deposit Invoice', pass_through_invoice: 'Pass-Through Invoice', change_order: 'Change Order Invoice', combined_invoice: 'Invoice' };
+      const typeMap = {
+        contract_invoice: 'Deposit Invoice',
+        pass_through_invoice: 'Pass-Through Invoice',
+        change_order: 'Change Order Invoice',
+        combined_invoice: 'Invoice'
+      };
       const typeLabel = typeMap[inv.invoice_type] || 'Invoice';
-      const statusBadge = inv.status === 'paid' ? ' ✓ PAID' : inv.status === 'sent' ? ' — Sent' : inv.status === 'void' ? ' — VOID' : ' — Draft';
+      const statusBadge =
+        inv.status === 'paid'
+          ? ' ✓ PAID'
+          : inv.status === 'sent'
+            ? ' — Sent'
+            : inv.status === 'void'
+              ? ' — VOID'
+              : ' — Draft';
       const pbDue = inv.pb_due_amount || inv.amount;
-      timeline.push({ date: inv.created_at, icon: '🧾', label: `${typeLabel} — ${inv.invoice_number}`, sub: `${money(inv.amount)} total · ${money(pbDue)} due to PB${statusBadge}`, color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A' });
+      timeline.push({
+        date: inv.created_at,
+        icon: '🧾',
+        label: `${typeLabel} — ${inv.invoice_number}`,
+        sub: `${money(inv.amount)} total · ${money(pbDue)} due to PB${statusBadge}`,
+        color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A'
+      });
     }
 
     for (const pmt of payments) {
@@ -544,7 +598,13 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
     }
 
     if (job.status === 'complete') {
-      timeline.push({ date: job.updated_at, icon: '🏁', label: 'Job Complete', sub: '', color: '#2E7D32' });
+      timeline.push({
+        date: job.updated_at,
+        icon: '🏁',
+        label: 'Job Complete',
+        sub: '',
+        color: '#2E7D32'
+      });
     }
 
     timeline.sort((a, b) => {
@@ -553,7 +613,9 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
       return da - db2;
     });
 
-    const timelineRowsHTML = timeline.map((row, i) => `
+    const timelineRowsHTML = timeline
+      .map(
+        (row, i) => `
 <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'};border-bottom:1px solid #eee">
   <td style="padding:9px 12px;font-size:18px;width:36px;text-align:center">${row.icon}</td>
   <td style="padding:9px 8px;font-size:11px;color:#888;white-space:nowrap;width:100px">${fmtDate(row.date)}</td>
@@ -561,9 +623,16 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
     <div style="font-size:12px;font-weight:600;color:${row.color}">${row.label}</div>
     ${row.sub ? `<div style="font-size:11px;color:#888;margin-top:2px">${row.sub}</div>` : ''}
   </td>
-</tr>`).join('');
+</tr>`
+      )
+      .join('');
 
-    const runDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+    const runDate = new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'America/New_York'
+    });
 
     const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
@@ -624,7 +693,10 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
 
     const pdfPath = await generatePDFFromHTML(html, `doc_history_${job.id}`);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="doc-history-${job.quote_number || job.id}.pdf"`);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="doc-history-${job.quote_number || job.id}.pdf"`
+    );
     const fs = require('fs');
     fs.createReadStream(pdfPath).pipe(res);
   } catch (err) {
@@ -664,7 +736,9 @@ router.get('/customer/search', requireAuth, (req, res) => {
   const like = `%${q}%`;
 
   // Linked contacts (have a contact record)
-  const contacts = db.prepare(`
+  const contacts = db
+    .prepare(
+      `
     SELECT c.id, c.name, c.email, c.phone, c.address, c.city, c.pb_customer_number,
            COUNT(j.id) AS job_count
     FROM contacts c
@@ -672,21 +746,29 @@ router.get('/customer/search', requireAuth, (req, res) => {
     WHERE c.name LIKE ? OR c.pb_customer_number LIKE ? OR c.email LIKE ? OR c.phone LIKE ?
     GROUP BY c.id
     ORDER BY c.name ASC LIMIT 10
-  `).all(like, like, like, like);
+  `
+    )
+    .all(like, like, like, like);
 
   // Unlinked jobs (no contact record) grouped by customer_name
-  const unlinked = db.prepare(`
+  const unlinked = db
+    .prepare(
+      `
     SELECT customer_name AS name, customer_email AS email, customer_phone AS phone,
            COUNT(*) AS job_count, NULL AS pb_customer_number, NULL AS id
     FROM jobs
     WHERE contact_id IS NULL AND customer_name LIKE ?
     GROUP BY customer_name
     ORDER BY customer_name ASC LIMIT 5
-  `).all(like);
+  `
+    )
+    .all(like);
 
   const results = [
-    ...contacts.map(c => ({ ...c, type: 'contact' })),
-    ...unlinked.filter(u => !contacts.some(c => c.name === u.name)).map(u => ({ ...u, type: 'unlinked' }))
+    ...contacts.map((c) => ({ ...c, type: 'contact' })),
+    ...unlinked
+      .filter((u) => !contacts.some((c) => c.name === u.name))
+      .map((u) => ({ ...u, type: 'unlinked' }))
   ].slice(0, 12);
 
   res.json({ customers: results });
@@ -699,16 +781,23 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
     const { generatePDFFromHTML } = require('../services/pdfService');
 
     const { contact_id, customer_name } = req.query;
-    if (!contact_id && !customer_name) return res.status(400).json({ error: 'contact_id or customer_name required' });
+    if (!contact_id && !customer_name)
+      return res.status(400).json({ error: 'contact_id or customer_name required' });
 
     let contact = null;
     let jobs = [];
 
     if (contact_id) {
       contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(contact_id);
-      jobs = db.prepare('SELECT * FROM jobs WHERE contact_id = ? ORDER BY created_at ASC').all(contact_id);
+      jobs = db
+        .prepare('SELECT * FROM jobs WHERE contact_id = ? ORDER BY created_at ASC')
+        .all(contact_id);
     } else {
-      jobs = db.prepare("SELECT * FROM jobs WHERE contact_id IS NULL AND customer_name = ? ORDER BY created_at ASC").all(customer_name);
+      jobs = db
+        .prepare(
+          'SELECT * FROM jobs WHERE contact_id IS NULL AND customer_name = ? ORDER BY created_at ASC'
+        )
+        .all(customer_name);
     }
 
     if (!jobs.length && !contact) return res.status(404).json({ error: 'No records found' });
@@ -716,12 +805,28 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
     const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
     const fmtDateTime = (d) => {
       if (!d) return '—';
-      try { return new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/New_York' }); }
-      catch { return d; }
+      try {
+        return new Date(d).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+          timeZone: 'America/New_York'
+        });
+      } catch {
+        return d;
+      }
     };
 
     const displayName = contact?.name || jobs[0]?.customer_name || 'Unknown Customer';
-    const runDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York' });
+    const runDate = new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+      timeZone: 'America/New_York'
+    });
 
     // Aggregate totals
     let totalContractValue = 0;
@@ -730,38 +835,90 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
     const jobSections = [];
 
     for (const job of jobs) {
-      const invoices = db.prepare('SELECT * FROM invoices WHERE job_id = ? ORDER BY created_at ASC').all(job.id);
-      const payments = db.prepare('SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC').all(job.id);
+      const invoices = db
+        .prepare('SELECT * FROM invoices WHERE job_id = ? ORDER BY created_at ASC')
+        .all(job.id);
+      const payments = db
+        .prepare(
+          'SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC'
+        )
+        .all(job.id);
 
       const jobTotal = Number(job.total_value || 0);
-      const jobCollected = payments.filter(p => (p.credit_debit || 'credit') === 'credit').reduce((s, p) => s + Number(p.amount || 0), 0);
+      const jobCollected = payments
+        .filter((p) => (p.credit_debit || 'credit') === 'credit')
+        .reduce((s, p) => s + Number(p.amount || 0), 0);
       totalContractValue += jobTotal;
       totalCollected += jobCollected;
 
       // Build timeline for this job
       const timeline = [];
-      timeline.push({ date: job.created_at, icon: '📋', label: 'Job Created', sub: `Status: ${job.status || 'received'}`, color: '#1B3A6B' });
+      timeline.push({
+        date: job.created_at,
+        icon: '📋',
+        label: 'Job Created',
+        sub: `Status: ${job.status || 'received'}`,
+        color: '#1B3A6B'
+      });
 
       if (job.quote_number) {
-        timeline.push({ date: job.updated_at, icon: '📄', label: 'Proposal / Scope of Work', sub: `PB-${job.quote_number}${job.total_value ? ' · ' + money(job.total_value) : ''}`, color: '#7C3AED' });
+        timeline.push({
+          date: job.updated_at,
+          icon: '📄',
+          label: 'Proposal / Scope of Work',
+          sub: `PB-${job.quote_number}${job.total_value ? ' · ' + money(job.total_value) : ''}`,
+          color: '#7C3AED'
+        });
       }
 
-      const sigSess = db.prepare(`SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`).get(job.id);
+      const sigSess = db
+        .prepare(
+          `SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`
+        )
+        .get(job.id);
       if (sigSess?.signed_at) {
-        timeline.push({ date: sigSess.signed_at, icon: '✍️', label: 'Contract Signed', sub: `Signed by ${sigSess.signer_name || '—'} · Contract No. PB-${job.quote_number || job.id}`, color: '#0D9488' });
+        timeline.push({
+          date: sigSess.signed_at,
+          icon: '✍️',
+          label: 'Contract Signed',
+          sub: `Signed by ${sigSess.signer_name || '—'} · Contract No. PB-${job.quote_number || job.id}`,
+          color: '#0D9488'
+        });
       }
 
       for (const inv of invoices) {
-        const typeMap = { contract_invoice: 'Deposit Invoice', pass_through_invoice: 'Pass-Through Invoice', change_order: 'Change Order Invoice', combined_invoice: 'Invoice' };
+        const typeMap = {
+          contract_invoice: 'Deposit Invoice',
+          pass_through_invoice: 'Pass-Through Invoice',
+          change_order: 'Change Order Invoice',
+          combined_invoice: 'Invoice'
+        };
         const tLabel = typeMap[inv.invoice_type] || 'Invoice';
-        const statusBadge = inv.status === 'paid' ? ' ✓ PAID' : inv.status === 'sent' ? ' — Sent' : inv.status === 'void' ? ' — VOID' : ' — Draft';
+        const statusBadge =
+          inv.status === 'paid'
+            ? ' ✓ PAID'
+            : inv.status === 'sent'
+              ? ' — Sent'
+              : inv.status === 'void'
+                ? ' — VOID'
+                : ' — Draft';
         let items = [];
-        try { items = inv.line_items ? JSON.parse(inv.line_items) : []; } catch { /* ignore */ }
+        try {
+          items = inv.line_items ? JSON.parse(inv.line_items) : [];
+        } catch {
+          /* ignore */
+        }
         const pbDue = inv.pb_due_amount || inv.amount;
         const sub = items.length
           ? `${money(inv.amount)} total · ${money(pbDue)} due to PB${statusBadge}`
           : `${money(inv.amount)}${statusBadge}`;
-        timeline.push({ date: inv.created_at, icon: '🧾', label: `${tLabel} — ${inv.invoice_number}`, sub, color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A' });
+        timeline.push({
+          date: inv.created_at,
+          icon: '🧾',
+          label: `${tLabel} — ${inv.invoice_number}`,
+          sub,
+          color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A'
+        });
       }
 
       for (const pmt of payments) {
@@ -776,12 +933,23 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
       }
 
       if (job.archived && job.closed_reason === 'completed') {
-        timeline.push({ date: job.archived_at || job.updated_at, icon: '🏁', label: 'Job Completed', sub: job.closed_note || '', color: '#2E7D32' });
+        timeline.push({
+          date: job.archived_at || job.updated_at,
+          icon: '🏁',
+          label: 'Job Completed',
+          sub: job.closed_note || '',
+          color: '#2E7D32'
+        });
       }
 
-      timeline.sort((a, b) => (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0));
+      timeline.sort(
+        (a, b) =>
+          (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0)
+      );
 
-      const rowsHTML = timeline.map((row, i) => `
+      const rowsHTML = timeline
+        .map(
+          (row, i) => `
 <tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'};border-bottom:1px solid #eee">
   <td style="padding:7px 10px;font-size:16px;width:30px;text-align:center">${row.icon}</td>
   <td style="padding:7px 8px;font-size:10px;color:#888;white-space:nowrap;width:120px">${fmtDateTime(row.date)}</td>
@@ -789,10 +957,18 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
     <div style="font-size:11px;font-weight:600;color:${row.color}">${row.label}</div>
     ${row.sub ? `<div style="font-size:10px;color:#888;margin-top:1px">${row.sub}</div>` : ''}
   </td>
-</tr>`).join('');
+</tr>`
+        )
+        .join('');
 
       const outstanding = Math.max(0, jobTotal - jobCollected);
-      const statusColor = { completed: '#2E7D32', contract_signed: '#0D9488', in_progress: '#3B82F6', proposal_sent: '#F59E0B' }[job.status] || '#888';
+      const statusColor =
+        {
+          completed: '#2E7D32',
+          contract_signed: '#0D9488',
+          in_progress: '#3B82F6',
+          proposal_sent: '#F59E0B'
+        }[job.status] || '#888';
 
       jobSections.push(`
 <div style="margin-bottom:28px;page-break-inside:avoid">
@@ -889,9 +1065,15 @@ ${jobSections.join('') || '<p style="color:#aaa;font-size:12px">No jobs on recor
 </div>
 </body></html>`;
 
-    const pdfPath = await generatePDFFromHTML(html, `customer_report_${contact_id || customer_name.replace(/\s+/g, '_')}`);
+    const pdfPath = await generatePDFFromHTML(
+      html,
+      `customer_report_${contact_id || customer_name.replace(/\s+/g, '_')}`
+    );
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="customer-report-${displayName.replace(/\s+/g, '-')}.pdf"`);
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="customer-report-${displayName.replace(/\s+/g, '-')}.pdf"`
+    );
     const fs = require('fs');
     fs.createReadStream(pdfPath).pipe(res);
   } catch (err) {
@@ -922,7 +1104,9 @@ router.get('/saved/:id', requireAuth, (req, res) => {
   if (!row) return res.status(404).json({ error: 'Not found' });
   try {
     row.data = JSON.parse(row.data);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   res.json({ report: row });
 });
 

@@ -17,18 +17,34 @@ function AuthImage({ src, token, alt, style, onClick }) {
   useEffect(() => {
     let revoke;
     fetch(src, { headers: { 'x-auth-token': token } })
-      .then(r => r.blob())
-      .then(blob => {
+      .then((r) => r.blob())
+      .then((blob) => {
         const url = URL.createObjectURL(blob);
         setBlobUrl(url);
         revoke = url;
       })
       .catch(() => {});
-    return () => { if (revoke) URL.revokeObjectURL(revoke); };
+    return () => {
+      if (revoke) URL.revokeObjectURL(revoke);
+    };
   }, [src, token]);
 
   if (!blobUrl) {
-    return <div style={{ ...style, background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 12 }}>Loading...</div>;
+    return (
+      <div
+        style={{
+          ...style,
+          background: '#f0f0f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#aaa',
+          fontSize: 12
+        }}
+      >
+        Loading...
+      </div>
+    );
   }
 
   return <img src={blobUrl} alt={alt} style={style} onClick={onClick} />;
@@ -180,7 +196,16 @@ export default function PhotosTab({ jobId, token }) {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+          flexWrap: 'wrap',
+          gap: 10
+        }}
+      >
         <h3 style={{ color: BLUE, margin: 0 }}>Job Photos</h3>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input
@@ -202,9 +227,15 @@ export default function PhotosTab({ jobId, token }) {
             onClick={() => cameraRef.current?.click()}
             disabled={uploading}
             style={{
-              padding: '8px 16px', background: BLUE, color: 'white',
-              border: 'none', borderRadius: 6, cursor: 'pointer',
-              fontSize: 13, fontWeight: 'bold', opacity: uploading ? 0.6 : 1
+              padding: '8px 16px',
+              background: BLUE,
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 'bold',
+              opacity: uploading ? 0.6 : 1
             }}
           >
             📷 Take Photo
@@ -213,9 +244,15 @@ export default function PhotosTab({ jobId, token }) {
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             style={{
-              padding: '8px 16px', background: 'white', color: BLUE,
-              border: `1px solid ${BLUE}`, borderRadius: 6, cursor: 'pointer',
-              fontSize: 13, fontWeight: 'bold', opacity: uploading ? 0.6 : 1
+              padding: '8px 16px',
+              background: 'white',
+              color: BLUE,
+              border: `1px solid ${BLUE}`,
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 'bold',
+              opacity: uploading ? 0.6 : 1
             }}
           >
             📁 Upload from Library
@@ -224,17 +261,33 @@ export default function PhotosTab({ jobId, token }) {
       </div>
 
       {uploading && (
-        <div style={{ padding: 10, background: '#EBF5FF', borderRadius: 6, marginBottom: 12, fontSize: 13, color: BLUE }}>
+        <div
+          style={{
+            padding: 10,
+            background: '#EBF5FF',
+            borderRadius: 6,
+            marginBottom: 12,
+            fontSize: 13,
+            color: BLUE
+          }}
+        >
           Uploading photo...
         </div>
       )}
 
       {pendingCount > 0 && (
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: 12, background: '#FFF8F0', border: `1px solid ${ORANGE}`,
-          borderRadius: 8, marginBottom: 16
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: 12,
+            background: '#FFF8F0',
+            border: `1px solid ${ORANGE}`,
+            borderRadius: 8,
+            marginBottom: 16
+          }}
+        >
           <span style={{ fontSize: 13, color: '#92400E', fontWeight: 'bold' }}>
             ⏳ {pendingCount} photo(s) pending upload
           </span>
@@ -242,9 +295,15 @@ export default function PhotosTab({ jobId, token }) {
             onClick={handleManualSync}
             disabled={syncing}
             style={{
-              padding: '6px 14px', background: ORANGE, color: 'white',
-              border: 'none', borderRadius: 6, cursor: 'pointer',
-              fontSize: 12, fontWeight: 'bold', opacity: syncing ? 0.6 : 1
+              padding: '6px 14px',
+              background: ORANGE,
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 12,
+              fontWeight: 'bold',
+              opacity: syncing ? 0.6 : 1
             }}
           >
             {syncing ? 'Uploading...' : '⬆️ Upload Pending'}
@@ -261,23 +320,34 @@ export default function PhotosTab({ jobId, token }) {
           </div>
         </div>
       ) : (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-          gap: 12
-        }}>
-          {photos.map(photo => (
-            <div key={photo.id} style={{
-              borderRadius: 8, overflow: 'hidden', border: '1px solid #eee',
-              background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
-            }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: 12
+          }}
+        >
+          {photos.map((photo) => (
+            <div
+              key={photo.id}
+              style={{
+                borderRadius: 8,
+                overflow: 'hidden',
+                border: '1px solid #eee',
+                background: 'white',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+              }}
+            >
               <AuthImage
                 src={`/api/jobs/${jobId}/photos/file/${photo.filename}`}
                 token={token}
                 alt={photo.original_name}
                 style={{
-                  width: '100%', height: 160, objectFit: 'cover',
-                  display: 'block', cursor: 'pointer'
+                  width: '100%',
+                  height: 160,
+                  objectFit: 'cover',
+                  display: 'block',
+                  cursor: 'pointer'
                 }}
                 onClick={() => handleOpenFullPhoto(photo)}
               />
@@ -286,16 +356,19 @@ export default function PhotosTab({ jobId, token }) {
                   {new Date(photo.uploaded_at).toLocaleDateString()}
                 </div>
                 {photo.caption && (
-                  <div style={{ fontSize: 12, color: '#333', marginTop: 2 }}>
-                    {photo.caption}
-                  </div>
+                  <div style={{ fontSize: 12, color: '#333', marginTop: 2 }}>{photo.caption}</div>
                 )}
                 <button
                   onClick={() => handleDelete(photo.id)}
                   style={{
-                    marginTop: 6, padding: '3px 8px', background: 'none',
-                    border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer',
-                    fontSize: 11, color: '#888'
+                    marginTop: 6,
+                    padding: '3px 8px',
+                    background: 'none',
+                    border: '1px solid #ddd',
+                    borderRadius: 4,
+                    cursor: 'pointer',
+                    fontSize: 11,
+                    color: '#888'
                   }}
                 >
                   🗑 Delete

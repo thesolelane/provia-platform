@@ -4,7 +4,7 @@
 
 'use strict';
 const express = require('express');
-const router  = express.Router();
+const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { getDb } = require('../db/database');
 const jobMemory = require('../services/jobMemory');
@@ -22,16 +22,16 @@ function baseURL(req) {
 
 // ── POST /api/signing/send-proposal/:jobId ────────────────────────────
 router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) => {
-  const db  = getDb();
+  const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.jobId);
-  if (!job)                   return res.status(404).json({ error: 'Job not found' });
+  if (!job) return res.status(404).json({ error: 'Job not found' });
   if (!job.proposal_pdf_path) return res.status(400).json({ error: 'No proposal PDF ready' });
-  if (!job.customer_email)    return res.status(400).json({ error: 'No customer email on file' });
+  if (!job.customer_email) return res.status(400).json({ error: 'No customer email on file' });
 
   try {
     const token = uuidv4();
-    const base  = baseURL(req);
-    const link  = `${base}/sign/p/${token}`;
+    const base = baseURL(req);
+    const link = `${base}/sign/p/${token}`;
 
     db.prepare(
       `INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'proposal', ?, CURRENT_TIMESTAMP, 'sent')`
@@ -39,8 +39,17 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
     db.prepare(
       "UPDATE jobs SET status = 'proposal_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
     ).run(job.id);
-    try { jobMemory.markSent(job.id); } catch { /* ignore */ }
-    logAudit(job.id, 'proposal_sent_for_signing', `Proposal signing link sent to ${job.customer_email}`, 'admin');
+    try {
+      jobMemory.markSent(job.id);
+    } catch {
+      /* ignore */
+    }
+    logAudit(
+      job.id,
+      'proposal_sent_for_signing',
+      `Proposal signing link sent to ${job.customer_email}`,
+      'admin'
+    );
 
     const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
 
@@ -150,15 +159,16 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
 
 // ── POST /api/signing/send-contract/:jobId ────────────────────────────
 router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) => {
-  const db  = getDb();
+  const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.jobId);
-  if (!job)                   return res.status(404).json({ error: 'Job not found' });
-  if (!job.contract_pdf_path) return res.status(400).json({ error: 'No contract PDF ready. Generate the contract first.' });
-  if (!job.customer_email)    return res.status(400).json({ error: 'No customer email on file' });
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (!job.contract_pdf_path)
+    return res.status(400).json({ error: 'No contract PDF ready. Generate the contract first.' });
+  if (!job.customer_email) return res.status(400).json({ error: 'No customer email on file' });
 
   const token = uuidv4();
-  const base  = baseURL(req);
-  const link  = `${base}/sign/c/${token}`;
+  const base = baseURL(req);
+  const link = `${base}/sign/c/${token}`;
 
   db.prepare(
     `INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'contract', ?, CURRENT_TIMESTAMP, 'sent')`
@@ -166,13 +176,21 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
   db.prepare(
     "UPDATE jobs SET status = 'contract_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
   ).run(job.id);
-  logAudit(job.id, 'contract_sent_for_signing', `Contract signing link sent to ${job.customer_email}`, 'admin');
+  logAudit(
+    job.id,
+    'contract_sent_for_signing',
+    `Contract signing link sent to ${job.customer_email}`,
+    'admin'
+  );
 
   const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
-  const fs     = require('fs');
+  const fs = require('fs');
   const proposalAttachment =
     job.proposal_pdf_path && fs.existsSync(job.proposal_pdf_path)
-      ? { attachmentPath: job.proposal_pdf_path, attachmentName: `Preferred-Builders-Proposal-${job.customer_name || job.id}.pdf` }
+      ? {
+          attachmentPath: job.proposal_pdf_path,
+          attachmentName: `Preferred-Builders-Proposal-${job.customer_name || job.id}.pdf`
+        }
       : {};
 
   await sendEmail({
@@ -268,7 +286,7 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
 
 // ── GET /api/signing/status/:jobId ────────────────────────────────────
 router.get('/api/signing/status/:jobId', requireAuth, (req, res) => {
-  const db       = getDb();
+  const db = getDb();
   const sessions = db
     .prepare(
       'SELECT id, doc_type, status, email_sent_at, opened_at, opened_ip, signed_at, signer_name, decline_reason, created_at FROM signing_sessions WHERE job_id = ? ORDER BY created_at DESC'

@@ -59,7 +59,9 @@ async function getReplitConnectorClient() {
 
   try {
     const data = await fetch(
-      'https://' + hostname + '/api/v2/connection?include_secrets=true&connector_names=google-calendar',
+      'https://' +
+        hostname +
+        '/api/v2/connection?include_secrets=true&connector_names=google-calendar',
       { headers: { Accept: 'application/json', 'X-Replit-Token': xReplitToken } }
     ).then((r) => r.json());
 
@@ -152,7 +154,9 @@ async function createCalendarEvent(task, calendarId = 'primary', extraEmails = [
       resource: event,
       sendUpdates: attendees.length ? 'all' : 'none'
     });
-    console.log(`[GoogleCalendar] Event created on calendar "${resolvedId}": ${result.data.htmlLink}`);
+    console.log(
+      `[GoogleCalendar] Event created on calendar "${resolvedId}": ${result.data.htmlLink}`
+    );
     return result.data.htmlLink || null;
   } catch (err) {
     console.warn('[GoogleCalendar] Failed to create event:', err.message);

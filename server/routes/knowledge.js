@@ -93,7 +93,9 @@ router.put('/:id', requireAuth, (req, res) => {
   const db = getDb();
   const { title, category, content, active } = req.body;
   if (title === undefined && category === undefined && content === undefined) {
-    return res.status(400).json({ error: 'At least one of title, category, or content is required' });
+    return res
+      .status(400)
+      .json({ error: 'At least one of title, category, or content is required' });
   }
   db.prepare(
     'UPDATE knowledge_base SET title = COALESCE(?, title), category = COALESCE(?, category), content = COALESCE(?, content), active = COALESCE(?, active) WHERE id = ?'

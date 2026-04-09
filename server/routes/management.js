@@ -125,17 +125,23 @@ router.get('/:id', requireAuth, (req, res) => {
   if (job.proposal_data) {
     try {
       job.proposal_data = JSON.parse(job.proposal_data);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   if (job.contract_data) {
     try {
       job.contract_data = JSON.parse(job.contract_data);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
   if (job.flagged_items) {
     try {
       job.flagged_items = JSON.parse(job.flagged_items);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   let versionHistory = [];
@@ -195,7 +201,9 @@ router.patch('/:id/notes', requireAuth, requireFields(['notes']), (req, res) => 
           description: `Job marked complete for ${prevJob?.project_address || 'project'}`,
           recorded_by: req.session?.name || 'admin'
         });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
   } else {
     db.prepare('UPDATE jobs SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
@@ -257,7 +265,9 @@ router.get('/events', requireAuth, (req, res) => {
   const heartbeat = setInterval(() => {
     try {
       res.write(': heartbeat\n\n');
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, 30000);
 
   addClient(res);
@@ -342,7 +352,12 @@ router.delete('/:id', requireAuth, requireRole('admin', 'system_admin'), (req, r
     db.prepare(
       "UPDATE signing_sessions SET status = 'void' WHERE job_id = ? AND status != 'signed'"
     ).run(req.params.id);
-    logAudit(req.params.id, 'signing_sessions_voided', 'Signing links voided — job marked completed', 'admin');
+    logAudit(
+      req.params.id,
+      'signing_sessions_voided',
+      'Signing links voided — job marked completed',
+      'admin'
+    );
   }
 
   res.json({ success: true, message: 'Job archived' });

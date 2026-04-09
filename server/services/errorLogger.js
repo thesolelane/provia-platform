@@ -251,7 +251,9 @@ async function createGithubIssue(title, body, labels) {
             try {
               const issue = JSON.parse(data);
               console.log(`[GitHub] Created issue #${issue.number}: ${title}`);
-            } catch { /* ignore */ }
+            } catch {
+              /* ignore */
+            }
           } else {
             console.warn(
               `[GitHub] Issue creation returned HTTP ${res.statusCode}: ${data.slice(0, 200)}`

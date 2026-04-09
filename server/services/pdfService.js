@@ -23,7 +23,9 @@ function resolveChromiumPath() {
     try {
       const p = execSync('where chrome', { timeout: 3000 }).toString().split('\n')[0].trim();
       if (p && fs.existsSync(p)) return p;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     const winPaths = [
       'C:\\Users\\theso\\.cache\\puppeteer\\chrome\\win64-146.0.7680.76\\chrome-win64\\chrome.exe',
       'C:\\Users\\theso\\.cache\\puppeteer\\chrome\\win64-127.0.6533.88\\chrome-win64\\chrome.exe',
@@ -35,7 +37,11 @@ function resolveChromiumPath() {
       (process.env.PROGRAMFILES || '') + '\\Google\\Chrome\\Application\\chrome.exe'
     ];
     for (const p of winPaths) {
-      try { if (p && fs.existsSync(p)) return p; } catch { /* ignore */ }
+      try {
+        if (p && fs.existsSync(p)) return p;
+      } catch {
+        /* ignore */
+      }
     }
     return undefined;
   }
@@ -44,9 +50,13 @@ function resolveChromiumPath() {
     const p = execSync(
       'which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null',
       { timeout: 3000 }
-    ).toString().trim();
+    )
+      .toString()
+      .trim();
     if (p) return p;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return undefined;
 }
 
@@ -64,7 +74,7 @@ async function generatePDF(data, type, jobId) {
     html = buildContractHTMLNew(adaptToContractSchema(data));
   }
 
-  const filename   = `PB_${type === 'proposal' ? 'Proposal' : 'Contract'}_${jobId.slice(0, 8)}_${Date.now()}.pdf`;
+  const filename = `PB_${type === 'proposal' ? 'Proposal' : 'Contract'}_${jobId.slice(0, 8)}_${Date.now()}.pdf`;
   const outputPath = path.join(OUTPUT_DIR, filename);
 
   const browser = await puppeteer.launch({
@@ -119,7 +129,7 @@ async function generateBlankContractDocx() {
 }
 
 async function generatePDFFromHTML(html, filenameBase) {
-  const filename   = `${filenameBase}_${Date.now()}.pdf`;
+  const filename = `${filenameBase}_${Date.now()}.pdf`;
   const outputPath = path.join(OUTPUT_DIR, filename);
 
   const browser = await puppeteer.launch({
@@ -144,4 +154,9 @@ async function generatePDFFromHTML(html, filenameBase) {
   return outputPath;
 }
 
-module.exports = { generatePDF, generatePDFFromHTML, generateBlankContractDocx, buildNoticeOfContractHTML };
+module.exports = {
+  generatePDF,
+  generatePDFFromHTML,
+  generateBlankContractDocx,
+  buildNoticeOfContractHTML
+};

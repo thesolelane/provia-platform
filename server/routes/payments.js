@@ -189,149 +189,163 @@ router.get('/contact/:contactId', requireAuth, (req, res) => {
   });
 });
 
-router.post('/received', requireAuth, requireFields(['job_id', 'amount', 'date_received']), validateNumber('amount', { min: 0.01 }), (req, res) => {
-  const db = getDb();
-  const {
-    job_id,
-    customer_name,
-    check_number,
-    amount,
-    date_received,
-    time_received,
-    payment_type,
-    credit_debit,
-    notes,
-    is_pass_through_reimbursement,
-    invoice_id
-  } = req.body;
-  const parsedAmount = validateAmount(amount);
-  if (parsedAmount === null)
-    return res.status(400).json({ error: 'amount must be a positive number' });
+router.post(
+  '/received',
+  requireAuth,
+  requireFields(['job_id', 'amount', 'date_received']),
+  validateNumber('amount', { min: 0.01 }),
+  (req, res) => {
+    const db = getDb();
+    const {
+      job_id,
+      customer_name,
+      check_number,
+      amount,
+      date_received,
+      time_received,
+      payment_type,
+      credit_debit,
+      notes,
+      is_pass_through_reimbursement,
+      invoice_id
+    } = req.body;
+    const parsedAmount = validateAmount(amount);
+    if (parsedAmount === null)
+      return res.status(400).json({ error: 'amount must be a positive number' });
 
-  const pType = VALID_PAYMENT_TYPES.includes(payment_type) ? payment_type : 'deposit';
-  const crDr = VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : 'credit';
-  const isPTR = is_pass_through_reimbursement ? 1 : 0;
-  const pClass = isPTR ? 'pass_through_reimbursement' : 'contract';
+    const pType = VALID_PAYMENT_TYPES.includes(payment_type) ? payment_type : 'deposit';
+    const crDr = VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : 'credit';
+    const isPTR = is_pass_through_reimbursement ? 1 : 0;
+    const pClass = isPTR ? 'pass_through_reimbursement' : 'contract';
 
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(job_id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(job_id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
 
-  const recorder = req.session?.name || 'Unknown';
-  const timeVal = time_received || currentTime();
+    const recorder = req.session?.name || 'Unknown';
+    const timeVal = time_received || currentTime();
 
-  const info = db
-    .prepare(
-      `
+    const info = db
+      .prepare(
+        `
     INSERT INTO payments_received (job_id, customer_name, check_number, amount, date_received, time_received, payment_type, credit_debit, recorded_by, notes, payment_class, is_pass_through_reimbursement, invoice_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
-    )
-    .run(
+      )
+      .run(
+        job_id,
+        customer_name || null,
+        check_number || null,
+        parsedAmount,
+        date_received,
+        timeVal,
+        pType,
+        crDr,
+        recorder,
+        notes || null,
+        pClass,
+        isPTR,
+        invoice_id || null
+      );
+
+    const payment = db
+      .prepare('SELECT * FROM payments_received WHERE id = ?')
+      .get(info.lastInsertRowid);
+    logAudit(
       job_id,
-      customer_name || null,
-      check_number || null,
-      parsedAmount,
-      date_received,
-      timeVal,
-      pType,
-      crDr,
-      recorder,
-      notes || null,
-      pClass,
-      isPTR,
-      invoice_id || null
+      'payment_received',
+      `Check received: $${amount} (${payment_type || 'deposit'}, ${credit_debit || 'credit'}) recorded by ${recorder}`,
+      recorder
     );
 
-  const payment = db
-    .prepare('SELECT * FROM payments_received WHERE id = ?')
-    .get(info.lastInsertRowid);
-  logAudit(
-    job_id,
-    'payment_received',
-    `Check received: $${amount} (${payment_type || 'deposit'}, ${credit_debit || 'credit'}) recorded by ${recorder}`,
-    recorder
-  );
+    const contact = job.contact_id
+      ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+      : null;
+    logActivity({
+      customer_number: contact?.pb_customer_number || null,
+      job_id,
+      event_type: isPTR ? 'PASS_THROUGH_REIMBURSED' : 'PAYMENT_RECEIVED',
+      description: `${isPTR ? 'Pass-through reimbursement' : 'Payment'} received: $${parsedAmount.toLocaleString()} (${pType})${check_number ? ' check #' + check_number : ''}`,
+      recorded_by: recorder
+    });
 
-  const contact = job.contact_id
-    ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
-    : null;
-  logActivity({
-    customer_number: contact?.pb_customer_number || null,
-    job_id,
-    event_type: isPTR ? 'PASS_THROUGH_REIMBURSED' : 'PAYMENT_RECEIVED',
-    description: `${isPTR ? 'Pass-through reimbursement' : 'Payment'} received: $${parsedAmount.toLocaleString()} (${pType})${check_number ? ' check #' + check_number : ''}`,
-    recorded_by: recorder
-  });
+    // When final payment is recorded, void all open signing sessions — job is complete
+    if (pType === 'final') {
+      db.prepare(
+        "UPDATE signing_sessions SET status = 'void' WHERE job_id = ? AND status != 'signed'"
+      ).run(job_id);
+      logAudit(
+        job_id,
+        'signing_sessions_voided',
+        'Signing links voided — final payment recorded',
+        recorder
+      );
+    }
 
-  // When final payment is recorded, void all open signing sessions — job is complete
-  if (pType === 'final') {
-    db.prepare(
-      "UPDATE signing_sessions SET status = 'void' WHERE job_id = ? AND status != 'signed'"
-    ).run(job_id);
-    logAudit(job_id, 'signing_sessions_voided', 'Signing links voided — final payment recorded', recorder);
-  }
+    res.json({ payment, summary: jobSummary(db, job_id) });
 
-  res.json({ payment, summary: jobSummary(db, job_id) });
-
-  // After responding, send deposit confirmation email if contract is signed
-  setImmediate(async () => {
-    try {
-      const fullJob = db.prepare('SELECT * FROM jobs WHERE id = ?').get(job_id);
-      if (!fullJob?.customer_email) return;
-      if (!['contract_signed', 'in_progress', 'completed'].includes(fullJob.status)) return;
-
-      const { sendEmail } = require('../services/emailService');
-      const { mergePDFs } = require('../services/pdfMergeService');
-      const paidAmount = `$${Number(parsedAmount).toLocaleString()}`;
-      const paidWhen = new Date().toLocaleString('en-US', {
-        dateStyle: 'long',
-        timeStyle: 'short',
-        timeZone: 'America/New_York'
-      });
-      const pTypeLabel =
-        {
-          deposit: 'Deposit',
-          progress: 'Progress Payment',
-          final: 'Final Payment',
-          other: 'Payment'
-        }[pType] || 'Payment';
-      const safeName = (fullJob.customer_name || job_id)
-        .replace(/\s+/g, '-')
-        .replace(/[^a-zA-Z0-9-]/g, '');
-
-      let mergedPdfPath = fullJob.contract_pdf_path;
+    // After responding, send deposit confirmation email if contract is signed
+    setImmediate(async () => {
       try {
-        mergedPdfPath = await mergePDFs(
-          [fullJob.proposal_pdf_path, fullJob.contract_pdf_path],
-          `pb-payment-${job_id}.pdf`
-        );
-      } catch (mergeErr) {
-        console.warn('[PaymentEmail] PDF merge failed, using contract only:', mergeErr.message);
-      }
+        const fullJob = db.prepare('SELECT * FROM jobs WHERE id = ?').get(job_id);
+        if (!fullJob?.customer_email) return;
+        if (!['contract_signed', 'in_progress', 'completed'].includes(fullJob.status)) return;
 
-      // Auto-save completed file to signed contracts folder (Windows server)
-      const contractsDir = process.env.SIGNED_CONTRACTS_DIR;
-      if (contractsDir && mergedPdfPath) {
+        const { sendEmail } = require('../services/emailService');
+        const { mergePDFs } = require('../services/pdfMergeService');
+        const paidAmount = `$${Number(parsedAmount).toLocaleString()}`;
+        const paidWhen = new Date().toLocaleString('en-US', {
+          dateStyle: 'long',
+          timeStyle: 'short',
+          timeZone: 'America/New_York'
+        });
+        const pTypeLabel =
+          {
+            deposit: 'Deposit',
+            progress: 'Progress Payment',
+            final: 'Final Payment',
+            other: 'Payment'
+          }[pType] || 'Payment';
+        const safeName = (fullJob.customer_name || job_id)
+          .replace(/\s+/g, '-')
+          .replace(/[^a-zA-Z0-9-]/g, '');
+
+        let mergedPdfPath = fullJob.contract_pdf_path;
         try {
-          const fsSync = require('fs');
-          const pathLib = require('path');
-          if (!fsSync.existsSync(contractsDir)) fsSync.mkdirSync(contractsDir, { recursive: true });
-          const dateStamp = new Date().toISOString().slice(0, 10);
-          const destName = `Preferred-Builders-COMPLETED-${safeName}-${dateStamp}.pdf`;
-          const destPath = pathLib.join(contractsDir, destName);
-          fsSync.copyFileSync(mergedPdfPath, destPath);
-          console.log(`[SignedContracts] Payment-confirmed file saved: ${destPath}`);
-        } catch (saveErr) {
-          console.warn('[SignedContracts] Failed to save payment-confirmed file:', saveErr.message);
+          mergedPdfPath = await mergePDFs(
+            [fullJob.proposal_pdf_path, fullJob.contract_pdf_path],
+            `pb-payment-${job_id}.pdf`
+          );
+        } catch (mergeErr) {
+          console.warn('[PaymentEmail] PDF merge failed, using contract only:', mergeErr.message);
         }
-      }
 
-      await sendEmail({
-        to: fullJob.customer_email,
-        subject: `Payment Received — Preferred Builders (${pTypeLabel} ${paidAmount})`,
-        attachmentPath: mergedPdfPath,
-        attachmentName: `Preferred-Builders-Contract-and-Proposal-${safeName}.pdf`,
-        html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
+        // Auto-save completed file to signed contracts folder (Windows server)
+        const contractsDir = process.env.SIGNED_CONTRACTS_DIR;
+        if (contractsDir && mergedPdfPath) {
+          try {
+            const fsSync = require('fs');
+            const pathLib = require('path');
+            if (!fsSync.existsSync(contractsDir))
+              fsSync.mkdirSync(contractsDir, { recursive: true });
+            const dateStamp = new Date().toISOString().slice(0, 10);
+            const destName = `Preferred-Builders-COMPLETED-${safeName}-${dateStamp}.pdf`;
+            const destPath = pathLib.join(contractsDir, destName);
+            fsSync.copyFileSync(mergedPdfPath, destPath);
+            console.log(`[SignedContracts] Payment-confirmed file saved: ${destPath}`);
+          } catch (saveErr) {
+            console.warn(
+              '[SignedContracts] Failed to save payment-confirmed file:',
+              saveErr.message
+            );
+          }
+        }
+
+        await sendEmail({
+          to: fullJob.customer_email,
+          subject: `Payment Received — Preferred Builders (${pTypeLabel} ${paidAmount})`,
+          attachmentPath: mergedPdfPath,
+          attachmentName: `Preferred-Builders-Contract-and-Proposal-${safeName}.pdf`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
           <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
             <div style="font-size:17px;font-weight:700">Preferred Builders General Services Inc.</div>
             <div style="font-size:12px;opacity:.8;margin-top:4px">HIC-197400 · CSL CS-121662 · 978-377-1784</div>
@@ -362,116 +376,127 @@ router.post('/received', requireAuth, requireFields(['job_id', 'amount', 'date_r
             <p style="margin:0">The approved Proposal / Scope of Work is non-binding on its own and is incorporated as a Contract Addendum upon execution of this agreement.</p>
           </div>
         </div>`,
-        text: `Hi ${fullJob.customer_name || 'there'},\n\nWe received your ${pTypeLabel} of ${paidAmount} on ${paidWhen}.\n\nYour project at ${fullJob.project_address} is confirmed and scheduled. We will follow up with your start date shortly.\n\nA copy of your signed contract is attached.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
-        emailType: 'general',
-        jobId: job_id
-      });
-      console.log(`[Payment] Deposit confirmation sent to ${fullJob.customer_email}`);
-    } catch (e) {
-      console.warn('[Payment] Confirmation email failed:', e.message);
-    }
-  });
-});
-
-router.post('/made', requireAuth, requireFields(['job_id', 'payee_name', 'amount', 'date_paid']), validateNumber('amount', { min: 0.01 }), (req, res) => {
-  const db = getDb();
-  const {
-    job_id,
-    payee_name,
-    check_number,
-    amount,
-    date_paid,
-    time_paid,
-    category,
-    credit_debit,
-    notes,
-    payment_class,
-    dept_code,
-    paid_by
-  } = req.body;
-  const parsedAmount = validateAmount(amount);
-  if (parsedAmount === null)
-    return res.status(400).json({ error: 'amount must be a positive number' });
-
-  // Accept proposal-derived trade names (e.g. 'framing', 'roofing', 'hvac') beyond the base whitelist
-  const cat =
-    category && typeof category === 'string' && category.trim()
-      ? category.trim().toLowerCase()
-      : 'subcontractor';
-  const crDr = VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : 'debit';
-  const pClass = VALID_PAYMENT_CLASS_OUT.includes(payment_class)
-    ? payment_class
-    : cat === 'permit'
-      ? 'pass_through'
-      : 'cost_of_revenue';
-  const isPassThrough = pClass === 'pass_through' ? 1 : 0;
-  const paidBy = paid_by === 'customer_direct' ? 'customer_direct' : 'pb';
-
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(job_id);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
-
-  const recorder = req.session?.name || 'Unknown';
-  const timeVal = time_paid || currentTime();
-
-  let deptCodeVal = dept_code || null;
-  if (!deptCodeVal) {
-    try {
-      const { nextDeptCode } = require('./invoices');
-      deptCodeVal = nextDeptCode(db, job_id, job.quote_number);
-    } catch { /* ignore */ }
+          text: `Hi ${fullJob.customer_name || 'there'},\n\nWe received your ${pTypeLabel} of ${paidAmount} on ${paidWhen}.\n\nYour project at ${fullJob.project_address} is confirmed and scheduled. We will follow up with your start date shortly.\n\nA copy of your signed contract is attached.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
+          emailType: 'general',
+          jobId: job_id
+        });
+        console.log(`[Payment] Deposit confirmation sent to ${fullJob.customer_email}`);
+      } catch (e) {
+        console.warn('[Payment] Confirmation email failed:', e.message);
+      }
+    });
   }
+);
 
-  const info = db
-    .prepare(
-      `
+router.post(
+  '/made',
+  requireAuth,
+  requireFields(['job_id', 'payee_name', 'amount', 'date_paid']),
+  validateNumber('amount', { min: 0.01 }),
+  (req, res) => {
+    const db = getDb();
+    const {
+      job_id,
+      payee_name,
+      check_number,
+      amount,
+      date_paid,
+      time_paid,
+      category,
+      credit_debit,
+      notes,
+      payment_class,
+      dept_code,
+      paid_by
+    } = req.body;
+    const parsedAmount = validateAmount(amount);
+    if (parsedAmount === null)
+      return res.status(400).json({ error: 'amount must be a positive number' });
+
+    // Accept proposal-derived trade names (e.g. 'framing', 'roofing', 'hvac') beyond the base whitelist
+    const cat =
+      category && typeof category === 'string' && category.trim()
+        ? category.trim().toLowerCase()
+        : 'subcontractor';
+    const crDr = VALID_CREDIT_DEBIT.includes(credit_debit) ? credit_debit : 'debit';
+    const pClass = VALID_PAYMENT_CLASS_OUT.includes(payment_class)
+      ? payment_class
+      : cat === 'permit'
+        ? 'pass_through'
+        : 'cost_of_revenue';
+    const isPassThrough = pClass === 'pass_through' ? 1 : 0;
+    const paidBy = paid_by === 'customer_direct' ? 'customer_direct' : 'pb';
+
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(job_id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const recorder = req.session?.name || 'Unknown';
+    const timeVal = time_paid || currentTime();
+
+    let deptCodeVal = dept_code || null;
+    if (!deptCodeVal) {
+      try {
+        const { nextDeptCode } = require('./invoices');
+        deptCodeVal = nextDeptCode(db, job_id, job.quote_number);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const info = db
+      .prepare(
+        `
     INSERT INTO payments_made (job_id, payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, recorded_by, notes, payment_class, dept_code, is_pass_through, paid_by)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
-    )
-    .run(
+      )
+      .run(
+        job_id,
+        payee_name.trim(),
+        check_number || null,
+        parsedAmount,
+        date_paid,
+        timeVal,
+        cat,
+        crDr,
+        recorder,
+        notes || null,
+        pClass,
+        deptCodeVal,
+        isPassThrough,
+        paidBy
+      );
+
+    const payment = db
+      .prepare('SELECT * FROM payments_made WHERE id = ?')
+      .get(info.lastInsertRowid);
+    const paidByLabel = paidBy === 'customer_direct' ? 'paid directly by customer' : `paid by PB`;
+    logAudit(
       job_id,
-      payee_name.trim(),
-      check_number || null,
-      parsedAmount,
-      date_paid,
-      timeVal,
-      cat,
-      crDr,
-      recorder,
-      notes || null,
-      pClass,
-      deptCodeVal,
-      isPassThrough,
-      paidBy
+      'payment_made',
+      `${payee_name}: $${amount} (${cat}, ${paidByLabel}) recorded by ${recorder}`,
+      recorder
     );
 
-  const payment = db.prepare('SELECT * FROM payments_made WHERE id = ?').get(info.lastInsertRowid);
-  const paidByLabel = paidBy === 'customer_direct' ? 'paid directly by customer' : `paid by PB`;
-  logAudit(
-    job_id,
-    'payment_made',
-    `${payee_name}: $${amount} (${cat}, ${paidByLabel}) recorded by ${recorder}`,
-    recorder
-  );
+    const contact = job.contact_id
+      ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+      : null;
+    const activityDesc =
+      paidBy === 'customer_direct'
+        ? `Customer paid directly to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''} — no PB reimbursement needed`
+        : `${isPassThrough ? 'Pass-through cost' : 'Payment'} to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''}`;
+    logActivity({
+      customer_number: contact?.pb_customer_number || null,
+      job_id,
+      event_type: isPassThrough ? 'PASS_THROUGH_PAID' : 'PAYMENT_MADE',
+      description: activityDesc,
+      document_ref: deptCodeVal || null,
+      recorded_by: recorder
+    });
 
-  const contact = job.contact_id
-    ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
-    : null;
-  const activityDesc =
-    paidBy === 'customer_direct'
-      ? `Customer paid directly to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''} — no PB reimbursement needed`
-      : `${isPassThrough ? 'Pass-through cost' : 'Payment'} to ${payee_name.trim()}: $${parsedAmount.toLocaleString()}${deptCodeVal ? ' [' + deptCodeVal + ']' : ''}`;
-  logActivity({
-    customer_number: contact?.pb_customer_number || null,
-    job_id,
-    event_type: isPassThrough ? 'PASS_THROUGH_PAID' : 'PAYMENT_MADE',
-    description: activityDesc,
-    document_ref: deptCodeVal || null,
-    recorded_by: recorder
-  });
-
-  res.json({ payment, summary: jobSummary(db, job_id) });
-});
+    res.json({ payment, summary: jobSummary(db, job_id) });
+  }
+);
 
 router.patch('/received/:id', requireAuth, validateNumber('amount', { min: 0.01 }), (req, res) => {
   const db = getDb();

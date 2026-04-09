@@ -62,7 +62,9 @@ function signingPageHTML({ docType, job, session, base: _base }) {
   const isProposal = docType === 'proposal';
   const docLabel = isProposal ? 'Proposal' : 'Contract';
   const pdfURLBase = pdfPublicURL(isProposal ? job.proposal_pdf_path : job.contract_pdf_path);
-  const pdfURL = pdfURLBase ? `${pdfURLBase}?sign_token=${encodeURIComponent(session.token)}` : null;
+  const pdfURL = pdfURLBase
+    ? `${pdfURLBase}?sign_token=${encodeURIComponent(session.token)}`
+    : null;
   const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
   const already = session.status === 'signed';
   const alreadyDeclined = session.status === 'declined';
@@ -155,7 +157,9 @@ function signingPageHTML({ docType, job, session, base: _base }) {
     </button>
     </div>
 
-    ${isProposal ? `
+    ${
+      isProposal
+        ? `
     <div id="declineToggle" style="margin-top:16px;text-align:center">
       <button onclick="toggleDecline()" type="button"
         style="background:none;border:none;color:#888;font-size:13px;cursor:pointer;text-decoration:underline;padding:4px">
@@ -180,7 +184,9 @@ function signingPageHTML({ docType, job, session, base: _base }) {
           Send Feedback
         </button>
       </div>
-    </div>` : ''}` ;
+    </div>`
+        : ''
+    }`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -233,7 +239,7 @@ function signingPageHTML({ docType, job, session, base: _base }) {
 </div>
 
 ${
-  (already || alreadyDeclined)
+  already || alreadyDeclined
     ? ''
     : `
 <script>
@@ -484,16 +490,21 @@ router.post('/api/signing/declined/:token', async (req, res) => {
     .prepare('SELECT * FROM signing_sessions WHERE token = ?')
     .get(req.params.token);
   if (!session) return res.status(404).json({ error: 'Not found' });
-  if (session.status === 'signed') return res.status(400).json({ error: 'This session has already been signed' });
+  if (session.status === 'signed')
+    return res.status(400).json({ error: 'This session has already been signed' });
   if (session.status === 'declined') return res.status(400).json({ error: 'Already declined' });
-  if (session.doc_type !== 'proposal') return res.status(400).json({ error: 'Decline is only available for proposals' });
+  if (session.doc_type !== 'proposal')
+    return res.status(400).json({ error: 'Decline is only available for proposals' });
 
   const { decline_reason } = req.body;
   if (!decline_reason || !String(decline_reason).trim()) {
     return res.status(400).json({ error: 'Please provide a reason for requesting changes' });
   }
 
-  if (isSessionExpired(session)) return res.status(410).json({ error: 'This signing link has expired. Please contact Preferred Builders for a new link.' });
+  if (isSessionExpired(session))
+    return res.status(410).json({
+      error: 'This signing link has expired. Please contact Preferred Builders for a new link.'
+    });
 
   const ip = clientIP(req);
   const reason = String(decline_reason).trim();
@@ -506,7 +517,11 @@ router.post('/api/signing/declined/:token', async (req, res) => {
     "UPDATE jobs SET status = 'proposal_declined', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
   ).run(session.job_id);
 
-  try { jobMemory.markOutcome(session.job_id, 'rejected'); } catch { /* ignore */ }
+  try {
+    jobMemory.markOutcome(session.job_id, 'rejected');
+  } catch {
+    /* ignore */
+  }
 
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
 
@@ -534,7 +549,13 @@ router.post('/api/signing/declined/:token', async (req, res) => {
           timeZone: 'America/New_York'
         });
         const jobLink = `${process.env.APP_URL || ''}/jobs/${session.job_id}`;
-        const escapeHtml = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        const escapeHtml = (s) =>
+          s
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
         await sendEmail({
           to: owners,
           subject: `❌ Proposal changes requested — ${job?.customer_name || 'Customer'}`,
@@ -566,8 +587,15 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
     .get(req.params.token);
   if (!session) return res.status(404).json({ error: 'Not found' });
   if (session.status === 'signed') return res.status(400).json({ error: 'Already signed' });
-  if (session.status === 'declined') return res.status(400).json({ error: 'This session has been declined. Please contact Preferred Builders for a revised proposal.' });
-  if (isSessionExpired(session)) return res.status(410).json({ error: 'This signing link has expired. Please contact Preferred Builders for a new link.' });
+  if (session.status === 'declined')
+    return res.status(400).json({
+      error:
+        'This session has been declined. Please contact Preferred Builders for a revised proposal.'
+    });
+  if (isSessionExpired(session))
+    return res.status(410).json({
+      error: 'This signing link has expired. Please contact Preferred Builders for a new link.'
+    });
 
   const { signer_name, signature_data } = req.body;
   if (!signer_name || !signature_data)
@@ -586,7 +614,9 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
     ).run(session.job_id);
     try {
       jobMemory.markOutcome(session.job_id, 'approved');
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     logAudit(
       session.job_id,
       'proposal_signed',
@@ -671,7 +701,9 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
             description: 'Contract auto-generated and ready to send',
             recorded_by: 'system'
           });
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
         notifyClients('job_updated', {
           jobId: session.job_id,
           status: 'contract_ready',
@@ -687,7 +719,9 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
     ).run(session.job_id);
     try {
       jobMemory.lock(session.job_id, 'contract_signed');
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     logAudit(
       session.job_id,
       'contract_signed',
@@ -697,7 +731,9 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
     // Auto-wipe stored email HTML previews for this job now that contract is signed
     try {
       db.prepare('UPDATE email_log SET html_body = NULL WHERE job_id = ?').run(session.job_id);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     notifyClients('job_updated', {
       jobId: session.job_id,
       status: 'contract_signed',
@@ -725,7 +761,9 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
         let proposalData = null;
         try {
           proposalData = job?.proposal_data ? JSON.parse(job.proposal_data) : null;
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
 
         const parseFee = (str) => {
           if (!str) return 0;
@@ -733,17 +771,18 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
           return isNaN(n) ? 0 : n;
         };
 
-        const ptPermit    = parseFee(proposalData?.job?.permit_fee);
-        const ptEngineer  = parseFee(proposalData?.job?.engineer_fee);
+        const ptPermit = parseFee(proposalData?.job?.permit_fee);
+        const ptEngineer = parseFee(proposalData?.job?.engineer_fee);
         const ptArchitect = parseFee(proposalData?.job?.architect_fee);
         // Combine engineer + architect as one "Architectural / Engineering" line item
-        const ptArchEng   = ptEngineer + ptArchitect;
-        const totalPT     = ptPermit + ptArchEng;
+        const ptArchEng = ptEngineer + ptArchitect;
+        const totalPT = ptPermit + ptArchEng;
 
-        const fullContractValue   = job?.total_value || proposalData?.pricing?.totalContractPrice || 0;
+        const fullContractValue =
+          job?.total_value || proposalData?.pricing?.totalContractPrice || 0;
         const contractValueExclPT = Math.max(0, fullContractValue - totalPT);
-        const depositPct          = proposalData?.pricing?.depositPercent || 33;
-        const depositAmt          = Math.round(contractValueExclPT * (depositPct / 100) * 100) / 100;
+        const depositPct = proposalData?.pricing?.depositPercent || 33;
+        const depositAmt = Math.round(contractValueExclPT * (depositPct / 100) * 100) / 100;
 
         if (depositAmt <= 0) return;
 
@@ -822,14 +861,21 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
         });
 
         // ── Build Invoice 1 PDF ───────────────────────────────────────────────
-        const money = (n) => `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+        const money = (n) =>
+          `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
         const issueDate = new Date().toLocaleDateString('en-US', {
-          month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/New_York'
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+          timeZone: 'America/New_York'
         });
 
         // Scope summary table from proposal line items (contract work, no PT rows)
         const scopeItems = (proposalData?.lineItems || []).filter(
-          (li) => !['permit', 'engineer', 'architect', 'designer'].includes((li.trade || '').toLowerCase())
+          (li) =>
+            !['permit', 'engineer', 'architect', 'designer'].includes(
+              (li.trade || '').toLowerCase()
+            )
         );
         const scopeTableHTML = scopeItems.length
           ? `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px">
@@ -837,24 +883,31 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
     <th style="text-align:left;padding:5px 8px;font-size:10px;color:#555;font-weight:600">Trade / Scope</th>
     <th style="text-align:right;padding:5px 8px;font-size:10px;color:#555;font-weight:600">Price</th>
   </tr>
-  ${scopeItems.map((li) => `
+  ${scopeItems
+    .map(
+      (li) => `
   <tr style="border-bottom:1px solid #f0f0f0">
     <td style="padding:5px 8px;color:#333">${li.trade || '—'}${li.description ? `<div style="font-size:9px;color:#888;margin-top:1px">${li.description}</div>` : ''}</td>
     <td style="padding:5px 8px;text-align:right;font-weight:600">${money(li.finalPrice || 0)}</td>
-  </tr>`).join('')}
-</table>` : '';
+  </tr>`
+    )
+    .join('')}
+</table>`
+          : '';
 
         // Due-on-this-invoice line items table
-        const dueRowsHTML = invLineItems.map((li, i) => {
-          const isPT = li.type === 'pass_through';
-          const badge = isPT
-            ? `<span style="font-size:9px;background:#fffbeb;color:#92400e;border:1px solid #fbbf24;padding:1px 6px;border-radius:8px;margin-left:6px">Pass-Through</span>`
-            : `<span style="font-size:9px;background:#e0e8ff;color:#1B3A6B;border:1px solid #93c5fd;padding:1px 6px;border-radius:8px;margin-left:6px">Deposit</span>`;
-          return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'};border-bottom:1px solid #eee">
+        const dueRowsHTML = invLineItems
+          .map((li, i) => {
+            const isPT = li.type === 'pass_through';
+            const badge = isPT
+              ? `<span style="font-size:9px;background:#fffbeb;color:#92400e;border:1px solid #fbbf24;padding:1px 6px;border-radius:8px;margin-left:6px">Pass-Through</span>`
+              : `<span style="font-size:9px;background:#e0e8ff;color:#1B3A6B;border:1px solid #93c5fd;padding:1px 6px;border-radius:8px;margin-left:6px">Deposit</span>`;
+            return `<tr style="background:${i % 2 === 0 ? '#fff' : '#f9fafb'};border-bottom:1px solid #eee">
   <td style="padding:9px 10px;font-size:12px;color:#222">${li.description}${badge}</td>
   <td style="padding:9px 10px;text-align:right;font-weight:700;font-size:13px">${money(li.amount)}</td>
 </tr>`;
-        }).join('');
+          })
+          .join('');
 
         const hasPayDirect = invLineItems.some((li) => li.type === 'pass_through');
         const payDirectNote = hasPayDirect
@@ -862,7 +915,8 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
   <strong>Pay Direct Option:</strong> For permit and/or architectural fees above, you may write a separate check
   directly to the permit office or design professional instead of paying Preferred Builders.
   Please let us know if you choose this option so we can update your account accordingly.
-</div>` : '';
+</div>`
+          : '';
 
         const invoiceHTML = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
@@ -923,20 +977,28 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
   </div>
 </div>
 
-${fullContractValue > 0 ? `
+${
+  fullContractValue > 0
+    ? `
 <div class="cv-box">
   <div>
     <div class="cv-label">Total Contract Value</div>
     <div style="font-size:10px;opacity:.65;margin-top:2px">Full project cost as agreed in your signed contract</div>
   </div>
   <div class="cv-amt">${money(fullContractValue)}</div>
-</div>` : ''}
+</div>`
+    : ''
+}
 
-${scopeItems.length > 0 ? `
+${
+  scopeItems.length > 0
+    ? `
 <div style="margin-bottom:16px">
   <div class="section-label" style="margin-bottom:6px">Contract Scope Summary</div>
   ${scopeTableHTML}
-</div>` : ''}
+</div>`
+    : ''
+}
 
 <div class="section-label" style="margin-bottom:6px">Due on This Invoice</div>
 <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px">
@@ -1144,7 +1206,6 @@ ${payDirectNote}
 
   res.json({ ok: true });
 });
-
 
 // Admin routes (send-proposal, send-contract, status)
 // live in signingAdmin.js

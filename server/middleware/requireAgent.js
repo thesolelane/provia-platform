@@ -22,7 +22,7 @@ const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const HEX_RE = /^[0-9a-f]+$/i;
 
 function requireAgent(req, res, next) {
-  const agentKey  = req.headers['x-agent-key'];
+  const agentKey = req.headers['x-agent-key'];
   const timestamp = req.headers['x-timestamp'];
   const signature = req.headers['x-signature'];
 

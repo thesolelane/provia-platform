@@ -40,11 +40,12 @@ export function getGpsPosition() {
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude,
-        accuracy: pos.coords.accuracy
-      }),
+      (pos) =>
+        resolve({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        }),
       (err) => reject(err),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );

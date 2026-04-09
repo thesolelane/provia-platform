@@ -1,9 +1,22 @@
-const reactPlugin = require('eslint-plugin-react');
-const reactHooksPlugin = require('eslint-plugin-react-hooks');
+const reactPlugin = (() => {
+  try {
+    return require('eslint-plugin-react');
+  } catch {
+    return null;
+  }
+})();
+
+const reactHooksPlugin = (() => {
+  try {
+    return require('eslint-plugin-react-hooks');
+  } catch {
+    return null;
+  }
+})();
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'client/node_modules/**', 'client/build/**', '**/*.min.js'],
+    ignores: ['node_modules/**', 'client/node_modules/**', 'client/build/**', '**/*.min.js']
   },
   {
     files: ['server/**/*.js'],
@@ -51,11 +64,18 @@ module.exports = [
         globalThis: 'readonly',
         setImmediate: 'readonly',
         clearImmediate: 'readonly',
-        fetch: 'readonly',
-      },
+        fetch: 'readonly'
+      }
     },
     rules: {
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ],
       'no-undef': 'warn',
       'no-console': 'off',
       'no-unreachable': 'warn',
@@ -68,22 +88,20 @@ module.exports = [
       'no-template-curly-in-string': 'warn',
       'no-unsafe-finally': 'warn',
       'use-isnan': 'warn',
-      'valid-typeof': 'warn',
-    },
+      'valid-typeof': 'warn'
+    }
   },
   {
     files: ['client/src/**/*.js', 'client/src/**/*.jsx'],
     plugins: {
-      react: reactPlugin,
-      'react-hooks': reactHooksPlugin,
+      ...(reactPlugin ? { react: reactPlugin } : {}),
+      ...(reactHooksPlugin ? { 'react-hooks': reactHooksPlugin } : {})
     },
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
       parserOptions: {
-        ecmaFeatures: {
-          jsx: true,
-        },
+        ecmaFeatures: { jsx: true }
       },
       globals: {
         window: 'readonly',
@@ -98,6 +116,8 @@ module.exports = [
         URLSearchParams: 'readonly',
         FormData: 'readonly',
         EventSource: 'readonly',
+        CustomEvent: 'readonly',
+        Event: 'readonly',
         Promise: 'readonly',
         Error: 'readonly',
         JSON: 'readonly',
@@ -134,23 +154,44 @@ module.exports = [
         confirm: 'readonly',
         FileReader: 'readonly',
         Blob: 'readonly',
+        File: 'readonly',
         HTMLElement: 'readonly',
+        HTMLInputElement: 'readonly',
         Element: 'readonly',
         Node: 'readonly',
-        Event: 'readonly',
-        CustomEvent: 'readonly',
+        NodeList: 'readonly',
+        Image: 'readonly',
+        Worker: 'readonly',
+        ServiceWorker: 'readonly',
         AbortController: 'readonly',
         AbortSignal: 'readonly',
-        queueMicrotask: 'readonly',
-      },
+        indexedDB: 'readonly',
+        IDBKeyRange: 'readonly',
+        SpeechRecognition: 'readonly',
+        webkitSpeechRecognition: 'readonly',
+        MediaRecorder: 'readonly',
+        AudioContext: 'readonly',
+        webkitAudioContext: 'readonly',
+        performance: 'readonly',
+        crypto: 'readonly',
+        atob: 'readonly',
+        btoa: 'readonly',
+        structuredClone: 'readonly',
+        queueMicrotask: 'readonly'
+      }
     },
     settings: {
-      react: {
-        version: 'detect',
-      },
+      react: { version: 'detect' }
     },
     rules: {
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ],
       'no-undef': 'warn',
       'no-console': 'off',
       'no-unreachable': 'warn',
@@ -163,13 +204,23 @@ module.exports = [
       'no-unsafe-finally': 'warn',
       'use-isnan': 'warn',
       'valid-typeof': 'warn',
-      'react/jsx-uses-react': 'warn',
-      'react/jsx-uses-vars': 'warn',
-      'react/jsx-no-duplicate-props': 'warn',
-      'react/jsx-no-undef': 'warn',
-      'react/self-closing-comp': 'warn',
-      'react-hooks/rules-of-hooks': 'warn',
-      'react-hooks/exhaustive-deps': 'warn',
-    },
-  },
+      ...(reactPlugin
+        ? {
+            'react/jsx-uses-react': 'warn',
+            'react/jsx-uses-vars': 'warn',
+            'react/jsx-no-duplicate-props': 'warn',
+            'react/jsx-no-undef': 'warn',
+            'react/no-unknown-property': 'warn',
+            'react/jsx-key': 'warn',
+            'react/self-closing-comp': 'warn'
+          }
+        : {}),
+      ...(reactHooksPlugin
+        ? {
+            'react-hooks/rules-of-hooks': 'warn',
+            'react-hooks/exhaustive-deps': 'warn'
+          }
+        : {})
+    }
+  }
 ];

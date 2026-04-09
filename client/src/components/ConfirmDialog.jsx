@@ -13,7 +13,7 @@ export default function ConfirmDialog() {
     const handler = (e) => {
       setDialog({
         message: e.detail.message,
-        resolve: e.detail.resolve,
+        resolve: e.detail.resolve
       });
     };
     window.addEventListener('pb-confirm', handler);
@@ -28,15 +28,28 @@ export default function ConfirmDialog() {
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
-      zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 12, padding: '28px 32px',
-        maxWidth: 400, width: '90%', boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-        textAlign: 'center',
-      }}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.55)',
+        zIndex: 10000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}
+    >
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 12,
+          padding: '28px 32px',
+          maxWidth: 400,
+          width: '90%',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+          textAlign: 'center'
+        }}
+      >
         <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
         <p style={{ fontSize: 15, color: '#333', margin: '0 0 24px', lineHeight: 1.5 }}>
           {dialog.message}
@@ -45,8 +58,14 @@ export default function ConfirmDialog() {
           <button
             onClick={() => answer(false)}
             style={{
-              padding: '10px 24px', borderRadius: 8, border: `2px solid #ccc`,
-              background: '#fff', color: '#555', fontWeight: 600, cursor: 'pointer', fontSize: 14,
+              padding: '10px 24px',
+              borderRadius: 8,
+              border: `2px solid #ccc`,
+              background: '#fff',
+              color: '#555',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: 14
             }}
           >
             Cancel
@@ -54,8 +73,14 @@ export default function ConfirmDialog() {
           <button
             onClick={() => answer(true)}
             style={{
-              padding: '10px 24px', borderRadius: 8, border: 'none',
-              background: RED, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14,
+              padding: '10px 24px',
+              borderRadius: 8,
+              border: 'none',
+              background: RED,
+              color: '#fff',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontSize: 14
             }}
           >
             Confirm

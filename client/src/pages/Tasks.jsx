@@ -69,6 +69,16 @@ const ADVANCE_LABELS = {
 // Stages where we show an inline form before advancing
 const FORM_STAGES = new Set(['appointment_booked', 'quote_draft', 'signed']);
 
+function parseLastContact(notes) {
+  if (!notes) return null;
+  const lines = notes.split('\n').reverse();
+  for (const line of lines) {
+    const m = line.match(/^(📧|📞)\s+(Email|Phone)\s+—\s+(.+)$/);
+    if (m) return { method: m[2], icon: m[1], date: m[3] };
+  }
+  return null;
+}
+
 function LeadPanel({ task, token, onAdvanced }) {
   const lead = task.lead;
   if (!lead || lead.archived) return null;
@@ -82,6 +92,38 @@ function LeadPanel({ task, token, onAdvanced }) {
   const [jobCity, setJobCity] = useState(lead.job_city || '');
   const [jobType, setJobType] = useState('');
   const [jobScope, setJobScope] = useState('');
+  const [leadNotes, setLeadNotes] = useState(lead.notes || '');
+
+  const isFollowUp = stage === 'follow_up_1' || stage === 'follow_up_2';
+  const lastContact = parseLastContact(leadNotes);
+
+  async function logContact(method) {
+    const icon = method === 'Email' ? '📧' : '📞';
+    const now = new Date().toLocaleString('en-US', {
+      timeZone: 'America/New_York',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    const line = `${icon} ${method} — ${now}`;
+    const updatedNotes = leadNotes ? `${leadNotes}\n${line}` : line;
+    try {
+      const r = await fetch(`/api/leads/${lead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ notes: updatedNotes })
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || r.statusText);
+      setLeadNotes(updatedNotes);
+      showToast(`Contact logged: ${icon} ${method}`, 'success');
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
 
   async function advance(extraBody = {}) {
     setBusy(true);
@@ -157,6 +199,38 @@ function LeadPanel({ task, token, onAdvanced }) {
           </button>
         )}
       </div>
+
+      {/* ── Follow-up contact method buttons ─────────────────────────────── */}
+      {isFollowUp && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color: '#555', fontWeight: 'bold' }}>Log contact:</span>
+            <button
+              onClick={() => logContact('Email')}
+              title="Log email contact"
+              style={{
+                padding: '3px 10px', fontSize: 12, cursor: 'pointer',
+                background: '#E3F2FD', color: '#1565C0',
+                border: '1px solid #90CAF9', borderRadius: 6,
+              }}
+            >📧 Email</button>
+            <button
+              onClick={() => logContact('Phone')}
+              title="Log phone contact"
+              style={{
+                padding: '3px 10px', fontSize: 12, cursor: 'pointer',
+                background: '#E8F5E9', color: '#2E7D32',
+                border: '1px solid #A5D6A7', borderRadius: 6,
+              }}
+            >📞 Phone</button>
+          </div>
+          {lastContact && (
+            <div style={{ marginTop: 5, fontSize: 11, color: '#666' }}>
+              Last contacted: {lastContact.icon} {lastContact.method} — {lastContact.date}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Appointment form ─────────────────────────────────────────────── */}
       {open && nextStage === 'appointment_booked' && (

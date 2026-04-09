@@ -165,7 +165,9 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
         try {
           const parsed = await pdfParse(fileBuffer);
           rawText = parsed.text?.trim() || '';
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
 
         // If text is too short (scanned/image PDF), send to Claude natively
         if (rawText.length < 100) {
@@ -209,7 +211,9 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
         if (file.tempFilePath && fs.existsSync(file.tempFilePath))
           try {
             fs.unlinkSync(file.tempFilePath);
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         continue;
       }
 
@@ -313,7 +317,9 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
       if (file.tempFilePath && fs.existsSync(file.tempFilePath)) {
         try {
           fs.unlinkSync(file.tempFilePath);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
 
       result.success = true;
@@ -334,7 +340,9 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
       if (file.tempFilePath && fs.existsSync(file.tempFilePath)) {
         try {
           fs.unlinkSync(file.tempFilePath);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     }
     results.push(result);

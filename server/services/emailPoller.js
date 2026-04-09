@@ -52,37 +52,44 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
 
         // ── Marblism missed-call handler ────────────────────────────────
         const isMarblism =
-          from.includes('marblism.com') ||
-          /i['']ve just handled a call/i.test(subject);
+          from.includes('marblism.com') || /i['']ve just handled a call/i.test(subject);
 
         if (isMarblism) {
           try {
             const phoneMatch = bodyText.match(/received a call from\s*([+\d\s\-().]{7,20})/i);
-            const nameMatch  = bodyText.match(/(?:The user|The caller|caller)[,\s]+([A-Z][a-z]+)/);
-            const summaryMatch = bodyText.match(/Here['']s the summary[:\s]*([\s\S]+?)(?:\n\n|You can head|Speak soon)/i);
+            const nameMatch = bodyText.match(/(?:The user|The caller|caller)[,\s]+([A-Z][a-z]+)/);
+            const summaryMatch = bodyText.match(
+              /Here['']s the summary[:\s]*([\s\S]+?)(?:\n\n|You can head|Speak soon)/i
+            );
 
-            const callerPhone   = phoneMatch  ? phoneMatch[1].trim()   : 'Unknown number';
-            const callerName    = nameMatch   ? nameMatch[1].trim()    : 'Unknown caller';
-            const callSummary   = summaryMatch ? summaryMatch[1].trim() : bodyText.slice(0, 400).trim();
+            const callerPhone = phoneMatch ? phoneMatch[1].trim() : 'Unknown number';
+            const callerName = nameMatch ? nameMatch[1].trim() : 'Unknown caller';
+            const callSummary = summaryMatch
+              ? summaryMatch[1].trim()
+              : bodyText.slice(0, 400).trim();
 
-            const shortSummary  = callSummary.length > 120
-              ? callSummary.slice(0, 117) + '…'
-              : callSummary;
+            const shortSummary =
+              callSummary.length > 120 ? callSummary.slice(0, 117) + '…' : callSummary;
 
             const db = getDb();
 
             // Create a Lead instead of a plain task
-            const leadResult = db.prepare(
-              `INSERT INTO leads (caller_name, caller_phone, source, notes, stage, created_at, updated_at)
+            const leadResult = db
+              .prepare(
+                `INSERT INTO leads (caller_name, caller_phone, source, notes, stage, created_at, updated_at)
                VALUES (?, ?, 'marblism', ?, 'incoming', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
-            ).run(
-              callerName,
-              callerPhone,
-              `Call summary from Marblism:\n\n${callSummary}`
-            );
+              )
+              .run(callerName, callerPhone, `Call summary from Marblism:\n\n${callSummary}`);
 
-            logAudit(null, 'marblism_call_lead', `Lead #${leadResult.lastInsertRowid} created from Marblism call — ${callerName} ${callerPhone} — "${shortSummary}"`, 'marblism-poller');
-            console.log(`[Email Poller] Marblism call → Lead #${leadResult.lastInsertRowid} created for ${callerName} (${callerPhone})`);
+            logAudit(
+              null,
+              'marblism_call_lead',
+              `Lead #${leadResult.lastInsertRowid} created from Marblism call — ${callerName} ${callerPhone} — "${shortSummary}"`,
+              'marblism-poller'
+            );
+            console.log(
+              `[Email Poller] Marblism call → Lead #${leadResult.lastInsertRowid} created for ${callerName} (${callerPhone})`
+            );
 
             const { notifyClients } = require('./sseManager');
             notifyClients('lead_created', {
@@ -95,17 +102,22 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
             try {
               let adminUsers;
               try {
-                adminUsers = db.prepare(
-                  `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL AND active != 0`
-                ).all();
+                adminUsers = db
+                  .prepare(
+                    `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL AND active != 0`
+                  )
+                  .all();
               } catch {
-                adminUsers = db.prepare(
-                  `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL`
-                ).all();
+                adminUsers = db
+                  .prepare(
+                    `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL`
+                  )
+                  .all();
               }
-              const adminEmails = adminUsers.map(u => u.email).filter(Boolean);
+              const adminEmails = adminUsers.map((u) => u.email).filter(Boolean);
               if (adminEmails.length > 0) {
-                const appUrl = process.env.APP_URL ||
+                const appUrl =
+                  process.env.APP_URL ||
                   (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '');
                 const leadsLink = appUrl ? `${appUrl}/leads` : '/leads';
                 await sendEmail({
@@ -123,10 +135,15 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                     </div>`,
                   emailType: 'lead_creation_alert'
                 });
-                console.log(`[Email Poller] Marblism creation email sent to ${adminEmails.join(', ')}`);
+                console.log(
+                  `[Email Poller] Marblism creation email sent to ${adminEmails.join(', ')}`
+                );
               }
             } catch (emailErr) {
-              console.error('[Email Poller] Failed to send Marblism creation email:', emailErr.message);
+              console.error(
+                '[Email Poller] Failed to send Marblism creation email:',
+                emailErr.message
+              );
             }
           } catch (err) {
             console.error('[Email Poller] Marblism parse error:', err.message);
@@ -323,7 +340,9 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
         // Still mark as read so we don't retry indefinitely
         try {
           await client.messageFlagsAdd(uid, ['\\Seen']);
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     }
 
@@ -332,7 +351,9 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
     console.error('[Email Poller] Connection error:', err.message);
     try {
       await client.logout();
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 }
 

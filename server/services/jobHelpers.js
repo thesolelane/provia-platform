@@ -426,7 +426,9 @@ function purgeOldArchived() {
       console.log(
         `[Auto-purge] Permanently deleted ${old.length} archived job(s) older than 90 days`
       );
-  } catch { /* ignore purge errors */ }
+  } catch {
+    /* ignore purge errors */
+  }
 }
 setInterval(purgeOldArchived, 24 * 60 * 60 * 1000);
 setTimeout(purgeOldArchived, 5000);

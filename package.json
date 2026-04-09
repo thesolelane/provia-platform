@@ -8,10 +8,12 @@
     "dev": "nodemon server/index.js",
     "client": "cd client && npm start",
     "build": "cd client && npm run build",
-    "lint": "eslint server/ client/src/ --ext .js,.jsx",
-    "lint:fix": "eslint server/ client/src/ --ext .js,.jsx --fix",
-    "format": "prettier --write \"server/**/*.js\" \"client/src/**/*.{js,jsx}\"",
-    "format:check": "prettier --check \"server/**/*.js\" \"client/src/**/*.{js,jsx}\"",
+    "lint": "npx --yes eslint server/ client/src/ --ext .js,.jsx",
+    "lint:client": "npx --yes eslint client/src/ --ext .js,.jsx",
+    "lint:all": "npm run lint",
+    "lint:fix": "npx --yes eslint server/ client/src/ --ext .js,.jsx --fix",
+    "format": "npx --yes prettier --write \"server/**/*.js\" \"client/src/**/*.{js,jsx}\"",
+    "format:check": "npx --yes prettier --check \"server/**/*.js\" \"client/src/**/*.{js,jsx}\"",
     "prepare": "husky || true"
   },
   "lint-staged": {

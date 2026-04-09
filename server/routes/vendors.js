@@ -34,7 +34,19 @@ router.get('/', requireAuth, (req, res) => {
 // POST /api/vendors — create
 router.post('/', requireAuth, (req, res) => {
   const db = getDb();
-  const { company_name, type, trade, phone, website, address, city, state, zip, license_number, notes } = req.body;
+  const {
+    company_name,
+    type,
+    trade,
+    phone,
+    website,
+    address,
+    city,
+    state,
+    zip,
+    license_number,
+    notes
+  } = req.body;
   if (!company_name || !company_name.trim()) {
     return res.status(400).json({ error: 'Company name is required' });
   }
@@ -63,7 +75,19 @@ router.post('/', requireAuth, (req, res) => {
 // PUT /api/vendors/:id — update
 router.put('/:id', requireAuth, (req, res) => {
   const db = getDb();
-  const { company_name, type, trade, phone, website, address, city, state, zip, license_number, notes } = req.body;
+  const {
+    company_name,
+    type,
+    trade,
+    phone,
+    website,
+    address,
+    city,
+    state,
+    zip,
+    license_number,
+    notes
+  } = req.body;
   if (!company_name || !company_name.trim()) {
     return res.status(400).json({ error: 'Company name is required' });
   }

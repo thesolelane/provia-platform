@@ -150,7 +150,9 @@ async function runBackup() {
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
     `
     ).run(destFile);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   const remaining = listBackups();
   const result = {
@@ -188,7 +190,9 @@ async function notifyFailure(label, errorMessage) {
         </div>`,
       emailType: 'system_alert'
     });
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 // ── Scheduler ─────────────────────────────────────────────────────────────────

@@ -66,136 +66,149 @@ router.get('/job/:jobId', requireAuth, (req, res) => {
   res.json({ invoices });
 });
 
-router.post('/job/:jobId', requireAuth, requireFields(['invoice_type', 'amount']), validateEnum('invoice_type', VALID_TYPES), validateNumber('amount', { min: 0 }), (req, res) => {
-  const db = getDb();
-  const { jobId } = req.params;
-  const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
-  if (!job) return res.status(404).json({ error: 'Job not found' });
+router.post(
+  '/job/:jobId',
+  requireAuth,
+  requireFields(['invoice_type', 'amount']),
+  validateEnum('invoice_type', VALID_TYPES),
+  validateNumber('amount', { min: 0 }),
+  (req, res) => {
+    const db = getDb();
+    const { jobId } = req.params;
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(jobId);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
 
-  const { invoice_type, amount, notes, line_items } = req.body;
+    const { invoice_type, amount, notes, line_items } = req.body;
 
-  // ── Compute amounts from line items if provided ──────────────────────────
-  let items = Array.isArray(line_items) && line_items.length ? line_items : null;
-  let contractAmt = 0;
-  let passThroughAmt = 0;
-  let totalAmt = parseFloat(amount) || 0;
+    // ── Compute amounts from line items if provided ──────────────────────────
+    let items = Array.isArray(line_items) && line_items.length ? line_items : null;
+    let contractAmt = 0;
+    let passThroughAmt = 0;
+    let totalAmt = parseFloat(amount) || 0;
 
-  if (items) {
-    items = items
-      .map((li) => ({
-        description: String(li.description || '').trim(),
-        amount: parseFloat(li.amount) || 0,
-        type: ['contract', 'pass_through'].includes(li.type) ? li.type : 'contract'
-      }))
-      .filter((li) => li.description || li.amount);
+    if (items) {
+      items = items
+        .map((li) => ({
+          description: String(li.description || '').trim(),
+          amount: parseFloat(li.amount) || 0,
+          type: ['contract', 'pass_through'].includes(li.type) ? li.type : 'contract'
+        }))
+        .filter((li) => li.description || li.amount);
 
-    for (const li of items) {
-      if (li.type === 'pass_through') passThroughAmt += li.amount;
-      else contractAmt += li.amount;
+      for (const li of items) {
+        if (li.type === 'pass_through') passThroughAmt += li.amount;
+        else contractAmt += li.amount;
+      }
+      totalAmt = contractAmt + passThroughAmt;
     }
-    totalAmt = contractAmt + passThroughAmt;
-  }
 
-  // Auto-determine invoice type from line item composition
-  let invType = VALID_TYPES.includes(invoice_type) ? invoice_type : 'contract_invoice';
-  if (items && items.length) {
-    const hasContract = items.some((li) => li.type === 'contract');
-    const hasPT = items.some((li) => li.type === 'pass_through');
-    if (hasContract && hasPT) invType = 'combined_invoice';
-    else if (hasPT) invType = 'pass_through_invoice';
-    else invType = 'contract_invoice';
-  }
+    // Auto-determine invoice type from line item composition
+    let invType = VALID_TYPES.includes(invoice_type) ? invoice_type : 'contract_invoice';
+    if (items && items.length) {
+      const hasContract = items.some((li) => li.type === 'contract');
+      const hasPT = items.some((li) => li.type === 'pass_through');
+      if (hasContract && hasPT) invType = 'combined_invoice';
+      else if (hasPT) invType = 'pass_through_invoice';
+      else invType = 'contract_invoice';
+    }
 
-  const invNum = nextInvoiceNumber(db, jobId, invType, job.quote_number);
+    const invNum = nextInvoiceNumber(db, jobId, invType, job.quote_number);
 
-  const info = db
-    .prepare(
-      `
+    const info = db
+      .prepare(
+        `
     INSERT INTO invoices
       (job_id, invoice_number, invoice_type, status, amount, contract_amount, pass_through_amount, line_items, notes)
     VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?)
   `
-    )
-    .run(
-      jobId,
-      invNum,
-      invType,
-      totalAmt,
-      contractAmt,
-      passThroughAmt,
-      items ? JSON.stringify(items) : null,
-      notes || null
-    );
+      )
+      .run(
+        jobId,
+        invNum,
+        invType,
+        totalAmt,
+        contractAmt,
+        passThroughAmt,
+        items ? JSON.stringify(items) : null,
+        notes || null
+      );
 
-  const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(info.lastInsertRowid);
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(info.lastInsertRowid);
 
-  const contact = job.contact_id
-    ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
-    : null;
-  const recorder = req.session?.name || 'staff';
+    const contact = job.contact_id
+      ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+      : null;
+    const recorder = req.session?.name || 'staff';
 
-  logActivity({
-    customer_number: contact?.pb_customer_number || null,
-    job_id: jobId,
-    event_type: 'INVOICE_ISSUED',
-    description: `Invoice ${invNum} created (${invType.replace(/_/g, ' ')}) — $${totalAmt.toLocaleString()}`,
-    document_ref: invNum,
-    recorded_by: recorder
-  });
+    logActivity({
+      customer_number: contact?.pb_customer_number || null,
+      job_id: jobId,
+      event_type: 'INVOICE_ISSUED',
+      description: `Invoice ${invNum} created (${invType.replace(/_/g, ' ')}) — $${totalAmt.toLocaleString()}`,
+      document_ref: invNum,
+      recorded_by: recorder
+    });
 
-  res.json({ invoice });
-});
+    res.json({ invoice });
+  }
+);
 
-router.patch('/:id', requireAuth, validateNumber('amount', { min: 0 }), validateNumber('amount_paid', { min: 0 }), (req, res) => {
-  const db = getDb();
-  const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
-  if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+router.patch(
+  '/:id',
+  requireAuth,
+  validateNumber('amount', { min: 0 }),
+  validateNumber('amount_paid', { min: 0 }),
+  (req, res) => {
+    const db = getDb();
+    const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(req.params.id);
+    if (!inv) return res.status(404).json({ error: 'Invoice not found' });
 
-  const { status, amount, amount_paid, notes, line_items, issued_at, paid_at } = req.body;
+    const { status, amount, amount_paid, notes, line_items, issued_at, paid_at } = req.body;
 
-  const newStatus = VALID_STATUSES.includes(status) ? status : inv.status;
-  const newAmount = amount !== undefined ? parseFloat(amount) : inv.amount;
-  const newAmtPaid = amount_paid !== undefined ? parseFloat(amount_paid) : inv.amount_paid;
+    const newStatus = VALID_STATUSES.includes(status) ? status : inv.status;
+    const newAmount = amount !== undefined ? parseFloat(amount) : inv.amount;
+    const newAmtPaid = amount_paid !== undefined ? parseFloat(amount_paid) : inv.amount_paid;
 
-  db.prepare(
-    `
+    db.prepare(
+      `
     UPDATE invoices SET
       status = ?, amount = ?, amount_paid = ?, notes = ?, line_items = ?,
       issued_at = ?, paid_at = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `
-  ).run(
-    newStatus,
-    newAmount,
-    newAmtPaid,
-    notes ?? inv.notes,
-    line_items !== undefined ? (line_items ? JSON.stringify(line_items) : null) : inv.line_items,
-    issued_at ?? inv.issued_at,
-    paid_at ?? inv.paid_at,
-    inv.id
-  );
+    ).run(
+      newStatus,
+      newAmount,
+      newAmtPaid,
+      notes ?? inv.notes,
+      line_items !== undefined ? (line_items ? JSON.stringify(line_items) : null) : inv.line_items,
+      issued_at ?? inv.issued_at,
+      paid_at ?? inv.paid_at,
+      inv.id
+    );
 
-  if (newStatus === 'paid' && inv.status !== 'paid') {
-    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(inv.job_id);
-    const contact = job?.contact_id
-      ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
-      : null;
-    logActivity({
-      customer_number: contact?.pb_customer_number || null,
-      job_id: inv.job_id,
-      event_type:
-        inv.invoice_type === 'pass_through_invoice'
-          ? 'PASS_THROUGH_REIMBURSED'
-          : 'PAYMENT_RECEIVED',
-      description: `Invoice ${inv.invoice_number} marked paid — $${newAmtPaid.toLocaleString()}`,
-      document_ref: inv.invoice_number,
-      recorded_by: req.session?.name || 'staff'
-    });
+    if (newStatus === 'paid' && inv.status !== 'paid') {
+      const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(inv.job_id);
+      const contact = job?.contact_id
+        ? db.prepare('SELECT pb_customer_number FROM contacts WHERE id = ?').get(job.contact_id)
+        : null;
+      logActivity({
+        customer_number: contact?.pb_customer_number || null,
+        job_id: inv.job_id,
+        event_type:
+          inv.invoice_type === 'pass_through_invoice'
+            ? 'PASS_THROUGH_REIMBURSED'
+            : 'PAYMENT_RECEIVED',
+        description: `Invoice ${inv.invoice_number} marked paid — $${newAmtPaid.toLocaleString()}`,
+        document_ref: inv.invoice_number,
+        recorded_by: req.session?.name || 'staff'
+      });
+    }
+
+    const updated = db.prepare('SELECT * FROM invoices WHERE id = ?').get(inv.id);
+    res.json({ invoice: updated });
   }
-
-  const updated = db.prepare('SELECT * FROM invoices WHERE id = ?').get(inv.id);
-  res.json({ invoice: updated });
-});
+);
 
 // PATCH /:id/pay-direct — toggle pay_direct flag on a specific line item, recompute pb_due_amount
 router.patch('/:id/pay-direct', requireAuth, (req, res) => {
@@ -204,21 +217,25 @@ router.patch('/:id/pay-direct', requireAuth, (req, res) => {
   if (!inv) return res.status(404).json({ error: 'Invoice not found' });
 
   const { line_item_index, pay_direct, pay_direct_received } = req.body;
-  if (line_item_index === undefined) return res.status(400).json({ error: 'line_item_index required' });
+  if (line_item_index === undefined)
+    return res.status(400).json({ error: 'line_item_index required' });
 
   let items = [];
-  try { items = inv.line_items ? JSON.parse(inv.line_items) : []; } catch { /* ignore */ }
+  try {
+    items = inv.line_items ? JSON.parse(inv.line_items) : [];
+  } catch {
+    /* ignore */
+  }
   if (line_item_index < 0 || line_item_index >= items.length) {
     return res.status(400).json({ error: 'line_item_index out of range' });
   }
 
-  if (pay_direct !== undefined)          items[line_item_index].pay_direct          = !!pay_direct;
-  if (pay_direct_received !== undefined) items[line_item_index].pay_direct_received = !!pay_direct_received;
+  if (pay_direct !== undefined) items[line_item_index].pay_direct = !!pay_direct;
+  if (pay_direct_received !== undefined)
+    items[line_item_index].pay_direct_received = !!pay_direct_received;
 
   // Recompute pb_due_amount: sum of items where pay_direct is false
-  const newPbDue = items
-    .filter((li) => !li.pay_direct)
-    .reduce((s, li) => s + (li.amount || 0), 0);
+  const newPbDue = items.filter((li) => !li.pay_direct).reduce((s, li) => s + (li.amount || 0), 0);
 
   db.prepare(
     'UPDATE invoices SET line_items = ?, pb_due_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
@@ -277,15 +294,21 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
     let storedItems = [];
     try {
       storedItems = inv.line_items ? JSON.parse(inv.line_items) : [];
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     // Build itemized line items HTML — shows pay_direct status when present
     const buildLineItemsHTML = () => {
       if (!storedItems.length) return '';
-      const hasPayDirect = storedItems.some((li) => li.type === 'pass_through' && li.pay_direct !== undefined);
-      const grandTotal   = storedItems.reduce((s, li) => s + (li.amount || 0), 0);
-      const pbDue        = inv.pb_due_amount > 0 ? inv.pb_due_amount
-                         : storedItems.filter((li) => !li.pay_direct).reduce((s, li) => s + (li.amount || 0), 0);
+      const hasPayDirect = storedItems.some(
+        (li) => li.type === 'pass_through' && li.pay_direct !== undefined
+      );
+      const grandTotal = storedItems.reduce((s, li) => s + (li.amount || 0), 0);
+      const pbDue =
+        inv.pb_due_amount > 0
+          ? inv.pb_due_amount
+          : storedItems.filter((li) => !li.pay_direct).reduce((s, li) => s + (li.amount || 0), 0);
 
       let html = `<div class="section"><h3>Invoice Line Items</h3>
 <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -299,7 +322,7 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
       storedItems.forEach((li, i) => {
         const isPtRow = li.type === 'pass_through';
         const isPayDirect = !!li.pay_direct;
-        const isReceived  = !!li.pay_direct_received;
+        const isReceived = !!li.pay_direct_received;
         let badge;
         if (isPtRow && isPayDirect) {
           badge = isReceived

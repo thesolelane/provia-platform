@@ -85,15 +85,23 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
           try {
             fileBuffer = Buffer.from(await convertHeicToJpeg(fileBuffer));
           } catch (heicErr) {
-            extractedParts.push(`[Could not convert HEIC image "${file.name}" — please try a JPG or PNG export]`);
+            extractedParts.push(
+              `[Could not convert HEIC image "${file.name}" — please try a JPG or PNG export]`
+            );
             continue;
           }
         } else if (!SUPPORTED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())) {
-          extractedParts.push(`[Unsupported image format "${file.mimetype}" for ${file.name} — please convert to JPG or PNG and re-upload]`);
+          extractedParts.push(
+            `[Unsupported image format "${file.mimetype}" for ${file.name} — please convert to JPG or PNG and re-upload]`
+          );
         }
         if (isHeicMime(file.mimetype) || SUPPORTED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())) {
           const base64 = fileBuffer.toString('base64');
-          const imgMime = (isHeicMime(file.mimetype) ? 'image/jpeg' : (file.mimetype.toLowerCase() === 'image/jpg' ? 'image/jpeg' : file.mimetype.toLowerCase()));
+          const imgMime = isHeicMime(file.mimetype)
+            ? 'image/jpeg'
+            : file.mimetype.toLowerCase() === 'image/jpg'
+              ? 'image/jpeg'
+              : file.mimetype.toLowerCase();
           const response = await anthropic.messages.create({
             model: 'claude-opus-4-5',
             max_tokens: 4000,
@@ -141,7 +149,9 @@ Format as a clear, detailed construction scope description. Include the project 
   if (!extractedParts.length) {
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return res.status(400).json({ error: 'No readable content found in the uploaded files.' });
   }
 
@@ -419,145 +429,155 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
 });
 
 // POST manual estimate input (fallback if no Hearth/Wave)
-router.post('/manual', requireAuth, requireFields(['customerName', 'projectAddress', 'estimateText']), async (req, res) => {
-  const { v4: uuidv4 } = require('uuid');
-  const db = getDb();
-  const { customerName, customerEmail, customerPhone, projectAddress, estimateText } = req.body;
+router.post(
+  '/manual',
+  requireAuth,
+  requireFields(['customerName', 'projectAddress', 'estimateText']),
+  async (req, res) => {
+    const { v4: uuidv4 } = require('uuid');
+    const db = getDb();
+    const { customerName, customerEmail, customerPhone, projectAddress, estimateText } = req.body;
 
-  const jobId = uuidv4();
+    const jobId = uuidv4();
 
-  let contactRef = null;
-  if (customerName || customerEmail) {
-    try {
-      contactRef = findOrCreateContact(db, {
-        name: customerName,
-        email: customerEmail,
-        phone: customerPhone,
-        address: projectAddress,
-        city: '',
-        state: 'MA'
-      });
-    } catch (e) {
-      console.warn('[Manual Job] Contact upsert failed:', e.message);
+    let contactRef = null;
+    if (customerName || customerEmail) {
+      try {
+        contactRef = findOrCreateContact(db, {
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone,
+          address: projectAddress,
+          city: '',
+          state: 'MA'
+        });
+      } catch (e) {
+        console.warn('[Manual Job] Contact upsert failed:', e.message);
+      }
     }
-  }
 
-  const manualBy = req.session?.name ? `web:${req.session.name}` : 'web:manual';
-  db.prepare(
-    `
+    const manualBy = req.session?.name ? `web:${req.session.name}` : 'web:manual';
+    db.prepare(
+      `
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
   `
-  ).run(
-    jobId,
-    customerName,
-    customerEmail,
-    customerPhone,
-    projectAddress,
-    estimateText,
-    manualBy,
-    contactRef?.id || null
-  );
+    ).run(
+      jobId,
+      customerName,
+      customerEmail,
+      customerPhone,
+      projectAddress,
+      estimateText,
+      manualBy,
+      contactRef?.id || null
+    );
 
-  try {
-    const pbNum = generatePBNumber(db);
-    const extRef = extractExternalRef(estimateText);
-    const qNum = generateQuoteNumber(db);
-    db.prepare(
-      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
-    ).run(pbNum, extRef, qNum, jobId);
-  } catch (e) {
-    console.warn('[Manual] PB/Quote number generation failed:', e.message);
-  }
-
-  res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
-
-  try {
-    logActivity({
-      customer_number: contactRef?.pb_customer_number || null,
-      job_id: jobId,
-      event_type: 'ESTIMATE_CREATED',
-      description: `New estimate created for ${customerName || 'unknown customer'} at ${projectAddress || 'unknown address'}`,
-      recorded_by: req.session?.name || 'staff'
-    });
-  } catch { /* ignore */ }
-
-  const { processEstimate } = require('../services/claudeService');
-  (async () => {
     try {
-      console.log(`[Manual Job ${jobId}] Starting Claude processEstimate...`);
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
-        'processing',
-        jobId
-      );
+      const pbNum = generatePBNumber(db);
+      const extRef = extractExternalRef(estimateText);
+      const qNum = generateQuoteNumber(db);
+      db.prepare(
+        'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
+      ).run(pbNum, extRef, qNum, jobId);
+    } catch (e) {
+      console.warn('[Manual] PB/Quote number generation failed:', e.message);
+    }
 
-      const sanitizedScope = stripPII(estimateText);
-      const fullEstimate = contactRef
-        ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`
-        : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`;
-      const { context: priorCtx } = findPriorQuoteContext(db, {
-        rawText: sanitizedScope,
-        contactId: contactRef?.id,
-        projectAddress
+    res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
+
+    try {
+      logActivity({
+        customer_number: contactRef?.pb_customer_number || null,
+        job_id: jobId,
+        event_type: 'ESTIMATE_CREATED',
+        description: `New estimate created for ${customerName || 'unknown customer'} at ${projectAddress || 'unknown address'}`,
+        recorded_by: req.session?.name || 'staff'
       });
-      const proposalData = await processEstimate(
-        fullEstimate,
-        jobId,
-        'en',
-        db,
-        projectAddress,
-        priorCtx
-      );
-      mergeContactIntoProposal(db, jobId, proposalData);
-      console.log(
-        `[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`
-      );
+    } catch {
+      /* ignore */
+    }
 
-      if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
-        finalizeJobVersioning(db, jobId, proposalData);
+    const { processEstimate } = require('../services/claudeService');
+    (async () => {
+      try {
+        console.log(`[Manual Job ${jobId}] Starting Claude processEstimate...`);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
-          'clarification',
+          'processing',
           jobId
         );
-        const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
-        for (const q of proposalData.clarificationsNeeded) {
-          insertQ.run(jobId, q);
-        }
+
+        const sanitizedScope = stripPII(estimateText);
+        const fullEstimate = contactRef
+          ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`
+          : `[Job ID: ${jobId}]\nProject Address: ${projectAddress || 'see estimate'}\n\nESTIMATE DETAILS:\n${sanitizedScope}`;
+        const { context: priorCtx } = findPriorQuoteContext(db, {
+          rawText: sanitizedScope,
+          contactId: contactRef?.id,
+          projectAddress
+        });
+        const proposalData = await processEstimate(
+          fullEstimate,
+          jobId,
+          'en',
+          db,
+          projectAddress,
+          priorCtx
+        );
+        mergeContactIntoProposal(db, jobId, proposalData);
         console.log(
-          `[Manual Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`
+          `[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`
         );
 
-        const ownerWhatsApp = process.env.OWNER_WHATSAPP;
-        if (ownerWhatsApp) {
-          const to = ownerWhatsApp.startsWith('whatsapp:')
-            ? ownerWhatsApp
-            : `whatsapp:${ownerWhatsApp}`;
-          const firstQ = proposalData.clarificationsNeeded[0];
-          const total = proposalData.clarificationsNeeded.length;
-          await sendWhatsApp(
-            to,
-            `Hey! 👋 I'm working on the estimate for *${customerName}* at ${projectAddress} but I'm missing a few details.\n\nI'll ask you one question at a time — just reply and I'll move to the next one.\n\n❓ Question 1 of ${total}:\n${firstQ}`
+        if (
+          proposalData.readyToGenerate === false &&
+          proposalData.clarificationsNeeded?.length > 0
+        ) {
+          finalizeJobVersioning(db, jobId, proposalData);
+          db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+            'clarification',
+            jobId
           );
+          const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
+          for (const q of proposalData.clarificationsNeeded) {
+            insertQ.run(jobId, q);
+          }
+          console.log(
+            `[Manual Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`
+          );
+
+          const ownerWhatsApp = process.env.OWNER_WHATSAPP;
+          if (ownerWhatsApp) {
+            const to = ownerWhatsApp.startsWith('whatsapp:')
+              ? ownerWhatsApp
+              : `whatsapp:${ownerWhatsApp}`;
+            const firstQ = proposalData.clarificationsNeeded[0];
+            const total = proposalData.clarificationsNeeded.length;
+            await sendWhatsApp(
+              to,
+              `Hey! 👋 I'm working on the estimate for *${customerName}* at ${projectAddress} but I'm missing a few details.\n\nI'll ask you one question at a time — just reply and I'll move to the next one.\n\n❓ Question 1 of ${total}:\n${firstQ}`
+            );
+          }
+        } else {
+          finalizeJobVersioning(db, jobId, proposalData);
+          saveReviewPending(db, proposalData, jobId);
+          logAudit(jobId, 'manual_estimate_processed', `Manual entry — pending review`, 'admin');
+          console.log(
+            `[Manual Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`
+          );
+          tickQuoteCounter(db);
+          notifyClients('job_updated', { jobId, status: 'review_pending' });
         }
-      } else {
-        finalizeJobVersioning(db, jobId, proposalData);
-        saveReviewPending(db, proposalData, jobId);
-        logAudit(jobId, 'manual_estimate_processed', `Manual entry — pending review`, 'admin');
-        console.log(
-          `[Manual Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`
+      } catch (err) {
+        console.error(`[Manual Job ${jobId}] ERROR:`, err.message, err.stack);
+        db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
+          'error',
+          jobId
         );
-        tickQuoteCounter(db);
-        notifyClients('job_updated', { jobId, status: 'review_pending' });
       }
-    } catch (err) {
-      console.error(`[Manual Job ${jobId}] ERROR:`, err.message, err.stack);
-      db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
-        'error',
-        jobId
-      );
-    }
-  })();
-});
+    })();
+  }
+);
 
 // POST answer a clarification question
 router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
@@ -645,12 +665,10 @@ router.patch(
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (!job.proposal_data)
-      return res
-        .status(400)
-        .json({
-          error:
-            'No editable estimate data found. This estimate was revised but has no stored line items — use the AI to regenerate the estimate from the original scope.'
-        });
+      return res.status(400).json({
+        error:
+          'No editable estimate data found. This estimate was revised but has no stored line items — use the AI to regenerate the estimate from the original scope.'
+      });
 
     const { lineItems } = req.body;
     if (!Array.isArray(lineItems))
@@ -771,12 +789,10 @@ router.post(
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (!job.proposal_data)
-      return res
-        .status(400)
-        .json({
-          error:
-            'No estimate data to generate from. Edit and save line items first, or reprocess the job to regenerate from the original scope.'
-        });
+      return res.status(400).json({
+        error:
+          'No estimate data to generate from. Edit and save line items first, or reprocess the job to regenerate from the original scope.'
+      });
 
     try {
       const proposalData = JSON.parse(job.proposal_data);
@@ -828,11 +844,13 @@ router.post(
   requireAuth,
   requireRole('admin', 'pm', 'system_admin'),
   async (req, res) => {
-    const db  = getDb();
+    const db = getDb();
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (!['proposal_ready', 'proposal_sent'].includes(job.status)) {
-      return res.status(400).json({ error: 'Can only reject a proposal that is in proposal_ready or proposal_sent status' });
+      return res.status(400).json({
+        error: 'Can only reject a proposal that is in proposal_ready or proposal_sent status'
+      });
     }
 
     db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
@@ -840,7 +858,11 @@ router.post(
       job.id
     );
 
-    try { jobMemory.markOutcome(job.id, 'rejected'); } catch { /* ignore */ }
+    try {
+      jobMemory.markOutcome(job.id, 'rejected');
+    } catch {
+      /* ignore */
+    }
 
     logAudit(
       job.id,
@@ -852,7 +874,10 @@ router.post(
     const { notifyClients } = require('../services/sseManager');
     notifyClients('job_updated', { jobId: job.id, status: 'review_pending' });
 
-    res.json({ success: true, message: 'Proposal marked as rejected. Job returned to review pending for revision.' });
+    res.json({
+      success: true,
+      message: 'Proposal marked as rejected. Job returned to review pending for revision.'
+    });
   }
 );
 
@@ -913,7 +938,9 @@ router.post(
           description: `Contract generated for ${job.project_address || 'project'}`,
           recorded_by: req.session?.name || 'admin'
         });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       res.json({
         success: true,
         message: 'Contract generated',

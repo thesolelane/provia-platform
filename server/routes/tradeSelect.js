@@ -13,16 +13,22 @@ router.get('/trade-select/:token', (req, res) => {
   const { token } = req.params;
   const db = getDb();
 
-  const job = db.prepare(
-    `SELECT id, status, metadata FROM jobs WHERE JSON_EXTRACT(metadata, '$.tradeSelectToken') = ? LIMIT 1`
-  ).get(token);
+  const job = db
+    .prepare(
+      `SELECT id, status, metadata FROM jobs WHERE JSON_EXTRACT(metadata, '$.tradeSelectToken') = ? LIMIT 1`
+    )
+    .get(token);
 
   if (!job) {
     return res.status(404).send('<html><body><h2>Link not found or expired.</h2></body></html>');
   }
 
   let meta = {};
-  try { meta = JSON.parse(job.metadata || '{}'); } catch { /* ignore */ }
+  try {
+    meta = JSON.parse(job.metadata || '{}');
+  } catch {
+    /* ignore */
+  }
 
   if (meta.tradeSelectDone) {
     return res.send(buildPage({ done: true, token }));
@@ -38,16 +44,20 @@ router.post('/trade-select/:token', express.json(), async (req, res) => {
 
   const db = getDb();
 
-  const job = db.prepare(
-    `SELECT * FROM jobs WHERE JSON_EXTRACT(metadata, '$.tradeSelectToken') = ? LIMIT 1`
-  ).get(token);
+  const job = db
+    .prepare(`SELECT * FROM jobs WHERE JSON_EXTRACT(metadata, '$.tradeSelectToken') = ? LIMIT 1`)
+    .get(token);
 
   if (!job) {
     return res.status(404).json({ error: 'Link not found or expired.' });
   }
 
   let meta = {};
-  try { meta = JSON.parse(job.metadata || '{}'); } catch { /* ignore */ }
+  try {
+    meta = JSON.parse(job.metadata || '{}');
+  } catch {
+    /* ignore */
+  }
 
   if (meta.tradeSelectDone) {
     return res.json({ ok: true, alreadyDone: true });
@@ -91,7 +101,9 @@ async function continueAfterWebTradeSelect(job, selectedSubs, db) {
   const from = job.submitted_by;
   if (!from) return;
 
-  const sender = db.prepare('SELECT * FROM approved_senders WHERE identifier = ? AND active = 1').get(from);
+  const sender = db
+    .prepare('SELECT * FROM approved_senders WHERE identifier = ? AND active = 1')
+    .get(from);
   const language = sender?.language || 'en';
   const senderName = sender ? (sender.name || '').split(' ')[0] || 'there' : 'there';
 
@@ -124,22 +136,30 @@ function buildPage({ done, token, departments }) {
 </html>`;
   }
 
-  const deptHtml = (departments || []).map(dept => `
+  const deptHtml = (departments || [])
+    .map(
+      (dept) => `
     <div class="dept">
       <label class="dept-header" onclick="toggleDept('${dept.id}')">
         <span class="chevron" id="chev-${dept.id}">▶</span>
         <span>${dept.name}</span>
       </label>
       <div class="subs" id="subs-${dept.id}" style="display:none">
-        ${dept.subDepartments.map(sub => `
+        ${dept.subDepartments
+          .map(
+            (sub) => `
           <label class="sub-row">
             <input type="checkbox" name="subs" value="${sub.id}">
             <span>${sub.name}</span>
           </label>
-        `).join('')}
+        `
+          )
+          .join('')}
       </div>
     </div>
-  `).join('');
+  `
+    )
+    .join('');
 
   return `<!DOCTYPE html>
 <html lang="en">

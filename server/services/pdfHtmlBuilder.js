@@ -2,10 +2,10 @@
 // All HTML template builder functions for proposals and the Notice of Contract.
 // pdfService.js uses these to assemble the HTML before handing it to Puppeteer.
 
-const BRAND_BLUE   = '#1B3A6B';
+const BRAND_BLUE = '#1B3A6B';
 const BRAND_ORANGE = '#E07B2A';
-const LIGHT_BLUE   = '#EEF3FB';
-const LIGHT_GRAY   = '#F8F8F8';
+const LIGHT_BLUE = '#EEF3FB';
+const LIGHT_GRAY = '#F8F8F8';
 
 function baseCSS() {
   return `
@@ -95,20 +95,21 @@ function baseCSS() {
 // PROPOSAL HTML — built entirely from flat JSON data
 // ══════════════════════════════════════════════════════════════════════
 function buildProposalHTML(data) {
-  const customer  = data.customer  || {};
-  const project   = data.project   || {};
+  const customer = data.customer || {};
+  const project = data.project || {};
   const lineItems = data.lineItems || [];
-  const pricing   = data.pricing   || {};
+  const pricing = data.pricing || {};
   const exclusions = [...(data.exclusions || [])];
   if (pricing.dumpsterExcluded) {
     exclusions.unshift({
       name: 'Dumpster & Debris Removal',
-      reason: 'Not included in this contract. Customer is responsible for all debris removal and disposal.',
+      reason:
+        'Not included in this contract. Customer is responsible for all debris removal and disposal.',
       budget: 'Approx. $600–$1,500 depending on volume'
     });
   }
-  const fmt       = (n) => (n ? `$${Number(n).toLocaleString()}` : '$0');
-  const quoteNum  = data.quoteNumber || '—';
+  const fmt = (n) => (n ? `$${Number(n).toLocaleString()}` : '$0');
+  const quoteNum = data.quoteNumber || '—';
   const validUntil = data.validUntil || '—';
   const isStretchCode = project.stretchCodeTown || data.isStretchCodeTown || false;
 
@@ -276,24 +277,24 @@ function buildExclusionsHTML(exclusions) {
 }
 
 function buildPermitChecklistHTML(data) {
-  const job     = data.job     || {};
+  const job = data.job || {};
   const project = data.project || {};
-  const trades  = job.trades   || {};
+  const trades = job.trades || {};
 
-  const isStretchCode   = project.stretchCodeTown || data.isStretchCodeTown || false;
-  const isNewConstruct  = project.type === 'new_construction';
-  const isADU           = project.type === 'adu';
-  const hasBedrooms     = !!(project.hasBedrooms || isADU);
-  const needsCO         = (isNewConstruct || isADU) && hasBedrooms;
-  const needsHERS       = isStretchCode && (isNewConstruct || isADU) && hasBedrooms;
-  const hasElectrical   = !!trades.electrical;
-  const hasPlumbing     = !!trades.plumbing;
-  const hasHVAC         = !!trades.hvac;
-  const hasSprinkler    = !!trades.sprinkler;
-  const hasAnyTrade     = hasElectrical || hasPlumbing || hasHVAC || hasSprinkler;
-  const needsPermit     = !!job.has_permit;
-  const hasFraming      = !!job.has_framing || isNewConstruct;
-  const hasInsulation   = !!job.has_insulation;
+  const isStretchCode = project.stretchCodeTown || data.isStretchCodeTown || false;
+  const isNewConstruct = project.type === 'new_construction';
+  const isADU = project.type === 'adu';
+  const hasBedrooms = !!(project.hasBedrooms || isADU);
+  const needsCO = (isNewConstruct || isADU) && hasBedrooms;
+  const needsHERS = isStretchCode && (isNewConstruct || isADU) && hasBedrooms;
+  const hasElectrical = !!trades.electrical;
+  const hasPlumbing = !!trades.plumbing;
+  const hasHVAC = !!trades.hvac;
+  const hasSprinkler = !!trades.sprinkler;
+  const hasAnyTrade = hasElectrical || hasPlumbing || hasHVAC || hasSprinkler;
+  const needsPermit = !!job.has_permit;
+  const hasFraming = !!job.has_framing || isNewConstruct;
+  const hasInsulation = !!job.has_insulation;
 
   if (!needsPermit && !hasAnyTrade && !isNewConstruct) {
     return `
@@ -304,19 +305,20 @@ function buildPermitChecklistHTML(data) {
   }
 
   const rows = [];
-  if (isNewConstruct)  rows.push('Foundation inspection');
-  if (hasFraming)      rows.push('Framing inspection');
-  if (hasElectrical)   rows.push('Rough electrical inspection');
-  if (hasPlumbing)     rows.push('Rough plumbing inspection');
-  if (hasHVAC)         rows.push('Rough mechanical (HVAC) inspection');
-  if (hasSprinkler)    rows.push('Rough sprinkler inspection');
-  if (hasInsulation)   rows.push('Insulation inspection');
-  if (hasElectrical)   rows.push('Final electrical inspection');
-  if (hasPlumbing)     rows.push('Final plumbing inspection');
-  if (hasHVAC)         rows.push('Final mechanical (HVAC) inspection');
-  if (hasSprinkler)    rows.push('Final sprinkler inspection');
+  if (isNewConstruct) rows.push('Foundation inspection');
+  if (hasFraming) rows.push('Framing inspection');
+  if (hasElectrical) rows.push('Rough electrical inspection');
+  if (hasPlumbing) rows.push('Rough plumbing inspection');
+  if (hasHVAC) rows.push('Rough mechanical (HVAC) inspection');
+  if (hasSprinkler) rows.push('Rough sprinkler inspection');
+  if (hasInsulation) rows.push('Insulation inspection');
+  if (hasElectrical) rows.push('Final electrical inspection');
+  if (hasPlumbing) rows.push('Final plumbing inspection');
+  if (hasHVAC) rows.push('Final mechanical (HVAC) inspection');
+  if (hasSprinkler) rows.push('Final sprinkler inspection');
   if (needsPermit || hasFraming || isNewConstruct) rows.push('Final building inspection');
-  if (needsHERS)       rows.push('HERS rating and blower door test (Stretch Code — ADU residential unit)');
+  if (needsHERS)
+    rows.push('HERS rating and blower door test (Stretch Code — ADU residential unit)');
   if (needsCO) {
     rows.push('Certificate of Occupancy (residential dwelling unit)');
   } else if (needsPermit || hasAnyTrade || isNewConstruct) {
@@ -424,16 +426,21 @@ function buildExhibitAHTML(data, _fmt) {
   const { getDb } = require('../db/database');
   let settings = {};
   try {
-    const db   = getDb();
+    const db = getDb();
     const rows = db.prepare('SELECT key, value FROM settings WHERE category = ?').all('allowance');
     for (const row of rows) {
-      try { settings[row.key] = JSON.parse(row.value); }
-      catch { settings[row.key] = row.value; }
+      try {
+        settings[row.key] = JSON.parse(row.value);
+      } catch {
+        settings[row.key] = row.value;
+      }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   const customer = data.customer || {};
-  const project  = data.project  || {};
+  const project = data.project || {};
   const quoteNum = data.quoteNumber || '';
 
   const get = (key, fallback) => {
@@ -441,31 +448,31 @@ function buildExhibitAHTML(data, _fmt) {
     return v && typeof v === 'object' ? v : { amount: fallback, spec: '' };
   };
 
-  const flooring       = get('allowance.lvp',         6.5);
-  const bathTile       = get('allowance.tileBath',     4.5);
-  const carpet         = get('allowance.carpet',       3.5);
-  const cabinets       = get('allowance.cabinets',     12000);
-  const quartz         = get('allowance.quartz',       4250);
-  const kitFaucet      = get('allowance.kitFaucet',    250);
-  const kitSink        = get('allowance.kitSink',      350);
-  const disposal       = get('allowance.disposal',     150);
-  const vanityFull     = get('allowance.vanity',       650);
-  const vanityHalf     = get('allowance.vanitySmall',  350);
-  const vanityTop      = get('allowance.vanityTop',    350);
-  const bathFaucet     = get('allowance.bathFaucet',   180);
-  const toilet         = get('allowance.toilet',       280);
-  const tub            = get('allowance.tub',          850);
-  const showerValve    = get('allowance.showerValve',  350);
-  const showerDoor     = get('allowance.showerDoor',   250);
-  const bathAccessories = get('allowance.bathAcc',     150);
-  const exhaustFan     = get('allowance.exhaustFan',   85);
-  const intDoor        = get('allowance.intDoor',      180);
-  const passage        = get('allowance.passage',      45);
-  const privacy        = get('allowance.privacy',      55);
-  const bifold         = get('allowance.bifold',       175);
-  const baseMold       = get('allowance.baseMold',     1.85);
-  const casing         = get('allowance.casing',       1.65);
-  const windowStool    = get('allowance.windowStool',  85);
+  const flooring = get('allowance.lvp', 6.5);
+  const bathTile = get('allowance.tileBath', 4.5);
+  const carpet = get('allowance.carpet', 3.5);
+  const cabinets = get('allowance.cabinets', 12000);
+  const quartz = get('allowance.quartz', 4250);
+  const kitFaucet = get('allowance.kitFaucet', 250);
+  const kitSink = get('allowance.kitSink', 350);
+  const disposal = get('allowance.disposal', 150);
+  const vanityFull = get('allowance.vanity', 650);
+  const vanityHalf = get('allowance.vanitySmall', 350);
+  const vanityTop = get('allowance.vanityTop', 350);
+  const bathFaucet = get('allowance.bathFaucet', 180);
+  const toilet = get('allowance.toilet', 280);
+  const tub = get('allowance.tub', 850);
+  const showerValve = get('allowance.showerValve', 350);
+  const showerDoor = get('allowance.showerDoor', 250);
+  const bathAccessories = get('allowance.bathAcc', 150);
+  const exhaustFan = get('allowance.exhaustFan', 85);
+  const intDoor = get('allowance.intDoor', 180);
+  const passage = get('allowance.passage', 45);
+  const privacy = get('allowance.privacy', 55);
+  const bifold = get('allowance.bifold', 175);
+  const baseMold = get('allowance.baseMold', 1.85);
+  const casing = get('allowance.casing', 1.65);
+  const windowStool = get('allowance.windowStool', 85);
 
   const fmtAmt = (v) => {
     if (typeof v === 'object' && v.amount !== undefined) return v.amount;
@@ -552,7 +559,16 @@ function buildExhibitAHTML(data, _fmt) {
 </div>`;
 }
 
-function buildNoticeOfContractHTML({ customer, project, quoteNum, today, total, lineItems, fmt, county = 'Worcester' }) {
+function buildNoticeOfContractHTML({
+  customer,
+  project,
+  quoteNum,
+  today,
+  total,
+  lineItems,
+  fmt,
+  county = 'Worcester'
+}) {
   const workDescription =
     lineItems.map((i) => i.trade).join('; ') || 'General construction and home improvement work';
 

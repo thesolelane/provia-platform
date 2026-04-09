@@ -62,7 +62,9 @@ function App() {
       }
       return res;
     };
-    return () => { window.fetch = origFetch; };
+    return () => {
+      window.fetch = origFetch;
+    };
   }, [token]);
 
   // Validate session when user returns to the tab or focuses the window
@@ -76,7 +78,9 @@ function App() {
         if (res.status === 401) handleLogout();
       } catch {}
     };
-    const onVisibility = () => { if (document.visibilityState === 'visible') validate(); };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') validate();
+    };
     const onFocus = () => validate();
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', onFocus);
@@ -91,12 +95,15 @@ function App() {
     if (!token) return;
     const IDLE_MS = 20 * 60 * 1000;
     let timer = setTimeout(handleLogout, IDLE_MS);
-    const reset = () => { clearTimeout(timer); timer = setTimeout(handleLogout, IDLE_MS); };
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(handleLogout, IDLE_MS);
+    };
     const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
-    events.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
     return () => {
       clearTimeout(timer);
-      events.forEach(e => window.removeEventListener(e, reset));
+      events.forEach((e) => window.removeEventListener(e, reset));
     };
   }, [token]);
 
@@ -116,13 +123,13 @@ function App() {
           <Route path="/team" element={<Team token={token} userRole={userRole} />} />
           <Route path="/whitelist" element={<Navigate to="/team" />} />
           <Route path="/contacts" element={<Contacts token={token} />} />
-          <Route path="/vendors"  element={<Vendors  token={token} />} />
+          <Route path="/vendors" element={<Vendors token={token} />} />
           <Route path="/tasks" element={<Tasks token={token} />} />
           <Route path="/leads" element={<Leads token={token} />} />
           <Route path="/payments" element={<Payments token={token} />} />
           <Route path="/takeoff" element={<MaterialTakeOff />} />
           <Route path="/analytics" element={<Analytics token={token} />} />
-          <Route path="/reports"   element={<Reports token={token} />} />
+          <Route path="/reports" element={<Reports token={token} />} />
           <Route path="/field-camera" element={<FieldCamera token={token} />} />
           <Route path="/guide" element={<FieldGuide />} />
           <Route path="/agents" element={<Agents token={token} userRole={userRole} />} />

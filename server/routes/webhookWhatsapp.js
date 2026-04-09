@@ -246,7 +246,9 @@ async function handleIncomingWhatsApp(data) {
         try {
           const parsed = await pdfParse(buffer);
           rawText = parsed.text.trim();
-        } catch { /* not a text PDF — fall through to Claude vision */ }
+        } catch {
+          /* not a text PDF — fall through to Claude vision */
+        }
 
         // ── Step 2: if pdf-parse came up empty (scanned/image PDF or non-PDF doc),
         //    use Claude's native document reading — handles both kinds of PDFs and
@@ -826,13 +828,13 @@ function buildSubListMessage(selectedDeptIndexes, isPortuguese) {
 function parseNumberList(text) {
   return text
     .split(/[,\s]+/)
-    .map(s => parseInt(s.trim(), 10))
-    .filter(n => !isNaN(n) && n > 0);
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => !isNaN(n) && n > 0);
 }
 
 function buildTradesNarrativeFromSubs(selectedSubs) {
   if (!selectedSubs || selectedSubs.length === 0) return '';
-  const lines = selectedSubs.map(s => `- ${s.name} (${s.deptName}): ${s.meaning}`);
+  const lines = selectedSubs.map((s) => `- ${s.name} (${s.deptName}): ${s.meaning}`);
   return `\n\nEXPLICITLY SELECTED TRADES (user-confirmed via WhatsApp):\n${lines.join('\n')}\nUse this list to calibrate line items and pricing — these trades are confirmed to be in scope.`;
 }
 
@@ -842,7 +844,11 @@ async function sendMobileTradeSelectLink(job, from, db, language, senderName) {
   const token = uuidv4();
 
   let meta = {};
-  try { meta = JSON.parse(job.metadata || '{}'); } catch { /* ignore */ }
+  try {
+    meta = JSON.parse(job.metadata || '{}');
+  } catch {
+    /* ignore */
+  }
   meta.tradeSelectToken = token;
   meta.tradeSelectDone = false;
 
@@ -852,8 +858,11 @@ async function sendMobileTradeSelectLink(job, from, db, language, senderName) {
     job.id
   );
 
-  const baseUrl = process.env.APP_URL ||
-    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : 'http://localhost:5000');
+  const baseUrl =
+    process.env.APP_URL ||
+    (process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : 'http://localhost:5000');
   const link = `${baseUrl}/trade-select/${token}`;
 
   await sendWhatsApp(
@@ -887,18 +896,23 @@ async function handleTradeSelectionDept(job, body, from, db, language, senderNam
   }
 
   const nums = parseNumberList(body);
-  const validNums = nums.filter(n => n >= 1 && n <= DEPARTMENTS.length);
+  const validNums = nums.filter((n) => n >= 1 && n <= DEPARTMENTS.length);
 
   if (validNums.length === 0) {
-    await sendWhatsApp(from, isPortuguese
-      ? `⚠️ Não entendi. Responda com os números dos departamentos (ex: *1, 3, 5*) ou *PULAR* para continuar.`
-      : `⚠️ I didn't catch that. Reply with the department numbers (e.g. *1, 3, 5*) or *SKIP* to continue.`
+    await sendWhatsApp(
+      from,
+      isPortuguese
+        ? `⚠️ Não entendi. Responda com os números dos departamentos (ex: *1, 3, 5*) ou *PULAR* para continuar.`
+        : `⚠️ I didn't catch that. Reply with the department numbers (e.g. *1, 3, 5*) or *SKIP* to continue.`
     );
     return;
   }
 
-  const selectedDeptIndexes = validNums.map(n => n - 1);
-  const totalSubs = selectedDeptIndexes.reduce((acc, di) => acc + (DEPARTMENTS[di]?.subDepartments?.length || 0), 0);
+  const selectedDeptIndexes = validNums.map((n) => n - 1);
+  const totalSubs = selectedDeptIndexes.reduce(
+    (acc, di) => acc + (DEPARTMENTS[di]?.subDepartments?.length || 0),
+    0
+  );
 
   if (totalSubs === 0) {
     await proceedAfterTradeSelection(job, [], from, db, language, senderName, sender);
@@ -926,7 +940,11 @@ async function handleTradeSelectionSub(job, body, from, db, language, senderName
   const upperBody = body.toUpperCase().trim();
 
   let meta = {};
-  try { meta = JSON.parse(job.metadata || '{}'); } catch { /* ignore */ }
+  try {
+    meta = JSON.parse(job.metadata || '{}');
+  } catch {
+    /* ignore */
+  }
 
   if (upperBody === 'SKIP' || upperBody === 'PULAR') {
     await proceedAfterTradeSelection(job, [], from, db, language, senderName, sender);
@@ -958,21 +976,31 @@ async function handleTradeSelectionSub(job, body, from, db, language, senderName
     }
   }
 
-  const validNums = nums.filter(n => n >= 1 && n <= subList.length);
+  const validNums = nums.filter((n) => n >= 1 && n <= subList.length);
 
   if (validNums.length === 0) {
-    await sendWhatsApp(from, isPortuguese
-      ? `⚠️ Não entendi. Responda com os números dos sub-departamentos ou *PULAR* para continuar.`
-      : `⚠️ I didn't catch that. Reply with the sub-department numbers or *SKIP* to continue.`
+    await sendWhatsApp(
+      from,
+      isPortuguese
+        ? `⚠️ Não entendi. Responda com os números dos sub-departamentos ou *PULAR* para continuar.`
+        : `⚠️ I didn't catch that. Reply with the sub-department numbers or *SKIP* to continue.`
     );
     return;
   }
 
-  const selectedSubs = validNums.map(n => subList[n - 1]).filter(Boolean);
+  const selectedSubs = validNums.map((n) => subList[n - 1]).filter(Boolean);
   await proceedAfterTradeSelection(job, selectedSubs, from, db, language, senderName, sender);
 }
 
-async function proceedAfterTradeSelection(job, selectedSubs, from, db, language, senderName, sender) {
+async function proceedAfterTradeSelection(
+  job,
+  selectedSubs,
+  from,
+  db,
+  language,
+  senderName,
+  sender
+) {
   const isPortuguese = language === 'pt-BR';
 
   const tradesNarrative = buildTradesNarrativeFromSubs(selectedSubs);
@@ -1017,7 +1045,15 @@ async function proceedAfterTradeSelection(job, selectedSubs, from, db, language,
         : `Got it${selectedSubs.length ? ` — ${selectedSubs.length} trade${selectedSubs.length !== 1 ? 's' : ''} noted` : ''}! Processing the estimate now...`
     );
 
-    await handleNewEstimateSubmission(job.raw_estimate_data, from, db, sender, senderName, language, job.id);
+    await handleNewEstimateSubmission(
+      job.raw_estimate_data,
+      from,
+      db,
+      sender,
+      senderName,
+      language,
+      job.id
+    );
   }
 }
 

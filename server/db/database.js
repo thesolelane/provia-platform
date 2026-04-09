@@ -495,7 +495,9 @@ async function initDatabase() {
   // Migration: add html_body column for email preview (auto-wiped on contract signing)
   try {
     db.exec(`ALTER TABLE email_log ADD COLUMN html_body TEXT`);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   // Field photos — standalone camera inbox with GPS grouping
   db.exec(`
@@ -753,12 +755,12 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_contact_id ON leads(contact_id)`);
 
   // ── Leads pipeline extra fields (must come AFTER CREATE TABLE leads) ──────────
-  addColIfMissing('leads', 'appointment_at',    'DATETIME');
-  addColIfMissing('leads', 'job_address',        'TEXT');
-  addColIfMissing('leads', 'job_city',           'TEXT');
-  addColIfMissing('leads', 'job_email',          'TEXT');
-  addColIfMissing('leads', 'job_scope',          'TEXT');
-  addColIfMissing('leads', 'job_type',           'TEXT');
+  addColIfMissing('leads', 'appointment_at', 'DATETIME');
+  addColIfMissing('leads', 'job_address', 'TEXT');
+  addColIfMissing('leads', 'job_city', 'TEXT');
+  addColIfMissing('leads', 'job_email', 'TEXT');
+  addColIfMissing('leads', 'job_scope', 'TEXT');
+  addColIfMissing('leads', 'job_type', 'TEXT');
   addColIfMissing('leads', 'pb_customer_number', 'TEXT');
 
   // ── Migration: job metadata JSON blob (trade selection, etc.) ────────────────
@@ -1322,16 +1324,13 @@ Harvard, Shirley, Lunenburg, Townsend, Pepperell, Groton, Ayer
 
 function seedAgentKeys(db) {
   const crypto = require('crypto');
-  const agents = [
-    { name: 'Marbilism Agent 1' },
-    { name: 'Marbilism Agent 2' },
-  ];
+  const agents = [{ name: 'Marbilism Agent 1' }, { name: 'Marbilism Agent 2' }];
   for (const agent of agents) {
     const existing = db.prepare('SELECT id FROM agent_keys WHERE name = ?').get(agent.name);
     if (!existing) {
-      const rawKey    = crypto.randomBytes(32).toString('hex');
+      const rawKey = crypto.randomBytes(32).toString('hex');
       const rawSecret = crypto.randomBytes(32).toString('hex');
-      const keyHash    = crypto.createHash('sha256').update(rawKey).digest('hex');
+      const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
       const secretHash = crypto.createHash('sha256').update(rawSecret).digest('hex');
       db.prepare(
         'INSERT INTO agent_keys (name, key_hash, secret_hash, key_displayed) VALUES (?, ?, ?, 0)'
@@ -1345,7 +1344,9 @@ function seedAgentKeys(db) {
       console.log(`${'='.repeat(60)}\n`);
       db.prepare('UPDATE agent_keys SET key_displayed = 1 WHERE id = ?').run(row.id);
     } else {
-      const row = db.prepare('SELECT id, key_displayed FROM agent_keys WHERE name = ?').get(agent.name);
+      const row = db
+        .prepare('SELECT id, key_displayed FROM agent_keys WHERE name = ?')
+        .get(agent.name);
       if (row && row.key_displayed === 0) {
         console.log(`\n${'='.repeat(60)}`);
         console.log(`MARBILISM AGENT — ${agent.name.toUpperCase()} (id=${row.id})`);

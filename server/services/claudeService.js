@@ -6,29 +6,29 @@
 
 const estimate = require('./claudeEstimate');
 const contract = require('./claudeContract');
-const chat     = require('./claudeChat');
+const chat = require('./claudeChat');
 
 module.exports = {
   // From claudeEstimate
-  loadSettings:           estimate.loadSettings,
-  loadKnowledgeBase:      estimate.loadKnowledgeBase,
-  getMarkupRates:         estimate.getMarkupRates,
-  buildRatesSection:      estimate.buildRatesSection,
-  buildSystemPrompt:      estimate.buildSystemPrompt,
-  buildMemoryContext:     estimate.buildMemoryContext,
+  loadSettings: estimate.loadSettings,
+  loadKnowledgeBase: estimate.loadKnowledgeBase,
+  getMarkupRates: estimate.getMarkupRates,
+  buildRatesSection: estimate.buildRatesSection,
+  buildSystemPrompt: estimate.buildSystemPrompt,
+  buildMemoryContext: estimate.buildMemoryContext,
   getPriorVersionContext: estimate.getPriorVersionContext,
-  WEB_SEARCH_TOOL:        estimate.WEB_SEARCH_TOOL,
-  runWithTools:           estimate.runWithTools,
-  processEstimate:        estimate.processEstimate,
-  applyPricing:           estimate.applyPricing,
+  WEB_SEARCH_TOOL: estimate.WEB_SEARCH_TOOL,
+  runWithTools: estimate.runWithTools,
+  processEstimate: estimate.processEstimate,
+  applyPricing: estimate.applyPricing,
 
   // From claudeContract
   generateContract: contract.generateContract,
 
   // From claudeChat
-  handleClarification:     chat.handleClarification,
-  ADMIN_TOOLS:             chat.ADMIN_TOOLS,
-  runAdminTool:            chat.runAdminTool,
-  adminChat:               chat.adminChat,
+  handleClarification: chat.handleClarification,
+  ADMIN_TOOLS: chat.ADMIN_TOOLS,
+  runAdminTool: chat.runAdminTool,
+  adminChat: chat.adminChat,
   generateWizardQuestions: chat.generateWizardQuestions
 };

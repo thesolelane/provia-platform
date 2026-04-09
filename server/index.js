@@ -27,35 +27,47 @@ const path = require('path');
 const { initDatabase } = require('./db/database');
 const { requireAuth } = require('./middleware/auth');
 const rateLimit = require('express-rate-limit');
-const helmet   = require('helmet');
+const helmet = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ── SECURITY MIDDLEWARE ───────────────────────────────────────
 app.disable('x-powered-by'); // hide framework fingerprint
-app.use(helmet({
-  contentSecurityPolicy: false,        // React handles its own; enabling would break the UI
-  crossOriginEmbedderPolicy: false,    // required for Puppeteer/PDF generation
-  crossOriginOpenerPolicy: false,      // required for Replit preview iframe
-  crossOriginResourcePolicy: false,    // required for Replit preview iframe
-  frameguard: false,                   // allow Replit preview iframe (removes X-Frame-Options)
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // React handles its own; enabling would break the UI
+    crossOriginEmbedderPolicy: false, // required for Puppeteer/PDF generation
+    crossOriginOpenerPolicy: false, // required for Replit preview iframe
+    crossOriginResourcePolicy: false, // required for Replit preview iframe
+    frameguard: false // allow Replit preview iframe (removes X-Frame-Options)
+  })
+);
 app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : '*' }));
 // Capture raw body for agent M2M routes (needed for HMAC signature verification).
 // express.raw() runs before express.json() so the body stream is not consumed twice.
 // Admin/SSE agent endpoints that don't send a body are unaffected (rawBody = '').
-app.use('/api/agents', express.raw({
-  type: '*/*',
-  limit: '1mb',
-  verify: (req, _res, buf) => { req.rawBody = buf.toString('utf8'); }
-}), (req, res, next) => {
-  // Parse JSON body from rawBody for convenience on endpoints that need it
-  if (req.rawBody) {
-    try { req.body = JSON.parse(req.rawBody); } catch { req.body = {}; }
+app.use(
+  '/api/agents',
+  express.raw({
+    type: '*/*',
+    limit: '1mb',
+    verify: (req, _res, buf) => {
+      req.rawBody = buf.toString('utf8');
+    }
+  }),
+  (req, res, next) => {
+    // Parse JSON body from rawBody for convenience on endpoints that need it
+    if (req.rawBody) {
+      try {
+        req.body = JSON.parse(req.rawBody);
+      } catch {
+        req.body = {};
+      }
+    }
+    next();
   }
-  next();
-});
+);
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
@@ -63,7 +75,7 @@ app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 }, useTempFiles: true 
 
 // ── AUTH-PROTECTED FILE SERVING ───────────────────────────────
 // PDFs (proposals, contracts) — requires staff login OR a valid signing session token
-const OUTPUTS_DIR     = path.resolve(__dirname, '../outputs');
+const OUTPUTS_DIR = path.resolve(__dirname, '../outputs');
 const CONTACT_DOCS_DIR = path.resolve(__dirname, '../uploads/contact_docs');
 
 app.get('/outputs/:filename', (req, res) => {
@@ -86,11 +98,15 @@ app.get('/outputs/:filename', (req, res) => {
     const { getDb } = require('./db/database');
     const db = getDb();
     const session = db
-      .prepare("SELECT id, status, email_sent_at, created_at FROM signing_sessions WHERE token = ? AND status != 'void'")
+      .prepare(
+        "SELECT id, status, email_sent_at, created_at FROM signing_sessions WHERE token = ? AND status != 'void'"
+      )
       .get(signToken);
     if (session) {
       const sentAt = session.email_sent_at || session.created_at;
-      const cutoff = sentAt ? new Date(new Date(sentAt).getTime() + 10 * 24 * 60 * 60 * 1000) : null;
+      const cutoff = sentAt
+        ? new Date(new Date(sentAt).getTime() + 10 * 24 * 60 * 60 * 1000)
+        : null;
       const expired = session.status !== 'signed' && cutoff && new Date() > cutoff;
       if (expired) return res.status(410).json({ error: 'Link expired' });
       if (req.query.download === '1') {
@@ -105,8 +121,8 @@ app.get('/outputs/:filename', (req, res) => {
 
 app.get('/contact-docs/:contactId/:filename', requireAuth, (req, res) => {
   const contactId = path.basename(req.params.contactId);
-  const filename  = path.basename(req.params.filename);
-  const filePath  = path.join(CONTACT_DOCS_DIR, contactId, filename);
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(CONTACT_DOCS_DIR, contactId, filename);
   if (!filePath.startsWith(CONTACT_DOCS_DIR) || !fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
@@ -133,7 +149,7 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests. Please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === '/health', // don't limit keep-alive pings
+  skip: (req) => req.path === '/health' // don't limit keep-alive pings
 });
 app.use('/api/', apiLimiter);
 
@@ -143,7 +159,7 @@ const loginLimiter = rateLimit({
   max: 10,
   message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders: false
 });
 app.use('/api/auth/login', loginLimiter);
 
@@ -153,7 +169,7 @@ const webhookLimiter = rateLimit({
   max: 60,
   message: { error: 'Webhook rate limit exceeded.' },
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders: false
 });
 app.use('/webhook/', webhookLimiter);
 
@@ -162,7 +178,10 @@ app.get('/api/blank-contract', requireAuth, async (req, res) => {
   try {
     const { generateBlankContractDocx } = require('./services/pdfService');
     const buffer = await generateBlankContractDocx();
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    );
     res.setHeader('Content-Disposition', 'attachment; filename="PB_Contract_Template_BLANK.docx"');
     res.send(buffer);
   } catch (err) {
@@ -177,32 +196,32 @@ app.get('/health', (req, res) => {
 });
 
 // ── API ROUTES ────────────────────────────────────────────────
-app.use('/api/auth',          require('./routes/auth'));
-app.use('/api/jobs',          require('./routes/jobs'));
-app.use('/api/settings',      require('./routes/settings'));
-app.use('/api/knowledge',     require('./routes/knowledge'));
-app.use('/api/knowledge',     require('./routes/knowledgeImport'));
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/jobs', require('./routes/jobs'));
+app.use('/api/settings', require('./routes/settings'));
+app.use('/api/knowledge', require('./routes/knowledge'));
+app.use('/api/knowledge', require('./routes/knowledgeImport'));
 app.use('/api/conversations', require('./routes/conversations'));
-app.use('/api/chat',          require('./routes/adminChat'));
-app.use('/api/whitelist',     require('./routes/whitelist'));
-app.use('/api/contacts',      require('./routes/contacts'));
-app.use('/api/vendors',       require('./routes/vendors'));
-app.use('/api/tasks',         require('./routes/tasks').router);
-app.use('/api/jobs',          require('./routes/jobPhotos'));
-app.use('/api/secrets',       require('./routes/secrets'));
-app.use('/api/status',        require('./routes/status'));
-app.use('/api/users',         require('./routes/users'));
+app.use('/api/chat', require('./routes/adminChat'));
+app.use('/api/whitelist', require('./routes/whitelist'));
+app.use('/api/contacts', require('./routes/contacts'));
+app.use('/api/vendors', require('./routes/vendors'));
+app.use('/api/tasks', require('./routes/tasks').router);
+app.use('/api/jobs', require('./routes/jobPhotos'));
+app.use('/api/secrets', require('./routes/secrets'));
+app.use('/api/status', require('./routes/status'));
+app.use('/api/users', require('./routes/users'));
 app.use('/api/remote-update', require('./routes/remoteUpdate'));
-app.use('/api/payments',      require('./routes/payments'));
-app.use('/api/invoices',      require('./routes/invoices').router);
-app.use('/api/activity-log',  require('./routes/activityLog').router);
-app.use('/api/analytics',     require('./routes/analytics'));
-app.use('/api/reports',       require('./routes/reports'));
-app.use('/api/email-log',    require('./routes/emailLog'));
+app.use('/api/payments', require('./routes/payments'));
+app.use('/api/invoices', require('./routes/invoices').router);
+app.use('/api/activity-log', require('./routes/activityLog').router);
+app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/email-log', require('./routes/emailLog'));
 app.use(require('./routes/emailTracking'));
 app.use('/api/field-photos', require('./routes/fieldPhotos'));
-app.use('/api/agents',       require('./routes/agents'));
-app.use('/api/leads',        require('./routes/leads'));
+app.use('/api/agents', require('./routes/agents'));
+app.use('/api/leads', require('./routes/leads'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
 app.use(require('./routes/signing'));
@@ -210,10 +229,10 @@ app.use(require('./routes/signing'));
 app.use(require('./routes/signingAdmin'));
 
 // ── WEBHOOKS (no auth — verified by signature) ────────────────
-app.use('/webhook/hearth',    require('./routes/webhookHearth'));
-app.use('/webhook/email',     require('./routes/webhookEmail'));
-app.use('/webhook/whatsapp',  require('./routes/webhookWhatsapp'));
-app.use('/webhook',           require('./routes/emailLog'));
+app.use('/webhook/hearth', require('./routes/webhookHearth'));
+app.use('/webhook/email', require('./routes/webhookEmail'));
+app.use('/webhook/whatsapp', require('./routes/webhookWhatsapp'));
+app.use('/webhook', require('./routes/emailLog'));
 
 // ── TRADE SELECT (public — tokenized one-time mobile selection page) ──
 app.use(require('./routes/tradeSelect'));
@@ -247,7 +266,9 @@ function listenWithRetry(port, maxRetries = 5, delayMs = 2000) {
       server.on('error', (err) => {
         if (err.code === 'EADDRINUSE' && attempts < maxRetries) {
           attempts++;
-          console.log(`Port ${port} in use, retrying in ${delayMs}ms (attempt ${attempts}/${maxRetries})...`);
+          console.log(
+            `Port ${port} in use, retrying in ${delayMs}ms (attempt ${attempts}/${maxRetries})...`
+          );
           setTimeout(attempt, delayMs);
         } else {
           reject(err);
@@ -275,11 +296,13 @@ async function start() {
 
     // Also listen on port 3001 for Replit webview (external port 80 → local 3001)
     if (String(PORT) !== '3001') {
-      app.listen(3001, () => {
-        console.log('📡 Also listening on port 3001 (Replit webview proxy)');
-      }).on('error', (e) => {
-        if (e.code !== 'EADDRINUSE') console.warn('Port 3001 listen error:', e.message);
-      });
+      app
+        .listen(3001, () => {
+          console.log('📡 Also listening on port 3001 (Replit webview proxy)');
+        })
+        .on('error', (e) => {
+          if (e.code !== 'EADDRINUSE') console.warn('Port 3001 listen error:', e.message);
+        });
     }
 
     const { startKeepAlive } = require('./services/keepAlive');
@@ -304,7 +327,6 @@ async function start() {
 
     const { startTaskReminderScheduler } = require('./services/taskReminder');
     startTaskReminderScheduler();
-
   } catch (err) {
     console.error('Failed to start:', err);
     process.exit(1);

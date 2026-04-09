@@ -14,7 +14,9 @@ router.get('/', requireAuth, (req, res) => {
     let value = row.value;
     try {
       value = JSON.parse(row.value);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     grouped[row.category].push({
       key: row.key,
       value,
@@ -33,7 +35,9 @@ router.get('/:key', requireAuth, (req, res) => {
   let value = row.value;
   try {
     value = JSON.parse(row.value);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   res.json({ key: row.key, value, label: row.label });
 });
 

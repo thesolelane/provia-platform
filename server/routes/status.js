@@ -48,19 +48,29 @@ async function checkPerplexity() {
   try {
     const https = require('https');
     const result = await new Promise((resolve) => {
-      const req = https.request({
-        hostname: 'api.perplexity.ai',
-        path: '/chat/completions',
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${key}`, 'Content-Type': 'application/json' }
-      }, (res) => resolve({ status: res.statusCode }));
+      const req = https.request(
+        {
+          hostname: 'api.perplexity.ai',
+          path: '/chat/completions',
+          method: 'POST',
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+        },
+        (res) => resolve({ status: res.statusCode })
+      );
       req.on('error', () => resolve({ status: 0 }));
-      req.write(JSON.stringify({ model: 'sonar', messages: [{ role: 'user', content: 'ping' }], max_tokens: 1 }));
+      req.write(
+        JSON.stringify({
+          model: 'sonar',
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 1
+        })
+      );
       req.end();
     });
     if (result.status === 200) return { ok: true, detail: 'API key valid and reachable' };
     if (result.status === 401) return { ok: false, detail: 'API key rejected (401)' };
-    if (result.status === 400) return { ok: true, detail: 'API key valid (400 = bad request body, key accepted)' };
+    if (result.status === 400)
+      return { ok: true, detail: 'API key valid (400 = bad request body, key accepted)' };
     return { ok: false, detail: `Perplexity returned HTTP ${result.status}` };
   } catch (e) {
     return { ok: false, detail: e.message };
@@ -161,7 +171,9 @@ async function checkPDF() {
     try {
       const p = execSync('where chrome', { timeout: 3000 }).toString().split('\n')[0].trim();
       if (p && fs.existsSync(p)) return { ok: true, detail: `Chrome (PATH): ${p}` };
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return {
       ok: false,
       detail:
@@ -178,7 +190,9 @@ async function checkPDF() {
       .toString()
       .trim();
     if (p) return { ok: true, detail: `Chromium: ${p}` };
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   const nixPath =
     '/nix/store/gasnw5878924jbw6bql257ll29hkm4fd-chromium-123.0.6312.105/bin/chromium';
   if (fs.existsSync(nixPath)) return { ok: true, detail: 'Chromium found in Nix store' };
@@ -426,44 +440,64 @@ function getTokenUsageSummary() {
     const today = new Date().toISOString().slice(0, 10);
     const monthStart = today.slice(0, 7) + '-01';
 
-    const rows = db.prepare(`
+    const rows = db
+      .prepare(
+        `
       SELECT service, model,
         SUM(input_tokens)  AS total_in,
         SUM(output_tokens) AS total_out,
         COUNT(*)           AS calls
       FROM token_usage
       GROUP BY service, model
-    `).all();
+    `
+      )
+      .all();
 
-    const todayRows = db.prepare(`
+    const todayRows = db
+      .prepare(
+        `
       SELECT service,
         SUM(input_tokens)  AS total_in,
         SUM(output_tokens) AS total_out
       FROM token_usage
       WHERE DATE(created_at) = ?
       GROUP BY service
-    `).all(today);
+    `
+      )
+      .all(today);
 
-    const monthRows = db.prepare(`
+    const monthRows = db
+      .prepare(
+        `
       SELECT service,
         SUM(input_tokens)  AS total_in,
         SUM(output_tokens) AS total_out
       FROM token_usage
       WHERE DATE(created_at) >= ?
       GROUP BY service
-    `).all(monthStart);
+    `
+      )
+      .all(monthStart);
 
     const byService = {};
     for (const r of rows) {
-      if (!byService[r.service]) byService[r.service] = { allTime: [], today: { in: 0, out: 0 }, month: { in: 0, out: 0 } };
-      byService[r.service].allTime.push({ model: r.model, in: r.total_in, out: r.total_out, calls: r.calls });
+      if (!byService[r.service])
+        byService[r.service] = { allTime: [], today: { in: 0, out: 0 }, month: { in: 0, out: 0 } };
+      byService[r.service].allTime.push({
+        model: r.model,
+        in: r.total_in,
+        out: r.total_out,
+        calls: r.calls
+      });
     }
     for (const r of todayRows) {
-      if (!byService[r.service]) byService[r.service] = { allTime: [], today: { in: 0, out: 0 }, month: { in: 0, out: 0 } };
+      if (!byService[r.service])
+        byService[r.service] = { allTime: [], today: { in: 0, out: 0 }, month: { in: 0, out: 0 } };
       byService[r.service].today = { in: r.total_in, out: r.total_out };
     }
     for (const r of monthRows) {
-      if (!byService[r.service]) byService[r.service] = { allTime: [], today: { in: 0, out: 0 }, month: { in: 0, out: 0 } };
+      if (!byService[r.service])
+        byService[r.service] = { allTime: [], today: { in: 0, out: 0 }, month: { in: 0, out: 0 } };
       byService[r.service].month = { in: r.total_in, out: r.total_out };
     }
     return byService;
@@ -477,31 +511,32 @@ router.get('/', requireAuth, async (req, res) => {
   if (!['system_admin', 'admin'].includes(req.session?.role))
     return res.status(403).json({ error: 'Admin only' });
 
-  const [database, claude, perplexity, resend, twilio, whatsapp, calendar, pdf, signing] = await Promise.all([
-    checkDatabase(),
-    checkClaude(),
-    checkPerplexity(),
-    checkSmtp(),
-    checkTwilio(),
-    checkWhatsApp(),
-    checkGoogleCalendar(),
-    checkPDF(),
-    checkSigning()
-  ]);
+  const [database, claude, perplexity, resend, twilio, whatsapp, calendar, pdf, signing] =
+    await Promise.all([
+      checkDatabase(),
+      checkClaude(),
+      checkPerplexity(),
+      checkSmtp(),
+      checkTwilio(),
+      checkWhatsApp(),
+      checkGoogleCalendar(),
+      checkPDF(),
+      checkSigning()
+    ]);
 
   res.json({
     version: require('../../package.json').version,
     checkedAt: new Date().toISOString(),
     services: {
-      database:   { label: 'Database (SQLite)',      ...database },
-      claude:     { label: 'Claude AI (Anthropic)',  ...claude },
-      perplexity: { label: 'Perplexity Sonar',       ...perplexity },
-      resend:     { label: 'Email (SMTP)',            ...resend },
-      twilio:     { label: 'Twilio SMS',             ...twilio },
-      whatsapp:   { label: 'WhatsApp (Twilio)',       ...whatsapp },
-      calendar:   { label: 'Google Calendar',        ...calendar },
-      pdf:        { label: 'PDF Generation',         ...pdf },
-      signing:    { label: 'Digital Signatures',     ...signing }
+      database: { label: 'Database (SQLite)', ...database },
+      claude: { label: 'Claude AI (Anthropic)', ...claude },
+      perplexity: { label: 'Perplexity Sonar', ...perplexity },
+      resend: { label: 'Email (SMTP)', ...resend },
+      twilio: { label: 'Twilio SMS', ...twilio },
+      whatsapp: { label: 'WhatsApp (Twilio)', ...whatsapp },
+      calendar: { label: 'Google Calendar', ...calendar },
+      pdf: { label: 'PDF Generation', ...pdf },
+      signing: { label: 'Digital Signatures', ...signing }
     },
     recentErrors: getRecentErrors(20),
     alertsSummary: getAlertsSummary(),

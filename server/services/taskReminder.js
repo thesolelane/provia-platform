@@ -58,7 +58,7 @@ async function runReminderTick() {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
+      minute: '2-digit'
     });
 
     try {
@@ -96,7 +96,7 @@ async function runReminderTick() {
               </a>
             </p>
           </div>`,
-        emailType: 'task_reminder',
+        emailType: 'task_reminder'
       });
       console.log(`[TaskReminder] Reminder sent for task #${task.id}: "${task.title}"`);
       db.prepare(
@@ -111,9 +111,12 @@ async function runReminderTick() {
 function startTaskReminderScheduler() {
   console.log('[TaskReminder] Scheduler started — checking every 60 minutes');
   runReminderTick().catch((e) => console.error('[TaskReminder] Initial tick error:', e.message));
-  setInterval(() => {
-    runReminderTick().catch((e) => console.error('[TaskReminder] Tick error:', e.message));
-  }, 60 * 60 * 1000);
+  setInterval(
+    () => {
+      runReminderTick().catch((e) => console.error('[TaskReminder] Tick error:', e.message));
+    },
+    60 * 60 * 1000
+  );
 }
 
 module.exports = { startTaskReminderScheduler };
