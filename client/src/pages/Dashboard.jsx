@@ -66,9 +66,37 @@ export default function Dashboard({ token }) {
   });
   const [uploadFiles, setUploadFiles] = useState([]);
   const [dragOver, setDragOver] = useState(false);
+  const [contactSuggestions, setContactSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestTimer = useRef(null);
   const esRef = useRef(null);
 
   const headers = { 'x-auth-token': token };
+
+  function searchContacts(q) {
+    clearTimeout(suggestTimer.current);
+    if (!q || q.length < 2) { setContactSuggestions([]); setShowSuggestions(false); return; }
+    suggestTimer.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/contacts?search=${encodeURIComponent(q)}&limit=6`, { headers });
+        const data = await r.json();
+        setContactSuggestions(data.contacts || []);
+        setShowSuggestions((data.contacts || []).length > 0);
+      } catch { setContactSuggestions([]); }
+    }, 200);
+  }
+
+  function pickContact(c) {
+    setManual((m) => ({
+      ...m,
+      customerName:   c.name        || m.customerName,
+      customerPhone:  c.phone       || m.customerPhone,
+      customerEmail:  c.email       || m.customerEmail,
+      projectAddress: c.address ? [c.address, c.city].filter(Boolean).join(', ') : m.projectAddress,
+    }));
+    setShowSuggestions(false);
+    setContactSuggestions([]);
+  }
 
   const loadDashboard = () =>
     Promise.all([
@@ -1016,15 +1044,74 @@ export default function Dashboard({ token }) {
             <div
               style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}
             >
+              {/* Customer Name — with contact autocomplete */}
+              <div style={{ position: 'relative' }}>
+                <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 3 }}>
+                  Customer Name
+                </label>
+                <input
+                  value={manual.customerName}
+                  onChange={(e) => {
+                    setManual({ ...manual, customerName: e.target.value });
+                    searchContacts(e.target.value);
+                  }}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  onFocus={() => { if (contactSuggestions.length) setShowSuggestions(true); }}
+                  placeholder="John Smith"
+                  autoComplete="off"
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    border: '1px solid #ddd',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {showSuggestions && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    background: 'white',
+                    border: '1px solid #C8D4E4',
+                    borderRadius: 6,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    zIndex: 200,
+                    maxHeight: 220,
+                    overflowY: 'auto',
+                  }}>
+                    {contactSuggestions.map((c) => (
+                      <div
+                        key={c.id}
+                        onMouseDown={() => pickContact(c)}
+                        style={{
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #f0f0f0',
+                          fontSize: 12,
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#f0f6ff'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                      >
+                        <div style={{ fontWeight: 'bold', color: '#1B3A6B' }}>
+                          {c.pb_customer_number ? `PB#${c.pb_customer_number} · ` : ''}{c.name}
+                        </div>
+                        <div style={{ color: '#888', fontSize: 11, marginTop: 1 }}>
+                          {[c.phone, c.email, c.address].filter(Boolean).join(' · ')}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Remaining fields */}
               {[
-                { label: 'Customer Name', key: 'customerName', placeholder: 'John Smith' },
                 { label: 'Customer Phone', key: 'customerPhone', placeholder: '+1 555 000 0000' },
                 { label: 'Customer Email', key: 'customerEmail', placeholder: 'john@email.com' },
-                {
-                  label: 'Project Address',
-                  key: 'projectAddress',
-                  placeholder: '123 Main St, City, FL'
-                }
+                { label: 'Project Address', key: 'projectAddress', placeholder: '123 Main St, City, FL' }
               ].map((f) => (
                 <div key={f.key}>
                   <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 3 }}>
