@@ -21,6 +21,277 @@ const SNOOZE_OPTIONS = [
   { label: '14 days', hours: 336 },
 ];
 
+// ── Lead pipeline constants ────────────────────────────────────────────────────
+const NEXT_STAGE = {
+  incoming:           'callback_done',
+  callback_done:      'appointment_booked',
+  appointment_booked: 'site_visit_complete',
+  site_visit_complete:'quote_draft',
+  quote_draft:        'quote_sent',
+  quote_sent:         'follow_up_1',
+  follow_up_1:        'follow_up_2',
+  follow_up_2:        'signed',
+};
+const STAGE_LABELS = {
+  incoming:           'Incoming',
+  callback_done:      'Callback Done',
+  appointment_booked: 'Appt Booked',
+  site_visit_complete:'Site Visited',
+  quote_draft:        'Quote Draft',
+  quote_sent:         'Quote Sent',
+  follow_up_1:        'Follow-up 1',
+  follow_up_2:        'Follow-up 2',
+  signed:             'Signed ✓',
+  rejected:           'Rejected',
+};
+const STAGE_COLORS = {
+  incoming:           '#7B8EA0',
+  callback_done:      '#5C6BC0',
+  appointment_booked: '#0288D1',
+  site_visit_complete:'#00838F',
+  quote_draft:        '#F57C00',
+  quote_sent:         '#558B2F',
+  follow_up_1:        '#7B1FA2',
+  follow_up_2:        '#AD1457',
+  signed:             '#2E7D32',
+  rejected:           '#C62828',
+};
+const ADVANCE_LABELS = {
+  callback_done:      '📞 Log Callback Done',
+  appointment_booked: '📅 Book Appointment',
+  site_visit_complete:'🏠 Mark Site Visit Done',
+  quote_draft:        '📋 Start Quote Draft',
+  quote_sent:         '✉ Mark Quote Sent',
+  follow_up_1:        '📞 Log Follow-up 1',
+  follow_up_2:        '📞 Log Follow-up 2',
+  signed:             '✅ Proceed to Contract',
+};
+// Stages where we show an inline form before advancing
+const FORM_STAGES = new Set(['appointment_booked', 'quote_draft', 'signed']);
+
+function LeadPanel({ task, token, onAdvanced }) {
+  const lead = task.lead;
+  if (!lead || lead.archived) return null;
+
+  const stage     = lead.stage;
+  const nextStage = NEXT_STAGE[stage];
+  const [open, setOpen]           = useState(false);
+  const [busy, setBusy]           = useState(false);
+  const [apptAt, setApptAt]       = useState('');
+  const [jobAddress, setJobAddress] = useState(lead.job_address || '');
+  const [jobCity, setJobCity]     = useState(lead.job_city || '');
+  const [jobType, setJobType]     = useState('');
+  const [jobScope, setJobScope]   = useState('');
+
+  async function advance(extraBody = {}) {
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/leads/${lead.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ stage: nextStage, ...extraBody }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || r.statusText);
+      const newLead = data.lead;
+      showToast(`Lead advanced to: ${STAGE_LABELS[newLead.stage] || newLead.stage}`, 'success');
+      if (newLead.pb_customer_number && !lead.pb_customer_number) {
+        showToast(`PB# assigned: ${newLead.pb_customer_number}`, 'info');
+      }
+      setOpen(false);
+      onAdvanced();
+    } catch (e) {
+      showToast(e.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function handleAdvanceClick() {
+    if (FORM_STAGES.has(nextStage)) {
+      setOpen(true);
+    } else {
+      advance();
+    }
+  }
+
+  const pill = (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      background: (STAGE_COLORS[stage] || '#888') + '18',
+      color: STAGE_COLORS[stage] || '#888',
+      border: `1px solid ${(STAGE_COLORS[stage] || '#888')}44`,
+      borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 'bold',
+    }}>
+      🔖 {lead.caller_name} · {STAGE_LABELS[stage] || stage}
+    </span>
+  );
+
+  return (
+    <div style={{ marginTop: 10, borderTop: '1px dashed #e0e7ef', paddingTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {pill}
+        {nextStage && !open && (
+          <button
+            onClick={handleAdvanceClick}
+            disabled={busy}
+            style={{
+              padding: '4px 12px', fontSize: 11, fontWeight: 'bold',
+              background: nextStage === 'signed' ? '#2E7D3222' : '#E07B2A22',
+              color: nextStage === 'signed' ? '#2E7D32' : ORANGE,
+              border: `1px solid ${nextStage === 'signed' ? '#2E7D3244' : '#E07B2A44'}`,
+              borderRadius: 6, cursor: busy ? 'wait' : 'pointer',
+            }}
+          >
+            {busy ? '…' : (ADVANCE_LABELS[nextStage] || `→ ${STAGE_LABELS[nextStage]}`)}
+          </button>
+        )}
+      </div>
+
+      {/* ── Appointment form ─────────────────────────────────────────────── */}
+      {open && nextStage === 'appointment_booked' && (
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={{ fontSize: 11, color: '#555' }}>
+            Appointment date/time
+            <input type="datetime-local" value={apptAt} onChange={e => setApptAt(e.target.value)}
+              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
+                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+          </label>
+          <label style={{ fontSize: 11, color: '#555' }}>
+            Job city
+            <input type="text" value={jobCity} onChange={e => setJobCity(e.target.value)}
+              placeholder="e.g. Miami"
+              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
+                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+          </label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => { if (!apptAt) { showToast('Pick an appointment date', 'error'); return; }
+              advance({ appointment_at: apptAt, job_city: jobCity }); }}
+              disabled={busy}
+              style={{ padding: '5px 14px', fontSize: 11, fontWeight: 'bold', cursor: 'pointer',
+                background: BLUE, color: 'white', border: 'none', borderRadius: 6 }}>
+              {busy ? '…' : 'Confirm Appointment'}
+            </button>
+            <button onClick={() => setOpen(false)}
+              style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer',
+                background: '#f5f5f5', color: '#555', border: '1px solid #ddd', borderRadius: 6 }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Quote draft form ─────────────────────────────────────────────── */}
+      {open && nextStage === 'quote_draft' && (
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={{ fontSize: 11, color: '#555' }}>
+            Job address
+            <input type="text" value={jobAddress} onChange={e => setJobAddress(e.target.value)}
+              placeholder="Street address"
+              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
+                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+          </label>
+          <label style={{ fontSize: 11, color: '#555' }}>
+            City
+            <input type="text" value={jobCity} onChange={e => setJobCity(e.target.value)}
+              placeholder="City"
+              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
+                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+          </label>
+          <label style={{ fontSize: 11, color: '#555' }}>
+            Job type
+            <select value={jobType} onChange={e => setJobType(e.target.value)}
+              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
+                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12, background: 'white' }}>
+              <option value="">— select —</option>
+              <option value="new_construction">New Construction</option>
+              <option value="renovation">Renovation / Remodel</option>
+              <option value="addition">Addition</option>
+              <option value="roofing">Roofing</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 11, color: '#555' }}>
+            Scope / notes
+            <textarea value={jobScope} onChange={e => setJobScope(e.target.value)}
+              rows={3} placeholder="Describe the work…"
+              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
+                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12, resize: 'vertical' }} />
+          </label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={() => advance({ job_address: jobAddress, job_city: jobCity,
+              job_type: jobType, job_scope: jobScope })}
+              disabled={busy}
+              style={{ padding: '5px 14px', fontSize: 11, fontWeight: 'bold', cursor: 'pointer',
+                background: ORANGE, color: 'white', border: 'none', borderRadius: 6 }}>
+              {busy ? '…' : 'Start Quote Draft'}
+            </button>
+            <button onClick={() => setOpen(false)}
+              style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer',
+                background: '#f5f5f5', color: '#555', border: '1px solid #ddd', borderRadius: 6 }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Proceed to Contract form ─────────────────────────────────────── */}
+      {open && nextStage === 'signed' && (
+        <div style={{ marginTop: 8, background: '#f0faf0', border: '1px solid #a8d5a2',
+          borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 'bold', color: GREEN }}>
+            ✅ Proceed to Contract — {lead.caller_name}
+          </div>
+          <div style={{ fontSize: 11, color: '#444', lineHeight: 1.6 }}>
+            This will:
+            <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+              <li>Mark this lead as <strong>Signed</strong></li>
+              {!lead.pb_customer_number && <li>Assign a <strong>PB customer number</strong> and create/update the contact</li>}
+              {lead.pb_customer_number && <li>Contact already linked (PB# <strong>{lead.pb_customer_number}</strong>)</li>}
+              <li>Create a high-priority <strong>Generate Contract</strong> task (due in 24 h)</li>
+            </ul>
+          </div>
+          {(!lead.job_address) && (
+            <label style={{ fontSize: 11, color: '#555' }}>
+              Job address (optional)
+              <input type="text" value={jobAddress} onChange={e => setJobAddress(e.target.value)}
+                placeholder="Street address"
+                style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
+                  border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+            </label>
+          )}
+          {(!lead.job_city) && (
+            <label style={{ fontSize: 11, color: '#555' }}>
+              City (optional)
+              <input type="text" value={jobCity} onChange={e => setJobCity(e.target.value)}
+                placeholder="City"
+                style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
+                  border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+            </label>
+          )}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onClick={() => advance({
+                job_address: jobAddress || lead.job_address || undefined,
+                job_city:    jobCity    || lead.job_city    || undefined,
+              })}
+              disabled={busy}
+              style={{ padding: '6px 18px', fontSize: 12, fontWeight: 'bold', cursor: 'pointer',
+                background: GREEN, color: 'white', border: 'none', borderRadius: 6 }}>
+              {busy ? '…' : '✅ Confirm — Proceed to Contract'}
+            </button>
+            <button onClick={() => setOpen(false)}
+              style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer',
+                background: '#f5f5f5', color: '#555', border: '1px solid #ddd', borderRadius: 6 }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function calDiff(due) {
   if (!due) return null;
   const now = new Date();
@@ -548,6 +819,11 @@ export default function Tasks({ token }) {
                               </span>
                             )}
                           </div>
+                        )}
+
+                        {/* Lead pipeline panel */}
+                        {task.lead && !isDone && (
+                          <LeadPanel task={task} token={token} onAdvanced={load} />
                         )}
                       </div>
 

@@ -141,11 +141,12 @@ function autoTask(db, lead, nextStage, performer) {
   try {
     const row = db.prepare(`
       INSERT INTO tasks
-        (title, description, status, priority, contact_id, due_at, remind_at, remind_interval_hours, calendar_url, created_at, updated_at)
-      VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        (title, description, status, priority, contact_id, lead_id, due_at, remind_at, remind_interval_hours, calendar_url, created_at, updated_at)
+      VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `).run(
       def.title, def.description || '', def.priority || 'normal',
       lead.contact_id || null,
+      lead.id,
       def.due_at || null, def.remind_at || null,
       def.remind_interval_hours || 168,
       def.calendar_url || null,
@@ -266,8 +267,8 @@ router.patch('/:id', requireAuth, async (req, res) => {
         }
       }
 
-      // Contact creation on quote_sent (idempotent)
-      if (stage === 'quote_sent' && lead.stage !== 'quote_sent' && !lead.contact_id) {
+      // Contact creation on quote_sent OR signed (idempotent — whichever comes first)
+      if ((stage === 'quote_sent' || stage === 'signed') && !lead.contact_id) {
         try {
           const ref = resolveContact(db, {
             name:    lead.caller_name,
@@ -294,13 +295,22 @@ router.patch('/:id', requireAuth, async (req, res) => {
       if (stage === 'signed' && lead.stage !== 'signed') {
         try {
           const contactId = merged.contact_id || lead.contact_id || null;
+          const pbNum     = merged.pb_customer_number || lead.pb_customer_number || '';
+          const addrLine  = [merged.job_address, merged.job_city].filter(Boolean).join(', ');
           db.prepare(`
-            INSERT INTO tasks (title, description, status, priority, contact_id, remind_at, remind_interval_hours, created_at, updated_at)
-            VALUES (?, ?, 'pending', 'high', ?, ?, 168, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            INSERT INTO tasks
+              (title, description, status, priority, contact_id, lead_id, remind_at, remind_interval_hours, created_at, updated_at)
+            VALUES (?, ?, 'pending', 'high', ?, ?, ?, 168, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
           `).run(
             `Generate contract — ${lead.caller_name}`,
-            `Auto-created from signed lead #${leadId}.\nCaller: ${lead.caller_name} (${lead.caller_phone})`,
+            [
+              `Auto-created from signed lead #${leadId}.`,
+              `Caller: ${lead.caller_name} (${lead.caller_phone})`,
+              pbNum  ? `PB#: ${pbNum}` : '',
+              addrLine ? `Address: ${addrLine}` : '',
+            ].filter(Boolean).join('\n'),
             contactId,
+            leadId,
             remindAt(24),
           );
           logAudit(null, 'lead_contract_task_created',

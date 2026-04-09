@@ -43,23 +43,23 @@ function getCalSettings(db) {
   return { calendarId: calId, enabled: enabled !== 'false' };
 }
 
-// ── Enrich task with related job/contact info ─────────────────────────────────
+// ── Enrich task with related job/contact/lead info ────────────────────────────
 function enrichTask(task) {
   if (!task) return null;
   const db = getDb();
-  let jobInfo = null,
-    contactInfo = null;
+  let jobInfo = null, contactInfo = null, leadInfo = null;
   if (task.job_id) {
-    jobInfo = db
-      .prepare('SELECT id, customer_name, project_address, status FROM jobs WHERE id = ?')
-      .get(task.job_id);
+    jobInfo = db.prepare('SELECT id, customer_name, project_address, status FROM jobs WHERE id = ?').get(task.job_id);
   }
   if (task.contact_id) {
-    contactInfo = db
-      .prepare('SELECT id, name, email, phone FROM contacts WHERE id = ?')
-      .get(task.contact_id);
+    contactInfo = db.prepare('SELECT id, name, email, phone FROM contacts WHERE id = ?').get(task.contact_id);
   }
-  return { ...task, job: jobInfo, contact: contactInfo };
+  if (task.lead_id) {
+    leadInfo = db.prepare(
+      'SELECT id, caller_name, caller_phone, stage, archived, job_address, job_city FROM leads WHERE id = ?'
+    ).get(task.lead_id);
+  }
+  return { ...task, job: jobInfo, contact: contactInfo, lead: leadInfo || null };
 }
 
 // ── GET /api/tasks ────────────────────────────────────────────────────────────
