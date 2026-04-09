@@ -7,7 +7,7 @@
 run = "npm start"
 entrypoint = "server/index.js"
 language = "nodejs"
-modules = ["nodejs-20", "python-3.11"]
+modules = ["nodejs-20", "python-3.11", "postgresql-16"]
 
 [nix]
 channel = "stable-23_11"

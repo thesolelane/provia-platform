@@ -259,10 +259,20 @@ export default function Leads({ token }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch(`/api/leads?archived=${showArchived ? 1 : 0}`, { headers });
+      const res = await fetch(`/api/leads?archived=${showArchived ? 1 : 0}`, {
+        headers: { 'x-auth-token': token }
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || `Failed to load leads (${res.status})`, 'error');
+        setLoading(false);
+        return;
+      }
       const data = await res.json();
       setLeads(data.leads || []);
-    } catch { showToast('Failed to load leads', 'error'); }
+    } catch (err) {
+      showToast('Failed to load leads — check connection', 'error');
+    }
     setLoading(false);
   }, [showArchived, token]);
 
@@ -387,6 +397,7 @@ export default function Leads({ token }) {
             <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
             Show archived
           </label>
+          <button onClick={load} style={{ background: 'white', color: BLUE, border: `1px solid ${BLUE}`, borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}>↻ Refresh</button>
           <button onClick={() => setShowNewForm(v => !v)} style={btnPrimary(ORANGE)}>+ New Lead</button>
         </div>
       </div>
@@ -416,7 +427,9 @@ export default function Leads({ token }) {
       ) : leads.length === 0 ? (
         <div style={{ textAlign: 'center', color: '#aaa', padding: 48 }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
-          <div>No leads yet. Marblism missed calls appear here automatically.</div>
+          <div style={{ fontSize: 15, color: '#888', marginBottom: 8 }}>No leads found.</div>
+          <div style={{ fontSize: 13, marginBottom: 16 }}>Marblism missed calls appear here automatically, or use + New Lead to add one manually.</div>
+          <button onClick={load} style={{ background: BLUE, color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>↻ Reload</button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
