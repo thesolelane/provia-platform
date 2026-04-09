@@ -1057,7 +1057,7 @@ function PurchaseOrdersReport({ data }) {
         </Section>
       </div>
 
-      <Section title="Open PO Spend by Job (Draft + Issued)" style={{ marginBottom: 16 }}>
+      <Section title="Open PO Spend by Job (Not Closed)" style={{ marginBottom: 16 }}>
         {!openByJob?.length ? <Empty msg="No open POs linked to jobs" /> : (
           <DynTable
             rows={openByJob}

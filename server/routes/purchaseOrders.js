@@ -5,8 +5,8 @@ const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
 
 // Status lifecycle: draft → issued → received → closed
-// "Open" POs are those with status draft or issued (not yet received/closed)
-const OPEN_STATUSES = ['draft', 'issued'];
+// "Open" POs are all non-closed: draft, issued, received
+const OPEN_STATUSES = ['draft', 'issued', 'received'];
 
 // ── PO number generator: PO-YYYY-NNNN ────────────────────────────────────────
 function generatePONumber(db) {
@@ -57,7 +57,7 @@ router.get('/', requireAuth, (req, res) => {
     params.push(contact_id);
   }
   if (status === 'open') {
-    conditions.push(`po.status IN ('draft','issued')`);
+    conditions.push(`po.status != 'closed'`);
   } else if (status) {
     conditions.push('po.status = ?');
     params.push(status);

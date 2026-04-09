@@ -459,7 +459,7 @@ function runReport(db, type, period) {
       SELECT
         COUNT(*) AS count,
         SUM(CASE WHEN po.status NOT IN ('closed') THEN po.amount ELSE 0 END) AS total_spend,
-        SUM(CASE WHEN po.status IN ('draft','issued') THEN po.amount ELSE 0 END) AS open_total,
+        SUM(CASE WHEN po.status != 'closed' THEN po.amount ELSE 0 END) AS open_total,
         SUM(CASE WHEN po.status = 'received' THEN po.amount ELSE 0 END) AS received,
         SUM(CASE WHEN po.status = 'closed'   THEN po.amount ELSE 0 END) AS closed
       FROM purchase_orders po
@@ -479,7 +479,7 @@ function runReport(db, type, period) {
              COUNT(*) AS po_count, SUM(po.amount) AS po_total
       FROM purchase_orders po
       LEFT JOIN jobs j ON j.id = po.job_id
-      WHERE po.status IN ('draft','issued') ${dFilter}
+      WHERE po.status != 'closed' ${dFilter}
       GROUP BY po.job_id
       ORDER BY po_total DESC
       LIMIT 20

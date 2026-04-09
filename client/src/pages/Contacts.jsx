@@ -94,69 +94,140 @@ function OpenContractsPanel({ jobs }) {
     fontSize: 12
   };
 
-  const JobRow = ({ j }) => (
-    <div style={cardStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-            {j.pb_number && (
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#1B3A6B', background: '#e8eeff', padding: '1px 6px', borderRadius: 4 }}>
-                {j.pb_number}
-              </span>
-            )}
-            {!j.pb_number && j.quote_number && (
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#555', background: '#f0f0f0', padding: '1px 6px', borderRadius: 4 }}>
-                #{j.quote_number}
-              </span>
-            )}
-            <StatusBadge status={j.status} />
-          </div>
-          <div style={{ color: '#333', fontWeight: 500, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {j.project_address || '(no address)'}
-          </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', color: '#555' }}>
-            <span>
-              <span style={{ color: '#888', fontSize: 10 }}>CONTRACTED </span>
-              <strong>{fmt(j.total_value)}</strong>
-            </span>
-            <span>
-              <span style={{ color: '#888', fontSize: 10 }}>RECEIVED </span>
-              <strong style={{ color: '#2e7d32' }}>{fmt(j.total_received)}</strong>
-            </span>
-            <span>
-              <span style={{ color: '#888', fontSize: 10 }}>OUTSTANDING </span>
-              <strong style={{ color: j.outstanding > 0 ? '#c62828' : '#2e7d32' }}>
-                {fmt(j.outstanding)}
-              </strong>
-            </span>
-            {j.po_count > 0 && (
+  const PO_STATUS_COLOR = { draft: '#888', issued: '#b45309', received: '#3B82F6', closed: '#2e7d32' };
+  const PO_STATUS_LABEL = { draft: 'Draft', issued: 'Issued', received: 'Received', closed: 'Closed' };
+
+  function JobRow({ j }) {
+    const [poExpanded, setPoExpanded] = useState(false);
+    const [jobPOs, setJobPOs] = useState(null);
+    const [loadingPOs, setLoadingPOs] = useState(false);
+
+    const togglePOs = async () => {
+      if (!poExpanded && jobPOs === null) {
+        setLoadingPOs(true);
+        try {
+          const token = localStorage.getItem('auth_token') || '';
+          const res = await fetch(`/api/purchase-orders?job_id=${j.id}&status=open`, {
+            headers: { 'x-auth-token': token }
+          });
+          const data = await res.json();
+          setJobPOs(data.purchase_orders || []);
+        } catch {
+          setJobPOs([]);
+        } finally {
+          setLoadingPOs(false);
+        }
+      }
+      setPoExpanded(v => !v);
+    };
+
+    return (
+      <div style={cardStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+              {j.pb_number && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#1B3A6B', background: '#e8eeff', padding: '1px 6px', borderRadius: 4 }}>
+                  {j.pb_number}
+                </span>
+              )}
+              {!j.pb_number && j.quote_number && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: '#555', background: '#f0f0f0', padding: '1px 6px', borderRadius: 4 }}>
+                  #{j.quote_number}
+                </span>
+              )}
+              <StatusBadge status={j.status} />
+            </div>
+            <div style={{ color: '#333', fontWeight: 500, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {j.project_address || '(no address)'}
+            </div>
+            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', color: '#555', alignItems: 'center' }}>
               <span>
-                <span style={{ color: '#888', fontSize: 10 }}>OPEN POs </span>
-                <strong style={{ color: '#7C3AED' }}>{fmt(j.po_open)}</strong>
-                <span style={{ color: '#aaa', fontSize: 10 }}> ({j.po_count} PO{j.po_count !== 1 ? 's' : ''})</span>
+                <span style={{ color: '#888', fontSize: 10 }}>CONTRACTED </span>
+                <strong>{fmt(j.total_value)}</strong>
               </span>
+              <span>
+                <span style={{ color: '#888', fontSize: 10 }}>RECEIVED </span>
+                <strong style={{ color: '#2e7d32' }}>{fmt(j.total_received)}</strong>
+              </span>
+              <span>
+                <span style={{ color: '#888', fontSize: 10 }}>OUTSTANDING </span>
+                <strong style={{ color: j.outstanding > 0 ? '#c62828' : '#2e7d32' }}>
+                  {fmt(j.outstanding)}
+                </strong>
+              </span>
+              {j.po_count > 0 && (
+                <button
+                  onClick={togglePOs}
+                  style={{
+                    background: poExpanded ? '#ede9fe' : '#f5f3ff',
+                    color: '#7C3AED',
+                    border: '1px solid #c4b5fd',
+                    borderRadius: 5,
+                    padding: '2px 8px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4
+                  }}
+                >
+                  📦 {j.po_count} Open PO{j.po_count !== 1 ? 's' : ''} · {fmt(j.po_open)}
+                  <span style={{ fontSize: 10 }}>{poExpanded ? '▲' : '▼'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+          <a
+            href={`/jobs/${j.id}`}
+            style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#1B3A6B',
+              textDecoration: 'none',
+              background: '#e8eeff',
+              padding: '5px 10px',
+              borderRadius: 6,
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            Open Job →
+          </a>
+        </div>
+
+        {poExpanded && (
+          <div style={{ marginTop: 10, borderTop: '1px solid #ede9fe', paddingTop: 10 }}>
+            {loadingPOs ? (
+              <div style={{ color: '#888', fontSize: 11, padding: '4px 0' }}>Loading purchase orders…</div>
+            ) : jobPOs && jobPOs.length === 0 ? (
+              <div style={{ color: '#aaa', fontSize: 11, fontStyle: 'italic' }}>No open purchase orders for this job.</div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#7C3AED', marginBottom: 6, letterSpacing: '0.05em' }}>OPEN PURCHASE ORDERS</div>
+                {(jobPOs || []).map(po => (
+                  <div key={po.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', background: '#faf8ff', border: '1px solid #ede9fe', borderRadius: 5, marginBottom: 4, gap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', marginRight: 6 }}>{po.po_number}</span>
+                      <span style={{ fontSize: 11, color: '#555' }}>{po.description}</span>
+                      {po.vendor_name && <span style={{ fontSize: 10, color: '#999', marginLeft: 6 }}>· {po.vendor_name}</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: PO_STATUS_COLOR[po.status] || '#888', background: '#f0f0f0', padding: '1px 6px', borderRadius: 3 }}>
+                        {PO_STATUS_LABEL[po.status] || po.status}
+                      </span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#7C3AED' }}>{fmt(po.amount)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-        </div>
-        <a
-          href={`/jobs/${j.id}`}
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: '#1B3A6B',
-            textDecoration: 'none',
-            background: '#e8eeff',
-            padding: '5px 10px',
-            borderRadius: 6,
-            whiteSpace: 'nowrap',
-            flexShrink: 0
-          }}
-        >
-          Open Job →
-        </a>
+        )}
       </div>
-    </div>
-  );
+    );
+  }
 
   if (jobs.length === 0) {
     return (
