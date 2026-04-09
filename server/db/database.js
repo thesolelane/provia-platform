@@ -596,15 +596,6 @@ async function initDatabase() {
   // ── Field photos — lead link ──────────────────────────────────────────────────
   addColIfMissing('field_photos', 'lead_id', 'INTEGER');
 
-  // ── Leads pipeline extra fields ───────────────────────────────────────────────
-  addColIfMissing('leads', 'appointment_at', 'DATETIME');
-  addColIfMissing('leads', 'job_address', 'TEXT');
-  addColIfMissing('leads', 'job_city', 'TEXT');
-  addColIfMissing('leads', 'job_email', 'TEXT');
-  addColIfMissing('leads', 'job_scope', 'TEXT');
-  addColIfMissing('leads', 'job_type', 'TEXT');
-  addColIfMissing('leads', 'pb_customer_number', 'TEXT');
-
   // ── Vendors / Subs directory ─────────────────────────────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS vendors (
@@ -759,6 +750,15 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_stage     ON leads(stage)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_archived  ON leads(archived)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_contact_id ON leads(contact_id)`);
+
+  // ── Leads pipeline extra fields (must come AFTER CREATE TABLE leads) ──────────
+  addColIfMissing('leads', 'appointment_at',    'DATETIME');
+  addColIfMissing('leads', 'job_address',        'TEXT');
+  addColIfMissing('leads', 'job_city',           'TEXT');
+  addColIfMissing('leads', 'job_email',          'TEXT');
+  addColIfMissing('leads', 'job_scope',          'TEXT');
+  addColIfMissing('leads', 'job_type',           'TEXT');
+  addColIfMissing('leads', 'pb_customer_number', 'TEXT');
 
   // ── Migration: job metadata JSON blob (trade selection, etc.) ────────────────
   try {
