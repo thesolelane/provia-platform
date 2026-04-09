@@ -1140,7 +1140,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               textDecoration: 'none'
             }}
           >
-            🔗 Linked Job #{lead.job_id}
+            🔗 Linked Job: {lead.job_pb_number || `#${lead.job_id}`}
           </a>
         </div>
       )}

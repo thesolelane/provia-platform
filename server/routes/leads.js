@@ -217,7 +217,13 @@ router.get('/', requireAuth, (req, res) => {
     const db = getDb();
     const archived = req.query.archived === '1' ? 1 : 0;
     const leads = db
-      .prepare('SELECT * FROM leads WHERE archived = ? ORDER BY updated_at DESC')
+      .prepare(`
+        SELECT l.*, j.pb_number AS job_pb_number
+        FROM leads l
+        LEFT JOIN jobs j ON CAST(l.job_id AS INTEGER) = j.id
+        WHERE l.archived = ?
+        ORDER BY l.updated_at DESC
+      `)
       .all(archived);
     res.json({ leads });
   } catch (err) {

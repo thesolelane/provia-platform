@@ -892,6 +892,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
     zip:    '',
   });
   const [scope, setScope] = useState(prefillLead?.job_scope || '');
+  const [jobType, setJobType] = useState(prefillLead?.job_type || '');
   const [budgetTarget, setBudgetTarget] = useState('');
 
   const [selectedTrades, setSelectedTrades] = useState(new Set());
@@ -1109,6 +1110,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
           customerEmail: contact.email,
           projectAddress,
           scopeText: scope,
+          jobType: jobType || null,
           qaAnswers: wizardAnswers,
           budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g, '')) : null,
           plansTempId: plansTempId || null,
@@ -1402,6 +1404,19 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
               {/* Step 2 — Scope of Work */}
               {step === 2 && (
                 <div>
+                  <label style={labelStyle}>Project Type</label>
+                  <select
+                    value={jobType}
+                    onChange={(e) => setJobType(e.target.value)}
+                    style={{ ...inputStyle, marginBottom: 14 }}
+                  >
+                    <option value="">— Select type (optional) —</option>
+                    <option value="residential">Residential</option>
+                    <option value="commercial">Commercial</option>
+                    <option value="new_construction">New Construction</option>
+                    <option value="renovation">Renovation</option>
+                  </select>
+
                   <label style={labelStyle}>Scope of Work *</label>
                   <p style={{ fontSize: 12, color: '#777', margin: '0 0 8px' }}>
                     Describe the work — trades involved, rough scope, any specific materials?
