@@ -25,6 +25,17 @@ const {
   extractExternalRef
 } = require('../services/jobHelpers');
 
+// Helper: convert HEIC/HEIF buffer to JPEG buffer
+async function convertHeicToJpeg(buffer) {
+  const heicConvert = require('heic-convert');
+  return await heicConvert({ buffer, format: 'JPEG', quality: 0.92 });
+}
+
+function isHeicMime(mimetype) {
+  const m = (mimetype || '').toLowerCase();
+  return m === 'image/heic' || m === 'image/heif';
+}
+
 // POST extract text from uploaded images/PDFs (for wizard file attachments)
 router.post('/extract-from-files', requireAuth, async (req, res) => {
   const pdfParse = require('pdf-parse');
@@ -55,7 +66,7 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
 
   for (const file of allFiles) {
     try {
-      const fileBuffer = file.tempFilePath ? fs.readFileSync(file.tempFilePath) : file.data;
+      let fileBuffer = file.tempFilePath ? fs.readFileSync(file.tempFilePath) : file.data;
 
       const safeName = file.name.replace(/[^a-zA-Z0-9._\-]/g, '_');
       const destPath = path.join(tempDir, safeName);
@@ -70,11 +81,19 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
         }
       } else if (file.mimetype.startsWith('image/')) {
         const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        if (!SUPPORTED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())) {
+        if (isHeicMime(file.mimetype)) {
+          try {
+            fileBuffer = Buffer.from(await convertHeicToJpeg(fileBuffer));
+          } catch (heicErr) {
+            extractedParts.push(`[Could not convert HEIC image "${file.name}" — please try a JPG or PNG export]`);
+            continue;
+          }
+        } else if (!SUPPORTED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())) {
           extractedParts.push(`[Unsupported image format "${file.mimetype}" for ${file.name} — please convert to JPG or PNG and re-upload]`);
-        } else {
+        }
+        if (isHeicMime(file.mimetype) || SUPPORTED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())) {
           const base64 = fileBuffer.toString('base64');
-          const imgMime = file.mimetype.toLowerCase() === 'image/jpg' ? 'image/jpeg' : file.mimetype.toLowerCase();
+          const imgMime = (isHeicMime(file.mimetype) ? 'image/jpeg' : (file.mimetype.toLowerCase() === 'image/jpg' ? 'image/jpeg' : file.mimetype.toLowerCase()));
           const response = await anthropic.messages.create({
             model: 'claude-opus-4-5',
             max_tokens: 4000,
@@ -161,7 +180,7 @@ Format as a clear, detailed construction scope description. Include the project 
   });
 });
 
-// POST upload PDF/image as a new job estimate
+// POST upload PDF/image(s) as a new job estimate — supports multiple files in one request
 router.post('/upload-estimate', requireAuth, async (req, res) => {
   const { v4: uuidv4 } = require('uuid');
   const pdfParse = require('pdf-parse');
@@ -169,7 +188,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
   const db = getDb();
 
   if (!req.files?.estimate) return res.status(400).json({ error: 'No file uploaded' });
-  const file = req.files.estimate;
+
   const {
     customerName = '',
     customerEmail = '',
@@ -177,55 +196,84 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     projectAddress = ''
   } = req.body;
 
-  let rawText = '';
+  const rawFiles = req.files.estimate;
+  const fileList = Array.isArray(rawFiles) ? rawFiles : [rawFiles];
 
-  try {
-    if (file.mimetype === 'application/pdf') {
-      const fileBuffer = file.tempFilePath
-        ? require('fs').readFileSync(file.tempFilePath)
-        : file.data;
-      const parsed = await pdfParse(fileBuffer);
-      rawText = parsed.text.trim();
-      if (rawText.length < 50)
-        return res
-          .status(400)
-          .json({ error: 'PDF appears empty or unreadable. Please use a text-based PDF.' });
-    } else if (file.mimetype.startsWith('image/')) {
-      const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      const fileBuffer = file.tempFilePath
-        ? require('fs').readFileSync(file.tempFilePath)
-        : file.data;
-      const base64 = fileBuffer.toString('base64');
-      const response = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 3000,
-        temperature: 0,
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: { type: 'base64', media_type: file.mimetype, data: base64 }
-              },
-              {
-                type: 'text',
-                text: 'This is a construction estimate or invoice image. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names, and project address (for jurisdiction). Do NOT include or repeat any customer personal information such as names, email addresses, or phone numbers — omit those entirely. Format as plain text.'
-              }
-            ]
+  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const textParts = [];
+
+  for (const file of fileList) {
+    try {
+      if (file.mimetype === 'application/pdf') {
+        const fileBuffer = file.tempFilePath
+          ? require('fs').readFileSync(file.tempFilePath)
+          : file.data;
+        const parsed = await pdfParse(fileBuffer);
+        const text = parsed.text.trim();
+        if (text.length >= 50) {
+          textParts.push(`[From: ${file.name}]\n${text}`);
+        } else {
+          textParts.push(`[${file.name}: PDF appears empty or unreadable]`);
+        }
+      } else if (file.mimetype.startsWith('image/')) {
+        let fileBuffer = file.tempFilePath
+          ? require('fs').readFileSync(file.tempFilePath)
+          : file.data;
+        let imgMime = file.mimetype.toLowerCase() === 'image/jpg' ? 'image/jpeg' : file.mimetype.toLowerCase();
+        if (isHeicMime(imgMime)) {
+          try {
+            fileBuffer = Buffer.from(await convertHeicToJpeg(fileBuffer));
+            imgMime = 'image/jpeg';
+          } catch (heicErr) {
+            textParts.push(`[${file.name}: Could not convert HEIC — skipped]`);
+            continue;
           }
-        ]
-      });
-      rawText = response.content[0].text.trim();
-    } else if (file.mimetype.startsWith('text/')) {
-      rawText = file.data.toString('utf8').trim();
-    } else {
-      return res
-        .status(400)
-        .json({ error: 'Unsupported file type. Use PDF, image (JPG/PNG), or text file.' });
+        }
+        if (!SUPPORTED_IMAGE_TYPES.includes(imgMime)) {
+          textParts.push(`[${file.name}: Unsupported image format "${imgMime}" — skipped]`);
+          continue;
+        }
+        const base64 = fileBuffer.toString('base64');
+        const response = await client.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 3000,
+          temperature: 0,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image',
+                  source: { type: 'base64', media_type: imgMime, data: base64 }
+                },
+                {
+                  type: 'text',
+                  text: 'This is a construction estimate or invoice image. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names, and project address (for jurisdiction). Do NOT include or repeat any customer personal information such as names, email addresses, or phone numbers — omit those entirely. Format as plain text.'
+                }
+              ]
+            }
+          ]
+        });
+        const extracted = response.content[0].text.trim();
+        if (extracted.length > 10) {
+          textParts.push(`[From: ${file.name}]\n${extracted}`);
+        }
+      } else if (file.mimetype.startsWith('text/')) {
+        const text = file.data.toString('utf8').trim();
+        if (text.length > 0) textParts.push(`[From: ${file.name}]\n${text}`);
+      } else {
+        textParts.push(`[${file.name}: Unsupported file type "${file.mimetype}" — skipped]`);
+      }
+    } catch (err) {
+      textParts.push(`[${file.name}: Failed to read — ${err.message}]`);
     }
-  } catch (err) {
-    return res.status(500).json({ error: 'Failed to read file: ' + err.message });
+  }
+
+  const rawText = textParts.join('\n\n');
+
+  if (!rawText.trim()) {
+    return res.status(400).json({ error: 'No readable content found in the uploaded file(s).' });
   }
 
   const jobId = uuidv4();
@@ -247,9 +295,10 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
   }
 
   const sanitizedText = stripPII(rawText);
+  const fileCount = fileList.length;
   const fullEstimate = contactRef
-    ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}]\n\nESTIMATE DETAILS:\n${sanitizedText}`
-    : `[Job ID: ${jobId}]\n\nESTIMATE DETAILS:\n${sanitizedText}`;
+    ? `[Customer Ref: ${contactRef.csn} | Job ID: ${jobId}${fileCount > 1 ? ` | ${fileCount} files` : ''}]\n\nESTIMATE DETAILS:\n${sanitizedText}`
+    : `[Job ID: ${jobId}${fileCount > 1 ? ` | ${fileCount} files` : ''}]\n\nESTIMATE DETAILS:\n${sanitizedText}`;
 
   const uploadedBy = req.session?.name ? `web:${req.session.name}` : 'web:upload';
   db.prepare(
@@ -282,14 +331,14 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
       customer_number: contactRef?.pb_customer_number || null,
       job_id: jobId,
       event_type: 'ESTIMATE_CREATED',
-      description: `Estimate created via file upload for ${projectAddress || customerName}`,
+      description: `Estimate created via file upload (${fileCount} file${fileCount > 1 ? 's' : ''}) for ${projectAddress || customerName}`,
       recorded_by: req.session?.name || 'web:upload'
     });
   } catch (e) {
     console.warn('[Upload] logActivity failed:', e.message);
   }
 
-  res.json({ jobId, status: 'received', message: 'File uploaded. Processing estimate...' });
+  res.json({ jobId, status: 'received', message: `${fileCount > 1 ? fileCount + ' files' : 'File'} uploaded. Processing estimate...` });
 
   const { processEstimate } = require('../services/claudeService');
   (async () => {

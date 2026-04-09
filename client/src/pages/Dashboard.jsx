@@ -64,7 +64,7 @@ export default function Dashboard({ token }) {
     projectAddress: '',
     estimateText: ''
   });
-  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState([]);
   const [dragOver, setDragOver] = useState(false);
   const esRef = useRef(null);
 
@@ -194,7 +194,7 @@ export default function Dashboard({ token }) {
 
   const openNewJob = () => {
     setSubmitTab('text');
-    setUploadFile(null);
+    setUploadFiles([]);
     setManual({
       customerName: '',
       customerEmail: '',
@@ -223,24 +223,44 @@ export default function Dashboard({ token }) {
     }
   };
 
+  const addFiles = (fileList) => {
+    const newFiles = Array.from(fileList);
+    setUploadFiles(prev => {
+      const existing = new Set(prev.map(f => f.name + f.size));
+      const toAdd = newFiles.filter(f => !existing.has(f.name + f.size));
+      return [...prev, ...toAdd];
+    });
+  };
+
+  const removeFile = (index) => {
+    setUploadFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const submitUpload = async () => {
-    if (!uploadFile) return showToast('Please select a file first.', 'warning');
+    if (!uploadFiles.length) return showToast('Please select at least one file.', 'warning');
     setSubmitBusy(true);
     const form = new FormData();
-    form.append('estimate', uploadFile);
+    for (const file of uploadFiles) {
+      form.append('estimate', file);
+    }
     form.append('customerName', manual.customerName);
     form.append('customerEmail', manual.customerEmail);
     form.append('customerPhone', manual.customerPhone);
     form.append('projectAddress', manual.projectAddress);
-    const res = await fetch('/api/jobs/upload-estimate', { method: 'POST', headers, body: form });
-    const data = await res.json();
-    setSubmitBusy(false);
-    if (res.ok) {
-      setShowManual(false);
-      showToast('File uploaded — processing now');
-      window.location.reload();
-    } else {
-      showToast(data.error || 'Error processing file', 'error');
+    try {
+      const res = await fetch('/api/jobs/upload-estimate', { method: 'POST', headers, body: form });
+      const data = await res.json();
+      setSubmitBusy(false);
+      if (res.ok) {
+        setShowManual(false);
+        showToast(uploadFiles.length > 1 ? `${uploadFiles.length} files uploaded — processing now` : 'File uploaded — processing now');
+        window.location.reload();
+      } else {
+        showToast(data.error || 'Error processing file(s)', 'error');
+      }
+    } catch (e) {
+      setSubmitBusy(false);
+      showToast('Network error — please try again', 'error');
     }
   };
 
@@ -1106,13 +1126,12 @@ export default function Dashboard({ token }) {
                   onDrop={(e) => {
                     e.preventDefault();
                     setDragOver(false);
-                    const f = e.dataTransfer.files[0];
-                    if (f) setUploadFile(f);
+                    if (e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
                   }}
                   style={{
                     border: `2px dashed ${dragOver ? '#1B3A6B' : '#ddd'}`,
                     borderRadius: 8,
-                    padding: 32,
+                    padding: uploadFiles.length ? '16px 20px' : 32,
                     textAlign: 'center',
                     background: dragOver ? '#f0f4ff' : '#fafafa',
                     cursor: 'pointer',
@@ -1120,33 +1139,42 @@ export default function Dashboard({ token }) {
                   }}
                   onClick={() => document.getElementById('estimate-file-input').click()}
                 >
-                  {uploadFile ? (
+                  {uploadFiles.length > 0 ? (
                     <div>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>
-                        {uploadFile.type.includes('pdf') ? '📄' : '🖼️'}
+                      <div style={{ fontSize: 13, color: '#555', marginBottom: 10, fontWeight: 600 }}>
+                        {uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} selected — click or drop to add more
                       </div>
-                      <div style={{ fontWeight: 'bold', color: '#1B3A6B', fontSize: 14 }}>
-                        {uploadFile.name}
-                      </div>
-                      <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
-                        ({(uploadFile.size / 1024).toFixed(1)} KB)
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUploadFile(null);
-                        }}
-                        style={{
-                          marginTop: 8,
-                          background: 'none',
-                          border: 'none',
-                          color: '#C62828',
-                          cursor: 'pointer',
-                          fontSize: 12
-                        }}
-                      >
-                        ✕ Remove
-                      </button>
+                      {uploadFiles.map((file, idx) => (
+                        <div
+                          key={idx}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: 'white',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: 6,
+                            padding: '7px 10px',
+                            marginBottom: 6
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
+                            <span style={{ fontSize: 18 }}>{file.type.includes('pdf') ? '📄' : '🖼️'}</span>
+                            <div style={{ overflow: 'hidden' }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: '#1B3A6B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>
+                                {file.name}
+                              </div>
+                              <div style={{ fontSize: 11, color: '#aaa' }}>{(file.size / 1024).toFixed(1)} KB</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
+                            style={{ background: 'none', border: 'none', color: '#C62828', cursor: 'pointer', fontSize: 16, padding: '0 4px', flexShrink: 0 }}
+                            title="Remove file"
+                          >✕</button>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <div>
@@ -1155,42 +1183,44 @@ export default function Dashboard({ token }) {
                         Drag & drop or click to browse
                       </div>
                       <div style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
-                        Supports: PDF estimates, JPG/PNG photos of printed estimates, .txt files
+                        Select multiple files at once — PDF, JPG, PNG, HEIC, or .txt
                       </div>
                     </div>
                   )}
                   <input
                     id="estimate-file-input"
                     type="file"
-                    accept=".pdf,image/jpeg,image/png,image/webp,.txt"
+                    accept=".pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,.txt"
+                    multiple
                     style={{ display: 'none' }}
                     onChange={(e) => {
-                      if (e.target.files[0]) setUploadFile(e.target.files[0]);
+                      if (e.target.files.length) {
+                        addFiles(e.target.files);
+                        e.target.value = '';
+                      }
                     }}
                   />
                 </div>
-                {uploadFile && uploadFile.type.startsWith('image/') && (
-                  <p style={{ fontSize: 11, color: '#888', marginBottom: 8, marginTop: 0 }}>
-                    AI will read the image and extract all text, line items, and dollar amounts
-                    automatically.
-                  </p>
-                )}
+                <p style={{ fontSize: 11, color: '#888', marginBottom: 8, marginTop: 0 }}>
+                  AI will read each file and extract all scope, line items, and dollar amounts
+                  automatically. iPhone photos (HEIC) are supported.
+                </p>
                 <button
                   onClick={submitUpload}
-                  disabled={submitBusy || !uploadFile}
+                  disabled={submitBusy || !uploadFiles.length}
                   style={{
                     width: '100%',
                     padding: 12,
-                    background: submitBusy ? '#888' : '#1B3A6B',
+                    background: submitBusy || !uploadFiles.length ? '#888' : '#1B3A6B',
                     color: 'white',
                     border: 'none',
                     borderRadius: 6,
-                    cursor: submitBusy ? 'not-allowed' : 'pointer',
+                    cursor: submitBusy || !uploadFiles.length ? 'not-allowed' : 'pointer',
                     fontWeight: 'bold',
                     fontSize: 14
                   }}
                 >
-                  {submitBusy ? '⏳ Processing with AI...' : '🤖 Upload & Generate Proposal'}
+                  {submitBusy ? `⏳ Uploading ${uploadFiles.length > 1 ? 'files' : 'file'}...` : `🤖 Upload & Generate Proposal${uploadFiles.length > 1 ? ` (${uploadFiles.length} files)` : ''}`}
                 </button>
               </div>
             )}
