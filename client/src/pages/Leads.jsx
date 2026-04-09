@@ -3,141 +3,213 @@ import { useState, useEffect, useCallback } from 'react';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 
-const BLUE   = '#1B3A6B';
+const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
-const GREEN  = '#2e7d32';
-const RED    = '#c62828';
-const GREY   = '#64748b';
+const GREEN = '#2e7d32';
+const RED = '#c62828';
+const GREY = '#64748b';
 
 const STAGES = [
-  { key: 'incoming',            label: 'Incoming',            color: '#7B8EA0', bg: '#eef1f5' },
-  { key: 'callback_done',       label: 'Callback Done',       color: '#5C6BC0', bg: '#e8eaf6' },
-  { key: 'appointment_booked',  label: 'Appointment Booked',  color: '#0288D1', bg: '#e1f5fe' },
+  { key: 'incoming', label: 'Incoming', color: '#7B8EA0', bg: '#eef1f5' },
+  { key: 'callback_done', label: 'Callback Done', color: '#5C6BC0', bg: '#e8eaf6' },
+  { key: 'appointment_booked', label: 'Appointment Booked', color: '#0288D1', bg: '#e1f5fe' },
   { key: 'site_visit_complete', label: 'Site Visit Complete', color: '#00838F', bg: '#e0f7fa' },
-  { key: 'quote_draft',         label: 'Quote Draft',         color: '#F57C00', bg: '#fff3e0' },
-  { key: 'quote_sent',          label: 'Quote Sent',          color: '#558B2F', bg: '#f1f8e9' },
-  { key: 'follow_up_1',         label: 'Follow-up 1',         color: '#7B1FA2', bg: '#f3e5f5' },
-  { key: 'follow_up_2',         label: 'Follow-up 2',         color: '#AD1457', bg: '#fce4ec' },
-  { key: 'signed',              label: 'Signed ✓',            color: GREEN,     bg: '#e8f5e9' },
-  { key: 'rejected',            label: 'Rejected',            color: RED,       bg: '#ffebee' },
+  { key: 'quote_draft', label: 'Proposal Draft', color: '#F57C00', bg: '#fff3e0' },
+  { key: 'quote_sent', label: 'Proposal Sent', color: '#558B2F', bg: '#f1f8e9' },
+  { key: 'follow_up_1', label: 'Follow-up 1', color: '#7B1FA2', bg: '#f3e5f5' },
+  { key: 'follow_up_2', label: 'Follow-up 2', color: '#AD1457', bg: '#fce4ec' },
+  { key: 'signed', label: 'Signed ✓', color: GREEN, bg: '#e8f5e9' },
+  { key: 'rejected', label: 'Rejected', color: RED, bg: '#ffebee' }
 ];
-const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.key, s]));
+const STAGE_MAP = Object.fromEntries(STAGES.map((s) => [s.key, s]));
 
 const NEXT_STAGE = {
-  incoming:            'callback_done',
-  callback_done:       'appointment_booked',
-  appointment_booked:  'site_visit_complete',
+  incoming: 'callback_done',
+  callback_done: 'appointment_booked',
+  appointment_booked: 'site_visit_complete',
   site_visit_complete: 'quote_draft',
-  quote_draft:         'quote_sent',
-  quote_sent:          'follow_up_1',
-  follow_up_1:         'follow_up_2',
-  follow_up_2:         'signed',
+  quote_draft: 'quote_sent',
+  quote_sent: 'follow_up_1',
+  follow_up_1: 'follow_up_2',
+  follow_up_2: 'signed'
 };
 
 const SOURCE_LABELS = {
-  marblism: '📱 Marblism', referral: '🤝 Referral',
-  web: '🌐 Web', 'walk-in': '🚶 Walk-in', other: 'Other',
+  marblism: '📱 Marblism',
+  referral: '🤝 Referral',
+  web: '🌐 Web',
+  'walk-in': '🚶 Walk-in',
+  other: 'Other'
 };
 
 const JOB_TYPE_LABELS = {
-  residential: 'Residential', commercial: 'Commercial',
-  new_construction: 'New Construction', renovation: 'Renovation',
+  residential: 'Residential',
+  commercial: 'Commercial',
+  new_construction: 'New Construction',
+  renovation: 'Renovation'
 };
 
 const ARCHIVE_REASONS = [
-  { value: 'price',       label: 'Price — too expensive' },
-  { value: 'timing',      label: 'Timing — not ready yet' },
+  { value: 'price', label: 'Price — too expensive' },
+  { value: 'timing', label: 'Timing — not ready yet' },
   { value: 'no_response', label: 'No response (×3)' },
-  { value: 'other',       label: 'Other' },
+  { value: 'other', label: 'Other' }
 ];
 
 // ── local date/time string for datetime-local input ──────────────────────────
 function toLocalDTInput(iso) {
   if (!iso) return '';
   const d = new Date(iso);
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function fmtDateTime(iso) {
   if (!iso) return null;
   return new Date(iso).toLocaleString('en-US', {
-    timeZone: 'America/New_York', month: 'short', day: 'numeric',
-    year: 'numeric', hour: 'numeric', minute: '2-digit',
+    timeZone: 'America/New_York',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
   });
 }
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const inputStyle = {
-  border: '1px solid #dde3ed', borderRadius: 6, padding: '8px 11px',
-  fontSize: 13, color: '#333', outline: 'none', width: '100%',
-  fontFamily: 'inherit', background: 'white', boxSizing: 'border-box',
+  border: '1px solid #dde3ed',
+  borderRadius: 6,
+  padding: '8px 11px',
+  fontSize: 13,
+  color: '#333',
+  outline: 'none',
+  width: '100%',
+  fontFamily: 'inherit',
+  background: 'white',
+  boxSizing: 'border-box'
 };
 const btnPrimary = (bg = BLUE) => ({
-  background: bg, color: 'white', border: 'none', borderRadius: 6,
-  padding: '8px 16px', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+  background: bg,
+  color: 'white',
+  border: 'none',
+  borderRadius: 6,
+  padding: '8px 16px',
+  cursor: 'pointer',
+  fontWeight: 600,
+  fontSize: 13
 });
 const btnSecondary = {
-  background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1',
-  borderRadius: 6, padding: '7px 14px', cursor: 'pointer', fontSize: 12,
+  background: '#f1f5f9',
+  color: '#334155',
+  border: '1px solid #cbd5e1',
+  borderRadius: 6,
+  padding: '7px 14px',
+  cursor: 'pointer',
+  fontSize: 12
 };
 const overlayStyle = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-  zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.45)',
+  zIndex: 2000,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center'
 };
 const modalStyle = {
-  background: 'white', borderRadius: 12, padding: 24, width: '100%',
-  maxWidth: 480, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', maxHeight: '90vh', overflowY: 'auto',
+  background: 'white',
+  borderRadius: 12,
+  padding: 24,
+  width: '100%',
+  maxWidth: 480,
+  boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+  maxHeight: '90vh',
+  overflowY: 'auto'
 };
 
 // ── Appointment modal ─────────────────────────────────────────────────────────
 function AppointmentModal({ lead, onConfirm, onClose }) {
-  const [apptAt,  setApptAt]  = useState(toLocalDTInput(lead.appointment_at) || '');
+  const [apptAt, setApptAt] = useState(toLocalDTInput(lead.appointment_at) || '');
   const [address, setAddress] = useState(lead.job_address || '');
-  const [city,    setCity]    = useState(lead.job_city    || '');
-  const [email,   setEmail]   = useState(lead.job_email   || '');
-  const [saving,  setSaving]  = useState(false);
+  const [city, setCity] = useState(lead.job_city || '');
+  const [email, setEmail] = useState(lead.job_email || '');
+  const [saving, setSaving] = useState(false);
 
   const submit = async () => {
     if (!apptAt) return showToast('Please pick a date and time', 'error');
     setSaving(true);
-    await onConfirm({ appointment_at: new Date(apptAt).toISOString(), job_address: address, job_city: city, job_email: email });
+    await onConfirm({
+      appointment_at: new Date(apptAt).toISOString(),
+      job_address: address,
+      job_city: city,
+      job_email: email
+    });
     setSaving(false);
   };
 
   return (
     <div style={overlayStyle} onClick={onClose}>
-      <div style={modalStyle} onClick={e => e.stopPropagation()}>
-        <div style={{ fontWeight: 700, color: BLUE, fontSize: 16, marginBottom: 16 }}>📅 Book Appointment</div>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontWeight: 700, color: BLUE, fontSize: 16, marginBottom: 16 }}>
+          📅 Book Appointment
+        </div>
         <div style={{ color: '#555', fontSize: 13, marginBottom: 16 }}>
           Scheduling appointment with <strong>{lead.caller_name}</strong> ({lead.caller_phone})
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <label style={labelStyle}>Date & Time *</label>
-            <input type="datetime-local" value={apptAt} onChange={e => setApptAt(e.target.value)} style={inputStyle} />
+            <input
+              type="datetime-local"
+              value={apptAt}
+              onChange={(e) => setApptAt(e.target.value)}
+              style={inputStyle}
+            />
           </div>
           <div>
             <label style={labelStyle}>Job Site Address</label>
-            <input placeholder="123 Main St" value={address} onChange={e => setAddress(e.target.value)} style={inputStyle} />
+            <input
+              placeholder="123 Main St"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              style={inputStyle}
+            />
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ flex: 2 }}>
               <label style={labelStyle}>City</label>
-              <input placeholder="Worcester" value={city} onChange={e => setCity(e.target.value)} style={inputStyle} />
+              <input
+                placeholder="Worcester"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                style={inputStyle}
+              />
             </div>
             <div style={{ flex: 1 }}>
               <label style={labelStyle}>State</label>
-              <input value="MA" disabled style={{ ...inputStyle, background: '#f8f8f8', color: '#999' }} />
+              <input
+                value="MA"
+                disabled
+                style={{ ...inputStyle, background: '#f8f8f8', color: '#999' }}
+              />
             </div>
           </div>
           <div>
             <label style={labelStyle}>Customer Email</label>
-            <input type="email" placeholder="customer@email.com" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+            <input
+              type="email"
+              placeholder="customer@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={inputStyle}
+            />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-          <button onClick={onClose} style={btnSecondary}>Cancel</button>
+          <button onClick={onClose} style={btnSecondary}>
+            Cancel
+          </button>
           <button onClick={submit} disabled={saving} style={btnPrimary('#0288D1')}>
             {saving ? 'Saving…' : '📅 Confirm Appointment'}
           </button>
@@ -150,48 +222,81 @@ function AppointmentModal({ lead, onConfirm, onClose }) {
 // ── Job Details modal (before quote draft) ────────────────────────────────────
 function JobDetailsModal({ lead, onConfirm, onClose }) {
   const [address, setAddress] = useState(lead.job_address || '');
-  const [city,    setCity]    = useState(lead.job_city    || '');
-  const [email,   setEmail]   = useState(lead.job_email   || '');
-  const [scope,   setScope]   = useState(lead.job_scope   || '');
-  const [jobType, setJobType] = useState(lead.job_type    || 'residential');
-  const [saving,  setSaving]  = useState(false);
+  const [city, setCity] = useState(lead.job_city || '');
+  const [email, setEmail] = useState(lead.job_email || '');
+  const [scope, setScope] = useState(lead.job_scope || '');
+  const [jobType, setJobType] = useState(lead.job_type || 'residential');
+  const [saving, setSaving] = useState(false);
 
   const submit = async () => {
     setSaving(true);
-    await onConfirm({ job_address: address, job_city: city, job_email: email, job_scope: scope, job_type: jobType });
+    await onConfirm({
+      job_address: address,
+      job_city: city,
+      job_email: email,
+      job_scope: scope,
+      job_type: jobType
+    });
     setSaving(false);
   };
 
   return (
     <div style={overlayStyle} onClick={onClose}>
-      <div style={modalStyle} onClick={e => e.stopPropagation()}>
-        <div style={{ fontWeight: 700, color: ORANGE, fontSize: 16, marginBottom: 16 }}>📋 Job Details</div>
+      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontWeight: 700, color: ORANGE, fontSize: 16, marginBottom: 16 }}>
+          📋 Job Details
+        </div>
         <div style={{ color: '#555', fontSize: 13, marginBottom: 16 }}>
-          Fill in what you know about <strong>{lead.caller_name}</strong>'s job before drafting the quote. You can update this later.
+          Fill in what you know about <strong>{lead.caller_name}</strong>'s job before drafting the
+          proposal. You can update this later.
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <label style={labelStyle}>Job Site Address</label>
-            <input placeholder="123 Main St" value={address} onChange={e => setAddress(e.target.value)} style={inputStyle} />
+            <input
+              placeholder="123 Main St"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              style={inputStyle}
+            />
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ flex: 2 }}>
               <label style={labelStyle}>City</label>
-              <input placeholder="Worcester" value={city} onChange={e => setCity(e.target.value)} style={inputStyle} />
+              <input
+                placeholder="Worcester"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                style={inputStyle}
+              />
             </div>
             <div style={{ flex: 1 }}>
               <label style={labelStyle}>State</label>
-              <input value="MA" disabled style={{ ...inputStyle, background: '#f8f8f8', color: '#999' }} />
+              <input
+                value="MA"
+                disabled
+                style={{ ...inputStyle, background: '#f8f8f8', color: '#999' }}
+              />
             </div>
           </div>
           <div>
             <label style={labelStyle}>Customer Email</label>
-            <input type="email" placeholder="customer@email.com" value={email} onChange={e => setEmail(e.target.value)} style={inputStyle} />
+            <input
+              type="email"
+              placeholder="customer@email.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={inputStyle}
+            />
           </div>
           <div>
             <label style={labelStyle}>Job Type</label>
-            <select value={jobType} onChange={e => setJobType(e.target.value)} style={inputStyle}>
-              {Object.entries(JOB_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            <select value={jobType} onChange={(e) => setJobType(e.target.value)} style={inputStyle}>
+              {Object.entries(JOB_TYPE_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
             </select>
           </div>
           <div>
@@ -200,15 +305,17 @@ function JobDetailsModal({ lead, onConfirm, onClose }) {
               rows={3}
               placeholder="e.g. Full bathroom renovation — tile, fixtures, drywall..."
               value={scope}
-              onChange={e => setScope(e.target.value)}
+              onChange={(e) => setScope(e.target.value)}
               style={{ ...inputStyle, resize: 'vertical' }}
             />
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-          <button onClick={onClose} style={btnSecondary}>Cancel</button>
+          <button onClick={onClose} style={btnSecondary}>
+            Cancel
+          </button>
           <button onClick={submit} disabled={saving} style={btnPrimary(ORANGE)}>
-            {saving ? 'Saving…' : '📋 Start Quote Draft'}
+            {saving ? 'Saving…' : '📋 Draft S.O.W. Proposal'}
           </button>
         </div>
       </div>
@@ -221,38 +328,63 @@ function ArchiveModal({ lead, onConfirm, onClose }) {
   const [reason, setReason] = useState('price');
   return (
     <div style={overlayStyle} onClick={onClose}>
-      <div style={{ ...modalStyle, maxWidth: 380 }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontWeight: 700, color: RED, fontSize: 15, marginBottom: 12 }}>Archive Lead</div>
+      <div style={{ ...modalStyle, maxWidth: 380 }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ fontWeight: 700, color: RED, fontSize: 15, marginBottom: 12 }}>
+          Archive Lead
+        </div>
         <div style={{ color: '#444', fontSize: 13, marginBottom: 14 }}>
           Archiving <strong>{lead.caller_name}</strong>. Select a reason:
         </div>
-        <select value={reason} onChange={e => setReason(e.target.value)} style={{ ...inputStyle, marginBottom: 18 }}>
-          {ARCHIVE_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+        <select
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          style={{ ...inputStyle, marginBottom: 18 }}
+        >
+          {ARCHIVE_REASONS.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
+          ))}
         </select>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={btnSecondary}>Cancel</button>
-          <button onClick={() => onConfirm(reason)} style={btnPrimary(RED)}>Archive</button>
+          <button onClick={onClose} style={btnSecondary}>
+            Cancel
+          </button>
+          <button onClick={() => onConfirm(reason)} style={btnPrimary(RED)}>
+            Archive
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-const labelStyle = { fontSize: 11, color: '#888', display: 'block', marginBottom: 4, fontWeight: 600 };
+const labelStyle = {
+  fontSize: 11,
+  color: '#888',
+  display: 'block',
+  marginBottom: 4,
+  fontWeight: 600
+};
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Leads({ token }) {
-  const [leads,        setLeads]        = useState([]);
-  const [loading,      setLoading]      = useState(true);
+  const [leads, setLeads] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
-  const [showNewForm,  setShowNewForm]  = useState(false);
-  const [newForm,      setNewForm]      = useState({ caller_name: '', caller_phone: '', source: 'other', notes: '' });
-  const [savingNew,    setSavingNew]    = useState(false);
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newForm, setNewForm] = useState({
+    caller_name: '',
+    caller_phone: '',
+    source: 'other',
+    notes: ''
+  });
+  const [savingNew, setSavingNew] = useState(false);
 
   // Active modal state
-  const [apptModal,    setApptModal]    = useState(null);  // lead
-  const [jobModal,     setJobModal]     = useState(null);  // lead
-  const [archiveModal, setArchiveModal] = useState(null);  // lead
+  const [apptModal, setApptModal] = useState(null); // lead
+  const [jobModal, setJobModal] = useState(null); // lead
+  const [archiveModal, setArchiveModal] = useState(null); // lead
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
@@ -276,10 +408,16 @@ export default function Leads({ token }) {
     setLoading(false);
   }, [showArchived, token]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const patchLead = async (id, body) => {
-    const res = await fetch(`/api/leads/${id}`, { method: 'PATCH', headers, body: JSON.stringify(body) });
+    const res = await fetch(`/api/leads/${id}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(body)
+    });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to update lead');
@@ -288,7 +426,7 @@ export default function Leads({ token }) {
   };
 
   const updateLead = (updated) =>
-    setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+    setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
 
   // ── Appointment booking ───────────────────────────────────────────────────
   const confirmAppointment = async (fields) => {
@@ -297,7 +435,9 @@ export default function Leads({ token }) {
       updateLead(data.lead);
       showToast(`Appointment booked — task & calendar link created`, 'success');
       setApptModal(null);
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   };
 
   // ── Job details / start quote draft ──────────────────────────────────────
@@ -305,40 +445,56 @@ export default function Leads({ token }) {
     try {
       const data = await patchLead(jobModal.id, { stage: 'quote_draft', ...fields });
       updateLead(data.lead);
-      showToast('Quote draft started — task created', 'success');
+      showToast('Proposal draft started — task created', 'success');
       setJobModal(null);
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   };
 
   // ── Generic advance (all other stages) ───────────────────────────────────
   const advanceStage = async (lead) => {
     const next = NEXT_STAGE[lead.stage];
     if (!next) return;
-    if (next === 'appointment_booked') { setApptModal(lead); return; }
-    if (next === 'quote_draft')        { setJobModal(lead);  return; }
+    if (next === 'appointment_booked') {
+      setApptModal(lead);
+      return;
+    }
+    if (next === 'quote_draft') {
+      setJobModal(lead);
+      return;
+    }
     try {
       const data = await patchLead(lead.id, { stage: next });
       updateLead(data.lead);
       const stg = STAGE_MAP[next];
       showToast(`${lead.caller_name} moved to ${stg?.label || next}`, 'success');
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   };
 
   const saveNotes = async (lead, notes) => {
     try {
       const data = await patchLead(lead.id, { notes });
       updateLead(data.lead);
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   };
 
   const confirmArchive = async (reason) => {
     try {
       const data = await patchLead(archiveModal.id, { stage: 'rejected', archive_reason: reason });
-      setLeads(prev => showArchived
-        ? prev.map(l => l.id === archiveModal.id ? data.lead : l)
-        : prev.filter(l => l.id !== archiveModal.id));
+      setLeads((prev) =>
+        showArchived
+          ? prev.map((l) => (l.id === archiveModal.id ? data.lead : l))
+          : prev.filter((l) => l.id !== archiveModal.id)
+      );
       showToast('Lead archived', 'success');
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
     setArchiveModal(null);
   };
 
@@ -348,9 +504,11 @@ export default function Leads({ token }) {
     try {
       const res = await fetch(`/api/leads/${lead.id}`, { method: 'DELETE', headers });
       if (!res.ok) throw new Error('Delete failed');
-      setLeads(prev => prev.filter(l => l.id !== lead.id));
+      setLeads((prev) => prev.filter((l) => l.id !== lead.id));
       showToast('Lead deleted', 'success');
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   };
 
   const createLead = async (e) => {
@@ -361,14 +519,23 @@ export default function Leads({ token }) {
     }
     setSavingNew(true);
     try {
-      const res = await fetch('/api/leads', { method: 'POST', headers, body: JSON.stringify(newForm) });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Failed'); }
+      const res = await fetch('/api/leads', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(newForm)
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed');
+      }
       const data = await res.json();
-      setLeads(prev => [data.lead, ...prev]);
+      setLeads((prev) => [data.lead, ...prev]);
       setNewForm({ caller_name: '', caller_phone: '', source: 'other', notes: '' });
       setShowNewForm(false);
       showToast('Lead created', 'success');
-    } catch (err) { showToast(err.message, 'error'); }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
     setSavingNew(false);
   };
 
@@ -379,43 +546,125 @@ export default function Leads({ token }) {
     if (byStage[l.stage]) byStage[l.stage].push(l);
     else byStage['incoming'].push(l);
   }
-  const totalActive = STAGES.filter(s => s.key !== 'rejected').reduce((n, s) => n + byStage[s.key].length, 0);
+  const totalActive = STAGES.filter((s) => s.key !== 'rejected').reduce(
+    (n, s) => n + byStage[s.key].length,
+    0
+  );
 
   return (
     <div style={{ padding: '24px 20px', maxWidth: 1100, margin: '0 auto' }}>
-
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+          marginBottom: 24
+        }}
+      >
         <div>
-          <h1 style={{ margin: 0, color: BLUE, fontSize: 22, fontWeight: 700 }}>📞 Lead Pipeline</h1>
+          <h1 style={{ margin: 0, color: BLUE, fontSize: 22, fontWeight: 700 }}>
+            📞 Lead Pipeline
+          </h1>
           <div style={{ color: '#666', fontSize: 13, marginTop: 3 }}>
-            {totalActive} active lead{totalActive !== 1 ? 's' : ''} · Stages auto-create tasks &amp; calendar events
+            {totalActive} active lead{totalActive !== 1 ? 's' : ''} · Stages auto-create tasks &amp;
+            calendar events
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#555', cursor: 'pointer' }}>
-            <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
+          <label
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              fontSize: 13,
+              color: '#555',
+              cursor: 'pointer'
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
             Show archived
           </label>
-          <button onClick={load} style={{ background: 'white', color: BLUE, border: `1px solid ${BLUE}`, borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontSize: 13 }}>↻ Refresh</button>
-          <button onClick={() => setShowNewForm(v => !v)} style={btnPrimary(ORANGE)}>+ New Lead</button>
+          <button
+            onClick={load}
+            style={{
+              background: 'white',
+              color: BLUE,
+              border: `1px solid ${BLUE}`,
+              borderRadius: 6,
+              padding: '7px 12px',
+              cursor: 'pointer',
+              fontSize: 13
+            }}
+          >
+            ↻ Refresh
+          </button>
+          <button onClick={() => setShowNewForm((v) => !v)} style={btnPrimary(ORANGE)}>
+            + New Lead
+          </button>
         </div>
       </div>
 
       {/* New lead form */}
       {showNewForm && (
-        <div style={{ background: 'white', border: '1px solid #dde3ed', borderRadius: 10, padding: 20, marginBottom: 20, boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-          <div style={{ fontWeight: 700, color: BLUE, marginBottom: 14, fontSize: 15 }}>New Lead</div>
+        <div
+          style={{
+            background: 'white',
+            border: '1px solid #dde3ed',
+            borderRadius: 10,
+            padding: 20,
+            marginBottom: 20,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          }}
+        >
+          <div style={{ fontWeight: 700, color: BLUE, marginBottom: 14, fontSize: 15 }}>
+            New Lead
+          </div>
           <form onSubmit={createLead} style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            <input placeholder="Name *" value={newForm.caller_name} onChange={e => setNewForm(f => ({ ...f, caller_name: e.target.value }))} required style={{ ...inputStyle, flex: '1 1 160px' }} />
-            <input placeholder="Phone *" value={newForm.caller_phone} onChange={e => setNewForm(f => ({ ...f, caller_phone: e.target.value }))} required style={{ ...inputStyle, flex: '1 1 140px' }} />
-            <select value={newForm.source} onChange={e => setNewForm(f => ({ ...f, source: e.target.value }))} style={{ ...inputStyle, flex: '1 1 130px' }}>
-              {Object.entries(SOURCE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            <input
+              placeholder="Name *"
+              value={newForm.caller_name}
+              onChange={(e) => setNewForm((f) => ({ ...f, caller_name: e.target.value }))}
+              required
+              style={{ ...inputStyle, flex: '1 1 160px' }}
+            />
+            <input
+              placeholder="Phone *"
+              value={newForm.caller_phone}
+              onChange={(e) => setNewForm((f) => ({ ...f, caller_phone: e.target.value }))}
+              required
+              style={{ ...inputStyle, flex: '1 1 140px' }}
+            />
+            <select
+              value={newForm.source}
+              onChange={(e) => setNewForm((f) => ({ ...f, source: e.target.value }))}
+              style={{ ...inputStyle, flex: '1 1 130px' }}
+            >
+              {Object.entries(SOURCE_LABELS).map(([v, l]) => (
+                <option key={v} value={v}>
+                  {l}
+                </option>
+              ))}
             </select>
-            <input placeholder="Notes (optional)" value={newForm.notes} onChange={e => setNewForm(f => ({ ...f, notes: e.target.value }))} style={{ ...inputStyle, flex: '2 1 200px' }} />
+            <input
+              placeholder="Notes (optional)"
+              value={newForm.notes}
+              onChange={(e) => setNewForm((f) => ({ ...f, notes: e.target.value }))}
+              style={{ ...inputStyle, flex: '2 1 200px' }}
+            />
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
-              <button type="submit" disabled={savingNew} style={btnPrimary()}>{savingNew ? 'Saving…' : 'Save'}</button>
-              <button type="button" onClick={() => setShowNewForm(false)} style={btnSecondary}>Cancel</button>
+              <button type="submit" disabled={savingNew} style={btnPrimary()}>
+                {savingNew ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={() => setShowNewForm(false)} style={btnSecondary}>
+                Cancel
+              </button>
             </div>
           </form>
         </div>
@@ -428,29 +677,56 @@ export default function Leads({ token }) {
         <div style={{ textAlign: 'center', color: '#aaa', padding: 48 }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
           <div style={{ fontSize: 15, color: '#888', marginBottom: 8 }}>No leads found.</div>
-          <div style={{ fontSize: 13, marginBottom: 16 }}>Marblism missed calls appear here automatically, or use + New Lead to add one manually.</div>
-          <button onClick={load} style={{ background: BLUE, color: 'white', border: 'none', borderRadius: 6, padding: '8px 18px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>↻ Reload</button>
+          <div style={{ fontSize: 13, marginBottom: 16 }}>
+            Marblism missed calls appear here automatically, or use + New Lead to add one manually.
+          </div>
+          <button
+            onClick={load}
+            style={{
+              background: BLUE,
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              padding: '8px 18px',
+              cursor: 'pointer',
+              fontSize: 13,
+              fontWeight: 600
+            }}
+          >
+            ↻ Reload
+          </button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {STAGES
-            .filter(s => showArchived ? s.key === 'rejected' : s.key !== 'rejected')
-            .map(stg => {
+          {STAGES.filter((s) => (showArchived ? s.key === 'rejected' : s.key !== 'rejected')).map(
+            (stg) => {
               const stageLeads = byStage[stg.key] || [];
               if (!showArchived && stageLeads.length === 0) return null;
               return (
                 <section key={stg.key}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                    <span style={{ background: stg.bg, color: stg.color, borderRadius: 20, padding: '3px 12px', fontSize: 12, fontWeight: 700, border: `1px solid ${stg.color}30` }}>
+                    <span
+                      style={{
+                        background: stg.bg,
+                        color: stg.color,
+                        borderRadius: 20,
+                        padding: '3px 12px',
+                        fontSize: 12,
+                        fontWeight: 700,
+                        border: `1px solid ${stg.color}30`
+                      }}
+                    >
                       {stg.label}
                     </span>
-                    <span style={{ color: '#aaa', fontSize: 12 }}>{stageLeads.length} lead{stageLeads.length !== 1 ? 's' : ''}</span>
+                    <span style={{ color: '#aaa', fontSize: 12 }}>
+                      {stageLeads.length} lead{stageLeads.length !== 1 ? 's' : ''}
+                    </span>
                   </div>
                   {stageLeads.length === 0 ? (
                     <div style={{ color: '#ddd', fontSize: 13, paddingLeft: 8 }}>—</div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      {stageLeads.map(lead => (
+                      {stageLeads.map((lead) => (
                         <LeadCard
                           key={lead.id}
                           lead={lead}
@@ -458,21 +734,40 @@ export default function Leads({ token }) {
                           onAdvance={() => advanceStage(lead)}
                           onArchive={() => setArchiveModal(lead)}
                           onDelete={() => deleteLead(lead)}
-                          onSaveNotes={notes => saveNotes(lead, notes)}
+                          onSaveNotes={(notes) => saveNotes(lead, notes)}
                         />
                       ))}
                     </div>
                   )}
                 </section>
               );
-            })}
+            }
+          )}
         </div>
       )}
 
       {/* Modals */}
-      {apptModal    && <AppointmentModal lead={apptModal}  onConfirm={confirmAppointment} onClose={() => setApptModal(null)} />}
-      {jobModal     && <JobDetailsModal  lead={jobModal}   onConfirm={confirmJobDetails}  onClose={() => setJobModal(null)} />}
-      {archiveModal && <ArchiveModal     lead={archiveModal} onConfirm={confirmArchive}   onClose={() => setArchiveModal(null)} />}
+      {apptModal && (
+        <AppointmentModal
+          lead={apptModal}
+          onConfirm={confirmAppointment}
+          onClose={() => setApptModal(null)}
+        />
+      )}
+      {jobModal && (
+        <JobDetailsModal
+          lead={jobModal}
+          onConfirm={confirmJobDetails}
+          onClose={() => setJobModal(null)}
+        />
+      )}
+      {archiveModal && (
+        <ArchiveModal
+          lead={archiveModal}
+          onConfirm={confirmArchive}
+          onClose={() => setArchiveModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -482,15 +777,23 @@ function LeadPhotoThumb({ photo, token }) {
   const [blobUrl, setBlobUrl] = useState(null);
   useEffect(() => {
     let revoked = false;
-    let objUrl  = null;
+    let objUrl = null;
     fetch(`/api/field-photos/file/${photo.filename}`, { headers: { 'x-auth-token': token } })
-      .then(r => r.blob())
-      .then(blob => { if (revoked) return; objUrl = URL.createObjectURL(blob); setBlobUrl(objUrl); })
+      .then((r) => r.blob())
+      .then((blob) => {
+        if (revoked) return;
+        objUrl = URL.createObjectURL(blob);
+        setBlobUrl(objUrl);
+      })
       .catch(() => {});
-    return () => { revoked = true; if (objUrl) URL.revokeObjectURL(objUrl); };
+    return () => {
+      revoked = true;
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
   }, [photo.filename, token]);
 
-  const mapUrl = photo.lat && photo.lon ? `https://maps.google.com/?q=${photo.lat},${photo.lon}` : null;
+  const mapUrl =
+    photo.lat && photo.lon ? `https://maps.google.com/?q=${photo.lat},${photo.lon}` : null;
 
   return (
     <div style={{ position: 'relative', width: 72, flexShrink: 0 }}>
@@ -498,15 +801,55 @@ function LeadPhotoThumb({ photo, token }) {
         <img
           src={blobUrl}
           alt={photo.original_name}
-          style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #dde3ed', display: 'block', cursor: 'pointer' }}
-          onClick={() => { const w = window.open(); w.document.write(`<img src="${blobUrl}" style="max-width:100%;max-height:100vh">`); }}
+          style={{
+            width: 72,
+            height: 72,
+            objectFit: 'cover',
+            borderRadius: 6,
+            border: '1px solid #dde3ed',
+            display: 'block',
+            cursor: 'pointer'
+          }}
+          onClick={() => {
+            const w = window.open();
+            w.document.write(`<img src="${blobUrl}" style="max-width:100%;max-height:100vh">`);
+          }}
         />
       ) : (
-        <div style={{ width: 72, height: 72, background: '#f0f4f8', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#aaa' }}>…</div>
+        <div
+          style={{
+            width: 72,
+            height: 72,
+            background: '#f0f4f8',
+            borderRadius: 6,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 11,
+            color: '#aaa'
+          }}
+        >
+          …
+        </div>
       )}
       {mapUrl && (
-        <a href={mapUrl} target="_blank" rel="noreferrer"
-          style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(27,58,107,0.85)', color: 'white', fontSize: 9, borderRadius: 4, padding: '1px 4px', textDecoration: 'none', lineHeight: '14px' }}>
+        <a
+          href={mapUrl}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            position: 'absolute',
+            bottom: 3,
+            left: 3,
+            background: 'rgba(27,58,107,0.85)',
+            color: 'white',
+            fontSize: 9,
+            borderRadius: 4,
+            padding: '1px 4px',
+            textDecoration: 'none',
+            lineHeight: '14px'
+          }}
+        >
           📍 Map
         </a>
       )}
@@ -516,39 +859,41 @@ function LeadPhotoThumb({ photo, token }) {
 
 // ── Lead Card ─────────────────────────────────────────────────────────────────
 function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) {
-  const [notes,       setNotes]       = useState(lead.notes || '');
-  const [saving,      setSaving]      = useState(false);
-  const [leadPhotos,  setLeadPhotos]  = useState([]);
+  const [notes, setNotes] = useState(lead.notes || '');
+  const [saving, setSaving] = useState(false);
+  const [leadPhotos, setLeadPhotos] = useState([]);
   const [photoExpand, setPhotoExpand] = useState(false);
 
   // Keep notes in sync if lead prop updates
-  useEffect(() => { setNotes(lead.notes || ''); }, [lead.notes]);
+  useEffect(() => {
+    setNotes(lead.notes || '');
+  }, [lead.notes]);
 
   // Load photos for this lead
   useEffect(() => {
     if (!token) return;
     fetch(`/api/field-photos?lead_id=${lead.id}`, { headers: { 'x-auth-token': token } })
-      .then(r => r.ok ? r.json() : { photos: [] })
-      .then(d => setLeadPhotos(d.photos || []))
+      .then((r) => (r.ok ? r.json() : { photos: [] }))
+      .then((d) => setLeadPhotos(d.photos || []))
       .catch(() => {});
   }, [lead.id, token]);
 
-  const stg        = STAGE_MAP[lead.stage] || STAGE_MAP['incoming'];
-  const nextStage  = NEXT_STAGE[lead.stage];
+  const stg = STAGE_MAP[lead.stage] || STAGE_MAP['incoming'];
+  const nextStage = NEXT_STAGE[lead.stage];
   const canAdvance = !!nextStage;
   const isArchived = lead.archived === 1;
-  const isSigned   = lead.stage === 'signed';
+  const isSigned = lead.stage === 'signed';
   const isQuoteDraft = lead.stage === 'quote_draft';
 
   const nextLabel = {
-    incoming:            '📞 Log Callback Done',
-    callback_done:       '📅 Book Appointment',
-    appointment_booked:  '🏠 Mark Site Visit Done',
-    site_visit_complete: '📋 Start Quote Draft',
-    quote_draft:         '✉ Mark as Sent to Customer',
-    quote_sent:          '📞 Log Follow-up 1',
-    follow_up_1:         '📞 Log Follow-up 2',
-    follow_up_2:         '✅ Mark as Signed',
+    incoming: '📞 Log Callback Done',
+    callback_done: '📅 Book Appointment',
+    appointment_booked: '🏠 Mark Site Visit Done',
+    site_visit_complete: '📋 Draft S.O.W. Proposal',
+    quote_draft: '✉ Send Proposal',
+    quote_sent: '📞 Log Follow-up 1',
+    follow_up_1: '📞 Log Follow-up 2',
+    follow_up_2: '✅ Mark as Signed'
   }[lead.stage];
 
   const handleBlur = async () => {
@@ -558,51 +903,130 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) 
     setSaving(false);
   };
 
-  const jobAddr  = [lead.job_address, lead.job_city].filter(Boolean).join(', ');
-  const apptFmt  = fmtDateTime(lead.appointment_at);
-  const calURL   = lead.appointment_at
-    ? buildCalURL(lead)
-    : null;
+  const jobAddr = [lead.job_address, lead.job_city].filter(Boolean).join(', ');
+  const apptFmt = fmtDateTime(lead.appointment_at);
+  const calURL = lead.appointment_at ? buildCalURL(lead) : null;
 
   return (
-    <div style={{
-      background: 'white', border: '1px solid #dde3ed', borderRadius: 10,
-      padding: '14px 16px', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-      borderLeft: `4px solid ${stg.color}`,
-    }}>
+    <div
+      style={{
+        background: 'white',
+        border: '1px solid #dde3ed',
+        borderRadius: 10,
+        padding: '14px 16px',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+        borderLeft: `4px solid ${stg.color}`
+      }}
+    >
       {/* Top row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 8,
+          marginBottom: 10
+        }}
+      >
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700, color: '#1a1a2e', fontSize: 15 }}>{lead.caller_name}</span>
-            <a href={`tel:${lead.caller_phone}`} style={{ color: BLUE, fontSize: 13, textDecoration: 'none' }}>
+            <span style={{ fontWeight: 700, color: '#1a1a2e', fontSize: 15 }}>
+              {lead.caller_name}
+            </span>
+            <a
+              href={`tel:${lead.caller_phone}`}
+              style={{ color: BLUE, fontSize: 13, textDecoration: 'none' }}
+            >
               {lead.caller_phone}
             </a>
           </div>
 
           {/* Badges */}
-          <div style={{ display: 'flex', gap: 5, marginTop: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ background: stg.bg, color: stg.color, borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 700, border: `1px solid ${stg.color}30` }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 5,
+              marginTop: 6,
+              flexWrap: 'wrap',
+              alignItems: 'center'
+            }}
+          >
+            <span
+              style={{
+                background: stg.bg,
+                color: stg.color,
+                borderRadius: 20,
+                padding: '2px 10px',
+                fontSize: 11,
+                fontWeight: 700,
+                border: `1px solid ${stg.color}30`
+              }}
+            >
               {stg.label}
             </span>
-            <span style={{ background: '#f0f4f8', color: GREY, borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>
+            <span
+              style={{
+                background: '#f0f4f8',
+                color: GREY,
+                borderRadius: 20,
+                padding: '2px 9px',
+                fontSize: 11
+              }}
+            >
               {SOURCE_LABELS[lead.source] || lead.source}
             </span>
             {lead.pb_customer_number && (
-              <span style={{ background: '#e0e8ff', color: BLUE, borderRadius: 20, padding: '2px 9px', fontSize: 11, fontWeight: 700, fontFamily: 'monospace' }}>
+              <span
+                style={{
+                  background: '#e0e8ff',
+                  color: BLUE,
+                  borderRadius: 20,
+                  padding: '2px 9px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  fontFamily: 'monospace'
+                }}
+              >
                 {lead.pb_customer_number}
               </span>
             )}
             {lead.contact_id && !lead.pb_customer_number && (
-              <span style={{ background: '#e8f5e9', color: GREEN, borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>✓ Contact linked</span>
+              <span
+                style={{
+                  background: '#e8f5e9',
+                  color: GREEN,
+                  borderRadius: 20,
+                  padding: '2px 9px',
+                  fontSize: 11
+                }}
+              >
+                ✓ Contact linked
+              </span>
             )}
             {lead.job_type && (
-              <span style={{ background: '#fdf4e7', color: '#92400e', borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>
+              <span
+                style={{
+                  background: '#fdf4e7',
+                  color: '#92400e',
+                  borderRadius: 20,
+                  padding: '2px 9px',
+                  fontSize: 11
+                }}
+              >
                 {JOB_TYPE_LABELS[lead.job_type] || lead.job_type}
               </span>
             )}
             {isArchived && lead.archive_reason && (
-              <span style={{ background: '#ffebee', color: RED, borderRadius: 20, padding: '2px 9px', fontSize: 11 }}>
+              <span
+                style={{
+                  background: '#ffebee',
+                  color: RED,
+                  borderRadius: 20,
+                  padding: '2px 9px',
+                  fontSize: 11
+                }}
+              >
                 {lead.archive_reason.replace(/_/g, ' ')}
               </span>
             )}
@@ -613,8 +1037,12 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) 
             <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, color: '#0288D1', fontWeight: 600 }}>📅 {apptFmt}</span>
               {calURL && (
-                <a href={calURL} target="_blank" rel="noreferrer"
-                  style={{ fontSize: 11, color: BLUE, textDecoration: 'underline' }}>
+                <a
+                  href={calURL}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 11, color: BLUE, textDecoration: 'underline' }}
+                >
                   Add to Calendar
                 </a>
               )}
@@ -622,15 +1050,9 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) 
           )}
 
           {/* Job address / scope summary */}
-          {jobAddr && (
-            <div style={{ marginTop: 5, fontSize: 12, color: '#555' }}>
-              📍 {jobAddr}
-            </div>
-          )}
+          {jobAddr && <div style={{ marginTop: 5, fontSize: 12, color: '#555' }}>📍 {jobAddr}</div>}
           {lead.job_email && (
-            <div style={{ marginTop: 3, fontSize: 12, color: '#555' }}>
-              ✉ {lead.job_email}
-            </div>
+            <div style={{ marginTop: 3, fontSize: 12, color: '#555' }}>✉ {lead.job_email}</div>
           )}
           {lead.job_scope && (
             <div style={{ marginTop: 4, fontSize: 12, color: '#777', fontStyle: 'italic' }}>
@@ -642,14 +1064,23 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) 
           {leadPhotos.length > 0 && (
             <div style={{ marginTop: 8 }}>
               <button
-                onClick={() => setPhotoExpand(v => !v)}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, color: BLUE, fontWeight: 600 }}
+                onClick={() => setPhotoExpand((v) => !v)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  color: BLUE,
+                  fontWeight: 600
+                }}
               >
-                📷 {leadPhotos.length} photo{leadPhotos.length !== 1 ? 's' : ''} {photoExpand ? '▾' : '▸'}
+                📷 {leadPhotos.length} photo{leadPhotos.length !== 1 ? 's' : ''}{' '}
+                {photoExpand ? '▾' : '▸'}
               </button>
               {photoExpand && (
                 <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {leadPhotos.map(ph => (
+                  {leadPhotos.map((ph) => (
                     <LeadPhotoThumb key={ph.id} photo={ph} token={token} />
                   ))}
                 </div>
@@ -659,21 +1090,32 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) 
         </div>
 
         <div style={{ color: '#aaa', fontSize: 11, whiteSpace: 'nowrap', paddingTop: 2 }}>
-          {new Date(lead.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          {new Date(lead.created_at).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          })}
         </div>
       </div>
 
       {/* Notes */}
       <textarea
         value={notes}
-        onChange={e => setNotes(e.target.value)}
+        onChange={(e) => setNotes(e.target.value)}
         onBlur={handleBlur}
         placeholder="Add notes…"
         rows={2}
         style={{
-          width: '100%', border: '1px solid #dde3ed', borderRadius: 6, padding: '7px 10px',
-          fontSize: 13, color: '#333', resize: 'vertical', boxSizing: 'border-box',
-          fontFamily: 'inherit', background: saving ? '#fffbe6' : '#fafafa',
+          width: '100%',
+          border: '1px solid #dde3ed',
+          borderRadius: 6,
+          padding: '7px 10px',
+          fontSize: 13,
+          color: '#333',
+          resize: 'vertical',
+          boxSizing: 'border-box',
+          fontFamily: 'inherit',
+          background: saving ? '#fffbe6' : '#fafafa'
         }}
       />
 
@@ -686,25 +1128,64 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) 
             </button>
           )}
           {isQuoteDraft && (
-            <a href="/estimate-wizard" style={{
-              ...btnPrimary('#F57C00'), textDecoration: 'none', display: 'inline-flex', alignItems: 'center',
-            }}>
-              📝 Open Quote Wizard
+            <a
+              href="/estimate-wizard"
+              style={{
+                ...btnPrimary('#F57C00'),
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center'
+              }}
+            >
+              📝 Open Proposal Wizard
             </a>
           )}
           {!isSigned && (
-            <button onClick={onArchive} style={{ background: '#fff', color: RED, border: '1px solid #ef9a9a', borderRadius: 6, padding: '7px 12px', cursor: 'pointer', fontSize: 12 }}>
+            <button
+              onClick={onArchive}
+              style={{
+                background: '#fff',
+                color: RED,
+                border: '1px solid #ef9a9a',
+                borderRadius: 6,
+                padding: '7px 12px',
+                cursor: 'pointer',
+                fontSize: 12
+              }}
+            >
               Archive
             </button>
           )}
-          <button onClick={onDelete} style={{ background: '#fff', color: '#aaa', border: '1px solid #ddd', borderRadius: 6, padding: '7px 10px', cursor: 'pointer', fontSize: 11 }}>
+          <button
+            onClick={onDelete}
+            style={{
+              background: '#fff',
+              color: '#aaa',
+              border: '1px solid #ddd',
+              borderRadius: 6,
+              padding: '7px 10px',
+              cursor: 'pointer',
+              fontSize: 11
+            }}
+          >
             Delete
           </button>
         </div>
       )}
       {isArchived && (
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <button onClick={onDelete} style={{ background: '#fff', color: '#aaa', border: '1px solid #ddd', borderRadius: 6, padding: '6px 10px', cursor: 'pointer', fontSize: 11 }}>
+          <button
+            onClick={onDelete}
+            style={{
+              background: '#fff',
+              color: '#aaa',
+              border: '1px solid #ddd',
+              borderRadius: 6,
+              padding: '6px 10px',
+              cursor: 'pointer',
+              fontSize: 11
+            }}
+          >
             Delete permanently
           </button>
         </div>
@@ -716,18 +1197,24 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) 
 function buildCalURL(lead) {
   if (!lead.appointment_at) return null;
   try {
-    const calDate = iso => iso.replace(/[-:]/g, '').replace(/\.\d{3}Z?$/, '').slice(0, 15);
-    const start   = calDate(new Date(lead.appointment_at).toISOString());
-    const endDt   = new Date(new Date(lead.appointment_at).getTime() + 2 * 3600000);
-    const end     = calDate(endDt.toISOString());
-    const addr    = [lead.job_address, lead.job_city].filter(Boolean).join(', ');
-    const parts   = [
+    const calDate = (iso) =>
+      iso
+        .replace(/[-:]/g, '')
+        .replace(/\.\d{3}Z?$/, '')
+        .slice(0, 15);
+    const start = calDate(new Date(lead.appointment_at).toISOString());
+    const endDt = new Date(new Date(lead.appointment_at).getTime() + 2 * 3600000);
+    const end = calDate(endDt.toISOString());
+    const addr = [lead.job_address, lead.job_city].filter(Boolean).join(', ');
+    const parts = [
       'action=TEMPLATE',
       `text=${encodeURIComponent(`Appointment: ${lead.caller_name}`)}`,
       `dates=${start}/${end}`,
-      `details=${encodeURIComponent(`Site visit with ${lead.caller_name} (${lead.caller_phone})`)}`,
+      `details=${encodeURIComponent(`Site visit with ${lead.caller_name} (${lead.caller_phone})`)}`
     ];
     if (addr) parts.push(`location=${encodeURIComponent(addr)}`);
     return `https://calendar.google.com/calendar/render?${parts.join('&')}`;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }

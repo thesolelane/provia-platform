@@ -11,7 +11,7 @@ const inputStyle = {
   fontSize: 13,
   boxSizing: 'border-box',
   fontFamily: 'inherit',
-  outline: 'none',
+  outline: 'none'
 };
 
 const labelStyle = {
@@ -21,22 +21,28 @@ const labelStyle = {
   marginBottom: 4,
   fontWeight: 600,
   textTransform: 'uppercase',
-  letterSpacing: '0.03em',
+  letterSpacing: '0.03em'
 };
 
 // ── Trade Selection step ───────────────────────────────────────────────────
-function TradeSelectionStep({ selectedTrades, onToggleTrade, onBack, onNext, fetchingQuestions, extractingFiles }) {
+function TradeSelectionStep({
+  selectedTrades,
+  onToggleTrade,
+  onBack,
+  onNext,
+  fetchingQuestions,
+  extractingFiles
+}) {
   const [openDepts, setOpenDepts] = useState({});
 
   const toggleDept = (deptId) => {
-    setOpenDepts(prev => ({ ...prev, [deptId]: !prev[deptId] }));
+    setOpenDepts((prev) => ({ ...prev, [deptId]: !prev[deptId] }));
   };
 
   const isDeptPartiallySelected = (dept) =>
-    dept.subDepartments.some(s => selectedTrades.has(s.id));
+    dept.subDepartments.some((s) => selectedTrades.has(s.id));
 
-  const isDeptFullySelected = (dept) =>
-    dept.subDepartments.every(s => selectedTrades.has(s.id));
+  const isDeptFullySelected = (dept) => dept.subDepartments.every((s) => selectedTrades.has(s.id));
 
   const toggleDeptAll = (dept) => {
     const allSelected = isDeptFullySelected(dept);
@@ -60,60 +66,142 @@ function TradeSelectionStep({ selectedTrades, onToggleTrade, onBack, onNext, fet
   return (
     <div style={{ padding: '24px 28px' }}>
       <div style={{ marginBottom: 14 }}>
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>Trades Involved</h3>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>
+          Trades Involved
+        </h3>
         <p style={{ fontSize: 12, color: '#777', margin: '6px 0 0' }}>
-          Select the trades that apply to this project. The AI uses these to generate more accurate questions and line items.
-          {' '}<span style={{ color: '#aaa' }}>This step is optional — skip if unsure.</span>
+          Select the trades that apply to this project. The AI uses these to generate more accurate
+          questions and line items.{' '}
+          <span style={{ color: '#aaa' }}>This step is optional — skip if unsure.</span>
         </p>
       </div>
 
       {totalSelected > 0 && (
-        <div style={{ marginBottom: 12, padding: '6px 10px', background: '#eef3ff', borderRadius: 6, fontSize: 12, color: '#1B3A6B', fontWeight: 600 }}>
+        <div
+          style={{
+            marginBottom: 12,
+            padding: '6px 10px',
+            background: '#eef3ff',
+            borderRadius: 6,
+            fontSize: 12,
+            color: '#1B3A6B',
+            fontWeight: 600
+          }}
+        >
           {totalSelected} sub-department{totalSelected !== 1 ? 's' : ''} selected
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 360, overflowY: 'auto', paddingRight: 2 }}>
-        {DEPARTMENTS.map(dept => {
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          maxHeight: 360,
+          overflowY: 'auto',
+          paddingRight: 2
+        }}
+      >
+        {DEPARTMENTS.map((dept) => {
           const isOpen = !!openDepts[dept.id];
           const partial = isDeptPartiallySelected(dept);
           const full = isDeptFullySelected(dept);
 
           return (
-            <div key={dept.id} style={{ border: `1px solid ${partial ? '#1B3A6B' : '#e2e8f0'}`, borderRadius: 8, overflow: 'hidden', background: partial ? '#f5f8ff' : 'white' }}>
+            <div
+              key={dept.id}
+              style={{
+                border: `1px solid ${partial ? '#1B3A6B' : '#e2e8f0'}`,
+                borderRadius: 8,
+                overflow: 'hidden',
+                background: partial ? '#f5f8ff' : 'white'
+              }}
+            >
               {/* Department header row */}
               <div
-                style={{ display: 'flex', alignItems: 'center', padding: '10px 14px', cursor: 'pointer', userSelect: 'none' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '10px 14px',
+                  cursor: 'pointer',
+                  userSelect: 'none'
+                }}
                 onClick={() => toggleDept(dept.id)}
               >
                 <input
                   type="checkbox"
                   checked={full}
-                  ref={el => { if (el) el.indeterminate = partial && !full; }}
-                  onChange={e => { e.stopPropagation(); toggleDeptAll(dept); }}
-                  onClick={e => e.stopPropagation()}
-                  style={{ width: 15, height: 15, cursor: 'pointer', flexShrink: 0, accentColor: '#1B3A6B' }}
+                  ref={(el) => {
+                    if (el) el.indeterminate = partial && !full;
+                  }}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleDeptAll(dept);
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    width: 15,
+                    height: 15,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    accentColor: '#1B3A6B'
+                  }}
                 />
-                <span style={{ flex: 1, fontWeight: 600, fontSize: 13, color: '#1e293b', marginLeft: 10 }}>{dept.name}</span>
-                <span style={{ fontSize: 11, color: partial ? '#1B3A6B' : '#bbb', marginRight: 8 }}>
-                  {partial ? `${dept.subDepartments.filter(s => selectedTrades.has(s.id)).length}/${dept.subDepartments.length}` : ''}
+                <span
+                  style={{
+                    flex: 1,
+                    fontWeight: 600,
+                    fontSize: 13,
+                    color: '#1e293b',
+                    marginLeft: 10
+                  }}
+                >
+                  {dept.name}
                 </span>
-                <span style={{ fontSize: 11, color: '#94a3b8', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', display: 'inline-block' }}>▶</span>
+                <span style={{ fontSize: 11, color: partial ? '#1B3A6B' : '#bbb', marginRight: 8 }}>
+                  {partial
+                    ? `${dept.subDepartments.filter((s) => selectedTrades.has(s.id)).length}/${dept.subDepartments.length}`
+                    : ''}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: '#94a3b8',
+                    transform: isOpen ? 'rotate(90deg)' : 'none',
+                    transition: 'transform 0.15s',
+                    display: 'inline-block'
+                  }}
+                >
+                  ▶
+                </span>
               </div>
 
               {/* Sub-departments */}
               {isOpen && (
                 <div style={{ borderTop: '1px solid #e8edf5', background: '#f8fafc' }}>
-                  {dept.subDepartments.map(sub => (
+                  {dept.subDepartments.map((sub) => (
                     <label
                       key={sub.id}
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 14px 9px 30px', cursor: 'pointer', borderBottom: '1px solid #f0f3f8' }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '9px 14px 9px 30px',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #f0f3f8'
+                      }}
                     >
                       <input
                         type="checkbox"
                         checked={selectedTrades.has(sub.id)}
                         onChange={() => toggleSub(sub.id)}
-                        style={{ width: 14, height: 14, cursor: 'pointer', accentColor: '#1B3A6B', flexShrink: 0 }}
+                        style={{
+                          width: 14,
+                          height: 14,
+                          cursor: 'pointer',
+                          accentColor: '#1B3A6B',
+                          flexShrink: 0
+                        }}
                       />
                       <span style={{ fontSize: 13, color: '#374151' }}>{sub.name}</span>
                     </label>
@@ -126,24 +214,69 @@ function TradeSelectionStep({ selectedTrades, onToggleTrade, onBack, onNext, fet
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 18 }}>
-        <button onClick={onBack} disabled={fetchingQuestions || extractingFiles} style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: fetchingQuestions || extractingFiles ? 'not-allowed' : 'pointer', fontSize: 13, color: '#555' }}>
+        <button
+          onClick={onBack}
+          disabled={fetchingQuestions || extractingFiles}
+          style={{
+            padding: '10px 20px',
+            border: '1px solid #ddd',
+            borderRadius: 6,
+            background: 'white',
+            cursor: fetchingQuestions || extractingFiles ? 'not-allowed' : 'pointer',
+            fontSize: 13,
+            color: '#555'
+          }}
+        >
           ← Back
         </button>
         <button
           onClick={onNext}
           disabled={fetchingQuestions || extractingFiles}
           style={{
-            padding: '10px 24px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700,
+            padding: '10px 24px',
+            borderRadius: 6,
+            border: 'none',
+            fontSize: 13,
+            fontWeight: 700,
             background: fetchingQuestions || extractingFiles ? '#c5ccd8' : '#1B3A6B',
-            color: 'white', cursor: fetchingQuestions || extractingFiles ? 'not-allowed' : 'pointer',
-            display: 'flex', alignItems: 'center', gap: 8,
+            color: 'white',
+            cursor: fetchingQuestions || extractingFiles ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8
           }}
         >
           {extractingFiles ? (
-            <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 14 }}>⟳</span>Reading files...</>
+            <>
+              <span
+                style={{
+                  display: 'inline-block',
+                  animation: 'spin 1s linear infinite',
+                  fontSize: 14
+                }}
+              >
+                ⟳
+              </span>
+              Reading files...
+            </>
           ) : fetchingQuestions ? (
-            <><span style={{ display: 'inline-block', animation: 'spin 1s linear infinite', fontSize: 14 }}>⟳</span>AI is thinking...</>
-          ) : totalSelected === 0 ? 'Skip →' : 'Next →'}
+            <>
+              <span
+                style={{
+                  display: 'inline-block',
+                  animation: 'spin 1s linear infinite',
+                  fontSize: 14
+                }}
+              >
+                ⟳
+              </span>
+              AI is thinking...
+            </>
+          ) : totalSelected === 0 ? (
+            'Skip →'
+          ) : (
+            'Next →'
+          )}
         </button>
       </div>
     </div>
@@ -160,12 +293,14 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
   const currentQ = questions[currentIdx];
   const totalQ = questions.length;
   const isLast = currentIdx === totalQ - 1;
-  const existingAnswer = answers.find(a => a.questionId === currentQ?.id);
+  const existingAnswer = answers.find((a) => a.questionId === currentQ?.id);
 
   useEffect(() => {
     setLocalAnswer(existingAnswer?.answer || '');
     setLocalDemoCost(existingAnswer?.demoCost || '');
-    setWaitingForDemoCost(existingAnswer?.answer === 'no' && currentQ?.questionType === 'demo_check');
+    setWaitingForDemoCost(
+      existingAnswer?.answer === 'no' && currentQ?.questionType === 'demo_check'
+    );
   }, [currentIdx]);
 
   if (!currentQ) return null;
@@ -183,7 +318,8 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
   const canAdvance = () => {
     if (currentQ.answerType === 'text' && !localAnswer.trim()) return false;
     if (currentQ.answerType === 'yesno' && !localAnswer) return false;
-    if (currentQ.questionType === 'demo_check' && localAnswer === 'no' && !localDemoCost.trim()) return false;
+    if (currentQ.questionType === 'demo_check' && localAnswer === 'no' && !localDemoCost.trim())
+      return false;
     return true;
   };
 
@@ -194,14 +330,14 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
       questionType: currentQ.questionType,
       trade: currentQ.trade,
       answer: 'skipped',
-      demoCost: null,
+      demoCost: null
     };
-    const updated = [...answers.filter(a => a.questionId !== currentQ.id), record];
+    const updated = [...answers.filter((a) => a.questionId !== currentQ.id), record];
     onAnswer(updated);
     if (isLast) {
       onNext(updated);
     } else {
-      setCurrentIdx(i => i + 1);
+      setCurrentIdx((i) => i + 1);
       setLocalAnswer('');
       setLocalDemoCost('');
       setWaitingForDemoCost(false);
@@ -215,15 +351,17 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
       questionType: currentQ.questionType,
       trade: currentQ.trade,
       answer: localAnswer,
-      demoCost: localAnswer === 'no' && currentQ.questionType === 'demo_check'
-        ? localDemoCost.replace(/[$,\s]/g, '') : null,
+      demoCost:
+        localAnswer === 'no' && currentQ.questionType === 'demo_check'
+          ? localDemoCost.replace(/[$,\s]/g, '')
+          : null
     };
-    const updated = [...answers.filter(a => a.questionId !== currentQ.id), record];
+    const updated = [...answers.filter((a) => a.questionId !== currentQ.id), record];
     onAnswer(updated);
     if (isLast) {
       onNext(updated);
     } else {
-      setCurrentIdx(i => i + 1);
+      setCurrentIdx((i) => i + 1);
       setLocalAnswer('');
       setLocalDemoCost('');
       setWaitingForDemoCost(false);
@@ -235,8 +373,8 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
       onBack();
     } else {
       const prev = questions[currentIdx - 1];
-      const prevAns = answers.find(a => a.questionId === prev?.id);
-      setCurrentIdx(i => i - 1);
+      const prevAns = answers.find((a) => a.questionId === prev?.id);
+      setCurrentIdx((i) => i - 1);
       setLocalAnswer(prevAns?.answer || '');
       setLocalDemoCost(prevAns?.demoCost || '');
       setWaitingForDemoCost(prevAns?.answer === 'no' && prev?.questionType === 'demo_check');
@@ -245,31 +383,65 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
 
   return (
     <div style={{ padding: '24px 28px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>AI Clarifying Questions</h3>
-        <span style={{ fontSize: 12, color: '#888' }}>{currentIdx + 1} of {totalQ}</span>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 6
+        }}
+      >
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>
+          AI Clarifying Questions
+        </h3>
+        <span style={{ fontSize: 12, color: '#888' }}>
+          {currentIdx + 1} of {totalQ}
+        </span>
       </div>
-      <p style={{ fontSize: 12, color: '#777', margin: '0 0 16px' }}>Answer each question to make sure the estimate is complete.</p>
+      <p style={{ fontSize: 12, color: '#777', margin: '0 0 16px' }}>
+        Answer each question to make sure the estimate is complete.
+      </p>
 
       {/* Progress dots */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
         {questions.map((_, i) => (
-          <div key={i} style={{
-            width: 8, height: 8, borderRadius: '50%',
-            background: i < currentIdx ? '#059669' : i === currentIdx ? '#1B3A6B' : '#e5e7eb',
-          }} />
+          <div
+            key={i}
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: i < currentIdx ? '#059669' : i === currentIdx ? '#1B3A6B' : '#e5e7eb'
+            }}
+          />
         ))}
       </div>
 
       {/* Question Card */}
-      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 18, marginBottom: 16 }}>
+      <div
+        style={{
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+          borderRadius: 10,
+          padding: 18,
+          marginBottom: 16
+        }}
+      >
         <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
           <span style={{ fontSize: 20 }}>
-            {currentQ.questionType === 'demo_check' ? '🏗️' : currentQ.questionType === 'trade_clarification' ? '🔧' : '📋'}
+            {currentQ.questionType === 'demo_check'
+              ? '🏗️'
+              : currentQ.questionType === 'trade_clarification'
+                ? '🔧'
+                : '📋'}
           </span>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', lineHeight: 1.5 }}>{currentQ.question}</div>
-            {currentQ.hint && <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{currentQ.hint}</div>}
+            <div style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', lineHeight: 1.5 }}>
+              {currentQ.question}
+            </div>
+            {currentQ.hint && (
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>{currentQ.hint}</div>
+            )}
           </div>
         </div>
 
@@ -278,20 +450,25 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
             {[
               { val: 'yes', label: 'Yes — already included', color: '#059669' },
               { val: 'no', label: 'No — needs to be added', color: '#C62828' },
-              { val: 'not_sure', label: 'Not sure', color: '#888' },
-            ].map(opt => (
+              { val: 'not_sure', label: 'Not sure', color: '#888' }
+            ].map((opt) => (
               <button
                 key={opt.val}
                 onClick={() => handleChip(opt.val)}
                 style={{
-                  padding: '8px 16px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+                  padding: '8px 16px',
+                  borderRadius: 20,
+                  fontSize: 12,
+                  cursor: 'pointer',
                   border: `2px solid ${localAnswer === opt.val ? opt.color : '#e2e8f0'}`,
                   background: localAnswer === opt.val ? opt.color + '18' : 'white',
                   color: localAnswer === opt.val ? opt.color : '#64748b',
                   fontWeight: localAnswer === opt.val ? 700 : 400,
-                  transition: 'all 0.15s',
+                  transition: 'all 0.15s'
                 }}
-              >{opt.label}</button>
+              >
+                {opt.label}
+              </button>
             ))}
           </div>
         )}
@@ -300,14 +477,22 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
           <textarea
             rows={3}
             value={localAnswer}
-            onChange={e => setLocalAnswer(e.target.value)}
+            onChange={(e) => setLocalAnswer(e.target.value)}
             placeholder="Type your answer..."
             style={{ ...inputStyle, resize: 'vertical' }}
           />
         )}
 
         {waitingForDemoCost && currentQ.questionType === 'demo_check' && (
-          <div style={{ marginTop: 14, padding: 14, background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8 }}>
+          <div
+            style={{
+              marginTop: 14,
+              padding: 14,
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              borderRadius: 8
+            }}
+          >
             <div style={{ fontSize: 13, fontWeight: 500, color: '#9a3412', marginBottom: 8 }}>
               What should we estimate for removing the existing {currentQ.trade}?
             </div>
@@ -316,9 +501,15 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
               <input
                 type="number"
                 value={localDemoCost}
-                onChange={e => setLocalDemoCost(e.target.value)}
+                onChange={(e) => setLocalDemoCost(e.target.value)}
                 placeholder="e.g. 1500"
-                style={{ flex: 1, padding: '8px 10px', border: '1px solid #fed7aa', borderRadius: 6, fontSize: 13 }}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  border: '1px solid #fed7aa',
+                  borderRadius: 6,
+                  fontSize: 13
+                }}
               />
             </div>
             <div style={{ fontSize: 11, color: '#c2410c', marginTop: 6 }}>
@@ -329,14 +520,33 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-        <button onClick={goBack} style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 13, color: '#555' }}>
+        <button
+          onClick={goBack}
+          style={{
+            padding: '10px 20px',
+            border: '1px solid #ddd',
+            borderRadius: 6,
+            background: 'white',
+            cursor: 'pointer',
+            fontSize: 13,
+            color: '#555'
+          }}
+        >
           ← Back
         </button>
         <div style={{ display: 'flex', gap: 8 }}>
           {currentQ.answerType === 'text' && (
             <button
               onClick={skipQuestion}
-              style={{ padding: '10px 16px', borderRadius: 6, border: '1px solid #ddd', background: 'white', fontSize: 12, color: '#888', cursor: 'pointer' }}
+              style={{
+                padding: '10px 16px',
+                borderRadius: 6,
+                border: '1px solid #ddd',
+                background: 'white',
+                fontSize: 12,
+                color: '#888',
+                cursor: 'pointer'
+              }}
             >
               Skip
             </button>
@@ -345,10 +555,14 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
             onClick={saveAndAdvance}
             disabled={!canAdvance()}
             style={{
-              padding: '10px 24px', borderRadius: 6, border: 'none', fontSize: 13, fontWeight: 700,
+              padding: '10px 24px',
+              borderRadius: 6,
+              border: 'none',
+              fontSize: 13,
+              fontWeight: 700,
               background: canAdvance() ? '#1B3A6B' : '#c5ccd8',
               color: 'white',
-              cursor: canAdvance() ? 'pointer' : 'not-allowed',
+              cursor: canAdvance() ? 'pointer' : 'not-allowed'
             }}
           >
             {isLast ? 'Review Estimate →' : 'Next →'}
@@ -360,9 +574,23 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
 }
 
 // ── Review step (Phase 2 — includes Q&A summary and demo additions) ─────────
-function ReviewStep({ contact, address, scope, budgetTarget, selectedTrades, answers, onBack, onSubmit, busy }) {
-  const demoAdditions = answers.filter(a => a.questionType === 'demo_check' && a.answer === 'no' && a.demoCost);
-  const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
+function ReviewStep({
+  contact,
+  address,
+  scope,
+  budgetTarget,
+  selectedTrades,
+  answers,
+  onBack,
+  onSubmit,
+  busy
+}) {
+  const demoAdditions = answers.filter(
+    (a) => a.questionType === 'demo_check' && a.answer === 'no' && a.demoCost
+  );
+  const projectAddress = [address.street, address.city, address.state, address.zip]
+    .filter(Boolean)
+    .join(', ');
 
   const selectedSubNames = buildSelectedTradesList(selectedTrades);
 
@@ -372,20 +600,30 @@ function ReviewStep({ contact, address, scope, budgetTarget, selectedTrades, ans
       rows: [
         { key: 'Name', value: contact.name },
         { key: 'Phone', value: contact.phone || '—' },
-        { key: 'Email', value: contact.email || '—' },
-      ],
+        { key: 'Email', value: contact.email || '—' }
+      ]
     },
     {
       label: 'Job Address',
-      rows: [{ key: '', value: projectAddress || '—' }],
+      rows: [{ key: '', value: projectAddress || '—' }]
     },
     {
       label: 'Scope of Work',
       rows: [
         { key: '', value: scope },
-        ...(budgetTarget ? [{ key: 'Budget Target', value: '$' + Number(String(budgetTarget).replace(/,/g,'')).toLocaleString() + ' (±8% soft target)' }] : []),
-      ],
-    },
+        ...(budgetTarget
+          ? [
+              {
+                key: 'Budget Target',
+                value:
+                  '$' +
+                  Number(String(budgetTarget).replace(/,/g, '')).toLocaleString() +
+                  ' (±8% soft target)'
+              }
+            ]
+          : [])
+      ]
+    }
   ];
 
   return (
@@ -394,33 +632,127 @@ function ReviewStep({ contact, address, scope, budgetTarget, selectedTrades, ans
         Review everything before generating the proposal.
       </p>
 
-      {sections.map(section => (
-        <div key={section.label} style={{ background: '#f8f9fc', borderRadius: 8, padding: '14px 16px', marginBottom: 12, border: '1px solid #e8eaf0' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{section.label}</div>
+      {sections.map((section) => (
+        <div
+          key={section.label}
+          style={{
+            background: '#f8f9fc',
+            borderRadius: 8,
+            padding: '14px 16px',
+            marginBottom: 12,
+            border: '1px solid #e8eaf0'
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#1B3A6B',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: 8
+            }}
+          >
+            {section.label}
+          </div>
           {section.rows.map((row, i) => (
-            <div key={i} style={{ fontSize: 13, color: '#333', marginBottom: row.key ? 4 : 0, whiteSpace: row.key ? 'normal' : 'pre-wrap' }}>
-              {row.key ? <><span style={{ color: '#888', marginRight: 6 }}>{row.key}:</span>{row.value}</> : row.value}
+            <div
+              key={i}
+              style={{
+                fontSize: 13,
+                color: '#333',
+                marginBottom: row.key ? 4 : 0,
+                whiteSpace: row.key ? 'normal' : 'pre-wrap'
+              }}
+            >
+              {row.key ? (
+                <>
+                  <span style={{ color: '#888', marginRight: 6 }}>{row.key}:</span>
+                  {row.value}
+                </>
+              ) : (
+                row.value
+              )}
             </div>
           ))}
         </div>
       ))}
 
       {selectedSubNames.length > 0 && (
-        <div style={{ background: '#f8f9fc', borderRadius: 8, padding: '14px 16px', marginBottom: 12, border: '1px solid #e8eaf0' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Trades Selected</div>
+        <div
+          style={{
+            background: '#f8f9fc',
+            borderRadius: 8,
+            padding: '14px 16px',
+            marginBottom: 12,
+            border: '1px solid #e8eaf0'
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#1B3A6B',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: 8
+            }}
+          >
+            Trades Selected
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {selectedSubNames.map((name, i) => (
-              <span key={i} style={{ background: '#e8f0fe', color: '#1B3A6B', borderRadius: 20, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>{name}</span>
+              <span
+                key={i}
+                style={{
+                  background: '#e8f0fe',
+                  color: '#1B3A6B',
+                  borderRadius: 20,
+                  padding: '3px 10px',
+                  fontSize: 12,
+                  fontWeight: 600
+                }}
+              >
+                {name}
+              </span>
             ))}
           </div>
         </div>
       )}
 
       {demoAdditions.length > 0 && (
-        <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: '14px 16px', marginBottom: 12 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#c2410c', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Demo Work Added from Q&A</div>
+        <div
+          style={{
+            background: '#fff7ed',
+            border: '1px solid #fed7aa',
+            borderRadius: 8,
+            padding: '14px 16px',
+            marginBottom: 12
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#c2410c',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: 8
+            }}
+          >
+            Demo Work Added from Q&A
+          </div>
           {demoAdditions.map((a, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#9a3412', marginBottom: 4 }}>
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: 13,
+                color: '#9a3412',
+                marginBottom: 4
+              }}
+            >
               <span>Demo — Remove {a.trade}</span>
               <span style={{ fontWeight: 700 }}>${Number(a.demoCost).toLocaleString()}</span>
             </div>
@@ -429,16 +761,45 @@ function ReviewStep({ contact, address, scope, budgetTarget, selectedTrades, ans
       )}
 
       {answers.length > 0 && (
-        <div style={{ background: '#f8f9fc', borderRadius: 8, padding: '14px 16px', marginBottom: 12, border: '1px solid #e8eaf0' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>AI Q&A Answers</div>
+        <div
+          style={{
+            background: '#f8f9fc',
+            borderRadius: 8,
+            padding: '14px 16px',
+            marginBottom: 12,
+            border: '1px solid #e8eaf0'
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#1B3A6B',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              marginBottom: 10
+            }}
+          >
+            AI Q&A Answers
+          </div>
           {answers.map((a, i) => (
-            <div key={i} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: i < answers.length - 1 ? '1px solid #e2e8f0' : 'none' }}>
+            <div
+              key={i}
+              style={{
+                marginBottom: 10,
+                paddingBottom: 10,
+                borderBottom: i < answers.length - 1 ? '1px solid #e2e8f0' : 'none'
+              }}
+            >
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 3 }}>{a.question}</div>
               <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>
-                {a.answer === 'yes' ? '✓ Yes — already included'
-                  : a.answer === 'no' ? `✗ No — demo added ($${Number(a.demoCost || 0).toLocaleString()})`
-                  : a.answer === 'not_sure' ? '~ Not sure'
-                  : a.answer}
+                {a.answer === 'yes'
+                  ? '✓ Yes — already included'
+                  : a.answer === 'no'
+                    ? `✗ No — demo added ($${Number(a.demoCost || 0).toLocaleString()})`
+                    : a.answer === 'not_sure'
+                      ? '~ Not sure'
+                      : a.answer}
               </div>
             </div>
           ))}
@@ -446,16 +807,32 @@ function ReviewStep({ contact, address, scope, budgetTarget, selectedTrades, ans
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginTop: 4 }}>
-        <button onClick={onBack} style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 13, color: '#555' }}>
+        <button
+          onClick={onBack}
+          style={{
+            padding: '10px 20px',
+            border: '1px solid #ddd',
+            borderRadius: 6,
+            background: 'white',
+            cursor: 'pointer',
+            fontSize: 13,
+            color: '#555'
+          }}
+        >
           ← Back
         </button>
         <button
           onClick={onSubmit}
           disabled={busy}
           style={{
-            padding: '10px 24px', borderRadius: 6, border: 'none', fontWeight: 700, fontSize: 14,
-            background: busy ? '#888' : '#1B3A6B', color: 'white',
-            cursor: busy ? 'not-allowed' : 'pointer',
+            padding: '10px 24px',
+            borderRadius: 6,
+            border: 'none',
+            fontWeight: 700,
+            fontSize: 14,
+            background: busy ? '#888' : '#1B3A6B',
+            color: 'white',
+            cursor: busy ? 'not-allowed' : 'pointer'
           }}
         >
           {busy ? '⏳ Generating...' : '🤖 Generate Proposal'}
@@ -482,7 +859,7 @@ function buildTradesContext(selectedTrades) {
   if (!selectedTrades || selectedTrades.size === 0) return '';
   const lines = [];
   for (const dept of DEPARTMENTS) {
-    const selected = dept.subDepartments.filter(s => selectedTrades.has(s.id));
+    const selected = dept.subDepartments.filter((s) => selectedTrades.has(s.id));
     if (selected.length === 0) continue;
     for (const sub of selected) {
       lines.push(`- ${sub.name} (${dept.name}): ${sub.meaning}`);
@@ -537,24 +914,31 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
 
   const fetchSuggestions = (query) => {
     clearTimeout(suggestTimeout.current);
-    if (!query || query.length < 2) { setSuggestions([]); return; }
+    if (!query || query.length < 2) {
+      setSuggestions([]);
+      return;
+    }
     suggestTimeout.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/contacts?search=${encodeURIComponent(query)}&limit=6`, { headers });
+        const res = await fetch(`/api/contacts?search=${encodeURIComponent(query)}&limit=6`, {
+          headers
+        });
         const data = await res.json();
         setSuggestions(data.contacts || []);
-      } catch { setSuggestions([]); }
+      } catch {
+        setSuggestions([]);
+      }
     }, 250);
   };
 
   const applySuggestion = (c) => {
     setContact({ name: c.name || '', phone: c.phone || '', email: c.email || '' });
     if (c.address || c.city || c.state) {
-      setAddress(prev => ({
+      setAddress((prev) => ({
         street: c.address || prev.street,
         city: c.city || prev.city,
         state: c.state || prev.state,
-        zip: prev.zip,
+        zip: prev.zip
       }));
     }
     setSuggestions([]);
@@ -562,7 +946,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
   };
 
   const handleNameChange = (val) => {
-    setContact(prev => ({ ...prev, name: val }));
+    setContact((prev) => ({ ...prev, name: val }));
     setShowSuggestions(true);
     fetchSuggestions(val);
   };
@@ -604,7 +988,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
         const extractRes = await fetch('/api/jobs/extract-from-files', {
           method: 'POST',
           headers,
-          body: fd,
+          body: fd
         });
         if (extractRes.ok) {
           const { extractedText, extractedAddress, tempId } = await extractRes.json();
@@ -619,16 +1003,22 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
             const addrEmpty = !address.street.trim() && !address.city.trim();
             const addrIncomplete = !address.street.trim() || !address.city.trim();
             if (addrEmpty || addrIncomplete) {
-              setAddress(prev => ({
+              setAddress((prev) => ({
                 street: extractedAddress.street || prev.street,
-                city:   extractedAddress.city   || prev.city,
-                state:  extractedAddress.state  || prev.state,
-                zip:    extractedAddress.zip    || prev.zip,
+                city: extractedAddress.city || prev.city,
+                state: extractedAddress.state || prev.state,
+                zip: extractedAddress.zip || prev.zip
               }));
-              showToast(`Address found in plans: ${extractedAddress.street}, ${extractedAddress.city}`, 'success');
+              showToast(
+                `Address found in plans: ${extractedAddress.street}, ${extractedAddress.city}`,
+                'success'
+              );
             }
           } else if (!address.street.trim() || !address.city.trim()) {
-            showToast('No address found in plans — please fill in the job address on step 2.', 'warning');
+            showToast(
+              'No address found in plans — please fill in the job address on step 2.',
+              'warning'
+            );
           }
         } else {
           const err = await extractRes.json();
@@ -644,16 +1034,18 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
     const scopeWithTrades = finalScope + tradesContext;
 
     try {
-      const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
+      const projectAddress = [address.street, address.city, address.state, address.zip]
+        .filter(Boolean)
+        .join(', ');
       const res = await fetch('/api/jobs/wizard/questions', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           scopeText: scopeWithTrades,
           projectAddress,
-          budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null,
-          selectedTrades: buildSelectedTradesPayload(selectedTrades),
-        }),
+          budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g, '')) : null,
+          selectedTrades: buildSelectedTradesPayload(selectedTrades)
+        })
       });
       if (res.ok) {
         const data = await res.json();
@@ -687,13 +1079,18 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
 
   const submit = async () => {
     if (!address.street.trim() || !address.city.trim()) {
-      showToast('Job address is required — please go back and fill in the street and city.', 'error');
+      showToast(
+        'Job address is required — please go back and fill in the street and city.',
+        'error'
+      );
       setStep(1);
       return;
     }
     setBusy(true);
     try {
-      const projectAddress = [address.street, address.city, address.state, address.zip].filter(Boolean).join(', ');
+      const projectAddress = [address.street, address.city, address.state, address.zip]
+        .filter(Boolean)
+        .join(', ');
       const res = await fetch('/api/jobs/wizard/submit', {
         method: 'POST',
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -704,20 +1101,20 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           projectAddress,
           scopeText: scope,
           qaAnswers: wizardAnswers,
-          budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g,'')) : null,
+          budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g, '')) : null,
           plansTempId: plansTempId || null,
-          selectedTrades: buildSelectedTradesPayload(selectedTrades),
-        }),
+          selectedTrades: buildSelectedTradesPayload(selectedTrades)
+        })
       });
       const data = await res.json();
       setBusy(false);
       if (res.ok) {
-        showToast('Quote submitted — processing now');
+        showToast('Proposal submitted — processing now');
         onSubmitted();
         onClose();
         navigate(`/jobs/${data.jobId}`);
       } else {
-        showToast(data.error || 'Error submitting quote', 'error');
+        showToast(data.error || 'Error submitting proposal', 'error');
       }
     } catch {
       setBusy(false);
@@ -733,24 +1130,66 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
     } else if (step === AI_STEP) {
       setStep(TRADE_STEP);
     } else if (step > 0) {
-      setStep(s => s - 1);
+      setStep((s) => s - 1);
     } else {
       onClose();
     }
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0,0,0,0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 1100
+      }}
+    >
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-      <div style={{ background: 'white', borderRadius: 14, width: 560, maxHeight: '92vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
-
+      <div
+        style={{
+          background: 'white',
+          borderRadius: 14,
+          width: 560,
+          maxHeight: '92vh',
+          overflow: 'auto',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+        }}
+      >
         {/* Header */}
-        <div style={{ padding: '24px 28px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div
+          style={{
+            padding: '24px 28px 0',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start'
+          }}
+        >
           <div>
-            <h2 style={{ margin: 0, fontSize: 20, color: '#1B3A6B', fontWeight: 700 }}>Create Quote</h2>
-            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#888' }}>Step {step + 1} of {STEPS.length} — {STEPS[step]}</p>
+            <h2 style={{ margin: 0, fontSize: 20, color: '#1B3A6B', fontWeight: 700 }}>
+              Scope of Work &amp; Proposal
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#888' }}>
+              Step {step + 1} of {STEPS.length} — {STEPS[step]}
+            </p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#aaa', lineHeight: 1, marginTop: -2 }}>×</button>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: 22,
+              cursor: 'pointer',
+              color: '#aaa',
+              lineHeight: 1,
+              marginTop: -2
+            }}
+          >
+            ×
+          </button>
         </div>
 
         {/* Progress bar */}
@@ -758,12 +1197,25 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           <div style={{ display: 'flex', gap: 6 }}>
             {STEPS.map((label, i) => (
               <div key={label} style={{ flex: 1 }}>
-                <div style={{
-                  height: 4, borderRadius: 2,
-                  background: i <= step ? '#1B3A6B' : '#e5e7eb',
-                  transition: 'background 0.2s',
-                }} />
-                <div style={{ fontSize: 10, color: i === step ? '#1B3A6B' : '#bbb', marginTop: 4, fontWeight: i === step ? 700 : 400, textAlign: 'center' }}>{label}</div>
+                <div
+                  style={{
+                    height: 4,
+                    borderRadius: 2,
+                    background: i <= step ? '#1B3A6B' : '#e5e7eb',
+                    transition: 'background 0.2s'
+                  }}
+                />
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: i === step ? '#1B3A6B' : '#bbb',
+                    marginTop: 4,
+                    fontWeight: i === step ? 700 : 400,
+                    textAlign: 'center'
+                  }}
+                >
+                  {label}
+                </div>
               </div>
             ))}
           </div>
@@ -803,7 +1255,6 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
           <>
             {/* Standard step content */}
             <div style={{ padding: '24px 28px' }}>
-
               {/* Step 0 — Contact */}
               {step === 0 && (
                 <div>
@@ -812,26 +1263,42 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
                     <input
                       autoFocus
                       value={contact.name}
-                      onChange={e => handleNameChange(e.target.value)}
+                      onChange={(e) => handleNameChange(e.target.value)}
                       onFocus={() => contact.name.length >= 2 && setShowSuggestions(true)}
                       placeholder="e.g. John Smith"
                       style={inputStyle}
                     />
                     {showSuggestions && suggestions.length > 0 && (
-                      <div style={{
-                        position: 'absolute', top: '100%', left: 0, right: 0, background: 'white',
-                        border: '1px solid #ddd', borderRadius: 6, boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        zIndex: 10, maxHeight: 200, overflow: 'auto',
-                      }}>
-                        {suggestions.map(c => (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          background: 'white',
+                          border: '1px solid #ddd',
+                          borderRadius: 6,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          zIndex: 10,
+                          maxHeight: 200,
+                          overflow: 'auto'
+                        }}
+                      >
+                        {suggestions.map((c) => (
                           <div
                             key={c.id}
                             onMouseDown={() => applySuggestion(c)}
-                            style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}
-                            onMouseEnter={e => e.currentTarget.style.background = '#f5f8ff'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                            style={{
+                              padding: '10px 14px',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f0f0f0'
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f8ff')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
                           >
-                            <div style={{ fontWeight: 600, fontSize: 13, color: '#1B3A6B' }}>{c.name}</div>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: '#1B3A6B' }}>
+                              {c.name}
+                            </div>
                             <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
                               {[c.phone, c.email].filter(Boolean).join(' · ')}
                             </div>
@@ -843,11 +1310,22 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
                       <label style={labelStyle}>Phone</label>
-                      <input value={contact.phone} onChange={e => setContact(p => ({ ...p, phone: e.target.value }))} placeholder="+1 555 000 0000" style={inputStyle} />
+                      <input
+                        value={contact.phone}
+                        onChange={(e) => setContact((p) => ({ ...p, phone: e.target.value }))}
+                        placeholder="+1 555 000 0000"
+                        style={inputStyle}
+                      />
                     </div>
                     <div>
                       <label style={labelStyle}>Email</label>
-                      <input value={contact.email} onChange={e => setContact(p => ({ ...p, email: e.target.value }))} placeholder="john@email.com" type="email" style={inputStyle} />
+                      <input
+                        value={contact.email}
+                        onChange={(e) => setContact((p) => ({ ...p, email: e.target.value }))}
+                        placeholder="john@email.com"
+                        type="email"
+                        style={inputStyle}
+                      />
                     </div>
                   </div>
                 </div>
@@ -856,25 +1334,57 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
               {/* Step 1 — Job Address */}
               {step === 1 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <p style={{ margin: '0 0 4px', fontSize: 11, color: '#888', background: '#f8faff', border: '1px solid #dde4f5', borderRadius: 6, padding: '7px 10px' }}>
-                    💡 You can skip this if you're uploading plans or blueprints in the next step — the address will be read from the documents automatically.
+                  <p
+                    style={{
+                      margin: '0 0 4px',
+                      fontSize: 11,
+                      color: '#888',
+                      background: '#f8faff',
+                      border: '1px solid #dde4f5',
+                      borderRadius: 6,
+                      padding: '7px 10px'
+                    }}
+                  >
+                    💡 You can skip this if you're uploading plans or blueprints in the next step —
+                    the address will be read from the documents automatically.
                   </p>
                   <div>
                     <label style={labelStyle}>Street</label>
-                    <input autoFocus value={address.street} onChange={e => setAddress(p => ({ ...p, street: e.target.value }))} placeholder="123 Main St" style={inputStyle} />
+                    <input
+                      autoFocus
+                      value={address.street}
+                      onChange={(e) => setAddress((p) => ({ ...p, street: e.target.value }))}
+                      placeholder="123 Main St"
+                      style={inputStyle}
+                    />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
                     <div>
                       <label style={labelStyle}>City *</label>
-                      <input value={address.city} onChange={e => setAddress(p => ({ ...p, city: e.target.value }))} placeholder="Boston" style={inputStyle} />
+                      <input
+                        value={address.city}
+                        onChange={(e) => setAddress((p) => ({ ...p, city: e.target.value }))}
+                        placeholder="Boston"
+                        style={inputStyle}
+                      />
                     </div>
                     <div>
                       <label style={labelStyle}>State</label>
-                      <input value={address.state} onChange={e => setAddress(p => ({ ...p, state: e.target.value }))} placeholder="MA" style={inputStyle} />
+                      <input
+                        value={address.state}
+                        onChange={(e) => setAddress((p) => ({ ...p, state: e.target.value }))}
+                        placeholder="MA"
+                        style={inputStyle}
+                      />
                     </div>
                     <div>
                       <label style={labelStyle}>Zip</label>
-                      <input value={address.zip} onChange={e => setAddress(p => ({ ...p, zip: e.target.value }))} placeholder="02101" style={inputStyle} />
+                      <input
+                        value={address.zip}
+                        onChange={(e) => setAddress((p) => ({ ...p, zip: e.target.value }))}
+                        placeholder="02101"
+                        style={inputStyle}
+                      />
                     </div>
                   </div>
                 </div>
@@ -885,13 +1395,14 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
                 <div>
                   <label style={labelStyle}>Scope of Work *</label>
                   <p style={{ fontSize: 12, color: '#777', margin: '0 0 8px' }}>
-                    Describe the work — trades involved, rough scope, any specific materials? (minimum 20 characters)
+                    Describe the work — trades involved, rough scope, any specific materials?
+                    (minimum 20 characters)
                   </p>
                   <textarea
                     autoFocus
                     rows={6}
                     value={scope}
-                    onChange={e => setScope(e.target.value)}
+                    onChange={(e) => setScope(e.target.value)}
                     placeholder={`e.g. Kitchen remodel — install new cabinets, countertops, tile backsplash\nNew LVP flooring throughout main level\nBathroom: new vanity, toilet, shower tile`}
                     style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.5 }}
                   />
@@ -900,10 +1411,14 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
                   <div style={{ marginTop: 14 }}>
                     <label style={labelStyle}>
                       Attach Plans / Blueprints
-                      <span style={{ fontWeight: 400, textTransform: 'none', color: '#999' }}> (optional — images or PDFs)</span>
+                      <span style={{ fontWeight: 400, textTransform: 'none', color: '#999' }}>
+                        {' '}
+                        (optional — images or PDFs)
+                      </span>
                     </label>
                     <p style={{ fontSize: 11, color: '#888', margin: '0 0 8px' }}>
-                      Upload building plans, blueprints, sketches, or photos — AI will read them and pull measurements, materials, and scope details automatically.
+                      Upload building plans, blueprints, sketches, or photos — AI will read them and
+                      pull measurements, materials, and scope details automatically.
                     </p>
                     <input
                       ref={fileInputRef}
@@ -911,76 +1426,160 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
                       multiple
                       accept="image/*,.pdf"
                       style={{ display: 'none' }}
-                      onChange={e => {
+                      onChange={(e) => {
                         const newFiles = Array.from(e.target.files || []);
-                        setAttachedFiles(prev => {
-                          const names = new Set(prev.map(f => f.name));
-                          return [...prev, ...newFiles.filter(f => !names.has(f.name))];
+                        setAttachedFiles((prev) => {
+                          const names = new Set(prev.map((f) => f.name));
+                          return [...prev, ...newFiles.filter((f) => !names.has(f.name))];
                         });
                         e.target.value = '';
                       }}
                     />
                     <div
                       onClick={() => fileInputRef.current?.click()}
-                      onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#1B3A6B'; e.currentTarget.style.background = '#f0f4ff'; }}
-                      onDragLeave={e => { e.currentTarget.style.borderColor = '#c5d0e8'; e.currentTarget.style.background = '#f8faff'; }}
-                      onDrop={e => {
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.style.borderColor = '#1B3A6B';
+                        e.currentTarget.style.background = '#f0f4ff';
+                      }}
+                      onDragLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#c5d0e8';
+                        e.currentTarget.style.background = '#f8faff';
+                      }}
+                      onDrop={(e) => {
                         e.preventDefault();
                         e.currentTarget.style.borderColor = '#c5d0e8';
                         e.currentTarget.style.background = '#f8faff';
-                        const dropped = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
-                        setAttachedFiles(prev => {
-                          const names = new Set(prev.map(f => f.name));
-                          return [...prev, ...dropped.filter(f => !names.has(f.name))];
+                        const dropped = Array.from(e.dataTransfer.files).filter(
+                          (f) => f.type.startsWith('image/') || f.type === 'application/pdf'
+                        );
+                        setAttachedFiles((prev) => {
+                          const names = new Set(prev.map((f) => f.name));
+                          return [...prev, ...dropped.filter((f) => !names.has(f.name))];
                         });
                       }}
                       style={{
-                        border: '2px dashed #c5d0e8', borderRadius: 8, background: '#f8faff',
-                        padding: '14px 16px', cursor: 'pointer', textAlign: 'center',
-                        transition: 'all 0.15s',
+                        border: '2px dashed #c5d0e8',
+                        borderRadius: 8,
+                        background: '#f8faff',
+                        padding: '14px 16px',
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.15s'
                       }}
                     >
                       <div style={{ fontSize: 22, marginBottom: 4 }}>📎</div>
-                      <div style={{ fontSize: 12, color: '#555', fontWeight: 600 }}>Click or drag files here</div>
-                      <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>JPG, PNG, PDF · Multiple files OK</div>
+                      <div style={{ fontSize: 12, color: '#555', fontWeight: 600 }}>
+                        Click or drag files here
+                      </div>
+                      <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                        JPG, PNG, PDF · Multiple files OK
+                      </div>
                     </div>
 
                     {attachedFiles.length > 0 && (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                         {attachedFiles.map((f, i) => (
-                          <div key={i} style={{
-                            display: 'flex', alignItems: 'center', gap: 5,
-                            background: '#e8f0fe', borderRadius: 20, padding: '4px 10px',
-                            fontSize: 11, color: '#1B3A6B', fontWeight: 600,
-                          }}>
+                          <div
+                            key={i}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              background: '#e8f0fe',
+                              borderRadius: 20,
+                              padding: '4px 10px',
+                              fontSize: 11,
+                              color: '#1B3A6B',
+                              fontWeight: 600
+                            }}
+                          >
                             <span>{f.type.startsWith('image/') ? '🖼️' : '📄'}</span>
-                            <span style={{ maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                            <span
+                              style={{
+                                maxWidth: 140,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {f.name}
+                            </span>
                             <button
-                              onClick={e => { e.stopPropagation(); setAttachedFiles(prev => prev.filter((_, j) => j !== i)); }}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', fontSize: 13, lineHeight: 1, padding: 0 }}
-                            >×</button>
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAttachedFiles((prev) => prev.filter((_, j) => j !== i));
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#666',
+                                fontSize: 13,
+                                lineHeight: 1,
+                                padding: 0
+                              }}
+                            >
+                              ×
+                            </button>
                           </div>
                         ))}
                       </div>
                     )}
 
                     {extractingFiles && (
-                      <div style={{ marginTop: 8, fontSize: 12, color: '#1B3A6B', display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ display: 'inline-block', width: 12, height: 12, border: '2px solid #1B3A6B', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                      <div
+                        style={{
+                          marginTop: 8,
+                          fontSize: 12,
+                          color: '#1B3A6B',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: 12,
+                            height: 12,
+                            border: '2px solid #1B3A6B',
+                            borderTopColor: 'transparent',
+                            borderRadius: '50%',
+                            animation: 'spin 0.7s linear infinite'
+                          }}
+                        />
                         Reading files…
                       </div>
                     )}
                   </div>
 
                   <div style={{ marginTop: 14 }}>
-                    <label style={labelStyle}>Budget Target <span style={{ fontWeight: 400, textTransform: 'none', color: '#999' }}>(optional — soft target, AI can go ±8%)</span></label>
+                    <label style={labelStyle}>
+                      Budget Target{' '}
+                      <span style={{ fontWeight: 400, textTransform: 'none', color: '#999' }}>
+                        (optional — soft target, AI can go ±8%)
+                      </span>
+                    </label>
                     <div style={{ position: 'relative' }}>
-                      <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#555', fontSize: 13, fontWeight: 600 }}>$</span>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: 10,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#555',
+                          fontSize: 13,
+                          fontWeight: 600
+                        }}
+                      >
+                        $
+                      </span>
                       <input
                         type="text"
                         inputMode="numeric"
                         value={budgetTarget}
-                        onChange={e => setBudgetTarget(e.target.value.replace(/[^0-9,]/g, ''))}
+                        onChange={(e) => setBudgetTarget(e.target.value.replace(/[^0-9,]/g, ''))}
                         placeholder="e.g. 150,000"
                         style={{ ...inputStyle, paddingLeft: 22 }}
                       />
@@ -994,10 +1593,25 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
             </div>
 
             {/* Footer navigation for standard steps */}
-            <div style={{ padding: '0 28px 24px', display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+            <div
+              style={{
+                padding: '0 28px 24px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                gap: 10
+              }}
+            >
               <button
-                onClick={step === 0 ? onClose : () => setStep(s => s - 1)}
-                style={{ padding: '10px 20px', border: '1px solid #ddd', borderRadius: 6, background: 'white', cursor: 'pointer', fontSize: 13, color: '#555' }}
+                onClick={step === 0 ? onClose : () => setStep((s) => s - 1)}
+                style={{
+                  padding: '10px 20px',
+                  border: '1px solid #ddd',
+                  borderRadius: 6,
+                  background: 'white',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  color: '#555'
+                }}
               >
                 {step === 0 ? 'Cancel' : '← Back'}
               </button>
@@ -1007,23 +1621,31 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted }) {
                   onClick={handleNextFromScope}
                   disabled={!canNext()}
                   style={{
-                    padding: '10px 24px', borderRadius: 6, border: 'none',
+                    padding: '10px 24px',
+                    borderRadius: 6,
+                    border: 'none',
                     background: !canNext() ? '#c5ccd8' : '#1B3A6B',
-                    color: 'white', fontWeight: 700, fontSize: 13,
-                    cursor: !canNext() ? 'not-allowed' : 'pointer',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: !canNext() ? 'not-allowed' : 'pointer'
                   }}
                 >
                   Next →
                 </button>
               ) : (
                 <button
-                  onClick={() => setStep(s => s + 1)}
+                  onClick={() => setStep((s) => s + 1)}
                   disabled={!canNext()}
                   style={{
-                    padding: '10px 24px', borderRadius: 6, border: 'none',
+                    padding: '10px 24px',
+                    borderRadius: 6,
+                    border: 'none',
                     background: canNext() ? '#1B3A6B' : '#c5ccd8',
-                    color: 'white', fontWeight: 700, fontSize: 13,
-                    cursor: canNext() ? 'pointer' : 'not-allowed',
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: canNext() ? 'pointer' : 'not-allowed'
                   }}
                 >
                   Next →

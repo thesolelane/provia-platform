@@ -6,41 +6,41 @@ import { showConfirm } from '../utils/confirm';
 import CreateQuoteWizard from '../components/CreateQuoteWizard';
 
 const STATUS_COLORS = {
-  received:          '#888',
-  processing:        '#E07B2A',
-  clarification:     '#F59E0B',
-  proposal_ready:    '#3B82F6',
-  proposal_sent:     '#8B5CF6',
+  received: '#888',
+  processing: '#E07B2A',
+  clarification: '#F59E0B',
+  proposal_ready: '#3B82F6',
+  proposal_sent: '#8B5CF6',
   proposal_approved: '#059669',
   customer_approved: '#10B981',
-  contract_ready:    '#0D9488',
-  contract_sent:     '#047857',
-  contract_signed:   '#1B3A6B',
-  complete:          '#111827',
-  error:             '#C62828',
+  contract_ready: '#0D9488',
+  contract_sent: '#047857',
+  contract_signed: '#1B3A6B',
+  complete: '#111827',
+  error: '#C62828'
 };
 
 const STATUS_LABELS = {
-  received:          'Received',
-  processing:        'Processing',
-  clarification:     'Needs Info',
-  proposal_ready:    'Proposal Ready',
-  proposal_sent:     'Sent for Approval',
+  received: 'Received',
+  processing: 'Processing',
+  clarification: 'Needs Info',
+  proposal_ready: 'Proposal Ready',
+  proposal_sent: 'Sent for Approval',
   proposal_approved: 'Proposal Approved ✓',
   customer_approved: 'Approved',
-  contract_ready:    'Contract Ready',
-  contract_sent:     'Contract Sent',
-  contract_signed:   'Contract Signed ✓',
-  complete:          'Complete',
+  contract_ready: 'Contract Ready',
+  contract_sent: 'Contract Sent',
+  contract_signed: 'Contract Signed ✓',
+  complete: 'Complete'
 };
 
 const OUTCOME_BADGES = {
-  lost_price:      { label: 'Lost – Price',     bg: '#FFEBEE', color: '#C62828' },
-  lost_timing:     { label: 'Lost – Timing',    bg: '#FFF3E0', color: '#E65100' },
+  lost_price: { label: 'Lost – Price', bg: '#FFEBEE', color: '#C62828' },
+  lost_timing: { label: 'Lost – Timing', bg: '#FFF3E0', color: '#E65100' },
   lost_competitor: { label: 'Lost – Competitor', bg: '#F3E5F5', color: '#6A1B9A' },
-  ghosted:         { label: 'Ghosted',    bg: '#ECEFF1', color: '#546E7A' },
-  mistake:         { label: 'Mistake / Duplicate', bg: '#EFEBE9', color: '#795548' },
-  completed:       { label: 'Completed',  bg: '#E8F5E9', color: '#2E7D32' },
+  ghosted: { label: 'Ghosted', bg: '#ECEFF1', color: '#546E7A' },
+  mistake: { label: 'Mistake / Duplicate', bg: '#EFEBE9', color: '#795548' },
+  completed: { label: 'Completed', bg: '#E8F5E9', color: '#2E7D32' }
 };
 
 function outcomeBadge(reason) {
@@ -57,21 +57,30 @@ export default function Dashboard({ token }) {
   const [showManual, setShowManual] = useState(false);
   const [submitTab, setSubmitTab] = useState('text');
   const [submitBusy, setSubmitBusy] = useState(false);
-  const [manual, setManual] = useState({ customerName: '', customerEmail: '', customerPhone: '', projectAddress: '', estimateText: '' });
+  const [manual, setManual] = useState({
+    customerName: '',
+    customerEmail: '',
+    customerPhone: '',
+    projectAddress: '',
+    estimateText: ''
+  });
   const [uploadFile, setUploadFile] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const esRef = useRef(null);
 
   const headers = { 'x-auth-token': token };
 
-  const loadDashboard = () => Promise.all([
-    fetch('/api/jobs', { headers }).then(r => r.json()),
-    fetch('/api/jobs/stats/summary', { headers }).then(r => r.json())
-  ]).then(([jobsData, statsData]) => {
-    setJobs(jobsData.jobs || []);
-    setStats(statsData);
-    setLoading(false);
-  }).catch(() => setLoading(false));
+  const loadDashboard = () =>
+    Promise.all([
+      fetch('/api/jobs', { headers }).then((r) => r.json()),
+      fetch('/api/jobs/stats/summary', { headers }).then((r) => r.json())
+    ])
+      .then(([jobsData, statsData]) => {
+        setJobs(jobsData.jobs || []);
+        setStats(statsData);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
 
   const connectSSE = () => {
     if (esRef.current) esRef.current.close();
@@ -98,12 +107,16 @@ export default function Dashboard({ token }) {
   // SSE connection — set up once, auto-reconnect on error
   useEffect(() => {
     connectSSE();
-    return () => { if (esRef.current) esRef.current.close(); };
+    return () => {
+      if (esRef.current) esRef.current.close();
+    };
   }, []);
 
   // Re-fetch when tab becomes visible again
   useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === 'visible') loadDashboard(); };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadDashboard();
+    };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
@@ -132,8 +145,8 @@ export default function Dashboard({ token }) {
       body: JSON.stringify({ closed_reason: 'completed' })
     });
     if (res.ok) {
-      setJobs(jobs.filter(j => j.id !== jobId));
-      setStats(prev => prev ? { ...prev, total: (prev.total || 1) - 1 } : prev);
+      setJobs(jobs.filter((j) => j.id !== jobId));
+      setStats((prev) => (prev ? { ...prev, total: (prev.total || 1) - 1 } : prev));
       showToast('Completed job archived');
     } else {
       const data = await res.json();
@@ -147,12 +160,15 @@ export default function Dashboard({ token }) {
     const res = await fetch(`/api/jobs/${archiveModal.jobId}`, {
       method: 'DELETE',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ closed_reason: archiveReason || null, closed_note: archiveNote || null })
+      body: JSON.stringify({
+        closed_reason: archiveReason || null,
+        closed_note: archiveNote || null
+      })
     });
     setArchiveBusy(false);
     if (res.ok) {
-      setJobs(jobs.filter(j => j.id !== archiveModal.jobId));
-      setStats(prev => prev ? { ...prev, total: (prev.total || 1) - 1 } : prev);
+      setJobs(jobs.filter((j) => j.id !== archiveModal.jobId));
+      setStats((prev) => (prev ? { ...prev, total: (prev.total || 1) - 1 } : prev));
       setArchiveModal(null);
       showToast('Job archived');
     } else {
@@ -171,7 +187,7 @@ export default function Dashboard({ token }) {
   const restoreJob = async (jobId) => {
     const res = await fetch(`/api/jobs/${jobId}/restore`, { method: 'POST', headers });
     if (res.ok) {
-      setArchivedJobs(archivedJobs.filter(j => j.id !== jobId));
+      setArchivedJobs(archivedJobs.filter((j) => j.id !== jobId));
       window.location.reload();
     }
   };
@@ -179,20 +195,32 @@ export default function Dashboard({ token }) {
   const openNewJob = () => {
     setSubmitTab('text');
     setUploadFile(null);
-    setManual({ customerName: '', customerEmail: '', customerPhone: '', projectAddress: '', estimateText: '' });
+    setManual({
+      customerName: '',
+      customerEmail: '',
+      customerPhone: '',
+      projectAddress: '',
+      estimateText: ''
+    });
     setShowManual(true);
   };
 
   const submitManual = async () => {
     setSubmitBusy(true);
     const res = await fetch('/api/jobs/manual', {
-      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify(manual)
     });
     const data = await res.json();
     setSubmitBusy(false);
-    if (res.ok) { setShowManual(false); showToast('Estimate submitted — processing now'); window.location.reload(); }
-    else { showToast(data.error || 'Error submitting estimate', 'error'); }
+    if (res.ok) {
+      setShowManual(false);
+      showToast('Estimate submitted — processing now');
+      window.location.reload();
+    } else {
+      showToast(data.error || 'Error submitting estimate', 'error');
+    }
   };
 
   const submitUpload = async () => {
@@ -207,8 +235,13 @@ export default function Dashboard({ token }) {
     const res = await fetch('/api/jobs/upload-estimate', { method: 'POST', headers, body: form });
     const data = await res.json();
     setSubmitBusy(false);
-    if (res.ok) { setShowManual(false); showToast('File uploaded — processing now'); window.location.reload(); }
-    else { showToast(data.error || 'Error processing file', 'error'); }
+    if (res.ok) {
+      setShowManual(false);
+      showToast('File uploaded — processing now');
+      window.location.reload();
+    } else {
+      showToast(data.error || 'Error processing file', 'error');
+    }
   };
 
   if (loading) return <div style={{ padding: 40, color: '#888' }}>Loading...</div>;
@@ -216,29 +249,63 @@ export default function Dashboard({ token }) {
   return (
     <div className="pb-page" style={{ padding: isMobile ? '16px 12px 90px' : '24px 28px 40px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28, flexWrap: 'wrap', gap: 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 28,
+          flexWrap: 'wrap',
+          gap: 12
+        }}
+      >
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 'bold', color: '#1B3A6B', margin: 0 }}>Dashboard</h1>
-          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>Preferred Builders AI Contract System</p>
+          <h1 style={{ fontSize: 22, fontWeight: 'bold', color: '#1B3A6B', margin: 0 }}>
+            Dashboard
+          </h1>
+          <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>
+            Preferred Builders AI Contract System
+          </p>
         </div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <button
               onClick={() => setShowWizard(true)}
-              style={{ background: '#1B3A6B', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 'bold' }}
+              style={{
+                background: '#1B3A6B',
+                color: 'white',
+                border: 'none',
+                padding: '10px 20px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 'bold'
+              }}
             >
-              + Create Quote
+              + New S.O.W. Proposal
             </button>
-            <div style={{ fontSize: 10, color: '#888', marginTop: 3, textAlign: 'center' }}>AI Estimation Wizard</div>
+            <div style={{ fontSize: 10, color: '#888', marginTop: 3, textAlign: 'center' }}>
+              AI Estimation Wizard
+            </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <button
               onClick={openNewJob}
-              style={{ background: 'white', color: '#1B3A6B', border: '1.5px solid #1B3A6B', padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+              style={{
+                background: 'white',
+                color: '#1B3A6B',
+                border: '1.5px solid #1B3A6B',
+                padding: '9px 18px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: 13
+              }}
             >
               New Job
             </button>
-            <div style={{ fontSize: 10, color: '#888', marginTop: 3, textAlign: 'center' }}>Manual Entry</div>
+            <div style={{ fontSize: 10, color: '#888', marginTop: 3, textAlign: 'center' }}>
+              Manual Entry
+            </div>
           </div>
         </div>
       </div>
@@ -248,11 +315,27 @@ export default function Dashboard({ token }) {
         <div className="pb-stats-grid" style={{ marginBottom: 28 }}>
           {[
             { label: 'Total Jobs (YTD)', value: stats.total, icon: '📋' },
-            { label: 'Quotes Done (YTD)', value: stats.thisMonth?.count || 0, icon: '📅' },
-            { label: 'Pipeline Value', value: `$${(stats.totalValue || 0).toLocaleString()}`, icon: '💰' },
-            { label: 'Won Revenue (YTD)', value: `$${(stats.thisMonth?.value || 0).toLocaleString()}`, icon: '📈' },
-          ].map(card => (
-            <div key={card.label} style={{ background: 'white', borderRadius: 10, padding: 20, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            { label: 'Proposals Done (YTD)', value: stats.thisMonth?.count || 0, icon: '📅' },
+            {
+              label: 'Pipeline Value',
+              value: `$${(stats.totalValue || 0).toLocaleString()}`,
+              icon: '💰'
+            },
+            {
+              label: 'Won Revenue (YTD)',
+              value: `$${(stats.thisMonth?.value || 0).toLocaleString()}`,
+              icon: '📈'
+            }
+          ].map((card) => (
+            <div
+              key={card.label}
+              style={{
+                background: 'white',
+                borderRadius: 10,
+                padding: 20,
+                boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+              }}
+            >
               <div style={{ fontSize: 24, marginBottom: 8 }}>{card.icon}</div>
               <div style={{ fontSize: 22, fontWeight: 'bold', color: '#1B3A6B' }}>{card.value}</div>
               <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>{card.label}</div>
@@ -265,27 +348,67 @@ export default function Dashboard({ token }) {
       {isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {jobs.length === 0 && (
-            <div style={{ background: 'white', borderRadius: 10, padding: 32, textAlign: 'center', color: '#888', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            <div
+              style={{
+                background: 'white',
+                borderRadius: 10,
+                padding: 32,
+                textAlign: 'center',
+                color: '#888',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+              }}
+            >
               No jobs yet. Waiting for estimates from Hearth...
             </div>
           )}
-          {jobs.map(job => (
-            <div key={job.id} style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', padding: '14px 16px' }}>
+          {jobs.map((job) => (
+            <div
+              key={job.id}
+              style={{
+                background: 'white',
+                borderRadius: 10,
+                boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                padding: '14px 16px'
+              }}
+            >
               {/* Top row: PB# + status badge */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  marginBottom: 6
+                }}
+              >
                 <div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#1B3A6B', fontFamily: 'monospace' }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: '#1B3A6B',
+                      fontFamily: 'monospace'
+                    }}
+                  >
                     {job.pb_number || '—'}
                   </span>
                   {job.external_ref && (
-                    <span style={{ fontSize: 10, color: '#aaa', marginLeft: 6 }}>ref #{job.external_ref}</span>
+                    <span style={{ fontSize: 10, color: '#aaa', marginLeft: 6 }}>
+                      ref #{job.external_ref}
+                    </span>
                   )}
                 </div>
-                <span style={{
-                  background: STATUS_COLORS[job.status] + '22',
-                  color: STATUS_COLORS[job.status],
-                  padding: '3px 10px', borderRadius: 20, fontSize: 10, fontWeight: 'bold', whiteSpace: 'nowrap', marginLeft: 8
-                }}>
+                <span
+                  style={{
+                    background: STATUS_COLORS[job.status] + '22',
+                    color: STATUS_COLORS[job.status],
+                    padding: '3px 10px',
+                    borderRadius: 20,
+                    fontSize: 10,
+                    fontWeight: 'bold',
+                    whiteSpace: 'nowrap',
+                    marginLeft: 8
+                  }}
+                >
                   {STATUS_LABELS[job.status] || job.status}
                 </span>
               </div>
@@ -295,10 +418,21 @@ export default function Dashboard({ token }) {
               </div>
               {/* Address */}
               {job.project_address && (
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>{job.project_address}</div>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                  {job.project_address}
+                </div>
               )}
               {/* Bottom row: value + date + actions */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f0f0f0', paddingTop: 10, marginTop: 4 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderTop: '1px solid #f0f0f0',
+                  paddingTop: 10,
+                  marginTop: 4
+                }}
+              >
                 <div>
                   <span style={{ fontSize: 14, fontWeight: 700, color: '#1B3A6B' }}>
                     {job.total_value ? `$${job.total_value.toLocaleString()}` : '—'}
@@ -310,52 +444,124 @@ export default function Dashboard({ token }) {
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                   <button
                     onClick={() => openArchiveModal(job.id, job.customer_name, job.status)}
-                    style={{ background: 'none', border: 'none', color: '#bbb', cursor: 'pointer', fontSize: 11, padding: '4px 6px' }}
-                  >Archive</button>
-                  <Link to={`/jobs/${job.id}`} style={{
-                    background: '#1B3A6B', color: 'white', fontSize: 12, fontWeight: 'bold',
-                    textDecoration: 'none', padding: '6px 14px', borderRadius: 6
-                  }}>View →</Link>
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#bbb',
+                      cursor: 'pointer',
+                      fontSize: 11,
+                      padding: '4px 6px'
+                    }}
+                  >
+                    Archive
+                  </button>
+                  <Link
+                    to={`/jobs/${job.id}`}
+                    style={{
+                      background: '#1B3A6B',
+                      color: 'white',
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      textDecoration: 'none',
+                      padding: '6px 14px',
+                      borderRadius: 6
+                    }}
+                  >
+                    View →
+                  </Link>
                 </div>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ background: 'white', borderRadius: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', overflowX: 'auto' }}>
+        <div
+          style={{
+            background: 'white',
+            borderRadius: 10,
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+            overflowX: 'auto'
+          }}
+        >
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
             <thead>
               <tr style={{ background: '#1B3A6B' }}>
-                {['PB Number', 'Customer', 'Address', 'Value', 'Status', 'Date', ''].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', color: 'white', textAlign: 'left', fontSize: 12, fontWeight: 'bold' }}>{h}</th>
+                {['PB Number', 'Customer', 'Address', 'Value', 'Status', 'Date', ''].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      padding: '12px 16px',
+                      color: 'white',
+                      textAlign: 'left',
+                      fontSize: 12,
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {jobs.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#888' }}>No jobs yet. Waiting for estimates from Hearth...</td></tr>
+                <tr>
+                  <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#888' }}>
+                    No jobs yet. Waiting for estimates from Hearth...
+                  </td>
+                </tr>
               )}
               {jobs.map((job, i) => (
-                <tr key={job.id} style={{ borderBottom: '1px solid #f0f0f0', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                <tr
+                  key={job.id}
+                  style={{
+                    borderBottom: '1px solid #f0f0f0',
+                    background: i % 2 === 0 ? 'white' : '#fafafa'
+                  }}
+                >
                   <td style={{ padding: '12px 16px' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#1B3A6B', fontFamily: 'monospace' }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: '#1B3A6B',
+                        fontFamily: 'monospace'
+                      }}
+                    >
                       {job.pb_number || '—'}
                     </div>
                     {job.external_ref && (
-                      <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>ref #{job.external_ref}</div>
+                      <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>
+                        ref #{job.external_ref}
+                      </div>
                     )}
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500' }}>{job.customer_name || '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 12, color: '#555' }}>{job.project_address || '—'}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500', color: '#1B3A6B' }}>
+                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500' }}>
+                    {job.customer_name || '—'}
+                  </td>
+                  <td style={{ padding: '12px 16px', fontSize: 12, color: '#555' }}>
+                    {job.project_address || '—'}
+                  </td>
+                  <td
+                    style={{
+                      padding: '12px 16px',
+                      fontSize: 13,
+                      fontWeight: '500',
+                      color: '#1B3A6B'
+                    }}
+                  >
                     {job.total_value ? `$${job.total_value.toLocaleString()}` : '—'}
                   </td>
                   <td style={{ padding: '12px 16px' }}>
-                    <span style={{
-                      background: STATUS_COLORS[job.status] + '22',
-                      color: STATUS_COLORS[job.status],
-                      padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 'bold'
-                    }}>
+                    <span
+                      style={{
+                        background: STATUS_COLORS[job.status] + '22',
+                        color: STATUS_COLORS[job.status],
+                        padding: '3px 10px',
+                        borderRadius: 20,
+                        fontSize: 11,
+                        fontWeight: 'bold'
+                      }}
+                    >
                       {STATUS_LABELS[job.status] || job.status}
                     </span>
                   </td>
@@ -364,12 +570,32 @@ export default function Dashboard({ token }) {
                   </td>
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <Link to={`/jobs/${job.id}`} style={{ color: '#1B3A6B', fontSize: 12, fontWeight: 'bold', textDecoration: 'none' }}>View →</Link>
+                      <Link
+                        to={`/jobs/${job.id}`}
+                        style={{
+                          color: '#1B3A6B',
+                          fontSize: 12,
+                          fontWeight: 'bold',
+                          textDecoration: 'none'
+                        }}
+                      >
+                        View →
+                      </Link>
                       <button
                         onClick={() => openArchiveModal(job.id, job.customer_name, job.status)}
-                        style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 11, padding: '2px 6px', borderRadius: 4 }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#888',
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          padding: '2px 6px',
+                          borderRadius: 4
+                        }}
                         title="Archive job"
-                      >Archive</button>
+                      >
+                        Archive
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -380,51 +606,146 @@ export default function Dashboard({ token }) {
       )}
 
       <div style={{ marginTop: 12, textAlign: 'right' }}>
-        <button onClick={loadArchived} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}>
+        <button
+          onClick={loadArchived}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#888',
+            cursor: 'pointer',
+            fontSize: 12,
+            textDecoration: 'underline'
+          }}
+        >
           View Archived Jobs
         </button>
       </div>
 
       {/* Archived jobs modal */}
       {showArchived && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 24, width: 600, maxWidth: '95vw', maxHeight: '85vh', overflow: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 12,
+              padding: 24,
+              width: 600,
+              maxWidth: '95vw',
+              maxHeight: '85vh',
+              overflow: 'auto'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 20
+              }}
+            >
               <h2 style={{ color: '#1B3A6B', margin: 0 }}>Archived Jobs</h2>
-              <button onClick={() => setShowArchived(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>×</button>
+              <button
+                onClick={() => setShowArchived(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 20,
+                  cursor: 'pointer',
+                  color: '#888'
+                }}
+              >
+                ×
+              </button>
             </div>
-            <p style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>Archived jobs are permanently deleted after 90 days.</p>
+            <p style={{ fontSize: 12, color: '#888', marginBottom: 16 }}>
+              Archived jobs are permanently deleted after 90 days.
+            </p>
             {archivedJobs.length === 0 ? (
               <p style={{ color: '#888', textAlign: 'center', padding: 20 }}>No archived jobs.</p>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: '#f5f5f5' }}>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>Customer</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>Outcome</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>Archived</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>Days Left</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>
+                      Customer
+                    </th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>
+                      Outcome
+                    </th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>
+                      Archived
+                    </th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 11 }}>
+                      Days Left
+                    </th>
                     <th style={{ padding: '8px 12px', fontSize: 11 }}></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {archivedJobs.map(job => {
-                    const daysLeft = Math.max(0, 90 - Math.floor((Date.now() - new Date(job.archived_at).getTime()) / 86400000));
+                  {archivedJobs.map((job) => {
+                    const daysLeft = Math.max(
+                      0,
+                      90 - Math.floor((Date.now() - new Date(job.archived_at).getTime()) / 86400000)
+                    );
                     const badge = outcomeBadge(job.closed_reason);
                     return (
                       <tr key={job.id} style={{ borderBottom: '1px solid #eee' }}>
-                        <td style={{ padding: '8px 12px', fontSize: 13 }}>{job.customer_name || '—'}</td>
+                        <td style={{ padding: '8px 12px', fontSize: 13 }}>
+                          {job.customer_name || '—'}
+                        </td>
                         <td style={{ padding: '8px 12px' }}>
                           {badge ? (
-                            <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 'bold', background: badge.bg, color: badge.color }}>
+                            <span
+                              style={{
+                                padding: '2px 8px',
+                                borderRadius: 10,
+                                fontSize: 10,
+                                fontWeight: 'bold',
+                                background: badge.bg,
+                                color: badge.color
+                              }}
+                            >
                               {badge.label}
                             </span>
-                          ) : <span style={{ fontSize: 10, color: '#bbb' }}>—</span>}
+                          ) : (
+                            <span style={{ fontSize: 10, color: '#bbb' }}>—</span>
+                          )}
                         </td>
-                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#888' }}>{new Date(job.archived_at).toLocaleDateString()}</td>
-                        <td style={{ padding: '8px 12px', fontSize: 11, color: daysLeft < 14 ? '#C62828' : '#888' }}>{daysLeft} days</td>
+                        <td style={{ padding: '8px 12px', fontSize: 11, color: '#888' }}>
+                          {new Date(job.archived_at).toLocaleDateString()}
+                        </td>
+                        <td
+                          style={{
+                            padding: '8px 12px',
+                            fontSize: 11,
+                            color: daysLeft < 14 ? '#C62828' : '#888'
+                          }}
+                        >
+                          {daysLeft} days
+                        </td>
                         <td style={{ padding: '8px 12px' }}>
-                          <button onClick={() => restoreJob(job.id)} style={{ background: '#1B3A6B', color: 'white', border: 'none', padding: '4px 12px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>
+                          <button
+                            onClick={() => restoreJob(job.id)}
+                            style={{
+                              background: '#1B3A6B',
+                              color: 'white',
+                              border: 'none',
+                              padding: '4px 12px',
+                              borderRadius: 4,
+                              cursor: 'pointer',
+                              fontSize: 11
+                            }}
+                          >
                             Restore
                           </button>
                         </td>
@@ -440,33 +761,103 @@ export default function Dashboard({ token }) {
 
       {/* Archive Outcome Modal */}
       {archiveModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 24, width: 440, maxWidth: '95vw', maxHeight: '85vh', overflow: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100
+          }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 12,
+              padding: 24,
+              width: 440,
+              maxWidth: '95vw',
+              maxHeight: '85vh',
+              overflow: 'auto'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16
+              }}
+            >
               <h3 style={{ color: '#1B3A6B', margin: 0, fontSize: 18 }}>Archive Job</h3>
-              <button onClick={() => setArchiveModal(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#888' }}>×</button>
+              <button
+                onClick={() => setArchiveModal(null)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 20,
+                  cursor: 'pointer',
+                  color: '#888'
+                }}
+              >
+                ×
+              </button>
             </div>
             <p style={{ fontSize: 13, color: '#555', marginBottom: 16 }}>
-              Archiving <strong>{archiveModal.customerName || 'this job'}</strong>. Why is this job being closed?
+              Archiving <strong>{archiveModal.customerName || 'this job'}</strong>. Why is this job
+              being closed?
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
               {[
-                { value: 'lost_price', label: 'Lost – Price', icon: '💰', color: '#C62828', bg: '#FFEBEE' },
-                { value: 'lost_timing', label: 'Lost – Timing', icon: '⏰', color: '#E65100', bg: '#FFF3E0' },
-                { value: 'lost_competitor', label: 'Lost – Competitor', icon: '🏢', color: '#6A1B9A', bg: '#F3E5F5' },
+                {
+                  value: 'lost_price',
+                  label: 'Lost – Price',
+                  icon: '💰',
+                  color: '#C62828',
+                  bg: '#FFEBEE'
+                },
+                {
+                  value: 'lost_timing',
+                  label: 'Lost – Timing',
+                  icon: '⏰',
+                  color: '#E65100',
+                  bg: '#FFF3E0'
+                },
+                {
+                  value: 'lost_competitor',
+                  label: 'Lost – Competitor',
+                  icon: '🏢',
+                  color: '#6A1B9A',
+                  bg: '#F3E5F5'
+                },
                 { value: 'ghosted', label: 'Ghosted', icon: '👻', color: '#546E7A', bg: '#ECEFF1' },
-                { value: 'mistake', label: 'Mistake / Duplicate', icon: '🗑️', color: '#795548', bg: '#EFEBE9' },
-              ].map(opt => (
+                {
+                  value: 'mistake',
+                  label: 'Mistake / Duplicate',
+                  icon: '🗑️',
+                  color: '#795548',
+                  bg: '#EFEBE9'
+                }
+              ].map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => setArchiveReason(archiveReason === opt.value ? '' : opt.value)}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: 600,
                     background: archiveReason === opt.value ? opt.bg : '#fafafa',
                     color: archiveReason === opt.value ? opt.color : '#555',
-                    border: archiveReason === opt.value ? `2px solid ${opt.color}` : '2px solid #eee',
+                    border:
+                      archiveReason === opt.value ? `2px solid ${opt.color}` : '2px solid #eee',
                     transition: 'all 0.15s'
                   }}
                 >
@@ -477,14 +868,25 @@ export default function Dashboard({ token }) {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>Note (optional)</label>
+              <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
+                Note (optional)
+              </label>
               <textarea
                 value={archiveNote}
-                onChange={e => setArchiveNote(e.target.value)}
+                onChange={(e) => setArchiveNote(e.target.value)}
                 placeholder="Any details about this outcome..."
                 rows={2}
                 maxLength={500}
-                style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  border: '1px solid #ddd',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  boxSizing: 'border-box',
+                  resize: 'vertical',
+                  fontFamily: 'inherit'
+                }}
               />
             </div>
 
@@ -493,16 +895,31 @@ export default function Dashboard({ token }) {
                 onClick={confirmArchive}
                 disabled={archiveBusy}
                 style={{
-                  flex: 1, padding: '10px 16px', borderRadius: 6, cursor: archiveBusy ? 'not-allowed' : 'pointer',
-                  fontWeight: 'bold', fontSize: 13, border: 'none',
-                  background: archiveBusy ? '#888' : '#1B3A6B', color: 'white'
+                  flex: 1,
+                  padding: '10px 16px',
+                  borderRadius: 6,
+                  cursor: archiveBusy ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: 13,
+                  border: 'none',
+                  background: archiveBusy ? '#888' : '#1B3A6B',
+                  color: 'white'
                 }}
               >
                 {archiveBusy ? 'Archiving...' : 'Archive Job'}
               </button>
               <button
                 onClick={() => setArchiveModal(null)}
-                style={{ padding: '10px 16px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13, background: '#f0f0f0', color: '#555', border: 'none' }}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  background: '#f0f0f0',
+                  color: '#555',
+                  border: 'none'
+                }}
               >
                 Cancel
               </button>
@@ -519,34 +936,92 @@ export default function Dashboard({ token }) {
         <CreateQuoteWizard
           token={token}
           onClose={() => setShowWizard(false)}
-          onSubmitted={() => { loadDashboard(); }}
+          onSubmitted={() => {
+            loadDashboard();
+          }}
         />
       )}
 
       {/* New Job modal (quick paste/upload fallback) */}
       {showManual && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: 'white', borderRadius: 12, padding: 24, width: 580, maxWidth: '95vw', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div
+            style={{
+              background: 'white',
+              borderRadius: 12,
+              padding: 24,
+              width: 580,
+              maxWidth: '95vw',
+              maxHeight: '90vh',
+              overflow: 'auto'
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 6
+              }}
+            >
               <h2 style={{ color: '#1B3A6B', margin: 0, fontSize: 20 }}>New Job</h2>
-              <button onClick={() => setShowManual(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888' }}>×</button>
+              <button
+                onClick={() => setShowManual(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: 22,
+                  cursor: 'pointer',
+                  color: '#888'
+                }}
+              >
+                ×
+              </button>
             </div>
-            <p style={{ color: '#888', fontSize: 12, marginBottom: 20 }}>Submit an estimate any way you have it — Claude will extract the details automatically.</p>
+            <p style={{ color: '#888', fontSize: 12, marginBottom: 20 }}>
+              Submit an estimate any way you have it — Claude will extract the details
+              automatically.
+            </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
+            <div
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}
+            >
               {[
                 { label: 'Customer Name', key: 'customerName', placeholder: 'John Smith' },
                 { label: 'Customer Phone', key: 'customerPhone', placeholder: '+1 555 000 0000' },
                 { label: 'Customer Email', key: 'customerEmail', placeholder: 'john@email.com' },
-                { label: 'Project Address', key: 'projectAddress', placeholder: '123 Main St, City, FL' },
-              ].map(f => (
+                {
+                  label: 'Project Address',
+                  key: 'projectAddress',
+                  placeholder: '123 Main St, City, FL'
+                }
+              ].map((f) => (
                 <div key={f.key}>
-                  <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 3 }}>{f.label}</label>
+                  <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 3 }}>
+                    {f.label}
+                  </label>
                   <input
                     value={manual[f.key]}
-                    onChange={e => setManual({ ...manual, [f.key]: e.target.value })}
+                    onChange={(e) => setManual({ ...manual, [f.key]: e.target.value })}
                     placeholder={f.placeholder}
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6, fontSize: 12, boxSizing: 'border-box' }}
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      border: '1px solid #ddd',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      boxSizing: 'border-box'
+                    }}
                   />
                 </div>
               ))}
@@ -555,13 +1030,26 @@ export default function Dashboard({ token }) {
             <div style={{ display: 'flex', borderBottom: '2px solid #f0f0f0', marginBottom: 16 }}>
               {[
                 { id: 'text', label: '✏️ Paste Text' },
-                { id: 'file', label: '📎 Upload File' },
-              ].map(tab => (
-                <button key={tab.id} onClick={() => setSubmitTab(tab.id)} style={{
-                  padding: '8px 18px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: submitTab === tab.id ? 'bold' : 'normal',
-                  background: 'none', color: submitTab === tab.id ? '#1B3A6B' : '#888',
-                  borderBottom: submitTab === tab.id ? '2px solid #1B3A6B' : '2px solid transparent', marginBottom: -2
-                }}>{tab.label}</button>
+                { id: 'file', label: '📎 Upload File' }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setSubmitTab(tab.id)}
+                  style={{
+                    padding: '8px 18px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontWeight: submitTab === tab.id ? 'bold' : 'normal',
+                    background: 'none',
+                    color: submitTab === tab.id ? '#1B3A6B' : '#888',
+                    borderBottom:
+                      submitTab === tab.id ? '2px solid #1B3A6B' : '2px solid transparent',
+                    marginBottom: -2
+                  }}
+                >
+                  {tab.label}
+                </button>
               ))}
             </div>
 
@@ -573,14 +1061,34 @@ export default function Dashboard({ token }) {
                 <textarea
                   rows={9}
                   value={manual.estimateText}
-                  onChange={e => setManual({ ...manual, estimateText: e.target.value })}
-                  style={{ width: '100%', padding: 10, border: '1px solid #ddd', borderRadius: 6, fontSize: 12, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+                  onChange={(e) => setManual({ ...manual, estimateText: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: 10,
+                    border: '1px solid #ddd',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    boxSizing: 'border-box',
+                    resize: 'vertical',
+                    fontFamily: 'inherit'
+                  }}
                   placeholder={`e.g. New 2-story build — 3-bay garage 1st floor, living space 2nd floor\nMetal roof, board & batten siding, mini splits x3\nPermit included. Start date flexible.\nBudget: $350,000`}
                 />
                 <button
                   onClick={submitManual}
                   disabled={submitBusy || !manual.estimateText.trim()}
-                  style={{ marginTop: 12, width: '100%', padding: 12, background: submitBusy ? '#888' : '#1B3A6B', color: 'white', border: 'none', borderRadius: 6, cursor: submitBusy ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: 14 }}
+                  style={{
+                    marginTop: 12,
+                    width: '100%',
+                    padding: 12,
+                    background: submitBusy ? '#888' : '#1B3A6B',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: submitBusy ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: 14
+                  }}
                 >
                   {submitBusy ? '⏳ Processing with AI...' : '🤖 Generate Proposal'}
                 </button>
@@ -590,26 +1098,62 @@ export default function Dashboard({ token }) {
             {submitTab === 'file' && (
               <div>
                 <div
-                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOver(true);
+                  }}
                   onDragLeave={() => setDragOver(false)}
-                  onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) setUploadFile(f); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const f = e.dataTransfer.files[0];
+                    if (f) setUploadFile(f);
+                  }}
                   style={{
-                    border: `2px dashed ${dragOver ? '#1B3A6B' : '#ddd'}`, borderRadius: 8, padding: 32, textAlign: 'center',
-                    background: dragOver ? '#f0f4ff' : '#fafafa', cursor: 'pointer', marginBottom: 12
+                    border: `2px dashed ${dragOver ? '#1B3A6B' : '#ddd'}`,
+                    borderRadius: 8,
+                    padding: 32,
+                    textAlign: 'center',
+                    background: dragOver ? '#f0f4ff' : '#fafafa',
+                    cursor: 'pointer',
+                    marginBottom: 12
                   }}
                   onClick={() => document.getElementById('estimate-file-input').click()}
                 >
                   {uploadFile ? (
                     <div>
-                      <div style={{ fontSize: 32, marginBottom: 8 }}>{uploadFile.type.includes('pdf') ? '📄' : '🖼️'}</div>
-                      <div style={{ fontWeight: 'bold', color: '#1B3A6B', fontSize: 14 }}>{uploadFile.name}</div>
-                      <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>({(uploadFile.size / 1024).toFixed(1)} KB)</div>
-                      <button onClick={e => { e.stopPropagation(); setUploadFile(null); }} style={{ marginTop: 8, background: 'none', border: 'none', color: '#C62828', cursor: 'pointer', fontSize: 12 }}>✕ Remove</button>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>
+                        {uploadFile.type.includes('pdf') ? '📄' : '🖼️'}
+                      </div>
+                      <div style={{ fontWeight: 'bold', color: '#1B3A6B', fontSize: 14 }}>
+                        {uploadFile.name}
+                      </div>
+                      <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                        ({(uploadFile.size / 1024).toFixed(1)} KB)
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUploadFile(null);
+                        }}
+                        style={{
+                          marginTop: 8,
+                          background: 'none',
+                          border: 'none',
+                          color: '#C62828',
+                          cursor: 'pointer',
+                          fontSize: 12
+                        }}
+                      >
+                        ✕ Remove
+                      </button>
                     </div>
                   ) : (
                     <div>
                       <div style={{ fontSize: 36, marginBottom: 8 }}>📁</div>
-                      <div style={{ fontWeight: 'bold', color: '#555', fontSize: 14 }}>Drag & drop or click to browse</div>
+                      <div style={{ fontWeight: 'bold', color: '#555', fontSize: 14 }}>
+                        Drag & drop or click to browse
+                      </div>
                       <div style={{ color: '#888', fontSize: 12, marginTop: 6 }}>
                         Supports: PDF estimates, JPG/PNG photos of printed estimates, .txt files
                       </div>
@@ -620,18 +1164,31 @@ export default function Dashboard({ token }) {
                     type="file"
                     accept=".pdf,image/jpeg,image/png,image/webp,.txt"
                     style={{ display: 'none' }}
-                    onChange={e => { if (e.target.files[0]) setUploadFile(e.target.files[0]); }}
+                    onChange={(e) => {
+                      if (e.target.files[0]) setUploadFile(e.target.files[0]);
+                    }}
                   />
                 </div>
                 {uploadFile && uploadFile.type.startsWith('image/') && (
                   <p style={{ fontSize: 11, color: '#888', marginBottom: 8, marginTop: 0 }}>
-                    AI will read the image and extract all text, line items, and dollar amounts automatically.
+                    AI will read the image and extract all text, line items, and dollar amounts
+                    automatically.
                   </p>
                 )}
                 <button
                   onClick={submitUpload}
                   disabled={submitBusy || !uploadFile}
-                  style={{ width: '100%', padding: 12, background: submitBusy ? '#888' : '#1B3A6B', color: 'white', border: 'none', borderRadius: 6, cursor: submitBusy ? 'not-allowed' : 'pointer', fontWeight: 'bold', fontSize: 14 }}
+                  style={{
+                    width: '100%',
+                    padding: 12,
+                    background: submitBusy ? '#888' : '#1B3A6B',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: submitBusy ? 'not-allowed' : 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: 14
+                  }}
                 >
                   {submitBusy ? '⏳ Processing with AI...' : '🤖 Upload & Generate Proposal'}
                 </button>

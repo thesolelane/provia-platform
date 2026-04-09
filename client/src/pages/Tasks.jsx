@@ -18,53 +18,53 @@ const SNOOZE_OPTIONS = [
   { label: '2 days', hours: 48 },
   { label: '3 days', hours: 72 },
   { label: '7 days', hours: 168 },
-  { label: '14 days', hours: 336 },
+  { label: '14 days', hours: 336 }
 ];
 
 // ── Lead pipeline constants ────────────────────────────────────────────────────
 const NEXT_STAGE = {
-  incoming:           'callback_done',
-  callback_done:      'appointment_booked',
+  incoming: 'callback_done',
+  callback_done: 'appointment_booked',
   appointment_booked: 'site_visit_complete',
-  site_visit_complete:'quote_draft',
-  quote_draft:        'quote_sent',
-  quote_sent:         'follow_up_1',
-  follow_up_1:        'follow_up_2',
-  follow_up_2:        'signed',
+  site_visit_complete: 'quote_draft',
+  quote_draft: 'quote_sent',
+  quote_sent: 'follow_up_1',
+  follow_up_1: 'follow_up_2',
+  follow_up_2: 'signed'
 };
 const STAGE_LABELS = {
-  incoming:           'Incoming',
-  callback_done:      'Callback Done',
+  incoming: 'Incoming',
+  callback_done: 'Callback Done',
   appointment_booked: 'Appt Booked',
-  site_visit_complete:'Site Visited',
-  quote_draft:        'Quote Draft',
-  quote_sent:         'Quote Sent',
-  follow_up_1:        'Follow-up 1',
-  follow_up_2:        'Follow-up 2',
-  signed:             'Signed ✓',
-  rejected:           'Rejected',
+  site_visit_complete: 'Site Visited',
+  quote_draft: 'Proposal Draft',
+  quote_sent: 'Proposal Sent',
+  follow_up_1: 'Follow-up 1',
+  follow_up_2: 'Follow-up 2',
+  signed: 'Signed ✓',
+  rejected: 'Rejected'
 };
 const STAGE_COLORS = {
-  incoming:           '#7B8EA0',
-  callback_done:      '#5C6BC0',
+  incoming: '#7B8EA0',
+  callback_done: '#5C6BC0',
   appointment_booked: '#0288D1',
-  site_visit_complete:'#00838F',
-  quote_draft:        '#F57C00',
-  quote_sent:         '#558B2F',
-  follow_up_1:        '#7B1FA2',
-  follow_up_2:        '#AD1457',
-  signed:             '#2E7D32',
-  rejected:           '#C62828',
+  site_visit_complete: '#00838F',
+  quote_draft: '#F57C00',
+  quote_sent: '#558B2F',
+  follow_up_1: '#7B1FA2',
+  follow_up_2: '#AD1457',
+  signed: '#2E7D32',
+  rejected: '#C62828'
 };
 const ADVANCE_LABELS = {
-  callback_done:      '📞 Log Callback Done',
+  callback_done: '📞 Log Callback Done',
   appointment_booked: '📅 Book Appointment',
-  site_visit_complete:'🏠 Mark Site Visit Done',
-  quote_draft:        '📋 Start Quote Draft',
-  quote_sent:         '✉ Mark Quote Sent',
-  follow_up_1:        '📞 Log Follow-up 1',
-  follow_up_2:        '📞 Log Follow-up 2',
-  signed:             '✅ Proceed to Contract',
+  site_visit_complete: '🏠 Mark Site Visit Done',
+  quote_draft: '📋 Draft S.O.W. Proposal',
+  quote_sent: '✉ Send Proposal',
+  follow_up_1: '📞 Log Follow-up 1',
+  follow_up_2: '📞 Log Follow-up 2',
+  signed: '✅ Proceed to Contract'
 };
 // Stages where we show an inline form before advancing
 const FORM_STAGES = new Set(['appointment_booked', 'quote_draft', 'signed']);
@@ -73,15 +73,15 @@ function LeadPanel({ task, token, onAdvanced }) {
   const lead = task.lead;
   if (!lead || lead.archived) return null;
 
-  const stage     = lead.stage;
+  const stage = lead.stage;
   const nextStage = NEXT_STAGE[stage];
-  const [open, setOpen]           = useState(false);
-  const [busy, setBusy]           = useState(false);
-  const [apptAt, setApptAt]       = useState('');
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [apptAt, setApptAt] = useState('');
   const [jobAddress, setJobAddress] = useState(lead.job_address || '');
-  const [jobCity, setJobCity]     = useState(lead.job_city || '');
-  const [jobType, setJobType]     = useState('');
-  const [jobScope, setJobScope]   = useState('');
+  const [jobCity, setJobCity] = useState(lead.job_city || '');
+  const [jobType, setJobType] = useState('');
+  const [jobScope, setJobScope] = useState('');
 
   async function advance(extraBody = {}) {
     setBusy(true);
@@ -89,7 +89,7 @@ function LeadPanel({ task, token, onAdvanced }) {
       const r = await fetch(`/api/leads/${lead.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ stage: nextStage, ...extraBody }),
+        body: JSON.stringify({ stage: nextStage, ...extraBody })
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || r.statusText);
@@ -116,13 +116,20 @@ function LeadPanel({ task, token, onAdvanced }) {
   }
 
   const pill = (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 4,
-      background: (STAGE_COLORS[stage] || '#888') + '18',
-      color: STAGE_COLORS[stage] || '#888',
-      border: `1px solid ${(STAGE_COLORS[stage] || '#888')}44`,
-      borderRadius: 20, padding: '2px 10px', fontSize: 11, fontWeight: 'bold',
-    }}>
+    <span
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 4,
+        background: (STAGE_COLORS[stage] || '#888') + '18',
+        color: STAGE_COLORS[stage] || '#888',
+        border: `1px solid ${STAGE_COLORS[stage] || '#888'}44`,
+        borderRadius: 20,
+        padding: '2px 10px',
+        fontSize: 11,
+        fontWeight: 'bold'
+      }}
+    >
       🔖 {lead.caller_name} · {STAGE_LABELS[stage] || stage}
     </span>
   );
@@ -136,14 +143,17 @@ function LeadPanel({ task, token, onAdvanced }) {
             onClick={handleAdvanceClick}
             disabled={busy}
             style={{
-              padding: '4px 12px', fontSize: 11, fontWeight: 'bold',
+              padding: '4px 12px',
+              fontSize: 11,
+              fontWeight: 'bold',
               background: nextStage === 'signed' ? '#2E7D3222' : '#E07B2A22',
               color: nextStage === 'signed' ? '#2E7D32' : ORANGE,
               border: `1px solid ${nextStage === 'signed' ? '#2E7D3244' : '#E07B2A44'}`,
-              borderRadius: 6, cursor: busy ? 'wait' : 'pointer',
+              borderRadius: 6,
+              cursor: busy ? 'wait' : 'pointer'
             }}
           >
-            {busy ? '…' : (ADVANCE_LABELS[nextStage] || `→ ${STAGE_LABELS[nextStage]}`)}
+            {busy ? '…' : ADVANCE_LABELS[nextStage] || `→ ${STAGE_LABELS[nextStage]}`}
           </button>
         )}
       </div>
@@ -153,28 +163,74 @@ function LeadPanel({ task, token, onAdvanced }) {
         <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={{ fontSize: 11, color: '#555' }}>
             Appointment date/time
-            <input type="datetime-local" value={apptAt} onChange={e => setApptAt(e.target.value)}
-              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
-                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+            <input
+              type="datetime-local"
+              value={apptAt}
+              onChange={(e) => setApptAt(e.target.value)}
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 2,
+                padding: '4px 8px',
+                border: '1px solid #C8D4E4',
+                borderRadius: 5,
+                fontSize: 12
+              }}
+            />
           </label>
           <label style={{ fontSize: 11, color: '#555' }}>
             Job city
-            <input type="text" value={jobCity} onChange={e => setJobCity(e.target.value)}
+            <input
+              type="text"
+              value={jobCity}
+              onChange={(e) => setJobCity(e.target.value)}
               placeholder="e.g. Miami"
-              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
-                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 2,
+                padding: '4px 8px',
+                border: '1px solid #C8D4E4',
+                borderRadius: 5,
+                fontSize: 12
+              }}
+            />
           </label>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => { if (!apptAt) { showToast('Pick an appointment date', 'error'); return; }
-              advance({ appointment_at: apptAt, job_city: jobCity }); }}
+            <button
+              onClick={() => {
+                if (!apptAt) {
+                  showToast('Pick an appointment date', 'error');
+                  return;
+                }
+                advance({ appointment_at: apptAt, job_city: jobCity });
+              }}
               disabled={busy}
-              style={{ padding: '5px 14px', fontSize: 11, fontWeight: 'bold', cursor: 'pointer',
-                background: BLUE, color: 'white', border: 'none', borderRadius: 6 }}>
+              style={{
+                padding: '5px 14px',
+                fontSize: 11,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                background: BLUE,
+                color: 'white',
+                border: 'none',
+                borderRadius: 6
+              }}
+            >
               {busy ? '…' : 'Confirm Appointment'}
             </button>
-            <button onClick={() => setOpen(false)}
-              style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer',
-                background: '#f5f5f5', color: '#555', border: '1px solid #ddd', borderRadius: 6 }}>
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                padding: '5px 10px',
+                fontSize: 11,
+                cursor: 'pointer',
+                background: '#f5f5f5',
+                color: '#555',
+                border: '1px solid #ddd',
+                borderRadius: 6
+              }}
+            >
               Cancel
             </button>
           </div>
@@ -186,23 +242,56 @@ function LeadPanel({ task, token, onAdvanced }) {
         <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={{ fontSize: 11, color: '#555' }}>
             Job address
-            <input type="text" value={jobAddress} onChange={e => setJobAddress(e.target.value)}
+            <input
+              type="text"
+              value={jobAddress}
+              onChange={(e) => setJobAddress(e.target.value)}
               placeholder="Street address"
-              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
-                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 2,
+                padding: '4px 8px',
+                border: '1px solid #C8D4E4',
+                borderRadius: 5,
+                fontSize: 12
+              }}
+            />
           </label>
           <label style={{ fontSize: 11, color: '#555' }}>
             City
-            <input type="text" value={jobCity} onChange={e => setJobCity(e.target.value)}
+            <input
+              type="text"
+              value={jobCity}
+              onChange={(e) => setJobCity(e.target.value)}
               placeholder="City"
-              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
-                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 2,
+                padding: '4px 8px',
+                border: '1px solid #C8D4E4',
+                borderRadius: 5,
+                fontSize: 12
+              }}
+            />
           </label>
           <label style={{ fontSize: 11, color: '#555' }}>
             Job type
-            <select value={jobType} onChange={e => setJobType(e.target.value)}
-              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
-                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12, background: 'white' }}>
+            <select
+              value={jobType}
+              onChange={(e) => setJobType(e.target.value)}
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 2,
+                padding: '4px 8px',
+                border: '1px solid #C8D4E4',
+                borderRadius: 5,
+                fontSize: 12,
+                background: 'white'
+              }}
+            >
               <option value="">— select —</option>
               <option value="new_construction">New Construction</option>
               <option value="renovation">Renovation / Remodel</option>
@@ -213,22 +302,59 @@ function LeadPanel({ task, token, onAdvanced }) {
           </label>
           <label style={{ fontSize: 11, color: '#555' }}>
             Scope / notes
-            <textarea value={jobScope} onChange={e => setJobScope(e.target.value)}
-              rows={3} placeholder="Describe the work…"
-              style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
-                border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12, resize: 'vertical' }} />
+            <textarea
+              value={jobScope}
+              onChange={(e) => setJobScope(e.target.value)}
+              rows={3}
+              placeholder="Describe the work…"
+              style={{
+                display: 'block',
+                width: '100%',
+                marginTop: 2,
+                padding: '4px 8px',
+                border: '1px solid #C8D4E4',
+                borderRadius: 5,
+                fontSize: 12,
+                resize: 'vertical'
+              }}
+            />
           </label>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={() => advance({ job_address: jobAddress, job_city: jobCity,
-              job_type: jobType, job_scope: jobScope })}
+            <button
+              onClick={() =>
+                advance({
+                  job_address: jobAddress,
+                  job_city: jobCity,
+                  job_type: jobType,
+                  job_scope: jobScope
+                })
+              }
               disabled={busy}
-              style={{ padding: '5px 14px', fontSize: 11, fontWeight: 'bold', cursor: 'pointer',
-                background: ORANGE, color: 'white', border: 'none', borderRadius: 6 }}>
-              {busy ? '…' : 'Start Quote Draft'}
+              style={{
+                padding: '5px 14px',
+                fontSize: 11,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                background: ORANGE,
+                color: 'white',
+                border: 'none',
+                borderRadius: 6
+              }}
+            >
+              {busy ? '…' : 'Draft S.O.W. Proposal'}
             </button>
-            <button onClick={() => setOpen(false)}
-              style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer',
-                background: '#f5f5f5', color: '#555', border: '1px solid #ddd', borderRadius: 6 }}>
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                padding: '5px 10px',
+                fontSize: 11,
+                cursor: 'pointer',
+                background: '#f5f5f5',
+                color: '#555',
+                border: '1px solid #ddd',
+                borderRadius: 6
+              }}
+            >
               Cancel
             </button>
           </div>
@@ -237,52 +363,116 @@ function LeadPanel({ task, token, onAdvanced }) {
 
       {/* ── Proceed to Contract form ─────────────────────────────────────── */}
       {open && nextStage === 'signed' && (
-        <div style={{ marginTop: 8, background: '#f0faf0', border: '1px solid #a8d5a2',
-          borderRadius: 8, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div
+          style={{
+            marginTop: 8,
+            background: '#f0faf0',
+            border: '1px solid #a8d5a2',
+            borderRadius: 8,
+            padding: 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8
+          }}
+        >
           <div style={{ fontSize: 12, fontWeight: 'bold', color: GREEN }}>
             ✅ Proceed to Contract — {lead.caller_name}
           </div>
           <div style={{ fontSize: 11, color: '#444', lineHeight: 1.6 }}>
             This will:
             <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-              <li>Mark this lead as <strong>Signed</strong></li>
-              {!lead.pb_customer_number && <li>Assign a <strong>PB customer number</strong> and create/update the contact</li>}
-              {lead.pb_customer_number && <li>Contact already linked (PB# <strong>{lead.pb_customer_number}</strong>)</li>}
-              <li>Create a high-priority <strong>Generate Contract</strong> task (due in 24 h)</li>
+              <li>
+                Mark this lead as <strong>Signed</strong>
+              </li>
+              {!lead.pb_customer_number && (
+                <li>
+                  Assign a <strong>PB customer number</strong> and create/update the contact
+                </li>
+              )}
+              {lead.pb_customer_number && (
+                <li>
+                  Contact already linked (PB# <strong>{lead.pb_customer_number}</strong>)
+                </li>
+              )}
+              <li>
+                Create a high-priority <strong>Generate Contract</strong> task (due in 24 h)
+              </li>
             </ul>
           </div>
-          {(!lead.job_address) && (
+          {!lead.job_address && (
             <label style={{ fontSize: 11, color: '#555' }}>
               Job address (optional)
-              <input type="text" value={jobAddress} onChange={e => setJobAddress(e.target.value)}
+              <input
+                type="text"
+                value={jobAddress}
+                onChange={(e) => setJobAddress(e.target.value)}
                 placeholder="Street address"
-                style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
-                  border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  marginTop: 2,
+                  padding: '4px 8px',
+                  border: '1px solid #C8D4E4',
+                  borderRadius: 5,
+                  fontSize: 12
+                }}
+              />
             </label>
           )}
-          {(!lead.job_city) && (
+          {!lead.job_city && (
             <label style={{ fontSize: 11, color: '#555' }}>
               City (optional)
-              <input type="text" value={jobCity} onChange={e => setJobCity(e.target.value)}
+              <input
+                type="text"
+                value={jobCity}
+                onChange={(e) => setJobCity(e.target.value)}
                 placeholder="City"
-                style={{ display: 'block', width: '100%', marginTop: 2, padding: '4px 8px',
-                  border: '1px solid #C8D4E4', borderRadius: 5, fontSize: 12 }} />
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  marginTop: 2,
+                  padding: '4px 8px',
+                  border: '1px solid #C8D4E4',
+                  borderRadius: 5,
+                  fontSize: 12
+                }}
+              />
             </label>
           )}
           <div style={{ display: 'flex', gap: 6 }}>
             <button
-              onClick={() => advance({
-                job_address: jobAddress || lead.job_address || undefined,
-                job_city:    jobCity    || lead.job_city    || undefined,
-              })}
+              onClick={() =>
+                advance({
+                  job_address: jobAddress || lead.job_address || undefined,
+                  job_city: jobCity || lead.job_city || undefined
+                })
+              }
               disabled={busy}
-              style={{ padding: '6px 18px', fontSize: 12, fontWeight: 'bold', cursor: 'pointer',
-                background: GREEN, color: 'white', border: 'none', borderRadius: 6 }}>
+              style={{
+                padding: '6px 18px',
+                fontSize: 12,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                background: GREEN,
+                color: 'white',
+                border: 'none',
+                borderRadius: 6
+              }}
+            >
               {busy ? '…' : '✅ Confirm — Proceed to Contract'}
             </button>
-            <button onClick={() => setOpen(false)}
-              style={{ padding: '5px 10px', fontSize: 11, cursor: 'pointer',
-                background: '#f5f5f5', color: '#555', border: '1px solid #ddd', borderRadius: 6 }}>
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                padding: '5px 10px',
+                fontSize: 11,
+                cursor: 'pointer',
+                background: '#f5f5f5',
+                color: '#555',
+                border: '1px solid #ddd',
+                borderRadius: 6
+              }}
+            >
               Cancel
             </button>
           </div>
@@ -366,7 +556,7 @@ export default function Tasks({ token }) {
     await fetch(`/api/tasks/${task.id}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify({ status: newStatus })
     });
     load();
   };
@@ -387,7 +577,7 @@ export default function Tasks({ token }) {
     const res = await fetch(`/api/tasks/${task.id}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ remind_at: remindAt, remind_interval_hours: hours }),
+      body: JSON.stringify({ remind_at: remindAt, remind_interval_hours: hours })
     });
     if (res.ok) {
       showToast(`Reminder set for ${SNOOZE_OPTIONS.find((o) => o.hours === hours)?.label}`);
@@ -417,7 +607,7 @@ export default function Tasks({ token }) {
           key = d.toLocaleDateString('en-US', {
             weekday: 'long',
             month: 'short',
-            day: 'numeric',
+            day: 'numeric'
           });
       }
     }
@@ -431,7 +621,7 @@ export default function Tasks({ token }) {
     ...groupOrder.filter((g) => grouped[g]),
     ...Object.keys(grouped)
       .filter((g) => !groupOrder.includes(g))
-      .sort(),
+      .sort()
   ];
 
   return (
@@ -442,7 +632,7 @@ export default function Tasks({ token }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24,
+          marginBottom: 24
         }}
       >
         <div>
@@ -458,7 +648,7 @@ export default function Tasks({ token }) {
                   color: ORANGE,
                   padding: '3px 10px',
                   borderRadius: 20,
-                  fontWeight: 'bold',
+                  fontWeight: 'bold'
                 }}
               >
                 📅 {todayCount} due today
@@ -472,7 +662,7 @@ export default function Tasks({ token }) {
                   color: RED,
                   padding: '3px 10px',
                   borderRadius: 20,
-                  fontWeight: 'bold',
+                  fontWeight: 'bold'
                 }}
               >
                 🔴 {overdue} overdue
@@ -490,7 +680,7 @@ export default function Tasks({ token }) {
             borderRadius: 8,
             cursor: 'pointer',
             fontWeight: 'bold',
-            fontSize: 13,
+            fontSize: 13
           }}
         >
           + Add Task
@@ -505,7 +695,7 @@ export default function Tasks({ token }) {
             borderRadius: 10,
             padding: 20,
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            marginBottom: 20,
+            marginBottom: 20
           }}
         >
           <h3 style={{ color: BLUE, margin: '0 0 16px' }}>New Task</h3>
@@ -518,7 +708,7 @@ export default function Tasks({ token }) {
                 padding: '10px 12px',
                 border: '1.5px solid #C8D4E4',
                 borderRadius: 6,
-                fontSize: 14,
+                fontSize: 14
               }}
             />
             <textarea
@@ -531,7 +721,7 @@ export default function Tasks({ token }) {
                 border: '1.5px solid #C8D4E4',
                 borderRadius: 6,
                 fontSize: 13,
-                resize: 'vertical',
+                resize: 'vertical'
               }}
             />
             <div style={{ display: 'flex', gap: 12 }}>
@@ -548,7 +738,7 @@ export default function Tasks({ token }) {
                     padding: '8px 12px',
                     border: '1.5px solid #C8D4E4',
                     borderRadius: 6,
-                    fontSize: 13,
+                    fontSize: 13
                   }}
                 />
               </div>
@@ -564,7 +754,7 @@ export default function Tasks({ token }) {
                     border: '1.5px solid #C8D4E4',
                     borderRadius: 6,
                     fontSize: 13,
-                    height: 37,
+                    height: 37
                   }}
                 >
                   <option value="high">🔴 High</option>
@@ -585,7 +775,7 @@ export default function Tasks({ token }) {
                   borderRadius: 6,
                   cursor: 'pointer',
                   fontWeight: 'bold',
-                  fontSize: 13,
+                  fontSize: 13
                 }}
               >
                 {saving ? 'Saving...' : 'Create Task'}
@@ -599,7 +789,7 @@ export default function Tasks({ token }) {
                   borderRadius: 6,
                   cursor: 'pointer',
                   fontSize: 13,
-                  color: '#888',
+                  color: '#888'
                 }}
               >
                 Cancel
@@ -614,7 +804,7 @@ export default function Tasks({ token }) {
         {[
           ['pending', '⬜ Pending'],
           ['done', '✅ Done'],
-          ['all', 'All'],
+          ['all', 'All']
         ].map(([v, l]) => (
           <button
             key={v}
@@ -627,7 +817,7 @@ export default function Tasks({ token }) {
               color: filter === v ? 'white' : '#555',
               fontSize: 12,
               cursor: 'pointer',
-              fontWeight: filter === v ? 'bold' : 'normal',
+              fontWeight: filter === v ? 'bold' : 'normal'
             }}
           >
             {l}
@@ -637,7 +827,7 @@ export default function Tasks({ token }) {
         {[
           ['all', 'All Dates'],
           ['today', 'Today'],
-          ['week', 'This Week'],
+          ['week', 'This Week']
         ].map(([v, l]) => (
           <button
             key={v}
@@ -650,7 +840,7 @@ export default function Tasks({ token }) {
               color: range === v ? 'white' : '#555',
               fontSize: 12,
               cursor: 'pointer',
-              fontWeight: range === v ? 'bold' : 'normal',
+              fontWeight: range === v ? 'bold' : 'normal'
             }}
           >
             {l}
@@ -668,7 +858,7 @@ export default function Tasks({ token }) {
             borderRadius: 10,
             padding: 48,
             textAlign: 'center',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
           }}
         >
           <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
@@ -686,7 +876,7 @@ export default function Tasks({ token }) {
                 color: group.includes('Overdue') ? RED : group.includes('Today') ? ORANGE : '#555',
                 marginBottom: 8,
                 textTransform: 'uppercase',
-                letterSpacing: '.5px',
+                letterSpacing: '.5px'
               }}
             >
               {group}
@@ -705,7 +895,7 @@ export default function Tasks({ token }) {
                       padding: '14px 16px',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
                       borderLeft: `4px solid ${isDone ? '#ddd' : PRIORITY_COLORS[task.priority]}`,
-                      opacity: isDone ? 0.65 : 1,
+                      opacity: isDone ? 0.65 : 1
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -714,7 +904,13 @@ export default function Tasks({ token }) {
                         type="checkbox"
                         checked={isDone}
                         onChange={() => toggleDone(task)}
-                        style={{ marginTop: 3, width: 16, height: 16, cursor: 'pointer', flexShrink: 0 }}
+                        style={{
+                          marginTop: 3,
+                          width: 16,
+                          height: 16,
+                          cursor: 'pointer',
+                          flexShrink: 0
+                        }}
                       />
 
                       {/* Content */}
@@ -724,7 +920,7 @@ export default function Tasks({ token }) {
                             fontWeight: 'bold',
                             fontSize: 14,
                             color: isDone ? '#aaa' : BLUE,
-                            textDecoration: isDone ? 'line-through' : 'none',
+                            textDecoration: isDone ? 'line-through' : 'none'
                           }}
                         >
                           {task.title}
@@ -740,7 +936,7 @@ export default function Tasks({ token }) {
                             gap: 12,
                             marginTop: 6,
                             flexWrap: 'wrap',
-                            alignItems: 'center',
+                            alignItems: 'center'
                           }}
                         >
                           {task.due_at && (
@@ -750,7 +946,7 @@ export default function Tasks({ token }) {
                                 month: 'short',
                                 day: 'numeric',
                                 hour: '2-digit',
-                                minute: '2-digit',
+                                minute: '2-digit'
                               })}
                             </span>
                           )}
@@ -782,7 +978,7 @@ export default function Tasks({ token }) {
                               alignItems: 'center',
                               gap: 8,
                               marginTop: 8,
-                              flexWrap: 'wrap',
+                              flexWrap: 'wrap'
                             }}
                           >
                             <span style={{ fontSize: 11, color: '#888' }}>🔔 Next reminder:</span>
@@ -801,7 +997,7 @@ export default function Tasks({ token }) {
                                 fontSize: 11,
                                 color: '#555',
                                 cursor: 'pointer',
-                                background: 'white',
+                                background: 'white'
                               }}
                             >
                               <option value="" disabled>
@@ -844,7 +1040,7 @@ export default function Tasks({ token }) {
                               fontSize: 11,
                               fontWeight: 'bold',
                               border: '1px solid #4285F440',
-                              whiteSpace: 'nowrap',
+                              whiteSpace: 'nowrap'
                             }}
                           >
                             📅 Calendar
@@ -859,7 +1055,7 @@ export default function Tasks({ token }) {
                             border: '1px solid #ff000022',
                             borderRadius: 6,
                             cursor: 'pointer',
-                            fontSize: 11,
+                            fontSize: 11
                           }}
                         >
                           Delete

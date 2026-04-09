@@ -799,7 +799,7 @@ function buildContractHTML(data) {
   <tr><td class="label">Owner Name</td>           <td class="value">${field(o.full_name)}</td></tr>
   <tr><td class="label">Contract No.</td>         <td class="value">${field(c.contract_number)}</td></tr>
   <tr><td class="label">Invoice No.</td>          <td class="value">${field(c.invoice_number)}</td></tr>
-  <tr><td class="label">Quote / Proposal No.</td> <td class="value">${field(c.quote_number)}</td></tr>
+  <tr><td class="label">S.O.W. Proposal No.</td>   <td class="value">${field(c.quote_number)}</td></tr>
   <tr><td class="label">Date of Agreement</td>    <td class="value">${field(c.contract_date)}</td></tr>
   <tr><td class="label">Total Contract Price</td> <td class="value"><strong>${field(c.total_contract_price)}</strong></td></tr>
 </table>
@@ -839,7 +839,7 @@ function buildContractHTML(data) {
 
 ${clauseHTML('1.1', `Contractor shall furnish all labor, materials, equipment, tools, supervision, and services necessary to complete the work (the "<strong>Work</strong>") at the Property in a good and workmanlike manner, in accordance with this Contract and all applicable laws, codes, and regulations, including <strong>780 CMR (Massachusetts State Building Code — 9th Edition and/or 10th Edition, as applicable based on the date of the permit application)</strong>, applicable municipal codes, NFPA 70 (National Electrical Code), and all other applicable federal, state, and local laws, ordinances, rules, and regulations.`)}
 
-${clauseHTML('1.2', `The scope, inclusions, and exclusions of the Work are described in the <strong>Project Proposal &amp; Scope of Work, Quote No. ${field(c.quote_number)}</strong>, dated <strong>${field(c.proposal_date)}</strong>, and <strong>Invoice No. ${field(c.invoice_number)}</strong> (collectively, the "<strong>Proposal</strong>"), which are incorporated herein by reference. In any conflict between this Contract and the Proposal, the terms of this Contract shall govern.`)}
+${clauseHTML('1.2', `The scope, inclusions, and exclusions of the Work are described in the <strong>Project Proposal &amp; Scope of Work, Proposal No. ${field(c.quote_number)}</strong>, dated <strong>${field(c.proposal_date)}</strong>, and <strong>Invoice No. ${field(c.invoice_number)}</strong> (collectively, the "<strong>Proposal</strong>"), which are incorporated herein by reference. In any conflict between this Contract and the Proposal, the terms of this Contract shall govern.`)}
 
 ${clauseHTML('1.3', `<strong>Building Code Compliance — Mandatory.</strong> Contractor shall perform all Work in strict compliance with 780 CMR, local amendments, NFPA 70, and all other applicable codes. Contractor shall not be required, directed, or instructed to perform any work that is not in compliance with applicable building codes. Any provision of the Proposal, any Change Order, or any Owner instruction requiring non-code-compliant work shall be void and unenforceable. Contractor shall promptly notify Owner in writing of any such direction and shall not proceed until a code-compliant solution is agreed upon in writing.`)}
 
@@ -864,7 +864,7 @@ ${clauseHTML('2.5', `All allowance selections shall be submitted by Owner in wri
 <div class="article-heading">Article III — Payment Schedule</div>
 
 ${clauseHTML('3.1', `<strong>Massachusetts HIC Deposit Limitation (M.G.L. c. 142A §2).</strong> The initial Contract Deposit shall not exceed the greater of: (a) one-third (1/3) of the total Contract Price; or (b) the actual cost of any materials or equipment of a special-order or custom-made nature that must be ordered in advance. Any deposit in excess of this limit is prohibited under Massachusetts law.`)}
-${clauseHTML('3.2', `The Contract Price shall be paid in installments upon completion of the milestones set forth in the table below. All payments are due within <strong>five (5) business days</strong> of the applicable milestone. Each payment invoice shall reference the applicable Invoice Number, Contract Number, and Quote/Proposal Number.`)}
+${clauseHTML('3.2', `The Contract Price shall be paid in installments upon completion of the milestones set forth in the table below. All payments are due within <strong>five (5) business days</strong> of the applicable milestone. Each payment invoice shall reference the applicable Invoice Number, Contract Number, and Proposal Number.`)}
 
 ${buildPaymentTable(data)}
 
@@ -874,7 +874,7 @@ ${buildPreConTable(data)}
 
 ${clauseHTML('3.4', `Any payment not received within five (5) business days of its due date shall bear a late charge of <strong>one and one-half percent (1.5%) per month</strong> on the unpaid balance from the due date until paid in full.`)}
 ${clauseHTML('3.5', `Contractor shall not be required to commence or continue Work if any payment is more than ten (10) days past due. Contractor may suspend Work upon written notice to Owner, and such suspension shall not constitute a breach of this Agreement.`)}
-${clauseHTML('3.6', `All payments shall reference the applicable Invoice Number, Contract Number, and/or Quote/Proposal Number. Contractor shall issue invoices for each milestone payment identifying: (a) Invoice No.; (b) Contract No.; (c) Quote/Proposal No.; (d) milestone description; and (e) amount due.`)}
+${clauseHTML('3.6', `All payments shall reference the applicable Invoice Number, Contract Number, and/or Proposal Number. Contractor shall issue invoices for each milestone payment identifying: (a) Invoice No.; (b) Contract No.; (c) Proposal No.; (d) milestone description; and (e) amount due.`)}
 
 <!-- ARTICLE IV -->
 <hr class="rule">
@@ -987,7 +987,7 @@ ${clauseHTML('15.3', `Upon termination, Owner shall pay Contractor for all Work 
 <hr class="rule">
 <div class="article-heading">Article XVI — General Provisions</div>
 
-${clauseHTML('16.1', `<strong>Entire Agreement:</strong> This Agreement, together with the Proposal (Quote No. ${field(c.quote_number)}, Invoice No. ${field(c.invoice_number)}) and Exhibit A, constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, and agreements, whether oral or written.`)}
+${clauseHTML('16.1', `<strong>Entire Agreement:</strong> This Agreement, together with the Proposal (Proposal No. ${field(c.quote_number)}, Invoice No. ${field(c.invoice_number)}) and Exhibit A, constitutes the entire agreement between the parties and supersedes all prior negotiations, representations, and agreements, whether oral or written.`)}
 ${clauseHTML('16.2', `<strong>Modifications:</strong> This Agreement may not be amended except by a written instrument signed by both parties. No waiver is effective unless in writing.`)}
 ${clauseHTML('16.3', `<strong>Severability:</strong> If any provision is held invalid or unenforceable, the remaining provisions shall continue in full force.`)}
 ${clauseHTML('16.4', `<strong>Notices:</strong> All notices shall be in writing and delivered by hand, certified mail, or email with read receipt to the addresses set forth on the cover page.`)}
@@ -1019,7 +1019,7 @@ ${clauseHTML('16.5', `<strong>Counterparts:</strong> This Agreement may be execu
 <p style="font-weight:700;font-size:9pt;color:#1F3864;margin:10px 0 6px">INITIALS — BOTH PARTIES</p>
 <p style="font-size:8.5pt;margin-bottom:10px;text-align:justify">
   Initialing confirms receipt and review of: (1) this Agreement; (2) Project Proposal &amp; Scope of Work —
-  Quote No. ${field(c.quote_number)}; (3) Invoice No. ${field(c.invoice_number)};
+  Proposal No. ${field(c.quote_number)}; (3) Invoice No. ${field(c.invoice_number)};
   (4) Exhibit A — Allowance Schedule; (5) Addendum 1 — Notice of Contract;
   (6) Change Order Form CO-1; and (7) Change Order Form CO-2.
 </p>
@@ -1034,7 +1034,7 @@ ${clauseHTML('16.5', `<strong>Counterparts:</strong> This Agreement may be execu
 <div class="addendum-title">
   <h2>Exhibit A</h2>
   <div style="font-size:11pt;font-weight:700;color:#1F3864;margin-top:4px">Contractor-Grade Allowance Schedule</div>
-  <div class="add-sub">Contract No. ${field(c.contract_number)}  |  Quote No. ${field(c.quote_number)}  |  Invoice No. ${field(c.invoice_number)}</div>
+  <div class="add-sub">Contract No. ${field(c.contract_number)}  |  Proposal No. ${field(c.quote_number)}  |  Invoice No. ${field(c.invoice_number)}</div>
 </div>
 
 <hr class="rule">
@@ -1109,11 +1109,11 @@ ${buildAllowanceTables(data)}
 
 <div class="sub-heading">IV. Contract Details</div>
 <p style="font-size:9pt;line-height:1.9">
-  Contract No.: ${field(c.contract_number)}&nbsp;&nbsp;&nbsp;Invoice No.: ${field(c.invoice_number)}&nbsp;&nbsp;&nbsp;Quote / Proposal No.: ${field(c.quote_number)}<br>
+  Contract No.: ${field(c.contract_number)}&nbsp;&nbsp;&nbsp;Invoice No.: ${field(c.invoice_number)}&nbsp;&nbsp;&nbsp;Proposal No.: ${field(c.quote_number)}<br>
   Date of Contract: ${field(c.contract_date)}<br>
   Original Contract Price: ${field(c.total_contract_price)}<br>
   General Description of Work: General construction and home improvement work as more particularly described in the Project Proposal &amp;
-  Scope of Work, Quote No. ${field(c.quote_number)}, Invoice No. ${field(c.invoice_number)}, incorporated herein by reference.
+  Scope of Work, Proposal No. ${field(c.quote_number)}, Invoice No. ${field(c.invoice_number)}, incorporated herein by reference.
 </p>
 
 <div class="sub-heading">V. Signatures</div>
@@ -1184,7 +1184,7 @@ ${buildAllowanceTables(data)}
 
 <table class="cover-table">
   <tr><td class="label">Contract No.</td>       <td class="value">${field(c.contract_number)}</td>
-      <td class="label">Quote / Invoice No.</td> <td class="value">${field(c.quote_number)} / ${field(c.invoice_number)}</td></tr>
+      <td class="label">Proposal / Invoice No.</td> <td class="value">${field(c.quote_number)} / ${field(c.invoice_number)}</td></tr>
   <tr><td class="label">Owner</td>              <td class="value">${field(o.full_name)}</td>
       <td class="label">Property Address</td>    <td class="value">${field(p.address)}, ${field(p.city)}</td></tr>
   <tr><td class="label">Change Order No.</td>   <td class="value">CO-1</td>
@@ -1252,7 +1252,7 @@ ${buildAllowanceTables(data)}
 
 <table class="cover-table">
   <tr><td class="label">Contract No.</td>       <td class="value">${field(c.contract_number)}</td>
-      <td class="label">Quote / Invoice No.</td> <td class="value">${field(c.quote_number)} / ${field(c.invoice_number)}</td></tr>
+      <td class="label">Proposal / Invoice No.</td> <td class="value">${field(c.quote_number)} / ${field(c.invoice_number)}</td></tr>
   <tr><td class="label">Owner</td>              <td class="value">${field(o.full_name)}</td>
       <td class="label">Property Address</td>    <td class="value">${field(p.address)}, ${field(p.city)}</td></tr>
   <tr><td class="label">Change Order No.</td>   <td class="value">CO-2</td>
