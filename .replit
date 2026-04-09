@@ -62,7 +62,7 @@ args = "Start application"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Server Lint"
+args = "Lint & Format Check"
 
 [[workflows.workflow]]
 name = "Start application"
@@ -77,7 +77,7 @@ args = "node server/index.js"
 waitForPort = 5000
 
 [[workflows.workflow]]
-name = "Server Lint"
+name = "Lint & Format Check"
 author = "agent"
 
 [[workflows.workflow.tasks]]
