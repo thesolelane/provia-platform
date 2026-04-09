@@ -441,6 +441,7 @@ export default function Leads({ token }) {
                         <LeadCard
                           key={lead.id}
                           lead={lead}
+                          token={token}
                           onAdvance={() => advanceStage(lead)}
                           onArchive={() => setArchiveModal(lead)}
                           onDelete={() => deleteLead(lead)}
@@ -463,13 +464,61 @@ export default function Leads({ token }) {
   );
 }
 
+// ── Lead photo thumbnail (auth-gated, with GPS map link) ──────────────────────
+function LeadPhotoThumb({ photo, token }) {
+  const [blobUrl, setBlobUrl] = useState(null);
+  useEffect(() => {
+    let revoked = false;
+    let objUrl  = null;
+    fetch(`/api/field-photos/file/${photo.filename}`, { headers: { 'x-auth-token': token } })
+      .then(r => r.blob())
+      .then(blob => { if (revoked) return; objUrl = URL.createObjectURL(blob); setBlobUrl(objUrl); })
+      .catch(() => {});
+    return () => { revoked = true; if (objUrl) URL.revokeObjectURL(objUrl); };
+  }, [photo.filename, token]);
+
+  const mapUrl = photo.lat && photo.lon ? `https://maps.google.com/?q=${photo.lat},${photo.lon}` : null;
+
+  return (
+    <div style={{ position: 'relative', width: 72, flexShrink: 0 }}>
+      {blobUrl ? (
+        <img
+          src={blobUrl}
+          alt={photo.original_name}
+          style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 6, border: '1px solid #dde3ed', display: 'block', cursor: 'pointer' }}
+          onClick={() => { const w = window.open(); w.document.write(`<img src="${blobUrl}" style="max-width:100%;max-height:100vh">`); }}
+        />
+      ) : (
+        <div style={{ width: 72, height: 72, background: '#f0f4f8', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#aaa' }}>…</div>
+      )}
+      {mapUrl && (
+        <a href={mapUrl} target="_blank" rel="noreferrer"
+          style={{ position: 'absolute', bottom: 3, left: 3, background: 'rgba(27,58,107,0.85)', color: 'white', fontSize: 9, borderRadius: 4, padding: '1px 4px', textDecoration: 'none', lineHeight: '14px' }}>
+          📍 Map
+        </a>
+      )}
+    </div>
+  );
+}
+
 // ── Lead Card ─────────────────────────────────────────────────────────────────
-function LeadCard({ lead, onAdvance, onArchive, onDelete, onSaveNotes }) {
-  const [notes,  setNotes]  = useState(lead.notes || '');
-  const [saving, setSaving] = useState(false);
+function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes }) {
+  const [notes,       setNotes]       = useState(lead.notes || '');
+  const [saving,      setSaving]      = useState(false);
+  const [leadPhotos,  setLeadPhotos]  = useState([]);
+  const [photoExpand, setPhotoExpand] = useState(false);
 
   // Keep notes in sync if lead prop updates
   useEffect(() => { setNotes(lead.notes || ''); }, [lead.notes]);
+
+  // Load photos for this lead
+  useEffect(() => {
+    if (!token) return;
+    fetch(`/api/field-photos?lead_id=${lead.id}`, { headers: { 'x-auth-token': token } })
+      .then(r => r.ok ? r.json() : { photos: [] })
+      .then(d => setLeadPhotos(d.photos || []))
+      .catch(() => {});
+  }, [lead.id, token]);
 
   const stg        = STAGE_MAP[lead.stage] || STAGE_MAP['incoming'];
   const nextStage  = NEXT_STAGE[lead.stage];
@@ -573,6 +622,25 @@ function LeadCard({ lead, onAdvance, onArchive, onDelete, onSaveNotes }) {
           {lead.job_scope && (
             <div style={{ marginTop: 4, fontSize: 12, color: '#777', fontStyle: 'italic' }}>
               {lead.job_scope.length > 120 ? lead.job_scope.slice(0, 117) + '…' : lead.job_scope}
+            </div>
+          )}
+
+          {/* Photo strip */}
+          {leadPhotos.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={() => setPhotoExpand(v => !v)}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, color: BLUE, fontWeight: 600 }}
+              >
+                📷 {leadPhotos.length} photo{leadPhotos.length !== 1 ? 's' : ''} {photoExpand ? '▾' : '▸'}
+              </button>
+              {photoExpand && (
+                <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {leadPhotos.map(ph => (
+                    <LeadPhotoThumb key={ph.id} photo={ph} token={token} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

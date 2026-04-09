@@ -593,6 +593,9 @@ async function initDatabase() {
   addColIfMissing('payments_received', 'invoice_id', 'INTEGER');
   addColIfMissing('payments_received', 'line_item_ref', 'TEXT');
 
+  // ── Field photos — lead link ──────────────────────────────────────────────────
+  addColIfMissing('field_photos', 'lead_id', 'INTEGER');
+
   // ── Leads pipeline extra fields ───────────────────────────────────────────────
   addColIfMissing('leads', 'appointment_at', 'DATETIME');
   addColIfMissing('leads', 'job_address', 'TEXT');
