@@ -738,10 +738,28 @@ async function initDatabase() {
   addColIfMissing('jobs', 'property_data', 'TEXT');
   addColIfMissing('leads', 'property_data', 'TEXT');
 
+  // ── Department definitions table (editable via Settings UI) ──────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS departments (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      dept_id     TEXT NOT NULL,
+      dept_name   TEXT NOT NULL,
+      dept_meaning TEXT,
+      dept_sort   INTEGER NOT NULL DEFAULT 0,
+      sub_id      TEXT NOT NULL UNIQUE,
+      sub_name    TEXT NOT NULL,
+      sub_meaning TEXT,
+      sub_sort    INTEGER NOT NULL DEFAULT 0,
+      updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_departments_dept_id ON departments(dept_id)`);
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();
   seedUsers();
+  seedDepartments(db);
 
   return db;
 }
@@ -1354,6 +1372,41 @@ function seedUsers() {
   for (const u of users) {
     insert.run({ ...u, hash });
   }
+}
+
+function seedDepartments(db) {
+  const count = db.prepare('SELECT COUNT(*) as n FROM departments').get();
+  if (count.n > 0) return;
+
+  const depts = require('../../client/src/data/departments.json');
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO departments
+      (dept_id, dept_name, dept_meaning, dept_sort, sub_id, sub_name, sub_meaning, sub_sort)
+    VALUES
+      (@dept_id, @dept_name, @dept_meaning, @dept_sort, @sub_id, @sub_name, @sub_meaning, @sub_sort)
+  `);
+
+  const run = db.transaction(() => {
+    let dSort = 0;
+    for (const dept of depts) {
+      let sSort = 0;
+      for (const sub of dept.subDepartments) {
+        insert.run({
+          dept_id: dept.id,
+          dept_name: dept.name,
+          dept_meaning: dept.meaning || '',
+          dept_sort: dSort,
+          sub_id: sub.id,
+          sub_name: sub.name,
+          sub_meaning: sub.meaning || '',
+          sub_sort: sSort,
+        });
+        sSort++;
+      }
+      dSort++;
+    }
+  });
+  run();
 }
 
 module.exports = { getDb, initDatabase };

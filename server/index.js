@@ -217,6 +217,7 @@ app.use('/api/payments', require('./routes/payments'));
 app.use('/api/invoices', require('./routes/invoices').router);
 app.use('/api/activity-log', require('./routes/activityLog').router);
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/departments', require('./routes/departments'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/email-log', require('./routes/emailLog'));
 app.use(require('./routes/emailTracking'));

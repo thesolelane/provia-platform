@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { showToast } from '../utils/toast';
-import DEPARTMENTS from '../data/departments.json';
+import DEPARTMENTS_FALLBACK from '../data/departments.json';
 
 const inputStyle = {
   width: '100%',
@@ -32,7 +32,9 @@ function TradeSelectionStep({
   onNext,
   fetchingQuestions,
   extractingFiles,
+  departments,
 }) {
+  const DEPARTMENTS = departments || DEPARTMENTS_FALLBACK;
   const [openDepts, setOpenDepts] = useState({});
 
   const toggleDept = (deptId) => {
@@ -595,7 +597,7 @@ function ReviewStep({
     .filter(Boolean)
     .join(', ');
 
-  const selectedSubNames = buildSelectedTradesList(selectedTrades);
+  const selectedSubNames = buildSelectedTradesList(selectedTrades, departments);
 
   const sections = [
     {
@@ -846,10 +848,10 @@ function ReviewStep({
 }
 
 // Build a flat list of selected sub-department names (for display and AI context)
-function buildSelectedTradesList(selectedTrades) {
+function buildSelectedTradesList(selectedTrades, departments = DEPARTMENTS_FALLBACK) {
   if (!selectedTrades || selectedTrades.size === 0) return [];
   const names = [];
-  for (const dept of DEPARTMENTS) {
+  for (const dept of departments) {
     for (const sub of dept.subDepartments) {
       if (selectedTrades.has(sub.id)) names.push(sub.name);
     }
@@ -858,10 +860,10 @@ function buildSelectedTradesList(selectedTrades) {
 }
 
 // Build the AI context block from selected trades
-function buildTradesContext(selectedTrades) {
+function buildTradesContext(selectedTrades, departments = DEPARTMENTS_FALLBACK) {
   if (!selectedTrades || selectedTrades.size === 0) return '';
   const lines = [];
-  for (const dept of DEPARTMENTS) {
+  for (const dept of departments) {
     const selected = dept.subDepartments.filter((s) => selectedTrades.has(s.id));
     if (selected.length === 0) continue;
     for (const sub of selected) {
@@ -925,6 +927,15 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
   const nameRef = useRef(null);
 
   const headers = { 'x-auth-token': token };
+
+  // Load department definitions from DB (falls back to static JSON if unavailable)
+  const [departments, setDepartments] = useState(DEPARTMENTS_FALLBACK);
+  useEffect(() => {
+    fetch('/api/departments', { headers: { 'x-auth-token': token } })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (Array.isArray(data) && data.length > 0) setDepartments(data); })
+      .catch(() => {});
+  }, [token]);
 
   // Step layout: Trades step is always step 3.
   // AI Questions step is inserted at step 4 if questions are returned.
@@ -1053,7 +1064,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
       setExtractingFiles(false);
     }
 
-    const tradesContext = buildTradesContext(selectedTrades);
+    const tradesContext = buildTradesContext(selectedTrades, departments);
     const scopeWithTrades = finalScope + tradesContext;
 
     try {
@@ -1067,7 +1078,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
           scopeText: scopeWithTrades,
           projectAddress,
           budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g, '')) : null,
-          selectedTrades: buildSelectedTradesPayload(selectedTrades),
+          selectedTrades: buildSelectedTradesPayload(selectedTrades, departments),
         }),
       });
       if (res.ok) {
@@ -1127,7 +1138,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
           qaAnswers: wizardAnswers,
           budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g, '')) : null,
           plansTempId: plansTempId || null,
-          selectedTrades: buildSelectedTradesPayload(selectedTrades),
+          selectedTrades: buildSelectedTradesPayload(selectedTrades, departments),
         }),
       });
       const data = await res.json();
@@ -1254,6 +1265,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
             onNext={handleNextFromTrades}
             fetchingQuestions={fetchingQuestions}
             extractingFiles={extractingFiles}
+            departments={departments}
           />
         ) : step === AI_STEP && aiStepInserted ? (
           <AIQuestionsStep
@@ -1697,10 +1709,10 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
 }
 
 // Build serializable payload for selectedTrades (array of {id, name, deptName, meaning})
-function buildSelectedTradesPayload(selectedTrades) {
+function buildSelectedTradesPayload(selectedTrades, departments = DEPARTMENTS_FALLBACK) {
   if (!selectedTrades || selectedTrades.size === 0) return [];
   const result = [];
-  for (const dept of DEPARTMENTS) {
+  for (const dept of departments) {
     for (const sub of dept.subDepartments) {
       if (selectedTrades.has(sub.id)) {
         result.push({ id: sub.id, name: sub.name, deptName: dept.name, meaning: sub.meaning });

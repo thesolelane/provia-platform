@@ -7,6 +7,7 @@ const ORANGE = '#E07B2A';
 const BASE_TABS = [
   'Markup',
   'Labor Rates',
+  'Dept Definitions',
   'Allowances',
   'Integrations',
   'Bot Behavior',
@@ -46,10 +47,40 @@ export default function Settings({ token, userRole }) {
   const [backupInfo, setBackupInfo] = useState(null);
   const [backupRunning, setBackupRunning] = useState(false);
   const [backupMsg, setBackupMsg] = useState(null);
+
+  const [depts, setDepts] = useState([]);
+  const [deptsLoading, setDeptsLoading] = useState(false);
+  const [deptsDraft, setDeptsDraft] = useState({});
+  const [deptsSaving, setDeptsSaving] = useState({});
+  const [deptsExpanded, setDeptsExpanded] = useState({});
+
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
   // Auto-load email log when the tab is opened for the first time
   useEffect(() => {
+    if (activeTab === 'Dept Definitions' && depts.length === 0 && !deptsLoading) {
+      setDeptsLoading(true);
+      fetch('/api/departments', { headers: { 'x-auth-token': token } })
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setDepts(data);
+            const draft = {};
+            for (const dept of data) {
+              draft[`d:${dept.id}`] = { name: dept.name, meaning: dept.meaning || '' };
+              for (const sub of dept.subDepartments) {
+                draft[`s:${sub.id}`] = { name: sub.name, meaning: sub.meaning || '' };
+              }
+            }
+            setDeptsDraft(draft);
+            const expanded = {};
+            if (data.length > 0) expanded[data[0].id] = true;
+            setDeptsExpanded(expanded);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setDeptsLoading(false));
+    }
     if (activeTab === 'Email Log' && !emailLog && !emailLogLoading) {
       loadEmailLog();
     }
@@ -414,6 +445,188 @@ export default function Settings({ token, userRole }) {
             })}
           </tbody>
         </table>
+      </div>
+    );
+  };
+
+  const saveDeptField = async (type, id) => {
+    const key = `${type}:${id}`;
+    const draft = deptsDraft[key] || {};
+    setDeptsSaving((p) => ({ ...p, [key]: true }));
+    try {
+      const url = type === 'd' ? `/api/departments/dept/${id}` : `/api/departments/sub/${id}`;
+      await fetch(url, { method: 'PUT', headers, body: JSON.stringify(draft) });
+      if (type === 'd') {
+        setDepts((prev) =>
+          prev.map((dept) =>
+            dept.id === id ? { ...dept, name: draft.name, meaning: draft.meaning } : dept,
+          ),
+        );
+      } else {
+        setDepts((prev) =>
+          prev.map((dept) => ({
+            ...dept,
+            subDepartments: dept.subDepartments.map((sub) =>
+              sub.id === id ? { ...sub, name: draft.name, meaning: draft.meaning } : sub,
+            ),
+          })),
+        );
+      }
+    } catch {
+    } finally {
+      setDeptsSaving((p) => ({ ...p, [key]: false }));
+    }
+  };
+
+  const renderDeptDefinitions = () => {
+    if (deptsLoading) {
+      return (
+        <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>Loading definitions…</div>
+      );
+    }
+    return (
+      <div>
+        <p style={{ color: '#888', fontSize: 13, marginBottom: 20 }}>
+          Edit department and sub-department names and definitions. The AI reads every definition
+          when building estimates — the more precise, the less guessing.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {depts.map((dept) => {
+            const dKey = `d:${dept.id}`;
+            const dDraft = deptsDraft[dKey] || { name: dept.name, meaning: dept.meaning || '' };
+            const isOpen = !!deptsExpanded[dept.id];
+            return (
+              <div
+                key={dept.id}
+                style={{ border: '1px solid #dde5f0', borderRadius: 8, overflow: 'hidden' }}
+              >
+                {/* Department header */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: '#f0f4fa',
+                    padding: '10px 14px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    gap: 10,
+                  }}
+                  onClick={() =>
+                    setDeptsExpanded((p) => ({ ...p, [dept.id]: !p[dept.id] }))
+                  }
+                >
+                  <span
+                    style={{
+                      fontSize: 12,
+                      color: '#94a3b8',
+                      transform: isOpen ? 'rotate(90deg)' : 'none',
+                      transition: 'transform 0.15s',
+                      display: 'inline-block',
+                    }}
+                  >
+                    ▶
+                  </span>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: '#0f172a', flex: 1 }}>
+                    {dDraft.name || dept.name}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#94a3b8' }}>
+                    {dept.subDepartments.length} sub-depts
+                  </span>
+                </div>
+
+                {/* Department-level name + definition */}
+                {isOpen && (
+                  <div style={{ background: '#fafbff', padding: '14px 16px', borderBottom: '1px solid #e8edf5' }}>
+                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                      <div style={{ flex: '0 0 220px' }}>
+                        <label style={{ fontSize: 11, color: '#555', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                          Dept Name
+                        </label>
+                        <input
+                          value={dDraft.name}
+                          onChange={(e) =>
+                            setDeptsDraft((p) => ({ ...p, [dKey]: { ...dDraft, name: e.target.value } }))
+                          }
+                          style={{ width: '100%', padding: '7px 9px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 240 }}>
+                        <label style={{ fontSize: 11, color: '#555', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                          Dept Description (AI context)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={dDraft.meaning}
+                          onChange={(e) =>
+                            setDeptsDraft((p) => ({ ...p, [dKey]: { ...dDraft, meaning: e.target.value } }))
+                          }
+                          style={{ width: '100%', padding: '7px 9px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => saveDeptField('d', dept.id)}
+                        disabled={!!deptsSaving[dKey]}
+                        style={{ padding: '8px 16px', background: BLUE, color: 'white', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}
+                      >
+                        {deptsSaving[dKey] ? 'Saving…' : 'Save Dept'}
+                      </button>
+                    </div>
+
+                    {/* Sub-departments */}
+                    <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {dept.subDepartments.map((sub) => {
+                        const sKey = `s:${sub.id}`;
+                        const sDraft = deptsDraft[sKey] || { name: sub.name, meaning: sub.meaning || '' };
+                        return (
+                          <div
+                            key={sub.id}
+                            style={{ background: 'white', border: '1px solid #e8edf5', borderRadius: 7, padding: '12px 14px' }}
+                          >
+                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                              <div style={{ flex: '0 0 220px' }}>
+                                <label style={{ fontSize: 11, color: '#555', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                                  Sub-Dept Name
+                                </label>
+                                <input
+                                  value={sDraft.name}
+                                  onChange={(e) =>
+                                    setDeptsDraft((p) => ({ ...p, [sKey]: { ...sDraft, name: e.target.value } }))
+                                  }
+                                  style={{ width: '100%', padding: '7px 9px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, boxSizing: 'border-box' }}
+                                />
+                              </div>
+                              <div style={{ flex: 1, minWidth: 240 }}>
+                                <label style={{ fontSize: 11, color: '#555', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                                  Definition / AI Context
+                                </label>
+                                <textarea
+                                  rows={3}
+                                  value={sDraft.meaning}
+                                  onChange={(e) =>
+                                    setDeptsDraft((p) => ({ ...p, [sKey]: { ...sDraft, meaning: e.target.value } }))
+                                  }
+                                  style={{ width: '100%', padding: '7px 9px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.5 }}
+                                  placeholder="Describe what this trade covers, typical cost drivers, and how it differs from similar trades…"
+                                />
+                              </div>
+                              <button
+                                onClick={() => saveDeptField('s', sub.id)}
+                                disabled={!!deptsSaving[sKey]}
+                                style={{ padding: '8px 16px', background: '#2E7D32', color: 'white', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}
+                              >
+                                {deptsSaving[sKey] ? 'Saving…' : 'Save'}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   };
@@ -2379,6 +2592,7 @@ export default function Settings({ token, userRole }) {
       >
         {activeTab === 'Markup' && renderMarkup()}
         {activeTab === 'Labor Rates' && renderLaborRates()}
+        {activeTab === 'Dept Definitions' && renderDeptDefinitions()}
         {activeTab === 'Allowances' && renderAllowances()}
         {activeTab === 'Integrations' && renderIntegrations()}
         {activeTab === 'Bot Behavior' && renderBotBehavior()}
