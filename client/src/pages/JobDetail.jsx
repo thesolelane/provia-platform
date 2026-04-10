@@ -2439,6 +2439,111 @@ export default function JobDetail({ token }) {
                   ))}
               </tbody>
             </table>
+            {/* ── PROPERTY RECORD ── */}
+            {(() => {
+              let pd = null;
+              try { pd = job.property_data ? JSON.parse(job.property_data) : null; } catch {}
+              if (!pd) return null;
+              const mg = pd.massGis;
+              const lc = pd.leadCheck;
+              const hasAnyData = mg || lc;
+              if (!hasAnyData) return null;
+
+              const LeadBadge = () => {
+                if (!lc) return null;
+                if (lc.hasRecord) {
+                  return (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      fontSize: 12, fontWeight: 600, padding: '3px 10px',
+                      borderRadius: 6, border: '1px solid #fca5a5',
+                      background: '#fef2f2', color: '#b91c1c'
+                    }}>
+                      ⚠ Lead record found
+                    </span>
+                  );
+                }
+                return (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    fontSize: 12, fontWeight: 600, padding: '3px 10px',
+                    borderRadius: 6, border: '1px solid #86efac',
+                    background: '#f0fdf4', color: '#15803d'
+                  }}>
+                    ✓ No lead record found
+                  </span>
+                );
+              };
+
+              const linkStyle = {
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                fontSize: 11, fontWeight: 600, padding: '3px 10px',
+                borderRadius: 6, border: '1px solid #d1d5db',
+                background: 'transparent', color: '#374151',
+                textDecoration: 'none', marginLeft: 6
+              };
+
+              const rows = [];
+              if (mg && !mg.webSearchFallback) {
+                if (mg.yearBuilt) rows.push(['Year Built', mg.yearBuilt]);
+                if (mg.buildingArea) rows.push(['Building Area', `${Number(mg.buildingArea).toLocaleString()} sq ft`]);
+                if (mg.lotSize) rows.push(['Lot Size', `${Number(mg.lotSize).toLocaleString()} sq ft`]);
+                if (mg.totalAssessedValue) rows.push(['Assessed Value', `$${Number(mg.totalAssessedValue).toLocaleString()}`]);
+                if (mg.useCodeLabel) rows.push(['Use', mg.useCodeLabel]);
+                if (mg.owner1) rows.push(['Owner', [mg.owner1, mg.owner2].filter(Boolean).join(' / ')]);
+                if (mg.numBedrooms) rows.push(['Bedrooms', mg.numBedrooms]);
+                if (mg.numBathrooms) rows.push(['Bathrooms', mg.numBathrooms]);
+                if (mg.style) rows.push(['Style', mg.style]);
+                if (mg.stories) rows.push(['Stories', mg.stories]);
+              }
+
+              return (
+                <div style={{ marginTop: 28, background: '#f8faff', border: '1px solid #e0e7ff', borderRadius: 10, padding: '16px 20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                    <h3 style={{ color: BLUE, margin: 0, fontSize: 15 }}>Property Record</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                      <LeadBadge />
+                      {lc && (
+                        <>
+                          <a href={lc.leadsafeUrl} target="_blank" rel="noopener noreferrer" style={linkStyle}>Lead Safe Homes 1.0 ↗</a>
+                          <a href={lc.leadsafe2Url} target="_blank" rel="noopener noreferrer" style={linkStyle}>Lead Safe Homes 2.0 ↗</a>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {rows.length > 0 && (
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <tbody>
+                        {rows.map(([label, value]) => (
+                          <tr key={label} style={{ borderBottom: '1px solid #e8edf5' }}>
+                            <td style={{ padding: '7px 0', fontSize: 12, color: '#888', width: 160 }}>{label}</td>
+                            <td style={{ padding: '7px 0', fontSize: 13, color: '#222' }}>{value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                  {mg?.webSearchFallback && (
+                    <div style={{ fontSize: 12, color: '#666', marginTop: 8 }}>
+                      <em>MassGIS had no direct record — property info sourced from web search.</em>
+                    </div>
+                  )}
+                  {lc?.note && (
+                    <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 8 }}>
+                      {lc.note}
+                      {lc.queriedAt && <span style={{ marginLeft: 6 }}>· checked {new Date(lc.queriedAt).toLocaleDateString()}</span>}
+                    </div>
+                  )}
+                  {pd.enrichedAt && (
+                    <div style={{ fontSize: 11, color: '#bbb', marginTop: 6 }}>
+                      Data fetched {new Date(pd.enrichedAt).toLocaleDateString()}
+                      {' · '}source: MassGIS L3 Parcel / Lead Safe Homes 1.0
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             <div style={{ marginTop: 24 }}>
               <h3 style={{ color: BLUE, marginBottom: 10 }}>Internal Notes</h3>
               <textarea

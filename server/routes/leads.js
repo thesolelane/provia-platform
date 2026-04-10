@@ -5,6 +5,7 @@ const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
 const { logAudit } = require('../services/auditService');
 const { findOrCreateContact, generatePbCustomerNumber } = require('../services/jobHelpers');
+const { enrichPropertyBackground } = require('../services/propertyEnrichment');
 
 const VALID_STAGES = [
   'incoming',
@@ -292,6 +293,10 @@ router.post('/', requireAuth, (req, res) => {
       req.session?.name || 'admin'
     );
     res.status(201).json({ lead });
+
+    // Background property enrichment (non-blocking)
+    const fullAddr = [job_address, job_city, 'MA'].filter(Boolean).join(', ');
+    if (job_address) enrichPropertyBackground(db, 'lead', lead.id, fullAddr);
   } catch (err) {
     console.error('[Leads] create error:', err);
     res.status(500).json({ error: err.message });
@@ -451,6 +456,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
     const updated = db.prepare('SELECT * FROM leads WHERE id = ?').get(leadId);
     res.json({ lead: updated });
+
+    // Re-run property enrichment if job_address was changed
+    if (job_address !== undefined && updated.job_address) {
+      const fullAddr = [updated.job_address, updated.job_city, 'MA'].filter(Boolean).join(', ');
+      enrichPropertyBackground(db, 'lead', leadId, fullAddr);
+    }
   } catch (err) {
     console.error('[Leads] patch error:', err);
     res.status(500).json({ error: err.message });

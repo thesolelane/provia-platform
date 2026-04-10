@@ -167,6 +167,12 @@ If the estimate includes a BUDGET TARGET line, calibrate all line item baseCosts
 - 2x6 framing required in MA Stretch Code towns for R-20
 - Never include well, septic, underground electric, appliances, or driveway unless explicitly in the estimate
 
+## PROPERTY INTELLIGENCE TOOLS
+You have two property tools available. Use them proactively when a project address is known:
+- **lookup_property**: Fetches MassGIS assessor data (year built, building area, lot size, assessed value, use code). Use when evaluating scope size, compliance requirements, or pricing for a known MA address.
+- **check_lead_record**: Checks CLPPP historical database for lead paint inspection records. Use when a project involves interior renovation of a pre-1978 building — lead abatement requirements can significantly affect scope and pricing.
+When MassGIS returns no result, the tool falls back to web search automatically.
+
 ## KNOWLEDGE BASE
 ${knowledgeBase}`;
 }
@@ -265,6 +271,54 @@ RULES FOR THIS REVISION:
   }
 }
 
+// ── PROPERTY TOOLS ───────────────────────────────────────────────────
+const LOOKUP_PROPERTY_TOOL = {
+  name: 'lookup_property',
+  description: `Look up Massachusetts property assessor data from the MassGIS L3 parcel database.
+Returns: year built, building area, lot size, assessed value, use code, owner info.
+Use this when you need property details to assess scope, compliance requirements, or pricing.
+Falls back to web search if MassGIS returns no result (new construction, rural parcel, etc.).`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      address: {
+        type: 'string',
+        description: 'Full property address (e.g. "123 Main St, Fitchburg, MA")'
+      },
+      town: {
+        type: 'string',
+        description: 'Massachusetts city or town name (e.g. "FITCHBURG")'
+      }
+    },
+    required: ['address']
+  }
+};
+
+const CHECK_LEAD_RECORD_TOOL = {
+  name: 'check_lead_record',
+  description: `Check whether a Massachusetts property has a lead paint inspection record in the CLPPP historical database (Lead Safe Homes).
+Returns: hasRecord (boolean), note, and links to Lead Safe Homes 1.0 and 2.0.
+Use this when evaluating renovation scope at properties built before 1978, or when lead abatement risk affects pricing.`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      town: {
+        type: 'string',
+        description: 'Massachusetts city or town name (e.g. "FITCHBURG")'
+      },
+      street: {
+        type: 'string',
+        description: 'Street name without number (e.g. "MAIN ST")'
+      },
+      number: {
+        type: 'string',
+        description: 'Street number (e.g. "123")'
+      }
+    },
+    required: ['town', 'street']
+  }
+};
+
 // ── WEB SEARCH TOOL DEFINITION ───────────────────────────────────────
 const WEB_SEARCH_TOOL = {
   name: 'web_search',
@@ -298,10 +352,17 @@ Keep queries specific and under 15 words. You may call this up to 3 times per es
   }
 };
 
-// ── TOOL USE LOOP — runs Claude with Perplexity available as a tool ──
-async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3, jobId = null) {
+// ── TOOL USE LOOP — runs Claude with Perplexity + property tools available ──
+async function runWithTools(systemPrompt, userMessage, maxToolCalls = 5, jobId = null) {
+  const { lookupPropertyByAddress } = require('./massGisService');
+  const { checkLeadRecord } = require('./leadCheckService');
+
   const messages = [{ role: 'user', content: userMessage }];
-  const tools = perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [];
+  const tools = [
+    LOOKUP_PROPERTY_TOOL,
+    CHECK_LEAD_RECORD_TOOL,
+    ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [])
+  ];
   let toolCallCount = 0;
   let totalInput = 0;
   let totalOutput = 0;
@@ -313,7 +374,7 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3, jobId =
       temperature: 0.1,
       system: systemPrompt,
       messages,
-      ...(tools.length ? { tools } : {})
+      tools
     });
 
     totalInput += response.usage?.input_tokens || 0;
@@ -325,14 +386,43 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 3, jobId =
 
       const toolResults = [];
       for (const block of toolUseBlocks) {
-        if (block.name === 'web_search') {
-          toolCallCount++;
-          console.log(
-            `[Claude→Perplexity] #${toolCallCount} type=${block.input.search_type} query="${block.input.query}"`
-          );
-          const result = await perplexity.search(block.input.query, block.input.search_type);
-          toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
+        toolCallCount++;
+        let result = 'Tool not available.';
+        try {
+          if (block.name === 'web_search') {
+            console.log(
+              `[Claude→Perplexity] #${toolCallCount} type=${block.input.search_type} query="${block.input.query}"`
+            );
+            result = await perplexity.search(block.input.query, block.input.search_type);
+          } else if (block.name === 'lookup_property') {
+            console.log(`[Claude→MassGIS] address="${block.input.address}"`);
+            const propData = await lookupPropertyByAddress(block.input.address);
+            if (propData) {
+              result = JSON.stringify(propData);
+            } else if (perplexity.isConfigured()) {
+              result = await perplexity.search(
+                `property assessor data year built ${block.input.address} Massachusetts`,
+                'general'
+              );
+            } else {
+              result = 'No MassGIS record found for this address.';
+            }
+          } else if (block.name === 'check_lead_record') {
+            console.log(
+              `[Claude→LeadCheck] town="${block.input.town}" street="${block.input.street}"`
+            );
+            result = JSON.stringify(
+              await checkLeadRecord({
+                town: block.input.town,
+                street: block.input.street,
+                number: block.input.number || ''
+              })
+            );
+          }
+        } catch (err) {
+          result = `Tool error: ${err.message}`;
         }
+        toolResults.push({ type: 'tool_result', tool_use_id: block.id, content: result });
       }
       messages.push({ role: 'user', content: toolResults });
     } else {

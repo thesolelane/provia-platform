@@ -815,6 +815,10 @@ async function initDatabase() {
     db.exec('ALTER TABLE jobs ADD COLUMN metadata TEXT');
   }
 
+  // ── Migration: property_data JSON blob (MassGIS + lead check results) ─────────
+  addColIfMissing('jobs', 'property_data', 'TEXT');
+  addColIfMissing('leads', 'property_data', 'TEXT');
+
   seedDefaultSettings();
   seedDefaultSenders();
   seedKnowledgeBase();

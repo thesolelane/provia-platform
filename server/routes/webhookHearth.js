@@ -96,6 +96,12 @@ async function processHearthEstimate(event) {
 
   logAudit(jobId, 'estimate_received', `Hearth estimate ${hearthId} received`, 'hearth_api');
 
+  // Background property enrichment (non-blocking)
+  if (projectAddress) {
+    const { enrichPropertyBackground } = require('../services/propertyEnrichment');
+    enrichPropertyBackground(db, 'job', jobId, projectAddress);
+  }
+
   // Get Jackson's sender info for his name
   const jacksonSender = db
     .prepare('SELECT * FROM approved_senders WHERE identifier = ? AND active = 1')

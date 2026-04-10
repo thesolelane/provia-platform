@@ -223,6 +223,7 @@ app.use(require('./routes/emailTracking'));
 app.use('/api/field-photos', require('./routes/fieldPhotos'));
 app.use('/api/agents', require('./routes/agents'));
 app.use('/api/leads', require('./routes/leads'));
+app.use('/api/lead-check', require('./routes/leadCheck'));
 app.use('/api/purchase-orders', require('./routes/purchaseOrders'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─

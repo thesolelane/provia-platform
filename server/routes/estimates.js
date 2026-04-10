@@ -350,6 +350,12 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
 
   res.json({ jobId, status: 'received', message: `${fileCount > 1 ? fileCount + ' files' : 'File'} uploaded. Processing estimate...` });
 
+  // Background property enrichment (non-blocking)
+  if (projectAddress) {
+    const { enrichPropertyBackground } = require('../services/propertyEnrichment');
+    enrichPropertyBackground(db, 'job', jobId, projectAddress);
+  }
+
   const { processEstimate } = require('../services/claudeService');
   (async () => {
     try {
@@ -496,6 +502,12 @@ router.post(
       });
     } catch {
       /* ignore */
+    }
+
+    // Background property enrichment (non-blocking)
+    if (projectAddress) {
+      const { enrichPropertyBackground } = require('../services/propertyEnrichment');
+      enrichPropertyBackground(db, 'job', jobId, projectAddress);
     }
 
     const { processEstimate } = require('../services/claudeService');

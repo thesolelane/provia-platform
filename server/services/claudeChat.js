@@ -5,6 +5,8 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { logTokenUsage } = require('../utils/tokenLogger');
 const { loadSettings, loadKnowledgeBase, buildSystemPrompt } = require('./claudeEstimate');
 const perplexity = require('./perplexityService');
+const { lookupPropertyByAddress } = require('./massGisService');
+const { checkLeadRecord } = require('./leadCheckService');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -76,6 +78,49 @@ Keep queries specific and under 15 words.`,
       }
     },
     required: ['query', 'search_type']
+  }
+};
+
+// ── PROPERTY TOOLS ───────────────────────────────────────────────────
+const LOOKUP_PROPERTY_TOOL = {
+  name: 'lookup_property',
+  description: `Look up Massachusetts property assessor data from the MassGIS L3 parcel database.
+Returns: year built, building area, lot size, assessed value, use code, owner info.
+Use this when the user asks about a property's age, size, value, or when evaluating renovation scope, stretch code applicability, or pricing for a known MA address.`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      address: {
+        type: 'string',
+        description: 'Full property address (e.g. "123 Main St, Fitchburg, MA")'
+      }
+    },
+    required: ['address']
+  }
+};
+
+const CHECK_LEAD_RECORD_TOOL = {
+  name: 'check_lead_record',
+  description: `Check whether a Massachusetts property has a lead paint inspection record in the CLPPP historical database.
+Returns: hasRecord (boolean), note, and links to Lead Safe Homes portals.
+Use this when evaluating renovation work on pre-1978 buildings or when lead abatement risk is relevant.`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      town: {
+        type: 'string',
+        description: 'Massachusetts city or town name (e.g. "FITCHBURG")'
+      },
+      street: {
+        type: 'string',
+        description: 'Street name without number (e.g. "MAIN ST")'
+      },
+      number: {
+        type: 'string',
+        description: 'Street number (e.g. "123")'
+      }
+    },
+    required: ['town', 'street']
   }
 };
 
@@ -208,6 +253,31 @@ async function runAdminTool(toolName, toolInput, db) {
     return await perplexity.search(toolInput.query, toolInput.search_type);
   }
 
+  if (toolName === 'lookup_property') {
+    console.log(`[Chat→MassGIS] address="${toolInput.address}"`);
+    const propData = await lookupPropertyByAddress(toolInput.address);
+    if (propData) {
+      return JSON.stringify(propData, null, 2);
+    }
+    if (perplexity.isConfigured()) {
+      return await perplexity.search(
+        `property assessor data year built ${toolInput.address} Massachusetts`,
+        'general'
+      );
+    }
+    return 'No MassGIS record found for this address.';
+  }
+
+  if (toolName === 'check_lead_record') {
+    console.log(`[Chat→LeadCheck] town="${toolInput.town}" street="${toolInput.street}"`);
+    const result = await checkLeadRecord({
+      town: toolInput.town,
+      street: toolInput.street,
+      number: toolInput.number || ''
+    });
+    return JSON.stringify(result, null, 2);
+  }
+
   return 'Unknown tool.';
 }
 
@@ -244,6 +314,8 @@ You have live access to the database and can:
 - Look up any customer contact info (name, email, phone) using lookup_contacts
 - Look up job/project status and info using lookup_jobs
 - Create tasks, reminders, and to-do items using create_task
+- Look up MA property assessor data (year built, building area, assessed value) using lookup_property
+- Check lead paint inspection records at a property using check_lead_record
 ${perplexity.isConfigured() ? '- Search the web for current real-time data using web_search (use for live prices, permit fees, code sections, supplier info — NOT for general knowledge)' : ''}
 
 Answer questions about:
@@ -273,7 +345,14 @@ IMPORTANT STYLE RULES:
       max_tokens: 2000,
       temperature: 0,
       system: systemPrompt,
-      tools: db ? [...ADMIN_TOOLS, ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [])] : [],
+      tools: db
+        ? [
+            ...ADMIN_TOOLS,
+            LOOKUP_PROPERTY_TOOL,
+            CHECK_LEAD_RECORD_TOOL,
+            ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [])
+          ]
+        : [],
       messages: msgsToSend
     });
 

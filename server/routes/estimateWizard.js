@@ -112,6 +112,12 @@ router.post('/wizard', requireAuth, async (req, res) => {
   notifyClients('job_updated', { jobId, status: 'processing' });
   res.json({ jobId, status: 'processing', message: 'Job created. Processing estimate...' });
 
+  // Background property enrichment (non-blocking)
+  if (projectAddress) {
+    const { enrichPropertyBackground } = require('../services/propertyEnrichment');
+    enrichPropertyBackground(db, 'job', jobId, projectAddress);
+  }
+
   const { processEstimate } = require('../services/claudeService');
   (async () => {
     try {
@@ -419,6 +425,12 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     status: 'received',
     message: 'Wizard submission received. Processing estimate...'
   });
+
+  // Background property enrichment (non-blocking)
+  if (projectAddress) {
+    const { enrichPropertyBackground } = require('../services/propertyEnrichment');
+    enrichPropertyBackground(db, 'job', jobId, projectAddress);
+  }
 
   const { processEstimate } = require('../services/claudeService');
   (async () => {
