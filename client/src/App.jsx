@@ -76,7 +76,9 @@ function App() {
           headers: { 'x-auth-token': token },
         });
         if (res.status === 401) handleLogout();
-      } catch {}
+      } catch (_e) {
+        /* session may have expired */
+      }
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') validate();

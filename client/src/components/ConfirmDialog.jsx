@@ -3,7 +3,6 @@
 // Usage: import { showConfirm } from '../utils/confirm'; await showConfirm('Are you sure?')
 import { useState, useEffect } from 'react';
 
-const BLUE = '#1B3A6B';
 const RED = '#C62828';
 
 export default function ConfirmDialog() {

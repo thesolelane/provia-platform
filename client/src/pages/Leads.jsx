@@ -299,7 +299,7 @@ export default function Leads({ token }) {
       }
       const data = await res.json();
       setLeads(data.leads || []);
-    } catch (err) {
+    } catch (_e) {
       showToast('Failed to load leads — check connection', 'error');
     }
     setLoading(false);

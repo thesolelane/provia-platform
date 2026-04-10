@@ -5,8 +5,6 @@ const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
 
 // Status lifecycle: draft → issued → received → closed
-// "Open" POs are all non-closed: draft, issued, received
-const OPEN_STATUSES = ['draft', 'issued', 'received'];
 
 // ── PO number generator: PO-YYYY-NNNN ────────────────────────────────────────
 function generatePONumber(db) {

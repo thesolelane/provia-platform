@@ -90,7 +90,7 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
         if (isHeicMime(file.mimetype)) {
           try {
             fileBuffer = Buffer.from(await convertHeicToJpeg(fileBuffer));
-          } catch (heicErr) {
+          } catch (_e) {
             extractedParts.push(
               `[Could not convert HEIC image "${file.name}" — please try a JPG or PNG export]`,
             );
@@ -245,7 +245,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
           try {
             fileBuffer = Buffer.from(await convertHeicToJpeg(fileBuffer));
             imgMime = 'image/jpeg';
-          } catch (heicErr) {
+          } catch (_e) {
             textParts.push(`[${file.name}: Could not convert HEIC — skipped]`);
             continue;
           }

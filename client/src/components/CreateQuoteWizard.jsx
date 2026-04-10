@@ -604,6 +604,7 @@ function ReviewStep({
   onBack,
   onSubmit,
   busy,
+  departments = DEPARTMENTS_FALLBACK,
 }) {
   const demoAdditions = answers.filter(
     (a) => a.questionType === 'demo_check' && a.answer === 'no' && a.demoCost,
@@ -1303,6 +1304,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
             onBack={handleBack}
             onSubmit={submit}
             busy={busy}
+            departments={departments}
           />
         ) : (
           <>

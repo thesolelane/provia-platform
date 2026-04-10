@@ -64,7 +64,7 @@ function SidebarNavItem({ item, active, collapsed }) {
   );
 }
 
-export default function Layout({ children, token, onLogout, userName, userRole }) {
+export default function Layout({ children, token: _token, onLogout, userName, userRole }) {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);

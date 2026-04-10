@@ -163,7 +163,6 @@ function runCalcs(
   const concreteCY = includeSlab ? Math.ceil(((L * W * (slabIn / 12)) / 27) * 1.1) : 0;
 
   let intWallArea = 0;
-  let bathroomArea = 0;
   let totalFloorArea = 0;
   let totalDoors = 0;
   let garageDoorCount = 0;
@@ -198,7 +197,6 @@ function runCalcs(
 
     if (room.type === 'Bathroom') {
       if (room.isFullBath !== false) {
-        bathroomArea += rArea;
         fullBathCount++;
       } else halfBathCount++;
     }
@@ -300,8 +298,6 @@ function runCalcs(
 
   const roofingSquares = Math.ceil(roofArea / 100);
   const underlaymentRolls = roofArea > 0 ? Math.ceil(roofArea / 1000) : 0;
-  const tileArea = bathroomArea;
-
   const baseboardLF = Math.ceil(
     rooms.reduce(
       (acc, r) => acc + 2 * ((parseFloat(r.length) || 0) + (parseFloat(r.width) || 0)),

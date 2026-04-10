@@ -10,9 +10,6 @@ const PURPLE = '#7C3AED';
 
 const fmt = (n) =>
   `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-const fmtD = (n) =>
-  `$${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
 const REPORT_TYPES = [
   { key: 'pl', icon: '📊', label: 'P&L Summary', desc: 'Revenue, costs, gross profit and margin' },
   {
@@ -272,9 +269,6 @@ function CashFlowReport({ data }) {
   const maxOut = Math.max(...rows.map((r) => r.out), 1);
   const maxAbs = Math.max(maxIn, maxOut);
   const BAR_H = 80;
-
-  const minBalance = Math.min(...rows.map((r) => r.balance));
-  const maxBalance = Math.max(...rows.map((r) => r.balance));
 
   const totalIn = rows.reduce((s, r) => s + r.in, 0);
   const totalOut = rows.reduce((s, r) => s + r.out, 0);
@@ -1306,7 +1300,9 @@ export default function Reports({ token }) {
       const res = await fetch(`/api/reports/saved/${id}`, { headers: { 'x-auth-token': token } });
       const body = await res.json();
       if (res.ok) setViewingSaved(body.report);
-    } catch {}
+    } catch (_e) {
+      /* non-critical — saved report may not exist */
+    }
   };
 
   const deleteSaved = async (id, e) => {

@@ -1,5 +1,5 @@
 // client/src/pages/Contacts.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 import ActivityLog from '../components/ActivityLog';
@@ -55,21 +55,6 @@ const STATUS_META = {
   rejected: { label: 'Rejected', bg: '#ffebee', color: '#c62828' },
   closed: { label: 'Closed', bg: '#fff3e0', color: '#e65100' },
 };
-
-const STATUS_ORDER = [
-  'received',
-  'estimating',
-  'clarification',
-  'proposal_ready',
-  'proposal_sent',
-  'proposal_approved',
-  'contract_ready',
-  'contract_sent',
-  'contract_signed',
-  'in_progress',
-  'complete',
-  'completed',
-];
 
 function fmt(n) {
   if (!n && n !== 0) return '—';

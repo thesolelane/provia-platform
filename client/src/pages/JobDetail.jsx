@@ -11,8 +11,6 @@ const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
 const GREEN = '#2E7D32';
 const RED = '#C62828';
-const PURPLE = '#7C3AED';
-
 const STATUS_COLORS = {
   received: '#888',
   processing: ORANGE,
@@ -71,9 +69,6 @@ export default function JobDetail({ token }) {
   const [marginLoading, setMarginLoading] = useState(false);
   const [pipelineCtx, setPipelineCtx] = useState(null);
   const [followUpTask, setFollowUpTask] = useState(null); // null | 'creating' | 'error' | taskObject
-  const [editingCustomer, setEditingCustomer] = useState(false);
-  const [customerDraft, setCustomerDraft] = useState({ name: '', email: '', phone: '' });
-  const [savingCustomer, setSavingCustomer] = useState(false);
   const [ptResp, setPtResp] = useState({
     permit_paid_by: 'pb',
     engineer_paid_by: 'pb',
@@ -2909,7 +2904,9 @@ export default function JobDetail({ token }) {
               let pd = null;
               try {
                 pd = job.property_data ? JSON.parse(job.property_data) : null;
-              } catch {}
+              } catch (_e) {
+                /* invalid JSON */
+              }
               if (!pd) return null;
               const mg = pd.massGis;
               const lc = pd.leadCheck;
@@ -3415,9 +3412,6 @@ export default function JobDetail({ token }) {
 
             const subTotal = lineItems.reduce((s, li) => s + (Number(li.baseCost) || 0), 0);
             const clientTotal = lineItems.reduce((s, li) => s + (Number(li.finalPrice) || 0), 0);
-            const effectiveMult = subTotal > 0 ? clientTotal / subTotal : 0;
-            const multOk = effectiveMult >= 1.55 && effectiveMult <= 1.62;
-
             const projectSqft = Number(pd?.project?.sqft) || 0;
             const sqftPrice =
               pd?.pricing?.pricePerSqft ||

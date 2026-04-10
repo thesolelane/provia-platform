@@ -838,7 +838,7 @@ function buildTradesNarrativeFromSubs(selectedSubs) {
   return `\n\nEXPLICITLY SELECTED TRADES (user-confirmed via WhatsApp):\n${lines.join('\n')}\nUse this list to calibrate line items and pricing — these trades are confirmed to be in scope.`;
 }
 
-async function sendMobileTradeSelectLink(job, from, db, language, senderName) {
+async function sendMobileTradeSelectLink(job, from, db, language, _senderName) {
   const isPortuguese = language === 'pt-BR';
   const { v4: uuidv4 } = require('uuid');
   const token = uuidv4();

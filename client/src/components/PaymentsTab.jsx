@@ -259,13 +259,6 @@ export default function PaymentsTab({ jobId, token, job }) {
   );
   const passThroughInvoices = invoices.filter((i) => i.invoice_type === 'pass_through_invoice');
   const changeOrders = invoices.filter((i) => i.invoice_type === 'change_order');
-  const INV_TYPE_LABEL = {
-    contract_invoice: 'Contract Invoice',
-    pass_through_invoice: 'Pass-Through Invoice',
-    change_order: 'Change Order',
-    combined_invoice: 'Combined Invoice',
-  };
-
   const contractReceived = received.filter((r) => !r.is_pass_through_reimbursement);
   const ptReceived = received.filter((r) => r.is_pass_through_reimbursement);
   const contractPaid = made.filter((m) => m.payment_class === 'cost_of_revenue');

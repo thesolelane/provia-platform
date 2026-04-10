@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { showToast } from '../utils/toast';
-import { showConfirm } from '../utils/confirm';
+
 import CreateQuoteWizard from '../components/CreateQuoteWizard';
 
 const STATUS_COLORS = {
@@ -296,7 +296,7 @@ export default function Dashboard({ token }) {
       } else {
         showToast(data.error || 'Error processing file(s)', 'error');
       }
-    } catch (e) {
+    } catch (_e) {
       setSubmitBusy(false);
       showToast('Network error — please try again', 'error');
     }

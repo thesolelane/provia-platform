@@ -39,8 +39,6 @@ export default function Settings({ token, userRole }) {
   const [emailLog, setEmailLog] = useState(null);
   const [emailLogLoading, setEmailLogLoading] = useState(false);
   const [emailPreview, setEmailPreview] = useState(null);
-  const [signingReceipts, setSigningReceipts] = useState(null);
-  const [signingLoading, setSigningLoading] = useState(false);
   const [reportSchedule, setReportSchedule] = useState(null);
   const [scheduleSaving, setScheduleSaving] = useState(false);
   const [scheduleSaved, setScheduleSaved] = useState(false);
@@ -108,7 +106,9 @@ export default function Settings({ token, userRole }) {
         const res = await fetch('/api/email-log?limit=200', { headers: { 'x-auth-token': token } });
         const data = await res.json();
         if (data && !data.error) setEmailLog(data);
-      } catch (_) {}
+      } catch (_e) {
+        /* non-critical polling — ignore failures */
+      }
     }, 20000);
     return () => clearInterval(interval);
   }, [activeTab, emailLog, token]);
@@ -472,7 +472,8 @@ export default function Settings({ token, userRole }) {
           })),
         );
       }
-    } catch {
+    } catch (_e) {
+      /* save failed — user can retry */
     } finally {
       setDeptsSaving((p) => ({ ...p, [key]: false }));
     }
@@ -1169,7 +1170,9 @@ export default function Settings({ token, userRole }) {
         setEditingKey(null);
         setAddingNew(false);
       }
-    } catch (e) {}
+    } catch (_e) {
+      /* secrets save failed */
+    }
     setSecretsLoading(false);
   };
 
@@ -1908,8 +1911,6 @@ export default function Settings({ token, userRole }) {
   const renderStatus = () => {
     const GREEN_C = '#2E7D32';
     const RED_C = '#C62828';
-    const GREY_C = '#888';
-
     if (!statusData) {
       return (
         <div style={{ textAlign: 'center', padding: 40 }}>
