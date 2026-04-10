@@ -122,9 +122,10 @@ function TradeSelectionStep({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '10px 14px',
+                  padding: '12px 14px',
                   cursor: 'pointer',
                   userSelect: 'none',
+                  background: partial ? '#eef3fc' : '#f8fafc',
                 }}
                 onClick={() => toggleDept(dept.id)}
               >
@@ -140,8 +141,8 @@ function TradeSelectionStep({
                   }}
                   onClick={(e) => e.stopPropagation()}
                   style={{
-                    width: 15,
-                    height: 15,
+                    width: 17,
+                    height: 17,
                     cursor: 'pointer',
                     flexShrink: 0,
                     accentColor: '#1B3A6B',
@@ -150,22 +151,23 @@ function TradeSelectionStep({
                 <span
                   style={{
                     flex: 1,
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: '#1e293b',
-                    marginLeft: 10,
+                    fontWeight: 700,
+                    fontSize: 15,
+                    color: '#0f172a',
+                    marginLeft: 12,
+                    letterSpacing: 0.1,
                   }}
                 >
                   {dept.name}
                 </span>
-                <span style={{ fontSize: 11, color: partial ? '#1B3A6B' : '#bbb', marginRight: 8 }}>
+                <span style={{ fontSize: 12, color: partial ? '#1B3A6B' : '#bbb', marginRight: 8, fontWeight: 600 }}>
                   {partial
                     ? `${dept.subDepartments.filter((s) => selectedTrades.has(s.id)).length}/${dept.subDepartments.length}`
                     : ''}
                 </span>
                 <span
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     color: '#94a3b8',
                     transform: isOpen ? 'rotate(90deg)' : 'none',
                     transition: 'transform 0.15s',
@@ -178,17 +180,18 @@ function TradeSelectionStep({
 
               {/* Sub-departments */}
               {isOpen && (
-                <div style={{ borderTop: '1px solid #e8edf5', background: '#f8fafc' }}>
+                <div style={{ borderTop: '1px solid #dde5f0', background: '#fff' }}>
                   {dept.subDepartments.map((sub) => (
                     <label
                       key={sub.id}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: 10,
-                        padding: '9px 14px 9px 30px',
+                        gap: 12,
+                        padding: '11px 14px 11px 34px',
                         cursor: 'pointer',
-                        borderBottom: '1px solid #f0f3f8',
+                        borderBottom: '1px solid #eef2f8',
+                        background: selectedTrades.has(sub.id) ? '#f0f5ff' : 'transparent',
                       }}
                     >
                       <input
@@ -196,14 +199,14 @@ function TradeSelectionStep({
                         checked={selectedTrades.has(sub.id)}
                         onChange={() => toggleSub(sub.id)}
                         style={{
-                          width: 14,
-                          height: 14,
+                          width: 16,
+                          height: 16,
                           cursor: 'pointer',
                           accentColor: '#1B3A6B',
                           flexShrink: 0,
                         }}
                       />
-                      <span style={{ fontSize: 13, color: '#374151' }}>{sub.name}</span>
+                      <span style={{ fontSize: 14, color: '#1e293b', fontWeight: selectedTrades.has(sub.id) ? 600 : 400 }}>{sub.name}</span>
                     </label>
                   ))}
                 </div>
