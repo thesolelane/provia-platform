@@ -20,6 +20,14 @@ async function initDatabase() {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
 
+  // Uses PRAGMA table_info (reads schema, not data pages — safe on any DB state)
+  const addColIfMissing = (table, col, def) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY,
@@ -155,49 +163,17 @@ async function initDatabase() {
     )
   `);
 
-  // Migration: add archived columns if missing
-  try {
-    db.prepare('SELECT archived FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN archived INTEGER DEFAULT 0');
-    db.exec('ALTER TABLE jobs ADD COLUMN archived_at DATETIME');
-  }
+  // Migrations: jobs columns
+  addColIfMissing('jobs', 'archived', 'INTEGER DEFAULT 0');
+  addColIfMissing('jobs', 'archived_at', 'DATETIME');
+  addColIfMissing('jobs', 'contact_id', 'INTEGER');
+  addColIfMissing('jobs', 'quote_number', 'TEXT');
+  addColIfMissing('jobs', 'version', 'INTEGER DEFAULT 1');
+  addColIfMissing('jobs', 'parent_job_id', 'TEXT');
+  addColIfMissing('jobs', 'estimate_source', "TEXT DEFAULT 'ai'");
 
-  // Migration: add customer serial number to contacts
-  try {
-    db.prepare('SELECT customer_number FROM contacts LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE contacts ADD COLUMN customer_number TEXT');
-  }
-
-  // Migration: add contact_id link on jobs
-  try {
-    db.prepare('SELECT contact_id FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN contact_id INTEGER');
-  }
-
-  // Migration: add quote versioning columns to jobs
-  try {
-    db.prepare('SELECT quote_number FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN quote_number TEXT');
-  }
-  try {
-    db.prepare('SELECT version FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN version INTEGER DEFAULT 1');
-  }
-  try {
-    db.prepare('SELECT parent_job_id FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN parent_job_id TEXT');
-  }
-  try {
-    db.prepare('SELECT estimate_source FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec("ALTER TABLE jobs ADD COLUMN estimate_source TEXT DEFAULT 'ai'");
-  }
+  // Migrations: contacts columns
+  addColIfMissing('contacts', 'customer_number', 'TEXT');
   db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_quote_number ON jobs(quote_number)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_parent_job_id ON jobs(parent_job_id)`);
 
@@ -308,14 +284,10 @@ async function initDatabase() {
   `);
 
   // Migration: add profile columns to users
-  try {
-    db.prepare('SELECT phone FROM users LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
-    db.exec("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'en'");
-    db.exec("ALTER TABLE users ADD COLUMN title TEXT DEFAULT 'Team Member'");
-    db.exec('ALTER TABLE users ADD COLUMN active INTEGER DEFAULT 1');
-  }
+  addColIfMissing('users', 'phone', 'TEXT');
+  addColIfMissing('users', 'language', "TEXT DEFAULT 'en'");
+  addColIfMissing('users', 'title', "TEXT DEFAULT 'Team Member'");
+  addColIfMissing('users', 'active', 'INTEGER DEFAULT 1');
 
   // Migration: update roles to new permission system
   db.prepare(
@@ -390,26 +362,10 @@ async function initDatabase() {
   `);
 
   // Migration: add pb_number, external_ref, version tracking to jobs
-  try {
-    db.prepare('SELECT pb_number FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN pb_number TEXT');
-  }
-  try {
-    db.prepare('SELECT external_ref FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN external_ref TEXT');
-  }
-  try {
-    db.prepare('SELECT quote_version FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN quote_version INTEGER DEFAULT 1');
-  }
-  try {
-    db.prepare('SELECT parent_job_id FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN parent_job_id TEXT');
-  }
+  addColIfMissing('jobs', 'pb_number', 'TEXT');
+  addColIfMissing('jobs', 'external_ref', 'TEXT');
+  addColIfMissing('jobs', 'quote_version', 'INTEGER DEFAULT 1');
+  addColIfMissing('jobs', 'parent_job_id', 'TEXT');
 
   // Atomic quote number counter (separate from customer serial counter)
   db.exec(`
@@ -444,14 +400,7 @@ async function initDatabase() {
     }
   }
 
-  // Migration: add new columns to payments tables if missing (check each individually)
-  const addColIfMissing = (table, col, def) => {
-    try {
-      db.prepare(`SELECT ${col} FROM ${table} LIMIT 1`).get();
-    } catch {
-      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
-    }
-  };
+  // Migrations: payments + session columns
   addColIfMissing('signing_sessions', 'decline_reason', 'TEXT');
   addColIfMissing('payments_received', 'time_received', 'TEXT');
   addColIfMissing('payments_received', 'credit_debit', "TEXT NOT NULL DEFAULT 'credit'");
@@ -493,11 +442,7 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_email_log_job_id  ON email_log(job_id)`);
 
   // Migration: add html_body column for email preview (auto-wiped on contract signing)
-  try {
-    db.exec(`ALTER TABLE email_log ADD COLUMN html_body TEXT`);
-  } catch {
-    /* ignore */
-  }
+  addColIfMissing('email_log', 'html_body', 'TEXT');
 
   // Field photos — standalone camera inbox with GPS grouping
   db.exec(`
@@ -625,11 +570,7 @@ async function initDatabase() {
   // ── Migration: add pb_customer_number to contacts (new format: PB-C-XXXX) ────
   // The existing customer_number column uses PB-C-YEAR-NNNN format.
   // We add pb_customer_number as a simpler sequential PB-C-XXXX identifier.
-  try {
-    db.prepare('SELECT pb_customer_number FROM contacts LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE contacts ADD COLUMN pb_customer_number TEXT');
-  }
+  addColIfMissing('contacts', 'pb_customer_number', 'TEXT');
 
   // Backfill pb_customer_number for contacts missing it
   {
@@ -685,28 +626,10 @@ async function initDatabase() {
   }
 
   // ── Migration: invoice line-item split columns ────────────────────────────
-  try {
-    db.prepare('SELECT contract_amount FROM invoices LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE invoices ADD COLUMN contract_amount REAL NOT NULL DEFAULT 0');
-  }
-  try {
-    db.prepare('SELECT pass_through_amount FROM invoices LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE invoices ADD COLUMN pass_through_amount REAL NOT NULL DEFAULT 0');
-  }
-  // ── Migration: pb_due_amount — what is actually owed to PB after pay-direct items ──
-  try {
-    db.prepare('SELECT pb_due_amount FROM invoices LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE invoices ADD COLUMN pb_due_amount REAL NOT NULL DEFAULT 0');
-  }
-  // ── Migration: full_contract_value — informational total shown at top of Invoice 1 ──
-  try {
-    db.prepare('SELECT full_contract_value FROM invoices LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE invoices ADD COLUMN full_contract_value REAL NOT NULL DEFAULT 0');
-  }
+  addColIfMissing('invoices', 'contract_amount', 'REAL NOT NULL DEFAULT 0');
+  addColIfMissing('invoices', 'pass_through_amount', 'REAL NOT NULL DEFAULT 0');
+  addColIfMissing('invoices', 'pb_due_amount', 'REAL NOT NULL DEFAULT 0');
+  addColIfMissing('invoices', 'full_contract_value', 'REAL NOT NULL DEFAULT 0');
 
   // ── Agent keys + agent messages tables ──────────────────────────────────────
   db.exec(`
@@ -809,11 +732,7 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_po_contact_id ON purchase_orders(contact_id)`);
 
   // ── Migration: job metadata JSON blob (trade selection, etc.) ────────────────
-  try {
-    db.prepare('SELECT metadata FROM jobs LIMIT 1').get();
-  } catch {
-    db.exec('ALTER TABLE jobs ADD COLUMN metadata TEXT');
-  }
+  addColIfMissing('jobs', 'metadata', 'TEXT');
 
   // ── Migration: property_data JSON blob (MassGIS + lead check results) ─────────
   addColIfMissing('jobs', 'property_data', 'TEXT');
