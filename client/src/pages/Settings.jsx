@@ -511,9 +511,7 @@ export default function Settings({ token, userRole }) {
                     userSelect: 'none',
                     gap: 10,
                   }}
-                  onClick={() =>
-                    setDeptsExpanded((p) => ({ ...p, [dept.id]: !p[dept.id] }))
-                  }
+                  onClick={() => setDeptsExpanded((p) => ({ ...p, [dept.id]: !p[dept.id] }))}
                 >
                   <span
                     style={{
@@ -536,83 +534,213 @@ export default function Settings({ token, userRole }) {
 
                 {/* Department-level name + definition */}
                 {isOpen && (
-                  <div style={{ background: '#fafbff', padding: '14px 16px', borderBottom: '1px solid #e8edf5' }}>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <div
+                    style={{
+                      background: '#fafbff',
+                      padding: '14px 16px',
+                      borderBottom: '1px solid #e8edf5',
+                    }}
+                  >
+                    <div
+                      style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}
+                    >
                       <div style={{ flex: '0 0 220px' }}>
-                        <label style={{ fontSize: 11, color: '#555', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                        <label
+                          style={{
+                            fontSize: 11,
+                            color: '#555',
+                            fontWeight: 600,
+                            display: 'block',
+                            marginBottom: 4,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.03em',
+                          }}
+                        >
                           Dept Name
                         </label>
                         <input
                           value={dDraft.name}
                           onChange={(e) =>
-                            setDeptsDraft((p) => ({ ...p, [dKey]: { ...dDraft, name: e.target.value } }))
+                            setDeptsDraft((p) => ({
+                              ...p,
+                              [dKey]: { ...dDraft, name: e.target.value },
+                            }))
                           }
-                          style={{ width: '100%', padding: '7px 9px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, boxSizing: 'border-box' }}
+                          style={{
+                            width: '100%',
+                            padding: '7px 9px',
+                            border: '1px solid #ddd',
+                            borderRadius: 5,
+                            fontSize: 13,
+                            boxSizing: 'border-box',
+                          }}
                         />
                       </div>
                       <div style={{ flex: 1, minWidth: 240 }}>
-                        <label style={{ fontSize: 11, color: '#555', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                        <label
+                          style={{
+                            fontSize: 11,
+                            color: '#555',
+                            fontWeight: 600,
+                            display: 'block',
+                            marginBottom: 4,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.03em',
+                          }}
+                        >
                           Dept Description (AI context)
                         </label>
                         <textarea
                           rows={2}
                           value={dDraft.meaning}
                           onChange={(e) =>
-                            setDeptsDraft((p) => ({ ...p, [dKey]: { ...dDraft, meaning: e.target.value } }))
+                            setDeptsDraft((p) => ({
+                              ...p,
+                              [dKey]: { ...dDraft, meaning: e.target.value },
+                            }))
                           }
-                          style={{ width: '100%', padding: '7px 9px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                          style={{
+                            width: '100%',
+                            padding: '7px 9px',
+                            border: '1px solid #ddd',
+                            borderRadius: 5,
+                            fontSize: 13,
+                            resize: 'vertical',
+                            boxSizing: 'border-box',
+                            fontFamily: 'inherit',
+                          }}
                         />
                       </div>
                       <button
                         onClick={() => saveDeptField('d', dept.id)}
                         disabled={!!deptsSaving[dKey]}
-                        style={{ padding: '8px 16px', background: BLUE, color: 'white', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}
+                        style={{
+                          padding: '8px 16px',
+                          background: BLUE,
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: 5,
+                          fontSize: 12,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          fontWeight: 600,
+                        }}
                       >
                         {deptsSaving[dKey] ? 'Saving…' : 'Save Dept'}
                       </button>
                     </div>
 
                     {/* Sub-departments */}
-                    <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div
+                      style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}
+                    >
                       {dept.subDepartments.map((sub) => {
                         const sKey = `s:${sub.id}`;
-                        const sDraft = deptsDraft[sKey] || { name: sub.name, meaning: sub.meaning || '' };
+                        const sDraft = deptsDraft[sKey] || {
+                          name: sub.name,
+                          meaning: sub.meaning || '',
+                        };
                         return (
                           <div
                             key={sub.id}
-                            style={{ background: 'white', border: '1px solid #e8edf5', borderRadius: 7, padding: '12px 14px' }}
+                            style={{
+                              background: 'white',
+                              border: '1px solid #e8edf5',
+                              borderRadius: 7,
+                              padding: '12px 14px',
+                            }}
                           >
-                            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: 10,
+                                flexWrap: 'wrap',
+                                alignItems: 'flex-end',
+                              }}
+                            >
                               <div style={{ flex: '0 0 220px' }}>
-                                <label style={{ fontSize: 11, color: '#555', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                                <label
+                                  style={{
+                                    fontSize: 11,
+                                    color: '#555',
+                                    fontWeight: 600,
+                                    display: 'block',
+                                    marginBottom: 4,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.03em',
+                                  }}
+                                >
                                   Sub-Dept Name
                                 </label>
                                 <input
                                   value={sDraft.name}
                                   onChange={(e) =>
-                                    setDeptsDraft((p) => ({ ...p, [sKey]: { ...sDraft, name: e.target.value } }))
+                                    setDeptsDraft((p) => ({
+                                      ...p,
+                                      [sKey]: { ...sDraft, name: e.target.value },
+                                    }))
                                   }
-                                  style={{ width: '100%', padding: '7px 9px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, boxSizing: 'border-box' }}
+                                  style={{
+                                    width: '100%',
+                                    padding: '7px 9px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: 5,
+                                    fontSize: 13,
+                                    boxSizing: 'border-box',
+                                  }}
                                 />
                               </div>
                               <div style={{ flex: 1, minWidth: 240 }}>
-                                <label style={{ fontSize: 11, color: '#555', fontWeight: 600, display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                                <label
+                                  style={{
+                                    fontSize: 11,
+                                    color: '#555',
+                                    fontWeight: 600,
+                                    display: 'block',
+                                    marginBottom: 4,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.03em',
+                                  }}
+                                >
                                   Definition / AI Context
                                 </label>
                                 <textarea
                                   rows={3}
                                   value={sDraft.meaning}
                                   onChange={(e) =>
-                                    setDeptsDraft((p) => ({ ...p, [sKey]: { ...sDraft, meaning: e.target.value } }))
+                                    setDeptsDraft((p) => ({
+                                      ...p,
+                                      [sKey]: { ...sDraft, meaning: e.target.value },
+                                    }))
                                   }
-                                  style={{ width: '100%', padding: '7px 9px', border: '1px solid #ddd', borderRadius: 5, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.5 }}
+                                  style={{
+                                    width: '100%',
+                                    padding: '7px 9px',
+                                    border: '1px solid #ddd',
+                                    borderRadius: 5,
+                                    fontSize: 13,
+                                    resize: 'vertical',
+                                    boxSizing: 'border-box',
+                                    fontFamily: 'inherit',
+                                    lineHeight: 1.5,
+                                  }}
                                   placeholder="Describe what this trade covers, typical cost drivers, and how it differs from similar trades…"
                                 />
                               </div>
                               <button
                                 onClick={() => saveDeptField('s', sub.id)}
                                 disabled={!!deptsSaving[sKey]}
-                                style={{ padding: '8px 16px', background: '#2E7D32', color: 'white', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600 }}
+                                style={{
+                                  padding: '8px 16px',
+                                  background: '#2E7D32',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: 5,
+                                  fontSize: 12,
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap',
+                                  fontWeight: 600,
+                                }}
                               >
                                 {deptsSaving[sKey] ? 'Saving…' : 'Save'}
                               </button>

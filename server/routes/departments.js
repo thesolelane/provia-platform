@@ -7,12 +7,16 @@ const { getDb } = require('../db/database');
 // GET /api/departments — return all depts with their sub-departments
 router.get('/', requireAuth, (req, res) => {
   const db = getDb();
-  const rows = db.prepare(`
+  const rows = db
+    .prepare(
+      `
     SELECT dept_id, dept_name, dept_meaning, dept_sort,
            sub_id, sub_name, sub_meaning, sub_sort
     FROM departments
     ORDER BY dept_sort ASC, sub_sort ASC
-  `).all();
+  `,
+    )
+    .all();
 
   // Group into the same shape as departments.json
   const map = new Map();
@@ -42,11 +46,13 @@ router.put('/dept/:deptId', requireAuth, (req, res) => {
   const { name, meaning } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE departments
     SET dept_name = ?, dept_meaning = ?, updated_at = CURRENT_TIMESTAMP
     WHERE dept_id = ?
-  `).run(name, meaning || '', deptId);
+  `,
+  ).run(name, meaning || '', deptId);
 
   res.json({ success: true });
 });
@@ -58,11 +64,13 @@ router.put('/sub/:subId', requireAuth, (req, res) => {
   const { name, meaning } = req.body;
   if (!name) return res.status(400).json({ error: 'name is required' });
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE departments
     SET sub_name = ?, sub_meaning = ?, updated_at = CURRENT_TIMESTAMP
     WHERE sub_id = ?
-  `).run(name, meaning || '', subId);
+  `,
+  ).run(name, meaning || '', subId);
 
   res.json({ success: true });
 });

@@ -997,7 +997,15 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               <button
                 onClick={runEnrichment}
                 disabled={enriching}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: enriching ? 'default' : 'pointer', fontSize: 12, color: BLUE, fontWeight: 600 }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: enriching ? 'default' : 'pointer',
+                  fontSize: 12,
+                  color: BLUE,
+                  fontWeight: 600,
+                }}
               >
                 🏠 {enriching ? 'Looking up…' : 'Run Property Lookup ▸'}
               </button>
@@ -1007,19 +1015,49 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           {/* Property data panel */}
           {(() => {
             let pd = null;
-            try { pd = lead.property_data ? JSON.parse(lead.property_data) : null; } catch {}
+            try {
+              pd = lead.property_data ? JSON.parse(lead.property_data) : null;
+            } catch (_e) {
+              /* invalid JSON */
+            }
             const mg = pd?.massGis;
             const lc = pd?.leadCheck;
             if (!mg && !lc) return null;
 
             const fmt = (v) => (v != null ? String(v) : null);
-            const fmtMoney = (v) => v != null ? `$${Number(v).toLocaleString()}` : null;
-            const fmtSqft = (v) => v != null ? `${Number(v).toLocaleString()} sqft` : null;
+            const fmtMoney = (v) => (v != null ? `$${Number(v).toLocaleString()}` : null);
+            const fmtSqft = (v) => (v != null ? `${Number(v).toLocaleString()} sqft` : null);
 
             const leadBadge = lc ? (
-              lc.hasRecord
-                ? <span style={{ fontSize: 11, fontWeight: 700, color: '#b91c1c', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 5, padding: '1px 7px' }}>⚠ Lead Record</span>
-                : <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d', background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 5, padding: '1px 7px' }}>✓ Lead Clear</span>
+              lc.hasRecord ? (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#b91c1c',
+                    background: '#fef2f2',
+                    border: '1px solid #fca5a5',
+                    borderRadius: 5,
+                    padding: '1px 7px',
+                  }}
+                >
+                  ⚠ Lead Record
+                </span>
+              ) : (
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#15803d',
+                    background: '#f0fdf4',
+                    border: '1px solid #86efac',
+                    borderRadius: 5,
+                    padding: '1px 7px',
+                  }}
+                >
+                  ✓ Lead Clear
+                </span>
+              )
             ) : null;
 
             const summary = [
@@ -1027,44 +1065,95 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               fmtSqft(mg?.buildingArea),
               mg?.numBedrooms ? `${mg.numBedrooms}BR` : null,
               mg?.numBathrooms ? `${mg.numBathrooms}BA` : null,
-            ].filter(Boolean).join(' · ');
+            ]
+              .filter(Boolean)
+              .join(' · ');
 
             return (
               <div style={{ marginTop: 7 }}>
                 <button
                   onClick={() => setPropExpand((v) => !v)}
-                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    flexWrap: 'wrap',
+                  }}
                 >
-                  <span style={{ fontSize: 12, color: BLUE, fontWeight: 600 }}>🏠 Property {propExpand ? '▾' : '▸'}</span>
-                  {!propExpand && summary && <span style={{ fontSize: 11, color: '#555' }}>{summary}</span>}
+                  <span style={{ fontSize: 12, color: BLUE, fontWeight: 600 }}>
+                    🏠 Property {propExpand ? '▾' : '▸'}
+                  </span>
+                  {!propExpand && summary && (
+                    <span style={{ fontSize: 11, color: '#555' }}>{summary}</span>
+                  )}
                   {!propExpand && leadBadge}
                 </button>
                 {propExpand && (
-                  <div style={{ marginTop: 6, background: '#f8faff', border: '1px solid #dde5f0', borderRadius: 7, padding: '10px 12px', fontSize: 12 }}>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      background: '#f8faff',
+                      border: '1px solid #dde5f0',
+                      borderRadius: 7,
+                      padding: '10px 12px',
+                      fontSize: 12,
+                    }}
+                  >
                     {leadBadge && <div style={{ marginBottom: 8 }}>{leadBadge}</div>}
                     {/* Customer vs Owner cross-reference */}
-                    <div style={{ marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #e8edf5', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 14px' }}>
+                    <div
+                      style={{
+                        marginBottom: 8,
+                        paddingBottom: 8,
+                        borderBottom: '1px solid #e8edf5',
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '4px 14px',
+                      }}
+                    >
                       <div>
                         <span style={{ color: '#888', fontWeight: 600 }}>Customer: </span>
                         <span style={{ color: '#1e293b' }}>{lead.caller_name}</span>
-                        {lead.caller_phone && <span style={{ color: '#555' }}> · {lead.caller_phone}</span>}
+                        {lead.caller_phone && (
+                          <span style={{ color: '#555' }}> · {lead.caller_phone}</span>
+                        )}
                       </div>
                       {mg?.owner1 && (
                         <div>
                           <span style={{ color: '#888', fontWeight: 600 }}>Deed Owner: </span>
-                          <span style={{ color: lead.caller_name && mg.owner1.toUpperCase().includes(lead.caller_name.split(' ')[0].toUpperCase()) ? '#15803d' : '#b45309' }}>
-                            {mg.owner1}{mg.owner2 ? ` / ${mg.owner2}` : ''}
+                          <span
+                            style={{
+                              color:
+                                lead.caller_name &&
+                                mg.owner1
+                                  .toUpperCase()
+                                  .includes(lead.caller_name.split(' ')[0].toUpperCase())
+                                  ? '#15803d'
+                                  : '#b45309',
+                            }}
+                          >
+                            {mg.owner1}
+                            {mg.owner2 ? ` / ${mg.owner2}` : ''}
                           </span>
                         </div>
                       )}
                     </div>
                     {mg && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 14px' }}>
+                      <div
+                        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 14px' }}
+                      >
                         {[
                           ['Confirmed Address', mg.siteAddress],
                           ['Year Built', fmt(mg.yearBuilt)],
                           ['Building Area', fmtSqft(mg.buildingArea)],
-                          ['Lot Size', mg.lotSize ? `${Number(mg.lotSize).toLocaleString()} sqft` : null],
+                          [
+                            'Lot Size',
+                            mg.lotSize ? `${Number(mg.lotSize).toLocaleString()} sqft` : null,
+                          ],
                           ['Bedrooms', fmt(mg.numBedrooms)],
                           ['Bathrooms', fmt(mg.numBathrooms)],
                           ['Style', mg.style],
@@ -1073,30 +1162,72 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
                           ['Property Type', mg.useCodeLabel],
                           ['Assessed Value', fmtMoney(mg.totalAssessedValue)],
                           ['Owner Address', mg.ownerAddress],
-                        ].filter(([, v]) => v).map(([label, value]) => (
-                          <div key={label}>
-                            <span style={{ color: '#888', fontWeight: 600 }}>{label}: </span>
-                            <span style={{ color: '#1e293b' }}>{value}</span>
-                          </div>
-                        ))}
+                        ]
+                          .filter(([, v]) => v)
+                          .map(([label, value]) => (
+                            <div key={label}>
+                              <span style={{ color: '#888', fontWeight: 600 }}>{label}: </span>
+                              <span style={{ color: '#1e293b' }}>{value}</span>
+                            </div>
+                          ))}
                       </div>
                     )}
                     {mg?.webSearchFallback && (
-                      <div style={{ marginTop: 6, color: '#888', fontStyle: 'italic', fontSize: 11 }}>Source: web search fallback (no MassGIS parcel match)</div>
+                      <div
+                        style={{ marginTop: 6, color: '#888', fontStyle: 'italic', fontSize: 11 }}
+                      >
+                        Source: web search fallback (no MassGIS parcel match)
+                      </div>
                     )}
-                    {!mg && <div style={{ color: '#aaa', fontStyle: 'italic' }}>No parcel data found</div>}
+                    {!mg && (
+                      <div style={{ color: '#aaa', fontStyle: 'italic' }}>No parcel data found</div>
+                    )}
                     {lc?.hasRecord && (
-                      <a href={lc.leadsafe2Url} target="_blank" rel="noreferrer"
-                        style={{ display: 'block', marginTop: 8, fontSize: 11, color: BLUE, textDecoration: 'underline' }}>
+                      <a
+                        href={lc.leadsafe2Url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          display: 'block',
+                          marginTop: 8,
+                          fontSize: 11,
+                          color: BLUE,
+                          textDecoration: 'underline',
+                        }}
+                      >
                         View Lead Safe Homes records →
                       </a>
                     )}
-                    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 10, color: '#bbb' }}>MassGIS L3 Parcel · {new Date(mg?.queriedAt || pd.enrichedAt).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span style={{ fontSize: 10, color: '#bbb' }}>
+                        MassGIS L3 Parcel ·{' '}
+                        {new Date(mg?.queriedAt || pd.enrichedAt).toLocaleDateString('en-US', {
+                          timeZone: 'America/New_York',
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
                       <button
                         onClick={runEnrichment}
                         disabled={enriching}
-                        style={{ background: 'none', border: '1px solid #dde5f0', borderRadius: 4, padding: '2px 8px', cursor: 'pointer', fontSize: 11, color: BLUE, fontWeight: 600 }}
+                        style={{
+                          background: 'none',
+                          border: '1px solid #dde5f0',
+                          borderRadius: 4,
+                          padding: '2px 8px',
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          color: BLUE,
+                          fontWeight: 600,
+                        }}
                       >
                         {enriching ? '…' : '🔄 Refresh'}
                       </button>

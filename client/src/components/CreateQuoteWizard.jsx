@@ -162,7 +162,14 @@ function TradeSelectionStep({
                 >
                   {dept.name}
                 </span>
-                <span style={{ fontSize: 12, color: partial ? '#1B3A6B' : '#bbb', marginRight: 8, fontWeight: 600 }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: partial ? '#1B3A6B' : '#bbb',
+                    marginRight: 8,
+                    fontWeight: 600,
+                  }}
+                >
                   {partial
                     ? `${dept.subDepartments.filter((s) => selectedTrades.has(s.id)).length}/${dept.subDepartments.length}`
                     : ''}
@@ -208,7 +215,15 @@ function TradeSelectionStep({
                           flexShrink: 0,
                         }}
                       />
-                      <span style={{ fontSize: 14, color: '#1e293b', fontWeight: selectedTrades.has(sub.id) ? 600 : 400 }}>{sub.name}</span>
+                      <span
+                        style={{
+                          fontSize: 14,
+                          color: '#1e293b',
+                          fontWeight: selectedTrades.has(sub.id) ? 600 : 400,
+                        }}
+                      >
+                        {sub.name}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -932,8 +947,10 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
   const [departments, setDepartments] = useState(DEPARTMENTS_FALLBACK);
   useEffect(() => {
     fetch('/api/departments', { headers: { 'x-auth-token': token } })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (Array.isArray(data) && data.length > 0) setDepartments(data); })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) setDepartments(data);
+      })
       .catch(() => {});
   }, [token]);
 
