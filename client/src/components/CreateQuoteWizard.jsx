@@ -116,11 +116,11 @@ function TradeSelectionStep({
             <div
               key={dept.id}
               style={{
-                border: `1px solid ${partial ? '#1B3A6B' : '#c7d2e0'}`,
+                border: `1px solid ${partial ? '#1B3A6B' : '#b8c5d6'}`,
                 borderRadius: 8,
                 overflow: 'hidden',
-                background: partial ? '#f5f8ff' : '#f4f6f9',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+                background: partial ? '#f5f8ff' : '#fff',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.10)',
                 flexShrink: 0,
               }}
             >
@@ -132,7 +132,7 @@ function TradeSelectionStep({
                   padding: '13px 14px',
                   cursor: 'pointer',
                   userSelect: 'none',
-                  background: partial ? '#eef3fc' : '#edf0f5',
+                  background: partial ? '#ddeaff' : '#e8edf5',
                 }}
                 onClick={() => toggleDept(dept.id)}
               >
@@ -160,7 +160,7 @@ function TradeSelectionStep({
                     flex: 1,
                     fontWeight: 700,
                     fontSize: 15,
-                    color: '#0f172a',
+                    color: '#111',
                     marginLeft: 12,
                     letterSpacing: 0.1,
                   }}
