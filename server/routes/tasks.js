@@ -89,11 +89,15 @@ router.get('/', requireAuth, (req, res) => {
     params.push(contact_id);
   }
   if (range === 'today') {
-    sql += " AND date(due_at) = date('now')";
+    sql += " AND (date(due_at) = date('now') OR (due_at IS NULL AND date(remind_at) = date('now')))";
   } else if (range === 'week') {
-    sql += " AND due_at <= datetime('now', '+7 days')";
+    sql += " AND (due_at <= datetime('now', '+7 days') OR (due_at IS NULL AND remind_at <= datetime('now', '+7 days')))";
   }
-  sql += ' ORDER BY CASE WHEN due_at IS NULL THEN 1 ELSE 0 END, due_at ASC, created_at DESC';
+  // Sort by effective date: due_at takes priority, falls back to remind_at; nulls last
+  sql += ` ORDER BY
+    CASE WHEN due_at IS NULL AND remind_at IS NULL THEN 1 ELSE 0 END,
+    COALESCE(due_at, remind_at) ASC,
+    created_at DESC`;
   const tasks = db
     .prepare(sql)
     .all(...params)
