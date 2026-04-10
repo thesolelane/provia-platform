@@ -500,4 +500,19 @@ router.delete('/:id', requireAuth, (req, res) => {
   }
 });
 
+// ── POST /api/leads/:id/enrich — manually trigger property enrichment ──────────
+router.post('/:id/enrich', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(req.params.id);
+    if (!lead) return res.status(404).json({ error: 'Lead not found' });
+    const fullAddr = [lead.job_address, lead.job_city, 'MA'].filter(Boolean).join(', ');
+    if (!lead.job_address) return res.status(400).json({ error: 'Lead has no job address' });
+    enrichPropertyBackground(db, 'lead', lead.id, fullAddr);
+    res.json({ ok: true, message: 'Property lookup started — refresh in a few seconds' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
