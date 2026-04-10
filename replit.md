@@ -254,6 +254,20 @@ If the app crashes or the server reboots, recover in this order:
 3. Run `pm2 list` and confirm `caddy` appears in the process list
 4. Run `pm2 restart all`
 
+### Restoring a Backup in Replit
+**CRITICAL — always clear WAL files after swapping in a new database file.**
+SQLite keeps two journal files (`pb_system.db-shm` and `pb_system.db-wal`) alongside the main database.
+If you copy a backup over an existing database without deleting these, SQLite will replay the old journal on top of the new file and corrupt it immediately on open.
+
+Safe restore procedure:
+1. Drag the backup `.db` file into the Replit file browser
+2. In the Replit shell:
+```bash
+cp attached_assets/<filename>.db data/pb_system.db
+rm -f data/pb_system.db-shm data/pb_system.db-wal
+```
+3. Restart the "Start application" workflow
+
 ---
 
 ## Production TODO (before going live on own server)
