@@ -738,6 +738,10 @@ async function initDatabase() {
   addColIfMissing('jobs', 'property_data', 'TEXT');
   addColIfMissing('leads', 'property_data', 'TEXT');
 
+  // ── Migration: soft presence tracking (who is actively viewing a job) ─────────
+  addColIfMissing('jobs', 'active_editor', 'TEXT');
+  addColIfMissing('jobs', 'active_editor_at', 'DATETIME');
+
   // ── Department definitions table (editable via Settings UI) ──────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS departments (

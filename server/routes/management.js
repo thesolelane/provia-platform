@@ -599,4 +599,40 @@ router.post(
   },
 );
 
+// ── Presence: ping (I am viewing this job) ───────────────────────────────────
+router.post('/:id/presence', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const editorName = req.session?.name || 'Someone';
+    db.prepare(
+      'UPDATE jobs SET active_editor = ?, active_editor_at = CURRENT_TIMESTAMP WHERE id = ?',
+    ).run(editorName, req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Presence: get current active editor ──────────────────────────────────────
+router.get('/:id/presence', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const row = db
+      .prepare('SELECT active_editor, active_editor_at FROM jobs WHERE id = ?')
+      .get(req.params.id);
+    if (!row) return res.json({ editor: null });
+
+    const WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+    const editedAt = row.active_editor_at ? new Date(row.active_editor_at + 'Z').getTime() : 0;
+    const isActive = Date.now() - editedAt < WINDOW_MS;
+
+    res.json({
+      editor: isActive ? row.active_editor : null,
+      editedAt: row.active_editor_at,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

@@ -118,7 +118,7 @@ function App() {
       <Layout token={token} onLogout={handleLogout} userName={userName} userRole={userRole}>
         <Routes>
           <Route path="/" element={<Dashboard token={token} />} />
-          <Route path="/jobs/:id" element={<JobDetail token={token} />} />
+          <Route path="/jobs/:id" element={<JobDetail token={token} userName={userName} />} />
           <Route path="/settings" element={<Settings token={token} userRole={userRole} />} />
           <Route path="/knowledge" element={<KnowledgeBase token={token} />} />
           <Route path="/chat" element={<AdminChat token={token} />} />

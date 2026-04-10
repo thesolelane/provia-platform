@@ -43,7 +43,7 @@ const STATUS_LABELS = {
   error: 'Error',
 };
 
-export default function JobDetail({ token }) {
+export default function JobDetail({ token, userName }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [job, setJob] = useState(null);
@@ -61,6 +61,9 @@ export default function JobDetail({ token }) {
   const [expandedRows, setExpandedRows] = useState(new Set());
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
+  const currentUser = userName || localStorage.getItem('pb_user_name') || '';
+  const [presenceEditor, setPresenceEditor] = useState(null);
+  const [presenceAt, setPresenceAt] = useState(null);
 
   const [versionHistory, setVersionHistory] = useState([]);
   const [historySort, setHistorySort] = useState('desc');
@@ -160,6 +163,35 @@ export default function JobDetail({ token }) {
   useEffect(() => {
     if (activeTab === 'purchase_orders') loadPOs();
   }, [activeTab, id]);
+
+  // ── Soft presence: ping every 30s so others know you're here ─────────────
+  useEffect(() => {
+    const ping = () =>
+      fetch(`/api/jobs/${id}/presence`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token },
+      }).catch(() => {});
+    const poll = () =>
+      fetch(`/api/jobs/${id}/presence`, { headers: { 'x-auth-token': token } })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.editor && d.editor !== currentUser) {
+            setPresenceEditor(d.editor);
+            setPresenceAt(d.editedAt);
+          } else {
+            setPresenceEditor(null);
+          }
+        })
+        .catch(() => {});
+    ping();
+    poll();
+    const pingInterval = setInterval(ping, 30000);
+    const pollInterval = setInterval(poll, 30000);
+    return () => {
+      clearInterval(pingInterval);
+      clearInterval(pollInterval);
+    };
+  }, [id]);
 
   // Auto-refresh via SSE when job is processing — no manual refresh needed
   useEffect(() => {
@@ -572,6 +604,34 @@ export default function JobDetail({ token }) {
       >
         ← Back to Dashboard
       </button>
+
+      {/* Presence warning banner */}
+      {presenceEditor && (
+        <div
+          style={{
+            background: '#fffbeb',
+            border: '1px solid #f59e0b',
+            borderRadius: 8,
+            padding: '10px 16px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: 13,
+            color: '#92400e',
+            fontWeight: 600,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>⚠</span>
+          <span>
+            <strong>{presenceEditor}</strong> is also viewing this job
+            {presenceAt
+              ? ` — last active ${Math.max(1, Math.round((Date.now() - new Date(presenceAt + 'Z').getTime()) / 60000))} min ago`
+              : ''}{' '}
+            — coordinate before making changes.
+          </span>
+        </div>
+      )}
 
       {/* Header card */}
       <div
