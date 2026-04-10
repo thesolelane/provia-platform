@@ -34,7 +34,7 @@ backups/*.db
 # Catch any backup snapshot db files anywhere in the tree
 pb_system_*.db
 # Catch Windows absolute-path backup folders that got created relative to project root
-"C:*"
+C:*
 
 # Temporary files
 tmp/*

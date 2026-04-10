@@ -1,5 +1,11 @@
 // server/services/crashLogger.js
 // Saves a snapshot of PM2 logs and process state to disk on any crash or shutdown signal.
+// Only active on the Windows production server — no-op on Linux/Replit.
+
+if (process.platform !== 'win32') {
+  module.exports = { saveCrashSnapshot: () => Promise.resolve() };
+  return;
+}
 
 const fs = require('fs');
 const path = require('path');
