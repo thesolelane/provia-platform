@@ -182,6 +182,16 @@ The `requireAuth` middleware (`server/middleware/auth.js`) accepts auth via eith
 - Settings: single quotes, 2-space indent, no trailing commas, 100-char line width
 - Validation step "server-lint" is registered and runs `npm run lint`
 
+### Standing Rule (Every Task)
+These rules apply to every task, without exception:
+1. **Leave code better than you found it** — every task improves the codebase, never degrades it
+2. **Clean what you touch** — if you modify a file, remove dead code, unused imports, and unnecessary comments from it
+3. **Split large files** — any file over 400 lines must be split before adding more code to it
+4. **Keep routes thin** — business logic belongs in services, not in route handlers
+5. **No duplicate code** — if something is written twice, abstract it into a shared function or module
+6. **Clear, consistent naming** — names must be descriptive and consistent across the entire codebase
+7. **Lint and format before committing** — every task ends with `npm run lint` and `npm run format`; lint errors must be fixed (warnings are acceptable)
+
 ---
 
 ## Important Dev Notes
@@ -223,6 +233,26 @@ Current integration uses Replit connectors (`REPLIT_CONNECTORS_HOSTNAME`, `REPL_
 - **Caddy config:** `Caddyfile` in project root — reverse proxy from HTTPS:443 → localhost:5000
 - **DuckDNS:** Auto-updater batch script on Desktop, runs every 5 min via Task Scheduler
 - **Office computers on same network:** Add `192.168.1.210 preferredbuilders.duckdns.org` to `/etc/hosts` (Mac) or `C:\Windows\System32\drivers\etc\hosts` (Windows) for HTTPS to work locally (hairpin NAT workaround)
+
+### Deploy Sequence (Golden Rule)
+Always follow this exact order when deploying updates to the production server:
+```
+git pull
+npm install --legacy-peer-deps
+pm2 restart all
+```
+> **WARNING:** Never run `pm2 restart all` without first running `npm install --legacy-peer-deps` after a `git pull`. Skipping install can leave the app running with mismatched or missing dependencies.
+
+### Shell Environment
+- **Git Bash only** — all commands must be run in Git Bash, not CMD or PowerShell
+- Use Unix-style paths: `/c/Users/theso/Desktop/preferred-builders-ai` (not `C:\Users\...`)
+
+### After-Crash Recovery Checklist
+If the app crashes or the server reboots, recover in this order:
+1. Run `npm install --legacy-peer-deps` (always, even if no new pull)
+2. Confirm the database is at `data/pb_system.db` — **not** `server/pb_system.db`
+3. Run `pm2 list` and confirm `caddy` appears in the process list
+4. Run `pm2 restart all`
 
 ---
 
