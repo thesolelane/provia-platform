@@ -1,1 +1,439 @@
-../../../shared/departments.json
+[
+  {
+    "id": "demo",
+    "name": "Demo",
+    "meaning": "Demolition work including selective interior or exterior tear-out before new construction or renovation can begin.",
+    "subDepartments": [
+      {
+        "id": "demo_interior",
+        "name": "Interior Demo",
+        "meaning": "Selective interior demolition: removing walls, ceilings, flooring, cabinetry, fixtures, or finishes inside an existing structure."
+      },
+      {
+        "id": "demo_exterior",
+        "name": "Exterior Demo",
+        "meaning": "Exterior demolition: tearing out siding, roofing, windows, doors, decks, or other exterior elements prior to replacement or renovation."
+      }
+    ]
+  },
+  {
+    "id": "framing",
+    "name": "Framing",
+    "meaning": "Wood or metal framing work covering the full range from heavy structural elements to light interior partitions and rough carpentry backing.",
+    "subDepartments": [
+      {
+        "id": "framing_structural",
+        "name": "Structural Framing — Load Bearing",
+        "meaning": "Load-bearing wall framing, structural headers, LVL beams, posts, columns, and shear walls. Requires engineering review. Higher labor and material cost than light framing."
+      },
+      {
+        "id": "framing_light_interior",
+        "name": "Light Framing — Interior Non-Load Bearing",
+        "meaning": "Interior partition walls, soffits, dropped ceilings, and furring that carry no structural load. Faster and lower cost per linear foot than structural framing."
+      },
+      {
+        "id": "framing_roof",
+        "name": "Roof Framing",
+        "meaning": "Roof structure framing including stick-built rafters, ridge beams, collar ties, trusses, and roof deck sheathing."
+      },
+      {
+        "id": "framing_floor",
+        "name": "Floor Framing",
+        "meaning": "Floor structure framing including joists, rim joists, LVL beams, bridging, subfloor sheathing, and ledger attachment for additions or decks."
+      },
+      {
+        "id": "framing_rough_carpentry",
+        "name": "Rough Carpentry",
+        "meaning": "Miscellaneous rough wood work that supports other trades: blocking for cabinets, grab bars, and fixtures; nailers; backing boards; PT sill plates; and temporary bracing."
+      }
+    ]
+  },
+  {
+    "id": "carpentry",
+    "name": "Carpentry & Millwork",
+    "meaning": "All finish and rough carpentry beyond structural framing — interior trim, exterior millwork, stairs, and custom built-in woodwork.",
+    "subDepartments": [
+      {
+        "id": "carpentry_finish_interior",
+        "name": "Finish Carpentry — Interior Trim",
+        "meaning": "Interior finish carpentry: base molding, door and window casings, crown molding, chair rail, wainscoting, and coffered ceilings. Skilled detail work with higher labor rate than rough carpentry."
+      },
+      {
+        "id": "carpentry_finish_exterior",
+        "name": "Finish Carpentry — Exterior Trim",
+        "meaning": "Exterior trim carpentry: fascia, soffit boards, corner boards, frieze boards, decorative brackets, and exterior door and window trim and casing."
+      },
+      {
+        "id": "carpentry_stairs",
+        "name": "Stair Work",
+        "meaning": "Stair construction or refinishing: treads, risers, stringers, newel posts, balusters, handrails, and skirt boards. Custom stair work carries premium labor rates."
+      },
+      {
+        "id": "carpentry_builtins",
+        "name": "Custom Built-Ins & Shelving",
+        "meaning": "Custom built-in shelving, entertainment centers, window seats, mudroom benches, closet systems, and bookcases. High-skill millwork with material and labor premium."
+      },
+      {
+        "id": "carpentry_doors_interior",
+        "name": "Interior Doors & Hardware",
+        "meaning": "Interior door installation including pre-hung or slab doors, door frames, hardware, hinges, and associated trim work."
+      }
+    ]
+  },
+  {
+    "id": "roofing",
+    "name": "Roofing",
+    "meaning": "All roofing work including material installation, flashings, underlayment, and associated drainage systems.",
+    "subDepartments": [
+      {
+        "id": "roofing_shingle",
+        "name": "Asphalt Shingle Roofing",
+        "meaning": "Asphalt shingle roof installation or replacement including ice and water shield, underlayment, ridge cap, and flashings."
+      },
+      {
+        "id": "roofing_metal",
+        "name": "Metal Roofing",
+        "meaning": "Standing seam or metal panel roof installation including structural requirements for low-pitch metal roofs."
+      },
+      {
+        "id": "roofing_flat",
+        "name": "Flat / Low-Slope Roofing",
+        "meaning": "EPDM, TPO, or modified bitumen flat or low-slope roof systems including insulation boards and drainage details."
+      },
+      {
+        "id": "roofing_gutters",
+        "name": "Gutters & Downspouts",
+        "meaning": "Seamless aluminum or copper gutter installation, downspouts, gutter guards, and proper grading away from foundation."
+      }
+    ]
+  },
+  {
+    "id": "siding",
+    "name": "Siding & Exterior",
+    "meaning": "Exterior cladding, trim, windows, doors, and related weather envelope work.",
+    "subDepartments": [
+      {
+        "id": "siding_vinyl",
+        "name": "Vinyl / Fiber Cement Siding",
+        "meaning": "Vinyl siding or fiber cement board and batten installation including house wrap, trim, and corner pieces."
+      },
+      {
+        "id": "siding_wood",
+        "name": "Wood / Cedar Siding",
+        "meaning": "Cedar shingle, lap, or board siding installation including priming and back-priming before installation."
+      },
+      {
+        "id": "siding_windows",
+        "name": "Windows & Exterior Doors",
+        "meaning": "Window and exterior door replacement or new installation including rough opening modifications, flashing, trim, and casing."
+      },
+      {
+        "id": "siding_deck",
+        "name": "Decks & Porches",
+        "meaning": "New deck or porch construction including framing, decking material (composite or wood), railings, stairs, and ledger attachment."
+      },
+      {
+        "id": "siding_stucco",
+        "name": "Stucco / EIFS",
+        "meaning": "3-coat traditional stucco or EIFS exterior insulation and finish system application over masonry or framed walls."
+      }
+    ]
+  },
+  {
+    "id": "insulation",
+    "name": "Insulation",
+    "meaning": "Thermal and acoustic insulation work for walls, ceilings, floors, and attic spaces.",
+    "subDepartments": [
+      {
+        "id": "insulation_batt",
+        "name": "Batt / Blown Insulation",
+        "meaning": "Fiberglass batt, mineral wool batt, or blown-in cellulose/fiberglass insulation for walls, attics, and floors."
+      },
+      {
+        "id": "insulation_spray",
+        "name": "Spray Foam Insulation",
+        "meaning": "Open-cell or closed-cell spray polyurethane foam insulation for rim joists, walls, rooflines, or comprehensive air sealing."
+      },
+      {
+        "id": "insulation_rigid",
+        "name": "Rigid Foam / Continuous Insulation",
+        "meaning": "Rigid foam board (XPS, EPS, or polyiso) installed on exterior walls, under slabs, or in roof assemblies for continuous thermal break."
+      }
+    ]
+  },
+  {
+    "id": "drywall",
+    "name": "Drywall",
+    "meaning": "Drywall hanging, taping, finishing, and skim coat plaster work for interior walls and ceilings.",
+    "subDepartments": [
+      {
+        "id": "drywall_hang",
+        "name": "Hang & Tape",
+        "meaning": "Drywall board installation, taping, and three-coat finishing to paint-ready Level 4 or Level 5 surface."
+      },
+      {
+        "id": "drywall_skim",
+        "name": "Skim Coat / Plaster",
+        "meaning": "Skim coat plaster over existing walls or ceilings to restore or create a smooth finish surface."
+      },
+      {
+        "id": "drywall_patch",
+        "name": "Patch & Repair",
+        "meaning": "Localized drywall patching for holes, water damage, or after trade rough-in work — smaller scope than full hang and tape."
+      }
+    ]
+  },
+  {
+    "id": "electrical",
+    "name": "Electrical",
+    "meaning": "All electrical work including service upgrades, wiring, panels, outlets, fixtures, and code compliance items.",
+    "subDepartments": [
+      {
+        "id": "electrical_service",
+        "name": "Service Upgrade / Panel",
+        "meaning": "Electrical service panel upgrade, new main or sub-panel installation, or meter base replacement. Requires utility coordination."
+      },
+      {
+        "id": "electrical_rewire",
+        "name": "Full Rewire",
+        "meaning": "Whole-home or large-area electrical rewire replacing knob-and-tube, aluminum wiring, or obsolete systems with new circuits throughout."
+      },
+      {
+        "id": "electrical_rough",
+        "name": "Rough-In Wiring",
+        "meaning": "New circuit rough-in for additions, renovations, or specific rooms — conduit or NM cable, boxes, and breakers before drywall."
+      },
+      {
+        "id": "electrical_finish",
+        "name": "Fixtures & Devices",
+        "meaning": "Electrical finish work: outlets, switches, dimmers, light fixtures, ceiling fans, and cover plates after drywall."
+      },
+      {
+        "id": "electrical_lowvoltage",
+        "name": "Low Voltage / Data / AV",
+        "meaning": "Low voltage work: structured wiring, data and coax drops, security system wiring, camera rough-in, and speaker or AV prewire."
+      }
+    ]
+  },
+  {
+    "id": "plumbing",
+    "name": "Plumbing",
+    "meaning": "All plumbing work including supply and drain lines, fixtures, water heaters, and associated rough and finish work.",
+    "subDepartments": [
+      {
+        "id": "plumbing_rough",
+        "name": "Rough-In / New Lines",
+        "meaning": "New supply or drain/waste/vent rough-in piping for additions or remodels — run before drywall or concrete."
+      },
+      {
+        "id": "plumbing_repipe",
+        "name": "Repiping",
+        "meaning": "Full or partial repipe replacing old galvanized, polybutylene, or failing copper supply lines with PEX or copper."
+      },
+      {
+        "id": "plumbing_fixtures",
+        "name": "Fixture Installation",
+        "meaning": "Plumbing finish work: sinks, faucets, toilets, tubs, showers, dishwashers, and appliance water hookups."
+      },
+      {
+        "id": "plumbing_water_heater",
+        "name": "Water Heater",
+        "meaning": "Water heater replacement or new installation — tank, tankless (on-demand), or heat pump water heater."
+      },
+      {
+        "id": "plumbing_drain",
+        "name": "Drain / Sewer Work",
+        "meaning": "Underground drain line work, sewer lateral repair or replacement, clean-out installation, or main drain snaking and camera inspection."
+      }
+    ]
+  },
+  {
+    "id": "hvac",
+    "name": "HVAC",
+    "meaning": "Heating, ventilation, and air conditioning including equipment, ductwork, controls, and related mechanical systems.",
+    "subDepartments": [
+      {
+        "id": "hvac_equipment",
+        "name": "Equipment Replacement",
+        "meaning": "Full HVAC equipment replacement: gas furnace, central AC, heat pump, or mini-split system installation including refrigerant line sets."
+      },
+      {
+        "id": "hvac_ductwork",
+        "name": "Ductwork",
+        "meaning": "New duct system design and installation, supply and return trunk and branch ducts, register boxes, and balancing dampers."
+      },
+      {
+        "id": "hvac_ventilation",
+        "name": "Ventilation / Exhaust",
+        "meaning": "Bathroom exhaust fans, kitchen range hood duct work, dryer vent, whole-house ERV or HRV systems, and fresh air intakes."
+      },
+      {
+        "id": "hvac_controls",
+        "name": "Controls & Thermostats",
+        "meaning": "Smart thermostat installation, zone control systems, damper actuators, and programmable HVAC control upgrades."
+      }
+    ]
+  },
+  {
+    "id": "flooring",
+    "name": "Flooring",
+    "meaning": "All flooring installation including subfloor prep and finish flooring materials.",
+    "subDepartments": [
+      {
+        "id": "flooring_subfloor",
+        "name": "Subfloor Prep & Leveling",
+        "meaning": "Subfloor repair, sistering joists, self-leveling underlayment, or backer board installation before finish flooring goes down."
+      },
+      {
+        "id": "flooring_lvp",
+        "name": "LVP / Laminate",
+        "meaning": "Luxury vinyl plank or laminate flooring installation including underlayment, transitions, and base shoe."
+      },
+      {
+        "id": "flooring_hardwood",
+        "name": "Hardwood — Solid or Engineered",
+        "meaning": "Solid or engineered hardwood flooring installation, nail-down or glue-down, including sanding and site-finishing if required."
+      },
+      {
+        "id": "flooring_tile",
+        "name": "Tile Flooring",
+        "meaning": "Porcelain, ceramic, or natural stone tile floor installation including backer board, mortar bed, grout, and sealing."
+      },
+      {
+        "id": "flooring_carpet",
+        "name": "Carpet",
+        "meaning": "Carpet and pad installation including tack strips, seaming, and transitions to adjacent flooring."
+      }
+    ]
+  },
+  {
+    "id": "tile",
+    "name": "Tile & Stone",
+    "meaning": "Wall and floor tile installation for kitchens, bathrooms, showers, and other wet or decorative areas.",
+    "subDepartments": [
+      {
+        "id": "tile_shower",
+        "name": "Shower & Tub Surround",
+        "meaning": "Full shower or tub surround tile installation including waterproofing membrane (Schluter, RedGard, or Wedi), backer, mortar bed, grout, and caulk joints."
+      },
+      {
+        "id": "tile_floor_bath",
+        "name": "Bathroom Floor Tile",
+        "meaning": "Bathroom floor tile installation including backer board, mortar, grout, and transitions — often coordinated with shower tile scope."
+      },
+      {
+        "id": "tile_backsplash",
+        "name": "Kitchen / Bath Backsplash",
+        "meaning": "Kitchen or bathroom backsplash tile installation including layout, mastic or thinset, grout, and edge trim or schluter strip."
+      },
+      {
+        "id": "tile_feature_wall",
+        "name": "Feature Wall / Accent Tile",
+        "meaning": "Decorative tile accent wall, fireplace surround, or custom tile pattern installation — often higher material cost and detailed layout."
+      }
+    ]
+  },
+  {
+    "id": "cabinets_counters",
+    "name": "Cabinets & Countertops",
+    "meaning": "Kitchen and bathroom cabinetry and countertop supply and installation.",
+    "subDepartments": [
+      {
+        "id": "cabinets_kitchen",
+        "name": "Kitchen Cabinets",
+        "meaning": "Kitchen cabinet installation including base cabinets, wall cabinets, tall pantry units, crown molding, toe kicks, and hardware."
+      },
+      {
+        "id": "cabinets_bath",
+        "name": "Vanity / Bath Cabinets",
+        "meaning": "Bathroom vanity, linen cabinet, or medicine cabinet installation including mirror and accessory mounting."
+      },
+      {
+        "id": "counters_stone",
+        "name": "Stone Countertops — Quartz / Granite",
+        "meaning": "Quartz or granite countertop templating, fabrication, and installation including sink cutout, edge profile, and backsplash if applicable."
+      },
+      {
+        "id": "counters_other",
+        "name": "Other Countertops — Laminate / Solid Surface",
+        "meaning": "Laminate, solid surface, butcher block, or tile countertop installation — lower cost per SF than natural stone."
+      }
+    ]
+  },
+  {
+    "id": "painting",
+    "name": "Painting & Finishes",
+    "meaning": "Interior and exterior painting, staining, and decorative finish work.",
+    "subDepartments": [
+      {
+        "id": "painting_interior",
+        "name": "Interior Painting — Walls & Ceilings",
+        "meaning": "Interior wall and ceiling painting including prep, priming, and two finish coats. Priced per square foot of wall surface or by room."
+      },
+      {
+        "id": "painting_interior_trim",
+        "name": "Interior Painting — Trim & Doors",
+        "meaning": "Interior trim, door, and cabinet painting including sanding, priming, and finish coats. Higher labor rate than walls due to cut-in detail work."
+      },
+      {
+        "id": "painting_exterior",
+        "name": "Exterior Painting / Staining",
+        "meaning": "Exterior painting or staining of siding, trim, doors, and shutters including pressure wash prep, caulking, and primer."
+      },
+      {
+        "id": "painting_cabinets",
+        "name": "Cabinet Painting / Refinishing",
+        "meaning": "Kitchen or bathroom cabinet door and box refinishing with sprayed or rolled enamel — prep, degloss, prime, and finish coats."
+      }
+    ]
+  },
+  {
+    "id": "concrete_masonry",
+    "name": "Concrete & Masonry",
+    "meaning": "Concrete flatwork, foundations, block, brick, and stone masonry work.",
+    "subDepartments": [
+      {
+        "id": "concrete_flatwork",
+        "name": "Concrete Flatwork",
+        "meaning": "Poured concrete slabs, driveways, walkways, patios, and garage floors including forming, rebar, and finishing."
+      },
+      {
+        "id": "concrete_foundation",
+        "name": "Foundation Work",
+        "meaning": "Foundation repair, underpinning, waterproofing, new footings, piers, or slab-on-grade foundation for additions."
+      },
+      {
+        "id": "masonry_block_brick",
+        "name": "Block / Brick / Stone",
+        "meaning": "CMU block, brick, or natural stone construction for walls, chimneys, retaining walls, steps, and veneer applications."
+      },
+      {
+        "id": "masonry_fireplace",
+        "name": "Fireplace & Chimney",
+        "meaning": "Fireplace and chimney construction, repair, repointing, relining, or cap and crown replacement."
+      }
+    ]
+  },
+  {
+    "id": "permits",
+    "name": "Permits & Engineering",
+    "meaning": "Building permits, engineering drawings, inspections, and code compliance documentation.",
+    "subDepartments": [
+      {
+        "id": "permits_building",
+        "name": "Building Permit",
+        "meaning": "Municipal building permit application, fee payment, and inspection coordination for the project scope."
+      },
+      {
+        "id": "permits_engineering",
+        "name": "Structural Engineering / Drawings",
+        "meaning": "Structural engineering calculations, architectural drawings, or site plan preparation required for permit submission."
+      },
+      {
+        "id": "permits_hoa",
+        "name": "HOA Approval",
+        "meaning": "Homeowners association application, submission of plans, and approval coordination prior to work start."
+      }
+    ]
+  }
+]
