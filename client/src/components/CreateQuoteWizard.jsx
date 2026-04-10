@@ -98,7 +98,13 @@ function TradeSelectionStep({
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: 6,
+          gap: 10,
+          maxHeight: '52vh',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehavior: 'contain',
+          paddingRight: 4,
+          paddingBottom: 4,
         }}
       >
         {DEPARTMENTS.map((dept) => {
@@ -114,6 +120,8 @@ function TradeSelectionStep({
                 borderRadius: 8,
                 overflow: 'hidden',
                 background: partial ? '#f5f8ff' : '#f4f6f9',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+                flexShrink: 0,
               }}
             >
               {/* Department header row */}
@@ -121,7 +129,7 @@ function TradeSelectionStep({
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '12px 14px',
+                  padding: '13px 14px',
                   cursor: 'pointer',
                   userSelect: 'none',
                   background: partial ? '#eef3fc' : '#edf0f5',
