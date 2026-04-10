@@ -220,110 +220,6 @@ function AppointmentModal({ lead, onConfirm, onClose }) {
   );
 }
 
-// ── Job Details modal (before quote draft) ────────────────────────────────────
-function JobDetailsModal({ lead, onConfirm, onClose }) {
-  const [address, setAddress] = useState(lead.job_address || '');
-  const [city, setCity] = useState(lead.job_city || '');
-  const [email, setEmail] = useState(lead.job_email || '');
-  const [scope, setScope] = useState(lead.job_scope || '');
-  const [jobType, setJobType] = useState(lead.job_type || 'residential');
-  const [saving, setSaving] = useState(false);
-
-  const submit = async () => {
-    setSaving(true);
-    await onConfirm({
-      job_address: address,
-      job_city: city,
-      job_email: email,
-      job_scope: scope,
-      job_type: jobType
-    });
-    setSaving(false);
-  };
-
-  return (
-    <div style={overlayStyle} onClick={onClose}>
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        <div style={{ fontWeight: 700, color: ORANGE, fontSize: 16, marginBottom: 16 }}>
-          📋 Job Details
-        </div>
-        <div style={{ color: '#555', fontSize: 13, marginBottom: 16 }}>
-          Fill in what you know about <strong>{lead.caller_name}</strong>'s job before drafting the
-          proposal. You can update this later.
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <label style={labelStyle}>Job Site Address</label>
-            <input
-              placeholder="123 Main St"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 2 }}>
-              <label style={labelStyle}>City</label>
-              <input
-                placeholder="Worcester"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>State</label>
-              <input
-                value="MA"
-                disabled
-                style={{ ...inputStyle, background: '#f8f8f8', color: '#999' }}
-              />
-            </div>
-          </div>
-          <div>
-            <label style={labelStyle}>Customer Email</label>
-            <input
-              type="email"
-              placeholder="customer@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>Job Type</label>
-            <select value={jobType} onChange={(e) => setJobType(e.target.value)} style={inputStyle}>
-              {Object.entries(JOB_TYPE_LABELS).map(([v, l]) => (
-                <option key={v} value={v}>
-                  {l}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Scope / Description</label>
-            <textarea
-              rows={3}
-              placeholder="e.g. Full bathroom renovation — tile, fixtures, drywall..."
-              value={scope}
-              onChange={(e) => setScope(e.target.value)}
-              style={{ ...inputStyle, resize: 'vertical' }}
-            />
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-          <button onClick={onClose} style={btnSecondary}>
-            Cancel
-          </button>
-          <button onClick={submit} disabled={saving} style={btnPrimary(ORANGE)}>
-            {saving ? 'Saving…' : '📋 Draft S.O.W. Proposal'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── Archive modal ─────────────────────────────────────────────────────────────
 function ArchiveModal({ lead, onConfirm, onClose }) {
   const [reason, setReason] = useState('price');
@@ -384,7 +280,6 @@ export default function Leads({ token }) {
 
   // Active modal state
   const [apptModal, setApptModal] = useState(null); // lead
-  const [jobModal, setJobModal] = useState(null); // lead
   const [archiveModal, setArchiveModal] = useState(null); // lead
   const [wizardLead, setWizardLead] = useState(null); // lead to open wizard for
 
@@ -442,18 +337,6 @@ export default function Leads({ token }) {
     }
   };
 
-  // ── Job details / start quote draft ──────────────────────────────────────
-  const confirmJobDetails = async (fields) => {
-    try {
-      const data = await patchLead(jobModal.id, { stage: 'quote_draft', ...fields });
-      updateLead(data.lead);
-      showToast('Proposal draft started — task created', 'success');
-      setJobModal(null);
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
-
   // ── Generic advance (all other stages) ───────────────────────────────────
   const advanceStage = async (lead) => {
     const next = NEXT_STAGE[lead.stage];
@@ -463,7 +346,15 @@ export default function Leads({ token }) {
       return;
     }
     if (next === 'quote_draft') {
-      setJobModal(lead);
+      // Skip the old JobDetailsModal — advance directly and open wizard pre-filled
+      try {
+        const data = await patchLead(lead.id, { stage: 'quote_draft' });
+        updateLead(data.lead);
+        showToast('Proposal draft started — opening wizard…', 'success');
+        setWizardLead(data.lead);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
       return;
     }
     try {
@@ -783,13 +674,6 @@ export default function Leads({ token }) {
           lead={apptModal}
           onConfirm={confirmAppointment}
           onClose={() => setApptModal(null)}
-        />
-      )}
-      {jobModal && (
-        <JobDetailsModal
-          lead={jobModal}
-          onConfirm={confirmJobDetails}
-          onClose={() => setJobModal(null)}
         />
       )}
       {archiveModal && (

@@ -2,6 +2,7 @@
 const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
 function getOwnerEmails() {
   const raw = process.env.OWNER_EMAIL || process.env.REPLY_TO_EMAIL || '';
@@ -122,7 +123,6 @@ async function sendEmail({
   let pixelId = null;
 
   if (html && appUrl) {
-    const { v4: uuidv4 } = require('uuid');
     pixelId = uuidv4();
     const pixel = `<img src="${appUrl}/api/track/o/${pixelId}" width="1" height="1" style="display:none" alt="" />`;
     messageData.html = html + pixel;

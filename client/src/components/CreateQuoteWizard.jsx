@@ -891,7 +891,13 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
     state:  '',
     zip:    '',
   });
-  const [scope, setScope] = useState(prefillLead?.job_scope || '');
+  const [scope, setScope] = useState(() => {
+    const s = (prefillLead?.job_scope || '').trim();
+    const n = (prefillLead?.notes || '').trim();
+    if (s && n && !s.includes(n)) return `${s}\n\n--- Site Visit Notes ---\n${n}`;
+    if (s) return s;
+    return n;
+  });
   const [jobType, setJobType] = useState(prefillLead?.job_type || '');
   const [budgetTarget, setBudgetTarget] = useState('');
 
