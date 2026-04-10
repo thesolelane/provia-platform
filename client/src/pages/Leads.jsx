@@ -346,11 +346,10 @@ export default function Leads({ token }) {
       return;
     }
     if (next === 'quote_draft') {
-      // Skip the old JobDetailsModal — advance directly and open wizard pre-filled
       try {
         const data = await patchLead(lead.id, { stage: 'quote_draft' });
         updateLead(data.lead);
-        showToast('Proposal draft started — opening wizard…', 'success');
+        showToast('Proposal draft started — task created', 'success');
         setWizardLead(data.lead);
       } catch (err) {
         showToast(err.message, 'error');
