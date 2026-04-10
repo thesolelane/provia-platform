@@ -1,0 +1,26 @@
+========================================================================
+PREFERRED BUILDERS — CRASH SNAPSHOT
+========================================================================
+Timestamp  : 2026-04-10T18:18:40.977Z
+Reason     : SIGTERM (PM2 restart or OS shutdown)
+Process ID : 2770
+Node.js    : v20.20.0
+CWD        : /home/runner/workspace
+
+========================================================================
+PM2 PROCESS LIST (at time of crash)
+========================================================================
+(pm2 list failed: Command failed: pm2 list --no-color
+/bin/sh: 1: pm2: not found
+)
+/bin/sh: 1: pm2: not found
+
+========================================================================
+STDOUT LOG TAIL  (C:\Users\theso\.pm2\logs\preferred-builders-out.log)
+========================================================================
+(log file not found: C:\Users\theso\.pm2\logs\preferred-builders-out.log)
+
+========================================================================
+STDERR LOG TAIL  (C:\Users\theso\.pm2\logs\preferred-builders-error.log)
+========================================================================
+(log file not found: C:\Users\theso\.pm2\logs\preferred-builders-error.log)

@@ -142,6 +142,14 @@ function autoTask(db, lead, nextStage, performer) {
           }),
         }
       : null,
+    site_visit_complete: {
+      title: `📋 Create Proposal: ${name}${addr ? ' — ' + addr : ''}`,
+      description: `Site visit complete for ${name} (${phone}). Next step: create scope of work / proposal.${addr ? '\nAddress: ' + addr : ''}${lead.job_scope ? '\nScope: ' + lead.job_scope : ''}`,
+      priority: 'high',
+      due_at: remindAt(48),
+      remind_at: remindAt(48),
+      remind_interval_hours: 48,
+    },
     quote_draft: {
       title: `📋 Proposal Draft: ${name}${addr ? ' — ' + addr : ''}`,
       description: `Create scope of work / proposal for ${name} (${phone}).${addr ? '\nAddress: ' + addr : ''}${lead.job_scope ? '\nScope: ' + lead.job_scope : ''}`,
