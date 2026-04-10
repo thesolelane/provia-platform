@@ -8,6 +8,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '512M',
+      out_file: 'C:\\Users\\theso\\.pm2\\logs\\preferred-builders-out.log',
+      error_file: 'C:\\Users\\theso\\.pm2\\logs\\preferred-builders-error.log',
       env: {
         NODE_ENV: 'production',
         PORT: 5000,

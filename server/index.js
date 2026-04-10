@@ -19,6 +19,7 @@ for (const key of Object.keys(process.env)) {
 }
 
 require('./services/errorLogger'); // must load early to capture all errors
+require('./services/crashLogger'); // must load early to register signal handlers
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
