@@ -20,7 +20,7 @@ const EVENT_CONFIG = {
   PASS_THROUGH_REIMBURSED: { label: 'Pass-Through Reimbursed', color: TEAL, bg: '#f0fdfa' },
   CHANGE_ORDER_CREATED: { label: 'Change Order', color: PURPLE, bg: '#faf5ff' },
   JOB_COMPLETED: { label: 'Job Completed', color: GREEN, bg: '#f0fdf4' },
-  NOTE: { label: 'Note', color: '#888', bg: '#f9f9f9' }
+  NOTE: { label: 'Note', color: '#888', bg: '#f9f9f9' },
 };
 
 function fmtTs(ts) {
@@ -72,8 +72,8 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
         job_id: jobId,
         customer_number: customerNumber,
         event_type: 'NOTE',
-        description: noteText.trim()
-      })
+        description: noteText.trim(),
+      }),
     });
     if (res.ok) {
       setNoteText('');
@@ -94,7 +94,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: open ? 12 : 0
+          marginBottom: open ? 12 : 0,
         }}
       >
         <button
@@ -109,7 +109,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
             color: BLUE,
             fontWeight: 'bold',
             fontSize: 14,
-            padding: 0
+            padding: 0,
           }}
         >
           <span style={{ fontSize: 12 }}>{open ? '▼' : '▶'}</span>
@@ -129,7 +129,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
               border: '1px solid #c8d4e4',
               borderRadius: 6,
               cursor: 'pointer',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
             + Add Note
@@ -146,7 +146,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
                 background: '#f8f9ff',
                 border: '1px solid #c8d4e4',
                 borderRadius: 8,
-                padding: 12
+                padding: 12,
               }}
             >
               <textarea
@@ -163,7 +163,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
                   boxSizing: 'border-box',
                   resize: 'vertical',
                   fontFamily: 'inherit',
-                  marginBottom: 8
+                  marginBottom: 8,
                 }}
               />
               <div style={{ display: 'flex', gap: 8 }}>
@@ -178,7 +178,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontWeight: 'bold',
-                    fontSize: 12
+                    fontSize: 12,
                   }}
                 >
                   {saving ? 'Saving...' : 'Add Note'}
@@ -192,7 +192,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontSize: 12,
-                    color: '#888'
+                    color: '#888',
                   }}
                 >
                   Cancel
@@ -220,7 +220,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
                       padding: '8px 12px',
                       background: cfg.bg,
                       borderRadius: 7,
-                      border: `1px solid ${cfg.color}22`
+                      border: `1px solid ${cfg.color}22`,
                     }}
                   >
                     <div style={{ flexShrink: 0, paddingTop: 2 }}>
@@ -234,7 +234,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
                           padding: '2px 6px',
                           borderRadius: 8,
                           display: 'inline-block',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {cfg.label}
@@ -248,7 +248,7 @@ export default function ActivityLog({ jobId, customerNumber, token, collapsed = 
                             fontSize: 11,
                             color: '#888',
                             marginTop: 2,
-                            fontFamily: 'monospace'
+                            fontFamily: 'monospace',
                           }}
                         >
                           Ref: {e.document_ref}

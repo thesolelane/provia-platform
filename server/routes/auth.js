@@ -17,7 +17,7 @@ router.post('/login', requireFields(['email', 'password']), (req, res) => {
     userId: user.id,
     name: user.name,
     email: user.email,
-    role: user.role
+    role: user.role,
   });
   res.json({ token, name: user.name, role: user.role, message: 'Logged in successfully' });
 });

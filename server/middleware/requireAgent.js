@@ -63,7 +63,7 @@ function requireAgent(req, res, next) {
   try {
     sigValid = crypto.timingSafeEqual(
       Buffer.from(signature, 'hex'),
-      Buffer.from(expectedSig, 'hex')
+      Buffer.from(expectedSig, 'hex'),
     );
   } catch {
     return res.status(401).json({ error: 'Invalid signature' });
@@ -74,7 +74,7 @@ function requireAgent(req, res, next) {
   }
 
   db.prepare(
-    "UPDATE agent_keys SET request_count = request_count + 1, last_seen = datetime('now') WHERE id = ?"
+    "UPDATE agent_keys SET request_count = request_count + 1, last_seen = datetime('now') WHERE id = ?",
   ).run(agent.id);
 
   req.agent = agent;

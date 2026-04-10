@@ -12,7 +12,7 @@ const ROLES = [
   { value: 'system_admin', label: 'System Admin', color: GOLD, bg: '#FFF8DC' },
   { value: 'admin', label: 'Admin', color: BLUE, bg: '#E3ECFF' },
   { value: 'pm', label: 'Project Manager', color: GREEN, bg: '#E8F5E9' },
-  { value: 'staff', label: 'Staff', color: '#555', bg: '#F5F5F5' }
+  { value: 'staff', label: 'Staff', color: '#555', bg: '#F5F5F5' },
 ];
 
 const roleInfo = (role) => ROLES.find((r) => r.value === role) || ROLES[3];
@@ -26,7 +26,7 @@ const inp = {
   border: '1px solid #ddd',
   borderRadius: 6,
   fontSize: 13,
-  boxSizing: 'border-box'
+  boxSizing: 'border-box',
 };
 const lbl = { fontSize: 12, color: '#555', display: 'block', marginBottom: 4, fontWeight: '500' };
 
@@ -47,14 +47,14 @@ export default function Team({ token, userRole }) {
     role: 'pm',
     title: 'Team Member',
     phone: '',
-    language: 'en'
+    language: 'en',
   });
   const [senderForm, setSenderForm] = useState({
     identifier: '',
     type: 'email',
     name: '',
     role: 'pm',
-    language: 'en'
+    language: 'en',
   });
   const [pwdForm, setPwdForm] = useState({ currentPassword: '', newPassword: '', confirm: '' });
   const [pwdErr, setPwdErr] = useState('');
@@ -88,7 +88,7 @@ export default function Team({ token, userRole }) {
         role: 'pm',
         title: 'Team Member',
         phone: '',
-        language: 'en'
+        language: 'en',
       });
       loadUsers();
     } else {
@@ -101,7 +101,7 @@ export default function Team({ token, userRole }) {
     const res = await fetch(`/api/users/${editUser.id}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(editUser)
+      body: JSON.stringify(editUser),
     });
     if (res.ok) {
       setEditUser(null);
@@ -113,7 +113,7 @@ export default function Team({ token, userRole }) {
     await fetch(`/api/users/${u.id}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ active: !u.active })
+      body: JSON.stringify({ active: !u.active }),
     });
     loadUsers();
   };
@@ -137,7 +137,7 @@ export default function Team({ token, userRole }) {
     const res = await fetch(`/api/users/${pwdUser.id}/password`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(pwdForm)
+      body: JSON.stringify(pwdForm),
     });
     if (res.ok) {
       setPwdUser(null);
@@ -159,7 +159,7 @@ export default function Team({ token, userRole }) {
     await fetch(`/api/whitelist/${id}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ active: active ? 0 : 1 })
+      body: JSON.stringify({ active: active ? 0 : 1 }),
     });
     loadSenders();
   };
@@ -179,7 +179,7 @@ export default function Team({ token, userRole }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <div>
@@ -200,7 +200,7 @@ export default function Team({ token, userRole }) {
               border: 'none',
               borderRadius: 8,
               cursor: 'pointer',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
             + Add Team Member
@@ -216,7 +216,7 @@ export default function Team({ token, userRole }) {
               border: 'none',
               borderRadius: 8,
               cursor: 'pointer',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
             + Add Bot Contact
@@ -228,7 +228,7 @@ export default function Team({ token, userRole }) {
       <div style={{ display: 'flex', gap: 0, marginBottom: 24, borderBottom: '2px solid #e0e0e0' }}>
         {[
           ['team', '🧑‍💼 Team Members'],
-          ['bot', '🤖 Bot Contacts']
+          ['bot', '🤖 Bot Contacts'],
         ].map(([key, label]) => (
           <button
             key={key}
@@ -242,7 +242,7 @@ export default function Team({ token, userRole }) {
               fontWeight: tab === key ? 'bold' : 'normal',
               cursor: 'pointer',
               fontSize: 13,
-              marginBottom: -2
+              marginBottom: -2,
             }}
           >
             {label}
@@ -257,7 +257,7 @@ export default function Team({ token, userRole }) {
             background: 'white',
             borderRadius: 10,
             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-            overflowX: 'auto'
+            overflowX: 'auto',
           }}
         >
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
@@ -272,12 +272,12 @@ export default function Team({ token, userRole }) {
                         color: 'white',
                         textAlign: 'left',
                         fontSize: 12,
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {h}
                     </th>
-                  )
+                  ),
                 )}
               </tr>
             </thead>
@@ -296,7 +296,7 @@ export default function Team({ token, userRole }) {
                     key={u.id}
                     style={{
                       borderBottom: '1px solid #f0f0f0',
-                      background: i % 2 === 0 ? 'white' : '#fafafa'
+                      background: i % 2 === 0 ? 'white' : '#fafafa',
                     }}
                   >
                     <td style={{ padding: '11px 14px' }}>
@@ -309,7 +309,7 @@ export default function Team({ token, userRole }) {
                         fontSize: 12,
                         color: '#555',
                         fontFamily: 'monospace',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {u.email}
@@ -323,7 +323,7 @@ export default function Team({ token, userRole }) {
                           borderRadius: 10,
                           fontSize: 11,
                           fontWeight: 'bold',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {ri.label}
@@ -334,7 +334,7 @@ export default function Team({ token, userRole }) {
                         padding: '11px 14px',
                         fontSize: 12,
                         color: '#555',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {u.phone || '—'}
@@ -347,7 +347,7 @@ export default function Team({ token, userRole }) {
                         style={{
                           color: u.active ? GREEN : '#bbb',
                           fontWeight: 'bold',
-                          fontSize: 12
+                          fontSize: 12,
                         }}
                       >
                         {u.active ? '● Active' : '○ Off'}
@@ -364,7 +364,7 @@ export default function Team({ token, userRole }) {
                             borderRadius: 5,
                             cursor: 'pointer',
                             background: 'white',
-                            whiteSpace: 'nowrap'
+                            whiteSpace: 'nowrap',
                           }}
                         >
                           ✏️ Edit
@@ -382,7 +382,7 @@ export default function Team({ token, userRole }) {
                             borderRadius: 5,
                             cursor: 'pointer',
                             background: 'white',
-                            whiteSpace: 'nowrap'
+                            whiteSpace: 'nowrap',
                           }}
                         >
                           🔑 Pwd
@@ -398,7 +398,7 @@ export default function Team({ token, userRole }) {
                                 borderRadius: 5,
                                 cursor: 'pointer',
                                 background: 'white',
-                                whiteSpace: 'nowrap'
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               {u.active ? 'Disable' : 'Enable'}
@@ -414,7 +414,7 @@ export default function Team({ token, userRole }) {
                                 color: 'white',
                                 background: RED,
                                 fontWeight: 'bold',
-                                whiteSpace: 'nowrap'
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               🗑 Remove
@@ -442,7 +442,7 @@ export default function Team({ token, userRole }) {
               padding: 14,
               marginBottom: 16,
               fontSize: 12,
-              color: '#5D3A00'
+              color: '#5D3A00',
             }}
           >
             ⚠️ Only emails and WhatsApp numbers on this list can trigger the bot. Messages from
@@ -453,7 +453,7 @@ export default function Team({ token, userRole }) {
               background: 'white',
               borderRadius: 10,
               boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-              overflowX: 'auto'
+              overflowX: 'auto',
             }}
           >
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 620 }}>
@@ -467,7 +467,7 @@ export default function Team({ token, userRole }) {
                         color: 'white',
                         textAlign: 'left',
                         fontSize: 12,
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {h}
@@ -488,7 +488,7 @@ export default function Team({ token, userRole }) {
                     key={s.id}
                     style={{
                       borderBottom: '1px solid #f0f0f0',
-                      background: i % 2 === 0 ? 'white' : '#fafafa'
+                      background: i % 2 === 0 ? 'white' : '#fafafa',
                     }}
                   >
                     <td
@@ -496,7 +496,7 @@ export default function Team({ token, userRole }) {
                         padding: '11px 14px',
                         fontSize: 13,
                         fontWeight: '500',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {s.name || '—'}
@@ -507,7 +507,7 @@ export default function Team({ token, userRole }) {
                         fontSize: 12,
                         color: '#555',
                         fontFamily: 'monospace',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {s.identifier}
@@ -520,7 +520,7 @@ export default function Team({ token, userRole }) {
                           padding: '2px 8px',
                           borderRadius: 10,
                           fontSize: 11,
-                          fontWeight: 'bold'
+                          fontWeight: 'bold',
                         }}
                       >
                         {s.type === 'email' ? '📧 Email' : '📱 WhatsApp'}
@@ -532,7 +532,7 @@ export default function Team({ token, userRole }) {
                         fontSize: 12,
                         color: '#666',
                         textTransform: 'capitalize',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {s.role}
@@ -545,7 +545,7 @@ export default function Team({ token, userRole }) {
                         style={{
                           color: s.active ? GREEN : '#bbb',
                           fontWeight: 'bold',
-                          fontSize: 12
+                          fontSize: 12,
                         }}
                       >
                         {s.active ? '● Active' : '○ Off'}
@@ -562,7 +562,7 @@ export default function Team({ token, userRole }) {
                             borderRadius: 5,
                             cursor: 'pointer',
                             background: 'white',
-                            whiteSpace: 'nowrap'
+                            whiteSpace: 'nowrap',
                           }}
                         >
                           {s.active ? 'Disable' : 'Enable'}
@@ -578,7 +578,7 @@ export default function Team({ token, userRole }) {
                             color: 'white',
                             background: RED,
                             fontWeight: 'bold',
-                            whiteSpace: 'nowrap'
+                            whiteSpace: 'nowrap',
                           }}
                         >
                           🗑 Remove
@@ -603,7 +603,7 @@ export default function Team({ token, userRole }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div
@@ -613,14 +613,14 @@ export default function Team({ token, userRole }) {
               padding: 32,
               width: 480,
               maxHeight: '90vh',
-              overflowY: 'auto'
+              overflowY: 'auto',
             }}
           >
             <h2 style={{ color: BLUE, marginBottom: 20, marginTop: 0 }}>Add Team Member</h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
                 ['Name', 'name', 'Full name'],
-                ['Email', 'email', 'Login email']
+                ['Email', 'email', 'Login email'],
               ].map(([label, key, ph]) => (
                 <div key={key}>
                   <label style={lbl}>{label}</label>
@@ -692,7 +692,7 @@ export default function Team({ token, userRole }) {
                 marginTop: 8,
                 padding: '8px 12px',
                 background: '#f8f8f8',
-                borderRadius: 6
+                borderRadius: 6,
               }}
             >
               <strong>Admin</strong> — jobs, tasks, contacts, settings &nbsp;|&nbsp;{' '}
@@ -707,7 +707,7 @@ export default function Team({ token, userRole }) {
                   border: '1px solid #ddd',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  background: 'white'
+                  background: 'white',
                 }}
               >
                 Cancel
@@ -723,7 +723,7 @@ export default function Team({ token, userRole }) {
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 Add Team Member
@@ -743,7 +743,7 @@ export default function Team({ token, userRole }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div
@@ -753,7 +753,7 @@ export default function Team({ token, userRole }) {
               padding: 32,
               width: 480,
               maxHeight: '90vh',
-              overflowY: 'auto'
+              overflowY: 'auto',
             }}
           >
             <h2 style={{ color: BLUE, marginBottom: 20, marginTop: 0 }}>
@@ -822,7 +822,7 @@ export default function Team({ token, userRole }) {
                   border: '1px solid #ddd',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  background: 'white'
+                  background: 'white',
                 }}
               >
                 Cancel
@@ -837,7 +837,7 @@ export default function Team({ token, userRole }) {
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 Save Changes
@@ -857,7 +857,7 @@ export default function Team({ token, userRole }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 400 }}>
@@ -903,7 +903,7 @@ export default function Team({ token, userRole }) {
                   border: '1px solid #ddd',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  background: 'white'
+                  background: 'white',
                 }}
               >
                 Cancel
@@ -918,7 +918,7 @@ export default function Team({ token, userRole }) {
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 Update Password
@@ -938,7 +938,7 @@ export default function Team({ token, userRole }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 440 }}>
@@ -948,8 +948,8 @@ export default function Team({ token, userRole }) {
               {
                 label: 'Email or WhatsApp (with country code)',
                 key: 'identifier',
-                placeholder: 'email@example.com or +11234567890'
-              }
+                placeholder: 'email@example.com or +11234567890',
+              },
             ].map((f) => (
               <div key={f.key} style={{ marginBottom: 12 }}>
                 <label style={lbl}>{f.label}</label>
@@ -967,8 +967,8 @@ export default function Team({ token, userRole }) {
                 key: 'type',
                 options: [
                   ['email', '📧 Email'],
-                  ['whatsapp', '📱 WhatsApp']
-                ]
+                  ['whatsapp', '📱 WhatsApp'],
+                ],
               },
               {
                 label: 'Role',
@@ -977,17 +977,17 @@ export default function Team({ token, userRole }) {
                   ['system_admin', 'System Admin'],
                   ['admin', 'Admin'],
                   ['pm', 'Project Manager'],
-                  ['staff', 'Staff']
-                ]
+                  ['staff', 'Staff'],
+                ],
               },
               {
                 label: 'Language',
                 key: 'language',
                 options: [
                   ['en', '🇺🇸 English'],
-                  ['pt-BR', '🇧🇷 Português']
-                ]
-              }
+                  ['pt-BR', '🇧🇷 Português'],
+                ],
+              },
             ].map((f) => (
               <div key={f.key} style={{ marginBottom: 12 }}>
                 <label style={lbl}>{f.label}</label>
@@ -1013,7 +1013,7 @@ export default function Team({ token, userRole }) {
                   border: '1px solid #ddd',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  background: 'white'
+                  background: 'white',
                 }}
               >
                 Cancel
@@ -1029,7 +1029,7 @@ export default function Team({ token, userRole }) {
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 Add Contact

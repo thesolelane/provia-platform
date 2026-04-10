@@ -19,34 +19,34 @@ const REPORT_TYPES = [
     key: 'cashflow',
     icon: '💵',
     label: 'Cash Flow',
-    desc: 'Money in vs out by month with running balance'
+    desc: 'Money in vs out by month with running balance',
   },
   { key: 'ar', icon: '🧾', label: 'AR Aging', desc: 'Outstanding invoices by age' },
   {
     key: 'profitability',
     icon: '📈',
     label: 'Job Profitability',
-    desc: 'Per-job revenue, costs and margin'
+    desc: 'Per-job revenue, costs and margin',
   },
   {
     key: 'passthrough',
     icon: '🔄',
     label: 'Pass-Through Balance',
-    desc: 'Fronted costs vs reimbursements'
+    desc: 'Fronted costs vs reimbursements',
   },
   { key: 'deposits', icon: '🏦', label: 'Deposit Tracker', desc: 'Signed jobs and deposit status' },
   {
     key: 'customer',
     icon: '👤',
     label: 'Customer Report',
-    desc: 'All jobs, invoices & payments by customer'
+    desc: 'All jobs, invoices & payments by customer',
   },
   {
     key: 'purchase_orders',
     icon: '📦',
     label: 'Purchase Orders',
-    desc: 'PO spend by category, job, and status'
-  }
+    desc: 'PO spend by category, job, and status',
+  },
 ];
 
 const PERIODS = [
@@ -54,7 +54,7 @@ const PERIODS = [
   { key: 'qtd', label: 'Quarter to Date' },
   { key: 'ytd', label: 'Year to Date' },
   { key: '12mo', label: 'Last 12 Months' },
-  { key: 'all', label: 'All Time' }
+  { key: 'all', label: 'All Time' },
 ];
 
 function periodLabel(p) {
@@ -91,7 +91,7 @@ function fmtMonth(m) {
     'Sep',
     'Oct',
     'Nov',
-    'Dec'
+    'Dec',
   ];
   return `${months[parseInt(mo) - 1]} '${y.slice(2)}`;
 }
@@ -105,7 +105,7 @@ const STATUS_LABELS = {
   contract_ready: 'Ready',
   contract_sent: 'Contract Sent',
   contract_signed: 'Signed',
-  complete: 'Complete'
+  complete: 'Complete',
 };
 
 function Badge({ status }) {
@@ -114,7 +114,7 @@ function Badge({ status }) {
     contract_signed: TEAL,
     contract_sent: '#3B82F6',
     proposal_approved: '#059669',
-    proposal_sent: '#F59E0B'
+    proposal_sent: '#F59E0B',
   };
   const c = colors[status] || '#888';
   return (
@@ -126,7 +126,7 @@ function Badge({ status }) {
         background: c + '22',
         color: c,
         fontWeight: 'bold',
-        whiteSpace: 'nowrap'
+        whiteSpace: 'nowrap',
       }}
     >
       {STATUS_LABELS[status] || status}
@@ -143,7 +143,7 @@ function PLReport({ data }) {
     contract_invoice: 'Contract',
     pass_through_invoice: 'Pass-Through',
     change_order: 'Change Order',
-    combined_invoice: 'Combined'
+    combined_invoice: 'Combined',
   };
 
   return (
@@ -154,7 +154,7 @@ function PLReport({ data }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
           gap: 12,
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <KpiCard label="Contract Revenue" value={fmt(data.totalRevenue)} color={GREEN} />
@@ -187,14 +187,14 @@ function PLReport({ data }) {
                     <span style={{ textTransform: 'capitalize' }}>
                       {v?.replace(/_/g, ' ') || '—'}
                     </span>
-                  )
+                  ),
                 },
                 {
                   key: 'total',
                   label: 'Amount',
                   align: 'right',
-                  render: (v) => <strong style={{ color: GREEN }}>{fmt(v)}</strong>
-                }
+                  render: (v) => <strong style={{ color: GREEN }}>{fmt(v)}</strong>,
+                },
               ]}
             />
           )}
@@ -215,14 +215,14 @@ function PLReport({ data }) {
                     <span style={{ textTransform: 'capitalize' }}>
                       {v?.replace(/_/g, ' ') || '—'}
                     </span>
-                  )
+                  ),
                 },
                 {
                   key: 'total',
                   label: 'Amount',
                   align: 'right',
-                  render: (v) => <strong style={{ color: RED }}>{fmt(v)}</strong>
-                }
+                  render: (v) => <strong style={{ color: RED }}>{fmt(v)}</strong>,
+                },
               ]}
             />
           )}
@@ -256,8 +256,8 @@ function PLReport({ data }) {
                 key: 'collected',
                 label: 'Collected',
                 align: 'right',
-                render: (v) => <span style={{ color: GREEN }}>{fmt(v)}</span>
-              }
+                render: (v) => <span style={{ color: GREEN }}>{fmt(v)}</span>,
+              },
             ]}
           />
         </Section>
@@ -287,7 +287,7 @@ function CashFlowReport({ data }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(160px,1fr))',
           gap: 12,
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <KpiCard label="Total In" value={fmt(totalIn)} color={GREEN} />
@@ -309,7 +309,7 @@ function CashFlowReport({ data }) {
               alignItems: 'flex-end',
               gap: 6,
               minWidth: 700,
-              paddingBottom: 8
+              paddingBottom: 8,
             }}
           >
             {rows.map((r) => (
@@ -320,7 +320,7 @@ function CashFlowReport({ data }) {
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  minWidth: 40
+                  minWidth: 40,
                 }}
               >
                 <div
@@ -328,7 +328,7 @@ function CashFlowReport({ data }) {
                     fontSize: 9,
                     color: r.net >= 0 ? GREEN : RED,
                     fontWeight: 'bold',
-                    marginBottom: 2
+                    marginBottom: 2,
                   }}
                 >
                   {r.net !== 0 ? (r.net >= 0 ? '+' : '') + fmt(r.net) : '—'}
@@ -339,7 +339,7 @@ function CashFlowReport({ data }) {
                     display: 'flex',
                     gap: 2,
                     alignItems: 'flex-end',
-                    height: BAR_H
+                    height: BAR_H,
                   }}
                 >
                   <div
@@ -348,7 +348,7 @@ function CashFlowReport({ data }) {
                       borderRadius: '3px 3px 0 0',
                       background: GREEN + 'cc',
                       height: `${Math.max((r.in / maxAbs) * BAR_H, r.in > 0 ? 4 : 0)}px`,
-                      transition: 'height 0.3s'
+                      transition: 'height 0.3s',
                     }}
                     title={`In: ${fmt(r.in)}`}
                   />
@@ -358,7 +358,7 @@ function CashFlowReport({ data }) {
                       borderRadius: '3px 3px 0 0',
                       background: RED + 'cc',
                       height: `${Math.max((r.out / maxAbs) * BAR_H, r.out > 0 ? 4 : 0)}px`,
-                      transition: 'height 0.3s'
+                      transition: 'height 0.3s',
                     }}
                     title={`Out: ${fmt(r.out)}`}
                   />
@@ -379,7 +379,7 @@ function CashFlowReport({ data }) {
                   width: 12,
                   height: 12,
                   borderRadius: 2,
-                  background: GREEN
+                  background: GREEN,
                 }}
               />{' '}
               Money In
@@ -393,7 +393,7 @@ function CashFlowReport({ data }) {
                   width: 12,
                   height: 12,
                   borderRadius: 2,
-                  background: RED
+                  background: RED,
                 }}
               />{' '}
               Money Out
@@ -413,13 +413,13 @@ function CashFlowReport({ data }) {
                 key: 'in',
                 label: 'In',
                 align: 'right',
-                render: (v) => <span style={{ color: GREEN }}>{fmt(v)}</span>
+                render: (v) => <span style={{ color: GREEN }}>{fmt(v)}</span>,
               },
               {
                 key: 'out',
                 label: 'Out',
                 align: 'right',
-                render: (v) => <span style={{ color: RED }}>{fmt(v)}</span>
+                render: (v) => <span style={{ color: RED }}>{fmt(v)}</span>,
               },
               {
                 key: 'net',
@@ -429,14 +429,14 @@ function CashFlowReport({ data }) {
                   <strong style={{ color: v >= 0 ? BLUE : RED }}>
                     {(v >= 0 ? '+' : '') + fmt(v)}
                   </strong>
-                )
+                ),
               },
               {
                 key: 'balance',
                 label: 'Balance',
                 align: 'right',
-                render: (v) => <strong style={{ color: v >= 0 ? BLUE : RED }}>{fmt(v)}</strong>
-              }
+                render: (v) => <strong style={{ color: v >= 0 ? BLUE : RED }}>{fmt(v)}</strong>,
+              },
             ]}
           />
         </div>
@@ -450,7 +450,7 @@ function ARReport({ data }) {
     contract_invoice: 'Contract',
     pass_through_invoice: 'Pass-Through',
     change_order: 'Change Order',
-    combined_invoice: 'Combined'
+    combined_invoice: 'Combined',
   };
   const bucketColors = ['#059669', ORANGE, '#F59E0B', RED];
 
@@ -461,7 +461,7 @@ function ARReport({ data }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))',
           gap: 12,
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <KpiCard label="Total Outstanding" value={fmt(data.total)} color={RED} />
@@ -488,7 +488,7 @@ function ARReport({ data }) {
                   border: '1px solid #e2e8f0',
                   borderRadius: 8,
                   padding: '10px 16px',
-                  minWidth: 140
+                  minWidth: 140,
                 }}
               >
                 <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>
@@ -521,7 +521,7 @@ function ARReport({ data }) {
                       <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: 11 }}>
                         {v}
                       </span>
-                    )
+                    ),
                   },
                   { key: 'customer_name', label: 'Customer' },
                   { key: 'invoice_type', label: 'Type', render: (v) => invTypeLabels[v] || v },
@@ -530,19 +530,19 @@ function ARReport({ data }) {
                     key: 'outstanding',
                     label: 'Outstanding',
                     align: 'right',
-                    render: (v) => <strong style={{ color: RED }}>{fmt(v)}</strong>
+                    render: (v) => <strong style={{ color: RED }}>{fmt(v)}</strong>,
                   },
                   {
                     key: 'status',
                     label: 'Status',
                     render: (v) => (
                       <span style={{ textTransform: 'capitalize', fontSize: 11 }}>{v}</span>
-                    )
-                  }
+                    ),
+                  },
                 ]}
               />
             </Section>
-          )
+          ),
       )}
 
       {data.total === 0 && <Empty msg="No outstanding invoices — all paid up." />}
@@ -568,7 +568,7 @@ function ProfitabilityReport({ data }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))',
           gap: 12,
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <KpiCard label="Total Received" value={fmt(totalReceived)} color={GREEN} />
@@ -597,7 +597,7 @@ function ProfitabilityReport({ data }) {
                   border: '1px solid #fecaca',
                   borderRadius: 8,
                   padding: '10px 16px',
-                  minWidth: 130
+                  minWidth: 130,
                 }}
               >
                 <div
@@ -605,7 +605,7 @@ function ProfitabilityReport({ data }) {
                     fontSize: 11,
                     color: '#888',
                     marginBottom: 4,
-                    textTransform: 'capitalize'
+                    textTransform: 'capitalize',
                   }}
                 >
                   {c.category?.replace(/_/g, ' ')}
@@ -636,12 +636,12 @@ function ProfitabilityReport({ data }) {
                         textDecoration: 'none',
                         fontFamily: 'monospace',
                         fontWeight: 'bold',
-                        fontSize: 11
+                        fontSize: 11,
                       }}
                     >
                       {v || row.id?.slice(0, 6)}
                     </Link>
-                  )
+                  ),
                 },
                 { key: 'customerName', label: 'Customer' },
                 { key: 'status', label: 'Status', render: (v) => <Badge status={v} /> },
@@ -650,19 +650,19 @@ function ProfitabilityReport({ data }) {
                   key: 'received',
                   label: 'Received',
                   align: 'right',
-                  render: (v) => <span style={{ color: GREEN }}>{fmt(v)}</span>
+                  render: (v) => <span style={{ color: GREEN }}>{fmt(v)}</span>,
                 },
                 {
                   key: 'costs',
                   label: 'Costs',
                   align: 'right',
-                  render: (v) => <span style={{ color: RED }}>{fmt(v)}</span>
+                  render: (v) => <span style={{ color: RED }}>{fmt(v)}</span>,
                 },
                 {
                   key: 'grossProfit',
                   label: 'Profit',
                   align: 'right',
-                  render: (v) => <strong style={{ color: v >= 0 ? BLUE : RED }}>{fmt(v)}</strong>
+                  render: (v) => <strong style={{ color: v >= 0 ? BLUE : RED }}>{fmt(v)}</strong>,
                 },
                 {
                   key: 'margin',
@@ -679,7 +679,7 @@ function ProfitabilityReport({ data }) {
                     ) : (
                       <span style={{ color: '#aaa' }}>—</span>
                     );
-                  }
+                  },
                 },
                 {
                   key: 'ptOwed',
@@ -690,8 +690,8 @@ function ProfitabilityReport({ data }) {
                       <span style={{ color: ORANGE }}>{fmt(v)}</span>
                     ) : (
                       <span style={{ color: '#aaa' }}>—</span>
-                    )
-                }
+                    ),
+                },
               ]}
             />
           </div>
@@ -727,7 +727,7 @@ function PassThroughReport({ data }) {
                   border: '1px solid #fde68a',
                   borderRadius: 8,
                   padding: '10px 16px',
-                  minWidth: 130
+                  minWidth: 130,
                 }}
               >
                 <div
@@ -735,7 +735,7 @@ function PassThroughReport({ data }) {
                     fontSize: 11,
                     color: '#92400e',
                     marginBottom: 4,
-                    textTransform: 'capitalize'
+                    textTransform: 'capitalize',
                   }}
                 >
                   {c.category?.replace(/_/g, ' ')}
@@ -767,12 +767,12 @@ function PassThroughReport({ data }) {
                       textDecoration: 'none',
                       fontFamily: 'monospace',
                       fontWeight: 'bold',
-                      fontSize: 11
+                      fontSize: 11,
                     }}
                   >
                     {v || row.id?.slice(0, 6)}
                   </Link>
-                )
+                ),
               },
               { key: 'customerName', label: 'Customer' },
               { key: 'status', label: 'Status', render: (v) => <Badge status={v} /> },
@@ -780,13 +780,13 @@ function PassThroughReport({ data }) {
                 key: 'fronted',
                 label: 'Fronted',
                 align: 'right',
-                render: (v) => <span style={{ color: ORANGE }}>{fmt(v)}</span>
+                render: (v) => <span style={{ color: ORANGE }}>{fmt(v)}</span>,
               },
               {
                 key: 'reimbursed',
                 label: 'Reimbursed',
                 align: 'right',
-                render: (v) => <span style={{ color: TEAL }}>{fmt(v)}</span>
+                render: (v) => <span style={{ color: TEAL }}>{fmt(v)}</span>,
               },
               {
                 key: 'outstanding',
@@ -796,8 +796,8 @@ function PassThroughReport({ data }) {
                   <strong style={{ color: v > 0 ? RED : GREEN }}>
                     {v > 0 ? fmt(v) : 'Settled'}
                   </strong>
-                )
-              }
+                ),
+              },
             ]}
           />
         )}
@@ -816,7 +816,7 @@ function DepositsReport({ data }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))',
           gap: 12,
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <KpiCard label="Total Jobs Tracked" value={summary.total} color={BLUE} />
@@ -840,7 +840,7 @@ function DepositsReport({ data }) {
           padding: '8px 14px',
           marginBottom: 16,
           fontSize: 12,
-          color: '#92400e'
+          color: '#92400e',
         }}
       >
         Expected deposit rate: <strong>{Math.round(depositPct * 100)}%</strong> of contract value
@@ -865,12 +865,12 @@ function DepositsReport({ data }) {
                         textDecoration: 'none',
                         fontFamily: 'monospace',
                         fontWeight: 'bold',
-                        fontSize: 11
+                        fontSize: 11,
                       }}
                     >
                       {v || row.id?.slice(0, 6)}
                     </Link>
-                  )
+                  ),
                 },
                 { key: 'customerName', label: 'Customer' },
                 { key: 'status', label: 'Status', render: (v) => <Badge status={v} /> },
@@ -879,13 +879,13 @@ function DepositsReport({ data }) {
                   key: 'expectedDeposit',
                   label: 'Expected',
                   align: 'right',
-                  render: (v) => fmt(v)
+                  render: (v) => fmt(v),
                 },
                 {
                   key: 'depositReceived',
                   label: 'Received',
                   align: 'right',
-                  render: (v) => <span style={{ color: GREEN }}>{fmt(v)}</span>
+                  render: (v) => <span style={{ color: GREEN }}>{fmt(v)}</span>,
                 },
                 {
                   key: 'shortfall',
@@ -896,8 +896,8 @@ function DepositsReport({ data }) {
                       <span style={{ color: GREEN, fontWeight: 'bold' }}>✓ Met</span>
                     ) : (
                       <strong style={{ color: RED }}>{fmt(v)}</strong>
-                    )
-                }
+                    ),
+                },
               ]}
             />
           </div>
@@ -917,7 +917,7 @@ function KpiCard({ label, value, color, small }) {
         borderRadius: 10,
         padding: small ? '12px 14px' : '16px 18px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-        borderTop: `3px solid ${color}`
+        borderTop: `3px solid ${color}`,
       }}
     >
       <div style={{ fontSize: small ? 18 : 22, fontWeight: 'bold', color }}>{value}</div>
@@ -934,7 +934,7 @@ function Section({ title, titleColor, children, style }) {
         borderRadius: 10,
         padding: '16px 18px',
         boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-        ...style
+        ...style,
       }}
     >
       {title && (
@@ -945,7 +945,7 @@ function Section({ title, titleColor, children, style }) {
             color: titleColor || BLUE,
             marginBottom: 12,
             textTransform: 'uppercase',
-            letterSpacing: '0.05em'
+            letterSpacing: '0.05em',
           }}
         >
           {title}
@@ -977,7 +977,7 @@ function DynTable({ rows, cols }) {
                 fontSize: 11,
                 color: '#888',
                 fontWeight: 600,
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
               }}
             >
               {c.label}
@@ -991,7 +991,7 @@ function DynTable({ rows, cols }) {
             key={i}
             style={{
               borderBottom: '1px solid #f0f0f0',
-              background: i % 2 === 0 ? 'white' : '#fafafa'
+              background: i % 2 === 0 ? 'white' : '#fafafa',
             }}
           >
             {cols.map((c) => (
@@ -1000,7 +1000,7 @@ function DynTable({ rows, cols }) {
                 style={{
                   padding: '8px 10px',
                   textAlign: c.align || 'left',
-                  verticalAlign: 'middle'
+                  verticalAlign: 'middle',
                 }}
               >
                 {c.render ? c.render(row[c.key], row) : (row[c.key] ?? '—')}
@@ -1017,11 +1017,23 @@ function DynTable({ rows, cols }) {
 function PurchaseOrdersReport({ data }) {
   const { totals, byCategory, openByJob, byStatus, recent } = data || {};
   const STATUS_COLORS_PO = { draft: '#888', issued: '#F59E0B', received: '#3B82F6', closed: GREEN };
-  const STATUS_LABEL_PO = { draft: 'Draft', issued: 'Issued', received: 'Received', closed: 'Closed' };
+  const STATUS_LABEL_PO = {
+    draft: 'Draft',
+    issued: 'Issued',
+    received: 'Received',
+    closed: 'Closed',
+  };
 
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: 12, marginBottom: 24 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))',
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
         <KpiCard label="Total Active Spend" value={fmt(totals?.total_spend)} color={BLUE} />
         <KpiCard label="Open (Draft+Issued)" value={fmt(totals?.open_total)} color={ORANGE} small />
         <KpiCard label="Received" value={fmt(totals?.received)} color={GREEN} small />
@@ -1031,26 +1043,52 @@ function PurchaseOrdersReport({ data }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
         <Section title="Spend by Category">
-          {!byCategory?.length ? <Empty msg="No PO data" /> : (
+          {!byCategory?.length ? (
+            <Empty msg="No PO data" />
+          ) : (
             <DynTable
               rows={byCategory}
               cols={[
-                { key: 'category', label: 'Category', render: (v) => <span style={{ textTransform: 'capitalize' }}>{v || '—'}</span> },
+                {
+                  key: 'category',
+                  label: 'Category',
+                  render: (v) => <span style={{ textTransform: 'capitalize' }}>{v || '—'}</span>,
+                },
                 { key: 'count', label: 'POs', align: 'right' },
-                { key: 'total', label: 'Amount', align: 'right', render: (v) => <strong style={{ color: BLUE }}>{fmt(v)}</strong> }
+                {
+                  key: 'total',
+                  label: 'Amount',
+                  align: 'right',
+                  render: (v) => <strong style={{ color: BLUE }}>{fmt(v)}</strong>,
+                },
               ]}
             />
           )}
         </Section>
 
         <Section title="Spend by Status">
-          {!byStatus?.length ? <Empty msg="No PO data" /> : (
+          {!byStatus?.length ? (
+            <Empty msg="No PO data" />
+          ) : (
             <DynTable
               rows={byStatus}
               cols={[
-                { key: 'status', label: 'Status', render: (v) => <span style={{ color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600 }}>{STATUS_LABEL_PO[v] || v || '—'}</span> },
+                {
+                  key: 'status',
+                  label: 'Status',
+                  render: (v) => (
+                    <span style={{ color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600 }}>
+                      {STATUS_LABEL_PO[v] || v || '—'}
+                    </span>
+                  ),
+                },
                 { key: 'count', label: 'POs', align: 'right' },
-                { key: 'total', label: 'Amount', align: 'right', render: (v) => <strong>{fmt(v)}</strong> }
+                {
+                  key: 'total',
+                  label: 'Amount',
+                  align: 'right',
+                  render: (v) => <strong>{fmt(v)}</strong>,
+                },
               ]}
             />
           )}
@@ -1058,38 +1096,87 @@ function PurchaseOrdersReport({ data }) {
       </div>
 
       <Section title="Open PO Spend by Job (Not Closed)" style={{ marginBottom: 16 }}>
-        {!openByJob?.length ? <Empty msg="No open POs linked to jobs" /> : (
+        {!openByJob?.length ? (
+          <Empty msg="No open POs linked to jobs" />
+        ) : (
           <DynTable
             rows={openByJob}
             cols={[
-              { key: 'pb_number', label: 'PB #', render: (v, row) => (
-                <a href={`/jobs/${row.job_id}`} style={{ color: BLUE, fontWeight: 700, textDecoration: 'none', fontSize: 11 }}>{v || '—'}</a>
-              )},
+              {
+                key: 'pb_number',
+                label: 'PB #',
+                render: (v, row) => (
+                  <a
+                    href={`/jobs/${row.job_id}`}
+                    style={{ color: BLUE, fontWeight: 700, textDecoration: 'none', fontSize: 11 }}
+                  >
+                    {v || '—'}
+                  </a>
+                ),
+              },
               { key: 'customer_name', label: 'Customer' },
-              { key: 'project_address', label: 'Address', render: (v) => <span style={{ color: '#555', fontSize: 11 }}>{v || '—'}</span> },
+              {
+                key: 'project_address',
+                label: 'Address',
+                render: (v) => <span style={{ color: '#555', fontSize: 11 }}>{v || '—'}</span>,
+              },
               { key: 'po_count', label: 'Open POs', align: 'right' },
-              { key: 'po_total', label: 'Open Spend', align: 'right', render: (v) => <strong style={{ color: BLUE }}>{fmt(v)}</strong> }
+              {
+                key: 'po_total',
+                label: 'Open Spend',
+                align: 'right',
+                render: (v) => <strong style={{ color: BLUE }}>{fmt(v)}</strong>,
+              },
             ]}
           />
         )}
       </Section>
 
       <Section title="Recent Purchase Orders">
-        {!recent?.length ? <Empty msg="No POs in this period" /> : (
+        {!recent?.length ? (
+          <Empty msg="No POs in this period" />
+        ) : (
           <DynTable
             rows={recent}
             cols={[
-              { key: 'po_number', label: 'PO #', render: (v, row) => (
-                <a href={`/jobs/${row.job_id}`} style={{ color: BLUE, fontWeight: 700, textDecoration: 'none' }}>{v}</a>
-              )},
+              {
+                key: 'po_number',
+                label: 'PO #',
+                render: (v, row) => (
+                  <a
+                    href={`/jobs/${row.job_id}`}
+                    style={{ color: BLUE, fontWeight: 700, textDecoration: 'none' }}
+                  >
+                    {v}
+                  </a>
+                ),
+              },
               { key: 'pb_number', label: 'Job' },
-              { key: 'description', label: 'Description', render: (v) => <span style={{ fontSize: 11 }}>{v}</span> },
+              {
+                key: 'description',
+                label: 'Description',
+                render: (v) => <span style={{ fontSize: 11 }}>{v}</span>,
+              },
               { key: 'vendor_name', label: 'Vendor', render: (v) => v || '—' },
-              { key: 'category', label: 'Category', render: (v) => <span style={{ textTransform: 'capitalize', fontSize: 11 }}>{v}</span> },
-              { key: 'status', label: 'Status', render: (v) => (
-                <span style={{ color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600, fontSize: 11 }}>{STATUS_LABEL_PO[v] || v}</span>
-              )},
-              { key: 'amount', label: 'Amount', align: 'right', render: (v) => fmt(v) }
+              {
+                key: 'category',
+                label: 'Category',
+                render: (v) => (
+                  <span style={{ textTransform: 'capitalize', fontSize: 11 }}>{v}</span>
+                ),
+              },
+              {
+                key: 'status',
+                label: 'Status',
+                render: (v) => (
+                  <span
+                    style={{ color: STATUS_COLORS_PO[v] || '#555', fontWeight: 600, fontSize: 11 }}
+                  >
+                    {STATUS_LABEL_PO[v] || v}
+                  </span>
+                ),
+              },
+              { key: 'amount', label: 'Amount', align: 'right', render: (v) => fmt(v) },
             ]}
           />
         )}
@@ -1135,7 +1222,7 @@ export default function Reports({ token }) {
     setCustLoading(true);
     try {
       const r = await fetch(`/api/reports/customer/search?q=${encodeURIComponent(q)}`, {
-        headers: { 'x-auth-token': token }
+        headers: { 'x-auth-token': token },
       });
       const d = await r.json();
       setCustResults(d.customers || []);
@@ -1182,7 +1269,7 @@ export default function Reports({ token }) {
           period: current.period,
           label: current.label,
           data: current.data,
-          runAt: current.runAt
+          runAt: current.runAt,
         }
       : null;
 
@@ -1190,7 +1277,11 @@ export default function Reports({ token }) {
       const res = await fetch('/api/reports/run', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ type: selectedType, period: selectedPeriod, savePrevious: savePrev })
+        body: JSON.stringify({
+          type: selectedType,
+          period: selectedPeriod,
+          savePrevious: savePrev,
+        }),
       });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || 'Failed');
@@ -1201,7 +1292,7 @@ export default function Reports({ token }) {
         period: selectedPeriod,
         data: body.data,
         runAt: body.runAt,
-        label
+        label,
       });
       if (savePrev) loadSaved(); // refresh saved list if we just saved one
     } catch (e) {
@@ -1234,7 +1325,7 @@ export default function Reports({ token }) {
         data: viewingSaved.data,
         label: viewingSaved.label,
         runAt: viewingSaved.run_at,
-        isSaved: true
+        isSaved: true,
       }
     : current
       ? { ...current, isSaved: false }
@@ -1265,7 +1356,7 @@ export default function Reports({ token }) {
               background: 'white',
               borderRadius: 10,
               padding: 16,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
             }}
           >
             <div
@@ -1275,7 +1366,7 @@ export default function Reports({ token }) {
                 color: BLUE,
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                marginBottom: 12
+                marginBottom: 12,
               }}
             >
               Choose Report
@@ -1296,7 +1387,7 @@ export default function Reports({ token }) {
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: 10,
-                    transition: 'all 0.15s'
+                    transition: 'all 0.15s',
                   }}
                 >
                   <span style={{ fontSize: 16, flexShrink: 0 }}>{rt.icon}</span>
@@ -1317,7 +1408,7 @@ export default function Reports({ token }) {
                     color: BLUE,
                     textTransform: 'uppercase',
                     letterSpacing: '0.05em',
-                    marginBottom: 8
+                    marginBottom: 8,
                   }}
                 >
                   Period
@@ -1339,7 +1430,7 @@ export default function Reports({ token }) {
                         cursor: 'pointer',
                         textAlign: 'left',
                         fontSize: 12,
-                        fontWeight: selectedPeriod === p.key ? 'bold' : 'normal'
+                        fontWeight: selectedPeriod === p.key ? 'bold' : 'normal',
                       }}
                     >
                       {p.label}
@@ -1359,7 +1450,7 @@ export default function Reports({ token }) {
                     cursor: running ? 'not-allowed' : 'pointer',
                     fontWeight: 'bold',
                     fontSize: 13,
-                    letterSpacing: '0.02em'
+                    letterSpacing: '0.02em',
                   }}
                 >
                   {running ? 'Running...' : '▶  Run Report'}
@@ -1379,7 +1470,7 @@ export default function Reports({ token }) {
               background: 'white',
               borderRadius: 10,
               padding: 16,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
             }}
           >
             <div
@@ -1389,7 +1480,7 @@ export default function Reports({ token }) {
                 color: BLUE,
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                marginBottom: 10
+                marginBottom: 10,
               }}
             >
               Saved Reports{' '}
@@ -1410,7 +1501,7 @@ export default function Reports({ token }) {
                   flexDirection: 'column',
                   gap: 4,
                   maxHeight: 340,
-                  overflowY: 'auto'
+                  overflowY: 'auto',
                 }}
               >
                 {saved.map((r) => (
@@ -1427,7 +1518,7 @@ export default function Reports({ token }) {
                       transition: 'background 0.1s',
                       background: viewingSaved?.id === r.id ? BLUE + '12' : '#f8faff',
                       border:
-                        viewingSaved?.id === r.id ? `1px solid ${BLUE}33` : '1px solid #e9edf4'
+                        viewingSaved?.id === r.id ? `1px solid ${BLUE}33` : '1px solid #e9edf4',
                     }}
                   >
                     <span style={{ fontSize: 14, flexShrink: 0 }}>{typeIcon(r.type)}</span>
@@ -1439,7 +1530,7 @@ export default function Reports({ token }) {
                           color: BLUE,
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {r.label}
@@ -1459,7 +1550,7 @@ export default function Reports({ token }) {
                         fontSize: 13,
                         padding: '0 2px',
                         flexShrink: 0,
-                        lineHeight: 1
+                        lineHeight: 1,
                       }}
                     >
                       ✕
@@ -1479,7 +1570,7 @@ export default function Reports({ token }) {
                 background: 'white',
                 borderRadius: 12,
                 padding: 24,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
@@ -1505,7 +1596,7 @@ export default function Reports({ token }) {
                     border: '1px solid #ddd',
                     borderRadius: 8,
                     fontSize: 13,
-                    outline: 'none'
+                    outline: 'none',
                   }}
                 />
                 <button
@@ -1520,7 +1611,7 @@ export default function Reports({ token }) {
                     cursor: custSelected ? 'pointer' : 'not-allowed',
                     fontWeight: 'bold',
                     fontSize: 13,
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   Generate PDF
@@ -1535,7 +1626,7 @@ export default function Reports({ token }) {
                     border: '1px solid #e2e8f0',
                     borderRadius: 8,
                     overflow: 'hidden',
-                    marginBottom: 12
+                    marginBottom: 12,
                   }}
                 >
                   {custResults.map((c, i) => {
@@ -1552,7 +1643,7 @@ export default function Reports({ token }) {
                           cursor: 'pointer',
                           borderBottom: i < custResults.length - 1 ? '1px solid #f0f0f0' : 'none',
                           background: isSel ? BLUE + '12' : i % 2 === 0 ? 'white' : '#fafafa',
-                          borderLeft: isSel ? `3px solid ${BLUE}` : '3px solid transparent'
+                          borderLeft: isSel ? `3px solid ${BLUE}` : '3px solid transparent',
                         }}
                       >
                         <span style={{ fontSize: 16, flexShrink: 0 }}>👤</span>
@@ -1571,7 +1662,7 @@ export default function Reports({ token }) {
                                   padding: '1px 6px',
                                   borderRadius: 4,
                                   marginLeft: 8,
-                                  fontWeight: 'bold'
+                                  fontWeight: 'bold',
                                 }}
                               >
                                 {c.pb_customer_number}
@@ -1585,7 +1676,7 @@ export default function Reports({ token }) {
                                   color: '#e65100',
                                   padding: '1px 6px',
                                   borderRadius: 4,
-                                  marginLeft: 6
+                                  marginLeft: 6,
                                 }}
                               >
                                 unlinked
@@ -1615,7 +1706,7 @@ export default function Reports({ token }) {
                     borderRadius: 8,
                     padding: '10px 14px',
                     fontSize: 12,
-                    color: BLUE
+                    color: BLUE,
                   }}
                 >
                   Selected: <strong>{custSelected.name}</strong>
@@ -1639,7 +1730,7 @@ export default function Reports({ token }) {
                 borderRadius: 12,
                 padding: 60,
                 textAlign: 'center',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
               }}
             >
               <div style={{ fontSize: 48, marginBottom: 16 }}>📊</div>
@@ -1659,7 +1750,7 @@ export default function Reports({ token }) {
                   alignItems: 'center',
                   marginBottom: 16,
                   flexWrap: 'wrap',
-                  gap: 8
+                  gap: 8,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1680,7 +1771,7 @@ export default function Reports({ token }) {
                             padding: '1px 7px',
                             borderRadius: 10,
                             fontSize: 10,
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
                           }}
                         >
                           SAVED
@@ -1699,7 +1790,7 @@ export default function Reports({ token }) {
                       color: BLUE,
                       border: `1px solid ${BLUE}33`,
                       borderRadius: 6,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
                     }}
                   >
                     ← Back to Current

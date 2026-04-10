@@ -5,7 +5,7 @@ import {
   getPendingCount,
   uploadPendingPhotos,
   startAutoSync,
-  stopAutoSync
+  stopAutoSync,
 } from '../utils/offlinePhotoQueue';
 
 const BLUE = '#1B3A6B';
@@ -39,7 +39,7 @@ function AuthImage({ src, token, alt, style, onClick }) {
           alignItems: 'center',
           justifyContent: 'center',
           color: '#aaa',
-          fontSize: 12
+          fontSize: 12,
         }}
       >
         Loading...
@@ -106,7 +106,7 @@ export default function PhotosTab({ jobId, token }) {
   const handleOpenFullPhoto = async (photo) => {
     try {
       const res = await fetch(`/api/jobs/${jobId}/photos/file/${photo.filename}`, {
-        headers: { 'x-auth-token': token }
+        headers: { 'x-auth-token': token },
       });
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -128,7 +128,7 @@ export default function PhotosTab({ jobId, token }) {
       const res = await fetch(`/api/jobs/${jobId}/photos`, {
         method: 'POST',
         headers: { 'x-auth-token': token },
-        body: formData
+        body: formData,
       });
 
       if (res.ok) {
@@ -161,7 +161,7 @@ export default function PhotosTab({ jobId, token }) {
     try {
       const res = await fetch(`/api/jobs/${jobId}/photos/${photoId}`, {
         method: 'DELETE',
-        headers
+        headers,
       });
       if (res.ok) {
         showToast('Photo deleted');
@@ -203,7 +203,7 @@ export default function PhotosTab({ jobId, token }) {
           alignItems: 'center',
           marginBottom: 16,
           flexWrap: 'wrap',
-          gap: 10
+          gap: 10,
         }}
       >
         <h3 style={{ color: BLUE, margin: 0 }}>Job Photos</h3>
@@ -235,7 +235,7 @@ export default function PhotosTab({ jobId, token }) {
               cursor: 'pointer',
               fontSize: 13,
               fontWeight: 'bold',
-              opacity: uploading ? 0.6 : 1
+              opacity: uploading ? 0.6 : 1,
             }}
           >
             📷 Take Photo
@@ -252,7 +252,7 @@ export default function PhotosTab({ jobId, token }) {
               cursor: 'pointer',
               fontSize: 13,
               fontWeight: 'bold',
-              opacity: uploading ? 0.6 : 1
+              opacity: uploading ? 0.6 : 1,
             }}
           >
             📁 Upload from Library
@@ -268,7 +268,7 @@ export default function PhotosTab({ jobId, token }) {
             borderRadius: 6,
             marginBottom: 12,
             fontSize: 13,
-            color: BLUE
+            color: BLUE,
           }}
         >
           Uploading photo...
@@ -285,7 +285,7 @@ export default function PhotosTab({ jobId, token }) {
             background: '#FFF8F0',
             border: `1px solid ${ORANGE}`,
             borderRadius: 8,
-            marginBottom: 16
+            marginBottom: 16,
           }}
         >
           <span style={{ fontSize: 13, color: '#92400E', fontWeight: 'bold' }}>
@@ -303,7 +303,7 @@ export default function PhotosTab({ jobId, token }) {
               cursor: 'pointer',
               fontSize: 12,
               fontWeight: 'bold',
-              opacity: syncing ? 0.6 : 1
+              opacity: syncing ? 0.6 : 1,
             }}
           >
             {syncing ? 'Uploading...' : '⬆️ Upload Pending'}
@@ -324,7 +324,7 @@ export default function PhotosTab({ jobId, token }) {
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-            gap: 12
+            gap: 12,
           }}
         >
           {photos.map((photo) => (
@@ -335,7 +335,7 @@ export default function PhotosTab({ jobId, token }) {
                 overflow: 'hidden',
                 border: '1px solid #eee',
                 background: 'white',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
               }}
             >
               <AuthImage
@@ -347,7 +347,7 @@ export default function PhotosTab({ jobId, token }) {
                   height: 160,
                   objectFit: 'cover',
                   display: 'block',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
                 onClick={() => handleOpenFullPhoto(photo)}
               />
@@ -368,7 +368,7 @@ export default function PhotosTab({ jobId, token }) {
                     borderRadius: 4,
                     cursor: 'pointer',
                     fontSize: 11,
-                    color: '#888'
+                    color: '#888',
                   }}
                 >
                   🗑 Delete

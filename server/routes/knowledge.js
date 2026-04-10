@@ -74,14 +74,14 @@ router.post('/upload', requireAuth, async (req, res) => {
     const db = getDb();
     const result = db
       .prepare(
-        'INSERT INTO knowledge_base (title, category, content, file_path, language) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO knowledge_base (title, category, content, file_path, language) VALUES (?, ?, ?, ?, ?)',
       )
       .run(title || file.name, category, content, filePath, 'en');
 
     res.json({
       success: true,
       id: result.lastInsertRowid,
-      message: `Document uploaded and added to knowledge base. ${content.length} characters extracted.`
+      message: `Document uploaded and added to knowledge base. ${content.length} characters extracted.`,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -98,7 +98,7 @@ router.put('/:id', requireAuth, (req, res) => {
       .json({ error: 'At least one of title, category, or content is required' });
   }
   db.prepare(
-    'UPDATE knowledge_base SET title = COALESCE(?, title), category = COALESCE(?, category), content = COALESCE(?, content), active = COALESCE(?, active) WHERE id = ?'
+    'UPDATE knowledge_base SET title = COALESCE(?, title), category = COALESCE(?, category), content = COALESCE(?, content), active = COALESCE(?, active) WHERE id = ?',
   ).run(title, category, content, active, req.params.id);
   res.json({ success: true });
 });
@@ -118,7 +118,7 @@ router.get('/meta/categories', requireAuth, (req, res) => {
     { value: 'legal', label: 'Legal Requirements' },
     { value: 'pricing', label: 'Pricing Reference' },
     { value: 'past_contracts', label: 'Past Contracts (for learning)' },
-    { value: 'faqs', label: 'Customer FAQs' }
+    { value: 'faqs', label: 'Customer FAQs' },
   ]);
 });
 

@@ -19,7 +19,7 @@ function getServiceAccountClient() {
     const key = typeof raw === 'string' ? JSON.parse(raw) : raw;
     const auth = new google.auth.GoogleAuth({
       credentials: key,
-      scopes: ['https://www.googleapis.com/auth/calendar']
+      scopes: ['https://www.googleapis.com/auth/calendar'],
     });
     _serviceAccountClient = google.calendar({ version: 'v3', auth });
     console.log('[GoogleCalendar] Using Service Account auth');
@@ -62,7 +62,7 @@ async function getReplitConnectorClient() {
       'https://' +
         hostname +
         '/api/v2/connection?include_secrets=true&connector_names=google-calendar',
-      { headers: { Accept: 'application/json', 'X-Replit-Token': xReplitToken } }
+      { headers: { Accept: 'application/json', 'X-Replit-Token': xReplitToken } },
     ).then((r) => r.json());
 
     _replitConnSettings = data.items?.[0];
@@ -142,9 +142,9 @@ async function createCalendarEvent(task, calendarId = 'primary', extraEmails = [
       useDefault: false,
       overrides: [
         { method: 'email', minutes: 60 },
-        { method: 'popup', minutes: 30 }
-      ]
-    }
+        { method: 'popup', minutes: 30 },
+      ],
+    },
   };
 
   try {
@@ -152,10 +152,10 @@ async function createCalendarEvent(task, calendarId = 'primary', extraEmails = [
     const result = await cal.events.insert({
       calendarId: resolvedId,
       resource: event,
-      sendUpdates: attendees.length ? 'all' : 'none'
+      sendUpdates: attendees.length ? 'all' : 'none',
     });
     console.log(
-      `[GoogleCalendar] Event created on calendar "${resolvedId}": ${result.data.htmlLink}`
+      `[GoogleCalendar] Event created on calendar "${resolvedId}": ${result.data.htmlLink}`,
     );
     return result.data.htmlLink || null;
   } catch (err) {
@@ -178,7 +178,7 @@ async function listUpcomingEvents(calendarId = 'primary', maxResults = 10) {
     timeMax: week.toISOString(),
     maxResults,
     singleEvents: true,
-    orderBy: 'startTime'
+    orderBy: 'startTime',
   });
   return res.data.items || [];
 }

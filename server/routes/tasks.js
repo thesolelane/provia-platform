@@ -63,7 +63,7 @@ function enrichTask(task) {
   if (task.lead_id) {
     leadInfo = db
       .prepare(
-        'SELECT id, caller_name, caller_phone, stage, archived, job_address, job_city FROM leads WHERE id = ?'
+        'SELECT id, caller_name, caller_phone, stage, archived, job_address, job_city FROM leads WHERE id = ?',
       )
       .get(task.lead_id);
   }
@@ -103,7 +103,7 @@ router.get('/', requireAuth, (req, res) => {
     .get().n;
   const overdue = db
     .prepare(
-      "SELECT COUNT(*) as n FROM tasks WHERE status='pending' AND due_at < datetime('now') AND due_at IS NOT NULL"
+      "SELECT COUNT(*) as n FROM tasks WHERE status='pending' AND due_at < datetime('now') AND due_at IS NOT NULL",
     )
     .get().n;
   res.json({ tasks, todayCount, overdue });
@@ -114,7 +114,7 @@ router.get('/calendars', requireAuth, async (req, res) => {
   try {
     const cals = await gcal.listCalendars();
     res.json({
-      calendars: cals.map((c) => ({ id: c.id, summary: c.summary, primary: c.primary }))
+      calendars: cals.map((c) => ({ id: c.id, summary: c.summary, primary: c.primary })),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -137,7 +137,7 @@ router.post('/', requireAuth, requireFields(['title']), async (req, res) => {
       `
     INSERT INTO tasks (title, description, due_at, job_id, contact_id, priority, calendar_url, remind_at, remind_interval_hours)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 168)
-  `
+  `,
     )
     .run(
       title.trim(),
@@ -147,7 +147,7 @@ router.post('/', requireAuth, requireFields(['title']), async (req, res) => {
       contact_id || null,
       priority || 'normal',
       null,
-      defaultRemindAt
+      defaultRemindAt,
     );
 
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
@@ -208,7 +208,7 @@ router.patch(
       `
     UPDATE tasks SET title=?, description=?, due_at=?, status=?, priority=?, calendar_url=?,
       remind_at=?, remind_interval_hours=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
-  `
+  `,
     ).run(
       newTitle,
       newDescription,
@@ -218,7 +218,7 @@ router.patch(
       calURL,
       newRemindAt,
       newRemindIntervalHours,
-      task.id
+      task.id,
     );
 
     if (task.job_id && status && status !== task.status) {
@@ -226,7 +226,7 @@ router.patch(
     }
 
     res.json({ task: enrichTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(task.id)) });
-  }
+  },
 );
 
 // ── DELETE /api/tasks/:id ─────────────────────────────────────────────────────

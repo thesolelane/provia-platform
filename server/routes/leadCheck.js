@@ -20,7 +20,7 @@ router.get('/', requireAuth, async (req, res) => {
     console.error('[lead-check]', err.message);
     res.status(502).json({
       error: 'Failed to reach Lead Safe Homes database.',
-      detail: err.message
+      detail: err.message,
     });
   }
 });

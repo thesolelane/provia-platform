@@ -31,7 +31,7 @@ async function sendWhatsApp(to, message, attachmentPath = null) {
   const params = {
     from: fromNumber.startsWith('whatsapp:') ? fromNumber : `whatsapp:${fromNumber}`,
     to,
-    body: message
+    body: message,
   };
 
   if (attachmentPath && fs.existsSync(attachmentPath)) {

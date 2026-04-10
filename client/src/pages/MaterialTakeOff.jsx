@@ -59,7 +59,7 @@ const DEFAULT_PRICES = {
   miniSplitOutdoor: 2400.0,
   baseboardHeater: 85.0,
   radiantTubing: 1.5,
-  boiler: 4500.0
+  boiler: 4500.0,
 };
 
 const ROOM_TYPES = [
@@ -71,7 +71,7 @@ const ROOM_TYPES = [
   'Office',
   'Hallway',
   'Garage',
-  'Other'
+  'Other',
 ];
 
 function calcSlope(pitch) {
@@ -106,7 +106,7 @@ function runCalcs(
   insulationType,
   studSize,
   wallFinishType,
-  joistType
+  joistType,
 ) {
   const { length, width, floors, wallHeight, pitch, overhang, slabThickness, hasSlab } = building;
   const L = parseFtIn(length);
@@ -129,7 +129,7 @@ function runCalcs(
     tji_95: 'TJI® 9½"',
     tji_118: 'TJI® 11⅞"',
     tji_14: 'TJI® 14"',
-    tji_16: 'TJI® 16"'
+    tji_16: 'TJI® 16"',
   };
   const joistSize = JOIST_LABELS[jType] || getJoistSize(W);
   const isTJI = jType.startsWith('tji');
@@ -305,8 +305,8 @@ function runCalcs(
   const baseboardLF = Math.ceil(
     rooms.reduce(
       (acc, r) => acc + 2 * ((parseFloat(r.length) || 0) + (parseFloat(r.width) || 0)),
-      0
-    ) || perimeterExt * FL
+      0,
+    ) || perimeterExt * FL,
   );
 
   const totalBuildingSF = L * W * FL;
@@ -328,12 +328,12 @@ function runCalcs(
         name: 'A/C Condenser (outdoor)',
         qty: condenserCount,
         unit: 'pcs',
-        priceKey: 'hvacCondenser'
+        priceKey: 'hvacCondenser',
       },
       { name: 'Duct Runs (supply)', qty: ductRuns, unit: 'runs', priceKey: 'hvacDuctRun' },
       { name: 'Supply Vents / Registers', qty: vents, unit: 'pcs', priceKey: 'hvacVent' },
       { name: 'Return Air Grilles', qty: returns, unit: 'pcs', priceKey: 'hvacReturn' },
-      { name: 'Thermostat', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' }
+      { name: 'Thermostat', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' },
     ];
   } else if (ht === 'mini_split') {
     const heads = heatedRoomCount;
@@ -344,16 +344,16 @@ function runCalcs(
         name: 'Mini-Split Outdoor Unit',
         qty: outdoorUnits,
         unit: 'pcs',
-        priceKey: 'miniSplitOutdoor'
+        priceKey: 'miniSplitOutdoor',
       },
-      { name: 'Thermostat / Remote', qty: outdoorUnits, unit: 'pcs', priceKey: 'hvacThermostat' }
+      { name: 'Thermostat / Remote', qty: outdoorUnits, unit: 'pcs', priceKey: 'hvacThermostat' },
     ];
   } else if (ht === 'baseboard') {
     const heaters = heatedRoomCount;
     const thermostats = heatedRoomCount;
     hvacItems = [
       { name: 'Electric Baseboard Heater', qty: heaters, unit: 'pcs', priceKey: 'baseboardHeater' },
-      { name: 'Thermostat (per room)', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' }
+      { name: 'Thermostat (per room)', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' },
     ];
   } else if (ht === 'radiant') {
     const tubingLF = Math.ceil(totalBuildingSF * 1.2);
@@ -364,10 +364,10 @@ function runCalcs(
         name: 'Radiant Floor Tubing (PEX)',
         qty: tubingLF,
         unit: 'lin ft',
-        priceKey: 'radiantTubing'
+        priceKey: 'radiantTubing',
       },
       { name: 'Boiler', qty: boilers, unit: 'pcs', priceKey: 'boiler' },
-      { name: 'Thermostat (per zone)', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' }
+      { name: 'Thermostat (per zone)', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' },
     ];
   } else if (ht === 'fhw_boiler') {
     const boilers = Math.max(Math.ceil(totalBuildingSF / 3500), 1);
@@ -380,11 +380,11 @@ function runCalcs(
         name: 'Hot Water Baseboard (fin-tube)',
         qty: hwBaseboardLF,
         unit: 'lin ft',
-        priceKey: 'hwBaseboard'
+        priceKey: 'hwBaseboard',
       },
       { name: 'Expansion Tank', qty: boilers, unit: 'pcs', priceKey: 'expansionTank' },
       { name: 'Circulator Pump', qty: circulators, unit: 'pcs', priceKey: 'circulatorPump' },
-      { name: 'Thermostat (per zone)', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' }
+      { name: 'Thermostat (per zone)', qty: thermostats, unit: 'pcs', priceKey: 'hvacThermostat' },
     ];
   } else if (ht === 'steam') {
     const boilers = Math.max(Math.ceil(totalBuildingSF / 3000), 1);
@@ -392,7 +392,7 @@ function runCalcs(
     hvacItems = [
       { name: 'Steam Boiler', qty: boilers, unit: 'pcs', priceKey: 'boiler' },
       { name: 'Steam Radiator', qty: radiators, unit: 'pcs', priceKey: 'baseboardHeater' },
-      { name: 'Thermostat', qty: Math.max(FL, 1), unit: 'pcs', priceKey: 'hvacThermostat' }
+      { name: 'Thermostat', qty: Math.max(FL, 1), unit: 'pcs', priceKey: 'hvacThermostat' },
     ];
   }
 
@@ -404,7 +404,7 @@ function runCalcs(
       name: 'Batt Insulation — Walls (rolls)',
       qty: insulationRolls,
       unit: 'rolls',
-      priceKey: 'insulation'
+      priceKey: 'insulation',
     });
   }
   if (iType === 'spray_walls' || iType === 'spray_all') {
@@ -413,7 +413,7 @@ function runCalcs(
       name: 'Spray Foam — Walls (closed cell)',
       qty: sprayFoamWallSF,
       unit: 'sq ft',
-      priceKey: 'sprayFoamWall'
+      priceKey: 'sprayFoamWall',
     });
   }
   if (iType === 'spray_roof' || iType === 'spray_all' || iType === 'batt_roof_foam') {
@@ -422,7 +422,7 @@ function runCalcs(
       name: 'Spray Foam — Hot Roof (closed cell)',
       qty: sprayFoamRoofSF,
       unit: 'sq ft',
-      priceKey: 'sprayFoamRoof'
+      priceKey: 'sprayFoamRoof',
     });
   }
   if (iType === 'batt' || iType === 'spray_walls') {
@@ -431,7 +431,7 @@ function runCalcs(
       name: 'Batt Insulation — Roof/Ceiling (rolls)',
       qty: Math.ceil(roofSheathingSheets * 1.1),
       unit: 'rolls',
-      priceKey: 'insulation'
+      priceKey: 'insulation',
     });
   }
 
@@ -447,8 +447,8 @@ function runCalcs(
             name: 'Toilet',
             qty: toiletCount,
             unit: 'pcs',
-            priceKey: null
-          }
+            priceKey: null,
+          },
         ]
       : []),
     ...(vanityCount > 0
@@ -458,8 +458,8 @@ function runCalcs(
             name: 'Vanity / Sink',
             qty: vanityCount,
             unit: 'pcs',
-            priceKey: null
-          }
+            priceKey: null,
+          },
         ]
       : []),
     ...(tubShowerCount > 0
@@ -469,8 +469,8 @@ function runCalcs(
             name: 'Tub / Shower Unit',
             qty: tubShowerCount,
             unit: 'pcs',
-            priceKey: null
-          }
+            priceKey: null,
+          },
         ]
       : []),
     ...(kitchenCount > 0
@@ -480,10 +480,10 @@ function runCalcs(
             name: 'Kitchen Sink',
             qty: kitchenCount,
             unit: 'pcs',
-            priceKey: null
-          }
+            priceKey: null,
+          },
         ]
-      : [])
+      : []),
   ];
 
   const materials = [
@@ -494,8 +494,8 @@ function runCalcs(
             name: `Concrete Slab (${slabIn}" thick, +10% waste)`,
             qty: concreteCY,
             unit: 'CY',
-            priceKey: 'concrete'
-          }
+            priceKey: 'concrete',
+          },
         ]
       : []),
     {
@@ -503,21 +503,21 @@ function runCalcs(
       name: joistLabel,
       qty: floorJoistCount,
       unit: 'pcs',
-      priceKey: 'floorJoists'
+      priceKey: 'floorJoists',
     },
     {
       group: '1 · Floor System',
       name: rimLabel,
       qty: Math.ceil(rimBoardLinFt),
       unit: 'lin ft',
-      priceKey: 'rimBoard'
+      priceKey: 'rimBoard',
     },
     {
       group: '1 · Floor System',
       name: '¾" Tongue-&-Groove Subfloor (4×8)',
       qty: subfloorSheets,
       unit: 'sheets',
-      priceKey: 'subfloor'
+      priceKey: 'subfloor',
     },
     { group: '2 · Wall Framing', name: studLabel, qty: studCount, unit: 'pcs', priceKey: 'studs' },
     {
@@ -525,49 +525,49 @@ function runCalcs(
       name: `${plateLabel} (top & bottom)`,
       qty: Math.ceil(plateLinFt),
       unit: 'lin ft',
-      priceKey: 'plates'
+      priceKey: 'plates',
     },
     {
       group: '2 · Wall Framing',
       name: 'Header (LVL / doubled)',
       qty: headerCount,
       unit: 'pcs',
-      priceKey: 'headers'
+      priceKey: 'headers',
     },
     {
       group: '2 · Wall Framing',
       name: '7/16" OSB Wall Sheathing (4×8)',
       qty: wallSheathingSheets,
       unit: 'sheets',
-      priceKey: 'wallSheathing'
+      priceKey: 'wallSheathing',
     },
     {
       group: '3 · Roof Structure',
       name: `Pre-Fab Roof Truss (${trussOC}" o.c.)`,
       qty: roofTrusses,
       unit: 'pcs',
-      priceKey: 'trusses'
+      priceKey: 'trusses',
     },
     {
       group: '3 · Roof Structure',
       name: '7/16" OSB Roof Sheathing (4×8)',
       qty: roofSheathingSheets,
       unit: 'sheets',
-      priceKey: 'roofSheathing'
+      priceKey: 'roofSheathing',
     },
     {
       group: '4 · Roofing',
       name: 'Roofing',
       qty: roofingSquares,
       unit: 'squares',
-      priceKey: 'roofingSquares'
+      priceKey: 'roofingSquares',
     },
     {
       group: '4 · Roofing',
       name: 'Underlayment',
       qty: underlaymentRolls,
       unit: 'rolls',
-      priceKey: 'underlayment'
+      priceKey: 'underlayment',
     },
     ...insulationItems,
     // Drywall / Finish — by wall finish type
@@ -578,22 +578,22 @@ function runCalcs(
             name: '½" Blue Board — Walls (4×8 sheets)',
             qty: wallDrywallSheets,
             unit: 'sheets',
-            priceKey: 'blueBoard'
+            priceKey: 'blueBoard',
           },
           {
             group: '6 · Drywall / Blue Board',
             name: '½" Blue Board — Ceiling (4×8 sheets)',
             qty: ceilingDrywallSheets,
             unit: 'sheets',
-            priceKey: 'blueBoard'
+            priceKey: 'blueBoard',
           },
           {
             group: '6 · Drywall / Blue Board',
             name: 'Veneer Plaster / Skim Coat (50 lb bag)',
             qty: skimCoatBags,
             unit: 'bags',
-            priceKey: 'skimCoat'
-          }
+            priceKey: 'skimCoat',
+          },
         ]
       : wallFinishType === 'type_x'
         ? [
@@ -602,22 +602,22 @@ function runCalcs(
               name: '5/8" Type X (Fire-Rated) — Walls (4×8 sheets)',
               qty: wallDrywallSheets,
               unit: 'sheets',
-              priceKey: 'typeXDrywall'
+              priceKey: 'typeXDrywall',
             },
             {
               group: '6 · Drywall',
               name: '5/8" Type X (Fire-Rated) — Ceiling (4×8 sheets)',
               qty: ceilingDrywallSheets,
               unit: 'sheets',
-              priceKey: 'typeXDrywall'
+              priceKey: 'typeXDrywall',
             },
             {
               group: '6 · Drywall',
               name: 'Joint Compound (4.5 gal all-purpose)',
               qty: jointCompoundBags,
               unit: 'bags',
-              priceKey: 'jointCompound'
-            }
+              priceKey: 'jointCompound',
+            },
           ]
         : wallFinishType === 'green_board'
           ? [
@@ -626,22 +626,22 @@ function runCalcs(
                 name: 'Green Board / Purple Board — Walls (4×8 sheets)',
                 qty: wallDrywallSheets,
                 unit: 'sheets',
-                priceKey: 'greenBoard'
+                priceKey: 'greenBoard',
               },
               {
                 group: '6 · Drywall',
                 name: 'Green Board / Purple Board — Ceiling (4×8 sheets)',
                 qty: ceilingDrywallSheets,
                 unit: 'sheets',
-                priceKey: 'greenBoard'
+                priceKey: 'greenBoard',
               },
               {
                 group: '6 · Drywall',
                 name: 'Joint Compound (4.5 gal all-purpose)',
                 qty: jointCompoundBags,
                 unit: 'bags',
-                priceKey: 'jointCompound'
-              }
+                priceKey: 'jointCompound',
+              },
             ]
           : [
               {
@@ -649,22 +649,22 @@ function runCalcs(
                 name: `${wallFinishType === 'lightweight' ? '½" Lightweight Drywall' : '½" Drywall'} — Walls (4×8 sheets)`,
                 qty: wallDrywallSheets,
                 unit: 'sheets',
-                priceKey: 'drywall'
+                priceKey: 'drywall',
               },
               {
                 group: '6 · Drywall',
                 name: `${wallFinishType === 'lightweight' ? '½" Lightweight Drywall' : '½" Drywall'} — Ceiling (4×8 sheets)${totalRecessedLights > 0 ? ' — incl. recessed backing' : ''}`,
                 qty: ceilingDrywallSheets,
                 unit: 'sheets',
-                priceKey: 'drywall'
+                priceKey: 'drywall',
               },
               {
                 group: '6 · Drywall',
                 name: 'Joint Compound (4.5 gal all-purpose)',
                 qty: jointCompoundBags,
                 unit: 'bags',
-                priceKey: 'jointCompound'
-              }
+                priceKey: 'jointCompound',
+              },
             ]),
     // Paint
     {
@@ -672,21 +672,21 @@ function runCalcs(
       name: 'Primer (wall surfaces)',
       qty: primerGal,
       unit: 'gal',
-      priceKey: 'primer'
+      priceKey: 'primer',
     },
     {
       group: '7 · Paint',
       name: 'Wall Paint — finish coat (2 coats)',
       qty: wallPaintGal,
       unit: 'gal',
-      priceKey: 'paint'
+      priceKey: 'paint',
     },
     {
       group: '7 · Paint',
       name: 'Ceiling Paint — flat (1–2 coats)',
       qty: ceilingPaintGal,
       unit: 'gal',
-      priceKey: 'ceilingPaint'
+      priceKey: 'ceilingPaint',
     },
     // Flooring — by type
     ...(vinylPlankSF > 0
@@ -696,8 +696,8 @@ function runCalcs(
             name: 'Vinyl Plank LVP',
             qty: Math.ceil(vinylPlankSF),
             unit: 'sq ft',
-            priceKey: 'vinylPlank'
-          }
+            priceKey: 'vinylPlank',
+          },
         ]
       : []),
     ...(hardwoodSF > 0
@@ -707,8 +707,8 @@ function runCalcs(
             name: 'Hardwood Flooring',
             qty: Math.ceil(hardwoodSF),
             unit: 'sq ft',
-            priceKey: 'hardwood'
-          }
+            priceKey: 'hardwood',
+          },
         ]
       : []),
     ...(carpetSY > 0
@@ -718,8 +718,8 @@ function runCalcs(
             name: 'Carpet + Pad',
             qty: carpetSY,
             unit: 'sq yd',
-            priceKey: 'carpetSY'
-          }
+            priceKey: 'carpetSY',
+          },
         ]
       : []),
     ...(tileSF > 0
@@ -729,8 +729,8 @@ function runCalcs(
             name: 'Floor Tile',
             qty: Math.ceil(tileSF),
             unit: 'sq ft',
-            priceKey: 'tile'
-          }
+            priceKey: 'tile',
+          },
         ]
       : []),
     ...(fallbackFlooringArea > 0
@@ -740,8 +740,8 @@ function runCalcs(
             name: 'Flooring (add rooms for type breakdown)',
             qty: Math.ceil(fallbackFlooringArea),
             unit: 'sq ft',
-            priceKey: 'vinylPlank'
-          }
+            priceKey: 'vinylPlank',
+          },
         ]
       : []),
     {
@@ -749,35 +749,35 @@ function runCalcs(
       name: 'Standard Outlets',
       qty: totalOutlets,
       unit: 'pcs',
-      priceKey: 'outlet'
+      priceKey: 'outlet',
     },
     {
       group: '9 · Electrical Rough-In',
       name: 'GFI Outlets (kitchen / bath / garage)',
       qty: totalGFI,
       unit: 'pcs',
-      priceKey: 'gfiOutlet'
+      priceKey: 'gfiOutlet',
     },
     {
       group: '9 · Electrical Rough-In',
       name: 'Light Switches',
       qty: totalSwitches,
       unit: 'pcs',
-      priceKey: 'lightSwitch'
+      priceKey: 'lightSwitch',
     },
     {
       group: '9 · Electrical Rough-In',
       name: 'Light Fixtures (center mount)',
       qty: totalLightFixtures,
       unit: 'pcs',
-      priceKey: 'lightFixture'
+      priceKey: 'lightFixture',
     },
     {
       group: '9 · Electrical Rough-In',
       name: 'Recessed Lights',
       qty: totalRecessedLights,
       unit: 'pcs',
-      priceKey: 'recessedLight'
+      priceKey: 'recessedLight',
     },
     ...hvacItems.map((h) => ({ group: '10 · HVAC / Heating', ...h })),
     ...(cabinetLF > 0
@@ -787,8 +787,8 @@ function runCalcs(
             name: `Kitchen Cabinets — ${Math.ceil(cabinetLF)} lin ft (~${cabinetCount} boxes)`,
             qty: Math.ceil(cabinetLF),
             unit: 'lin ft',
-            priceKey: 'cabinetLinFt'
-          }
+            priceKey: 'cabinetLinFt',
+          },
         ]
       : []),
     {
@@ -796,21 +796,21 @@ function runCalcs(
       name: 'Baseboard (floor perimeter)',
       qty: baseboardLF,
       unit: 'lin ft',
-      priceKey: 'baseboard'
+      priceKey: 'baseboard',
     },
     {
       group: '12 · Trim / Molding',
       name: 'Door Casing',
       qty: Math.ceil(doorCasingLF),
       unit: 'lin ft',
-      priceKey: 'doorCasing'
+      priceKey: 'doorCasing',
     },
     {
       group: '12 · Trim / Molding',
       name: 'Window Casing',
       qty: Math.ceil(windowCasingLF),
       unit: 'lin ft',
-      priceKey: 'windowCasing'
+      priceKey: 'windowCasing',
     },
     ...(garageDoorCount > 0
       ? [
@@ -819,15 +819,15 @@ function runCalcs(
             name: 'Overhead Garage Door',
             qty: garageDoorCount,
             unit: 'pcs',
-            priceKey: 'garageDoor'
+            priceKey: 'garageDoor',
           },
           {
             group: '13 · Garage Doors',
             name: 'Garage Door Opener',
             qty: garageDoorCount,
             unit: 'pcs',
-            priceKey: 'garageDoorOpener'
-          }
+            priceKey: 'garageDoorOpener',
+          },
         ]
       : []),
     ...plumbingItems,
@@ -838,8 +838,8 @@ function runCalcs(
             name: 'Passage Set — Hall / Closet (no lock)',
             qty: passageDoors,
             unit: 'pcs',
-            priceKey: 'passageSet'
-          }
+            priceKey: 'passageSet',
+          },
         ]
       : []),
     ...(privacyDoors > 0
@@ -849,8 +849,8 @@ function runCalcs(
             name: 'Privacy Set — Bedroom / Bathroom (push-button lock)',
             qty: privacyDoors,
             unit: 'pcs',
-            priceKey: 'privacySet'
-          }
+            priceKey: 'privacySet',
+          },
         ]
       : []),
     ...(keyedDoors > 0
@@ -860,8 +860,8 @@ function runCalcs(
             name: 'Keyed Entry Set — Exterior',
             qty: keyedDoors,
             unit: 'pcs',
-            priceKey: 'keyedSet'
-          }
+            priceKey: 'keyedSet',
+          },
         ]
       : []),
     // Openings summary
@@ -872,8 +872,8 @@ function runCalcs(
             name: `Interior + Exterior Doors (total)`,
             qty: totalDoors,
             unit: 'doors',
-            priceKey: null
-          }
+            priceKey: null,
+          },
         ]
       : []),
     ...(garageDoorCount > 0
@@ -883,8 +883,8 @@ function runCalcs(
             name: 'Overhead / Garage Doors',
             qty: garageDoorCount,
             unit: 'doors',
-            priceKey: null
-          }
+            priceKey: null,
+          },
         ]
       : []),
     ...(totalWindows > 0
@@ -894,10 +894,10 @@ function runCalcs(
             name: 'Windows (all sizes)',
             qty: totalWindows,
             unit: 'windows',
-            priceKey: null
-          }
+            priceKey: null,
+          },
         ]
-      : [])
+      : []),
   ];
 
   return materials
@@ -905,7 +905,7 @@ function runCalcs(
     .map((m) => ({
       ...m,
       unitPrice: m.priceKey ? (prices[m.priceKey] ?? 0) : null,
-      total: m.priceKey ? m.qty * (prices[m.priceKey] ?? 0) : null
+      total: m.priceKey ? m.qty * (prices[m.priceKey] ?? 0) : null,
     }));
 }
 
@@ -919,7 +919,7 @@ const sectionHeader = (label) => (
       letterSpacing: 1,
       marginBottom: 12,
       borderBottom: '1px solid rgba(255,255,255,0.08)',
-      paddingBottom: 6
+      paddingBottom: 6,
     }}
   >
     {label}
@@ -934,14 +934,14 @@ const fieldStyle = {
   padding: '8px 10px',
   fontSize: 13,
   width: '100%',
-  boxSizing: 'border-box'
+  boxSizing: 'border-box',
 };
 
 const labelStyle = {
   fontSize: 12,
   color: 'rgba(255,255,255,0.7)',
   marginBottom: 4,
-  display: 'block'
+  display: 'block',
 };
 
 function Field({ label, value, onChange, type = 'text', min, step, children }) {
@@ -986,7 +986,7 @@ function btnStyle(primary) {
     fontSize: 13,
     fontWeight: 600,
     background: primary ? '#E07B2A' : 'rgba(255,255,255,0.1)',
-    color: 'white'
+    color: 'white',
   };
 }
 
@@ -1000,7 +1000,7 @@ export default function MaterialTakeOff() {
     pitch: '4',
     overhang: '2',
     hasSlab: true,
-    slabThickness: '4'
+    slabThickness: '4',
   });
   const [studSpacing, setStudSpacing] = useState('16');
   const [trussSpacing, setTrussSpacing] = useState('24');
@@ -1023,13 +1023,13 @@ export default function MaterialTakeOff() {
     lightingType: 'center',
     flooringType: '',
     doors: [],
-    windows: []
+    windows: [],
   });
   const [newDoor, setNewDoor] = useState({
     width: '36',
     height: '80',
     side: 'interior',
-    type: 'Swing'
+    type: 'Swing',
   });
   const [newWindow, setNewWindow] = useState({ width: '36', height: '48', kind: 'new' });
   const [editingRoom, setEditingRoom] = useState(null);
@@ -1059,7 +1059,7 @@ export default function MaterialTakeOff() {
       insulationType,
       studSize,
       wallFinishType,
-      joistType
+      joistType,
     );
     setResults(r);
     setSaveStatus('');
@@ -1080,12 +1080,12 @@ export default function MaterialTakeOff() {
       studSize,
       joistType,
       wallFinishType,
-      grandTotal
+      grandTotal,
     };
     const res = await fetch(`/api/jobs/${saveJobId}/takeoff`, {
       method: 'PATCH',
       headers: { 'x-auth-token': t, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ takeoffData: payload })
+      body: JSON.stringify({ takeoffData: payload }),
     });
     setSaveStatus(res.ok ? 'saved' : 'error');
   }
@@ -1104,7 +1104,7 @@ export default function MaterialTakeOff() {
       lightingType: 'center',
       flooringType: '',
       doors: [],
-      windows: []
+      windows: [],
     });
   }
 
@@ -1138,7 +1138,7 @@ export default function MaterialTakeOff() {
     padding: '28px 32px',
     color: 'white',
     maxWidth: 800,
-    margin: '0 auto'
+    margin: '0 auto',
   };
 
   const stepBar = (
@@ -1154,7 +1154,7 @@ export default function MaterialTakeOff() {
             background:
               i === step ? '#E07B2A' : i < step ? 'rgba(224,123,42,0.3)' : 'rgba(255,255,255,0.1)',
             color: 'white',
-            cursor: i < step ? 'pointer' : 'default'
+            cursor: i < step ? 'pointer' : 'default',
           }}
           onClick={() => {
             if (i < step) setStep(i);
@@ -1239,7 +1239,7 @@ export default function MaterialTakeOff() {
                     gap: 8,
                     fontSize: 13,
                     color: 'white',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
                   }}
                 >
                   <input
@@ -1298,7 +1298,7 @@ export default function MaterialTakeOff() {
                     fontSize: 11,
                     color: 'rgba(255,255,255,0.4)',
                     marginTop: 5,
-                    lineHeight: 1.5
+                    lineHeight: 1.5,
                   }}
                 >
                   {joistType === 'auto' &&
@@ -1327,21 +1327,21 @@ export default function MaterialTakeOff() {
                   { value: 'drywall', label: '½" Standard Drywall / Sheetrock (joint compound)' },
                   {
                     value: 'lightweight',
-                    label: '½" Lightweight Drywall (same finish process, lighter weight)'
+                    label: '½" Lightweight Drywall (same finish process, lighter weight)',
                   },
                   {
                     value: 'type_x',
-                    label: '5/8" Type X / Type C — Fire-Rated (garage, basement, mechanical)'
+                    label: '5/8" Type X / Type C — Fire-Rated (garage, basement, mechanical)',
                   },
                   {
                     value: 'green_board',
                     label:
-                      'Green Board / Purple Board — Moisture-Resistant (bath, kitchen, basement)'
+                      'Green Board / Purple Board — Moisture-Resistant (bath, kitchen, basement)',
                   },
                   {
                     value: 'blueboard',
-                    label: 'Blue Board (Plaster Baseboard) + Veneer Plaster / Skim Coat'
-                  }
+                    label: 'Blue Board (Plaster Baseboard) + Veneer Plaster / Skim Coat',
+                  },
                 ]}
               />
               <div
@@ -1350,7 +1350,7 @@ export default function MaterialTakeOff() {
                   color: 'rgba(255,255,255,0.45)',
                   marginTop: -8,
                   marginBottom: 16,
-                  lineHeight: 1.5
+                  lineHeight: 1.5,
                 }}
               >
                 {wallFinishType === 'drywall' &&
@@ -1371,7 +1371,7 @@ export default function MaterialTakeOff() {
                 onChange={setStudSize}
                 options={[
                   { value: '2x4', label: '2×4 Studs (partition walls / low-load)' },
-                  { value: '2x6', label: '2×6 Studs (exterior walls — standard MA)' }
+                  { value: '2x6', label: '2×6 Studs (exterior walls — standard MA)' },
                 ]}
               />
               <Select
@@ -1380,7 +1380,7 @@ export default function MaterialTakeOff() {
                 onChange={setStudSpacing}
                 options={[
                   { value: '16', label: '16" o.c.' },
-                  { value: '24', label: '24" o.c.' }
+                  { value: '24', label: '24" o.c.' },
                 ]}
               />
               <Select
@@ -1389,7 +1389,7 @@ export default function MaterialTakeOff() {
                 onChange={setTrussSpacing}
                 options={[
                   { value: '16', label: '16" o.c.' },
-                  { value: '24', label: '24" o.c.' }
+                  { value: '24', label: '24" o.c.' },
                 ]}
               />
               <div style={{ marginTop: 20 }}>{sectionHeader('Heating / HVAC System')}</div>
@@ -1401,12 +1401,12 @@ export default function MaterialTakeOff() {
                   { value: 'forced_air', label: 'Forced Air (furnace + A/C + ductwork)' },
                   {
                     value: 'fhw_boiler',
-                    label: 'Forced Hot Water (boiler + hot water baseboards)'
+                    label: 'Forced Hot Water (boiler + hot water baseboards)',
                   },
                   { value: 'mini_split', label: 'Mini-Split (indoor heads + outdoor unit)' },
                   { value: 'baseboard', label: 'Electric Baseboard Heat' },
                   { value: 'radiant', label: 'Radiant Floor (PEX tubing + boiler)' },
-                  { value: 'steam', label: 'Steam (boiler + radiators)' }
+                  { value: 'steam', label: 'Steam (boiler + radiators)' },
                 ]}
               />
               <div
@@ -1415,7 +1415,7 @@ export default function MaterialTakeOff() {
                   color: 'rgba(255,255,255,0.45)',
                   marginTop: -8,
                   marginBottom: 12,
-                  lineHeight: 1.5
+                  lineHeight: 1.5,
                 }}
               >
                 {heatingType === 'forced_air' &&
@@ -1442,12 +1442,12 @@ export default function MaterialTakeOff() {
                   { value: 'spray_walls', label: 'Spray Foam Walls (closed cell) + Batt Ceiling' },
                   {
                     value: 'spray_all',
-                    label: 'Full Spray Foam — Walls & Hot Roof (max performance)'
+                    label: 'Full Spray Foam — Walls & Hot Roof (max performance)',
                   },
                   {
                     value: 'batt_roof_foam',
-                    label: 'Batt Walls + Spray Foam Roof Deck (common MA detail)'
-                  }
+                    label: 'Batt Walls + Spray Foam Roof Deck (common MA detail)',
+                  },
                 ]}
               />
               <div
@@ -1456,7 +1456,7 @@ export default function MaterialTakeOff() {
                   color: 'rgba(255,255,255,0.45)',
                   marginTop: -8,
                   marginBottom: 12,
-                  lineHeight: 1.5
+                  lineHeight: 1.5,
                 }}
               >
                 {insulationType === 'batt' &&
@@ -1491,7 +1491,7 @@ export default function MaterialTakeOff() {
                     display: 'grid',
                     gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr auto',
                     gap: 8,
-                    alignItems: 'end'
+                    alignItems: 'end',
                   }}
                 >
                   <Field
@@ -1557,7 +1557,7 @@ export default function MaterialTakeOff() {
                       marginBottom: 10,
                       display: 'flex',
                       alignItems: 'center',
-                      gap: 8
+                      gap: 8,
                     }}
                   >
                     <input
@@ -1608,14 +1608,14 @@ export default function MaterialTakeOff() {
                     width: '100%',
                     borderCollapse: 'collapse',
                     marginBottom: 18,
-                    fontSize: 13
+                    fontSize: 13,
                   }}
                 >
                   <thead>
                     <tr
                       style={{
                         color: 'rgba(255,255,255,0.5)',
-                        borderBottom: '1px solid rgba(255,255,255,0.1)'
+                        borderBottom: '1px solid rgba(255,255,255,0.1)',
                       }}
                     >
                       <th style={{ textAlign: 'left', padding: '6px 8px' }}>Room</th>
@@ -1649,7 +1649,7 @@ export default function MaterialTakeOff() {
                           style={{
                             padding: '7px 8px',
                             fontSize: 11,
-                            color: 'rgba(255,255,255,0.5)'
+                            color: 'rgba(255,255,255,0.5)',
                           }}
                         >
                           {r.type === 'Kitchen' && r.cabinetLength
@@ -1669,7 +1669,7 @@ export default function MaterialTakeOff() {
                             padding: '7px 8px',
                             textAlign: 'right',
                             display: 'flex',
-                            gap: 6
+                            gap: 6,
                           }}
                         >
                           <button
@@ -1684,7 +1684,7 @@ export default function MaterialTakeOff() {
                               ...btnStyle(false),
                               padding: '4px 10px',
                               fontSize: 11,
-                              background: 'rgba(200,60,60,0.3)'
+                              background: 'rgba(200,60,60,0.3)',
                             }}
                           >
                             ✕
@@ -1703,7 +1703,7 @@ export default function MaterialTakeOff() {
                     border: '1px solid rgba(255,255,255,0.15)',
                     borderRadius: 8,
                     padding: 16,
-                    marginBottom: 16
+                    marginBottom: 16,
                   }}
                 >
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
@@ -1780,7 +1780,7 @@ export default function MaterialTakeOff() {
                         display: 'grid',
                         gridTemplateColumns: '1fr 1fr 1fr 1fr auto',
                         gap: 8,
-                        alignItems: 'end'
+                        alignItems: 'end',
                       }}
                     >
                       <Field
@@ -1817,7 +1817,7 @@ export default function MaterialTakeOff() {
                               type: t,
                               width: t === 'Overhead (Garage)' ? '108' : d.width,
                               height: t === 'Overhead (Garage)' ? '84' : d.height,
-                              side: t === 'Overhead (Garage)' ? 'exterior' : d.side
+                              side: t === 'Overhead (Garage)' ? 'exterior' : d.side,
                             }));
                           }}
                           style={fieldStyle}
@@ -1848,7 +1848,7 @@ export default function MaterialTakeOff() {
                           onClick={() =>
                             setEditingRoom((r) => ({
                               ...r,
-                              doors: r.doors.filter((_, j) => j !== i)
+                              doors: r.doors.filter((_, j) => j !== i),
                             }))
                           }
                           style={{
@@ -1857,7 +1857,7 @@ export default function MaterialTakeOff() {
                             border: 'none',
                             color: '#f44',
                             cursor: 'pointer',
-                            fontSize: 12
+                            fontSize: 12,
                           }}
                         >
                           ✕
@@ -1874,7 +1874,7 @@ export default function MaterialTakeOff() {
                         display: 'grid',
                         gridTemplateColumns: '1fr 1fr 1fr auto',
                         gap: 8,
-                        alignItems: 'end'
+                        alignItems: 'end',
                       }}
                     >
                       <Field
@@ -1920,7 +1920,7 @@ export default function MaterialTakeOff() {
                           onClick={() =>
                             setEditingRoom((r) => ({
                               ...r,
-                              windows: r.windows.filter((_, j) => j !== i)
+                              windows: r.windows.filter((_, j) => j !== i),
                             }))
                           }
                           style={{
@@ -1929,7 +1929,7 @@ export default function MaterialTakeOff() {
                             border: 'none',
                             color: '#f44',
                             cursor: 'pointer',
-                            fontSize: 12
+                            fontSize: 12,
                           }}
                         >
                           ✕
@@ -1972,7 +1972,7 @@ export default function MaterialTakeOff() {
                     marginBottom: 14,
                     padding: '12px 14px',
                     background: 'rgba(255,255,255,0.05)',
-                    borderRadius: 8
+                    borderRadius: 8,
                   }}
                 >
                   <div style={{ fontWeight: 600, marginBottom: 6 }}>
@@ -2021,7 +2021,7 @@ export default function MaterialTakeOff() {
                   fontSize: 12,
                   color: 'rgba(255,255,255,0.55)',
                   marginTop: -6,
-                  marginBottom: 16
+                  marginBottom: 16,
                 }}
               >
                 Pre-filled with typical defaults. Adjust as needed.
@@ -2084,7 +2084,7 @@ export default function MaterialTakeOff() {
                     privacySet: 'Privacy Set — Bedroom / Bath (per pc)',
                     keyedSet: 'Keyed Entry Set — Exterior (per pc)',
                     garageDoor: 'Overhead Garage Door (per door)',
-                    garageDoorOpener: 'Garage Door Opener (per opener)'
+                    garageDoorOpener: 'Garage Door Opener (per opener)',
                   };
                   return (
                     <div key={key} style={{ marginBottom: 14 }}>
@@ -2098,7 +2098,7 @@ export default function MaterialTakeOff() {
                             transform: 'translateY(-50%)',
                             color: 'rgba(255,255,255,0.6)',
                             fontSize: 13,
-                            pointerEvents: 'none'
+                            pointerEvents: 'none',
                           }}
                         >
                           $
@@ -2145,7 +2145,7 @@ export default function MaterialTakeOff() {
                   display: 'flex',
                   gap: 10,
                   alignItems: 'center',
-                  flexWrap: 'wrap'
+                  flexWrap: 'wrap',
                 }}
               >
                 <span
@@ -2153,7 +2153,7 @@ export default function MaterialTakeOff() {
                     fontSize: 12,
                     color: 'rgba(255,255,255,0.7)',
                     fontWeight: 600,
-                    whiteSpace: 'nowrap'
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   💾 Save to Job:
@@ -2187,7 +2187,7 @@ export default function MaterialTakeOff() {
                         : saveStatus === 'error'
                           ? '#C62828'
                           : '#E07B2A',
-                    opacity: !saveJobId || saveStatus === 'saving' ? 0.5 : 1
+                    opacity: !saveJobId || saveStatus === 'saving' ? 0.5 : 1,
                   }}
                 >
                   {saveStatus === 'saving'
@@ -2218,7 +2218,7 @@ export default function MaterialTakeOff() {
                       <tr
                         style={{
                           color: 'rgba(255,255,255,0.45)',
-                          borderBottom: '1px solid rgba(255,255,255,0.08)'
+                          borderBottom: '1px solid rgba(255,255,255,0.08)',
                         }}
                       >
                         <th style={{ textAlign: 'left', padding: '5px 8px' }}>Material</th>
@@ -2251,10 +2251,10 @@ export default function MaterialTakeOff() {
                                             ...r,
                                             qty: newQty,
                                             total:
-                                              r.unitPrice != null ? newQty * r.unitPrice : r.total
+                                              r.unitPrice != null ? newQty * r.unitPrice : r.total,
                                           }
-                                        : r
-                                    )
+                                        : r,
+                                    ),
                                   );
                                 }}
                                 style={{
@@ -2266,7 +2266,7 @@ export default function MaterialTakeOff() {
                                   padding: '3px 6px',
                                   fontSize: 12,
                                   textAlign: 'right',
-                                  fontWeight: 600
+                                  fontWeight: 600,
                                 }}
                               />
                             </td>
@@ -2276,8 +2276,8 @@ export default function MaterialTakeOff() {
                                 onChange={(e) =>
                                   setResults((prev) =>
                                     prev.map((r, ri) =>
-                                      ri === globalIdx ? { ...r, unit: e.target.value } : r
-                                    )
+                                      ri === globalIdx ? { ...r, unit: e.target.value } : r,
+                                    ),
                                   )
                                 }
                                 style={{
@@ -2286,7 +2286,7 @@ export default function MaterialTakeOff() {
                                   borderRadius: 4,
                                   color: 'white',
                                   padding: '3px 5px',
-                                  fontSize: 11
+                                  fontSize: 11,
                                 }}
                               >
                                 {[
@@ -2302,7 +2302,7 @@ export default function MaterialTakeOff() {
                                   'squares',
                                   'runs',
                                   'doors',
-                                  'windows'
+                                  'windows',
                                 ].map((u) => (
                                   <option key={u} value={u}>
                                     {u}
@@ -2327,8 +2327,8 @@ export default function MaterialTakeOff() {
                                         prev.map((r) =>
                                           r.priceKey === m.priceKey
                                             ? { ...r, unitPrice: newPrice, total: r.qty * newPrice }
-                                            : r
-                                        )
+                                            : r,
+                                        ),
                                       );
                                     }}
                                     style={{
@@ -2339,7 +2339,7 @@ export default function MaterialTakeOff() {
                                       color: 'white',
                                       padding: '3px 6px',
                                       fontSize: 12,
-                                      textAlign: 'right'
+                                      textAlign: 'right',
                                     }}
                                   />
                                 </div>
@@ -2354,7 +2354,7 @@ export default function MaterialTakeOff() {
                                 padding: '7px 8px',
                                 textAlign: 'right',
                                 color: '#E07B2A',
-                                fontWeight: 600
+                                fontWeight: 600,
                               }}
                             >
                               {m.total !== null
@@ -2362,7 +2362,7 @@ export default function MaterialTakeOff() {
                                 : '—'}
                             </td>
                           </tr>
-                        )
+                        ),
                       )}
                     </tbody>
                   </table>
@@ -2376,7 +2376,7 @@ export default function MaterialTakeOff() {
                   marginTop: 8,
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
                 }}
               >
                 <span style={{ fontWeight: 700, fontSize: 16 }}>Grand Total</span>
@@ -2384,7 +2384,7 @@ export default function MaterialTakeOff() {
                   $
                   {grandTotal.toLocaleString(undefined, {
                     minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
+                    maximumFractionDigits: 2,
                   })}
                 </span>
               </div>

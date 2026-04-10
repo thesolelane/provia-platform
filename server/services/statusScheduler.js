@@ -32,7 +32,7 @@ async function checkDatabase() {
     return {
       ok: true,
       label: 'Database (SQLite)',
-      detail: `${jobs} jobs · ${tasks} tasks · ${sigs} signing sessions`
+      detail: `${jobs} jobs · ${tasks} tasks · ${sigs} signing sessions`,
     };
   } catch (e) {
     return { ok: false, label: 'Database (SQLite)', detail: e.message };
@@ -64,14 +64,14 @@ async function checkTwilio() {
   try {
     const auth = Buffer.from(`${sid}:${token}`).toString('base64');
     const res = await httpsGet(`https://api.twilio.com/2010-04-01/Accounts/${sid}.json`, {
-      Authorization: `Basic ${auth}`
+      Authorization: `Basic ${auth}`,
     });
     if (res.status === 200) {
       const data = JSON.parse(res.body);
       return {
         ok: true,
         label: 'Twilio SMS',
-        detail: `Account: ${data.friendly_name} (${data.status})`
+        detail: `Account: ${data.friendly_name} (${data.status})`,
       };
     }
     return { ok: false, label: 'Twilio SMS', detail: `HTTP ${res.status}` };
@@ -97,7 +97,7 @@ async function checkPDF() {
     return {
       ok: true,
       label: 'PDF Generation',
-      detail: `Chrome (env): ${process.env.CHROME_PATH}`
+      detail: `Chrome (env): ${process.env.CHROME_PATH}`,
     };
   }
   if (process.platform === 'win32') {
@@ -105,7 +105,7 @@ async function checkPDF() {
       'C:\\Users\\theso\\.cache\\puppeteer\\chrome\\win64-146.0.7680.76\\chrome-win64\\chrome.exe',
       'C:\\Users\\theso\\.cache\\puppeteer\\chrome\\win64-127.0.6533.88\\chrome-win64\\chrome.exe',
       'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe'
+      (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
     ];
     for (const p of winPaths) {
       if (p && fs.existsSync(p))
@@ -115,7 +115,7 @@ async function checkPDF() {
   }
   try {
     const p = execSync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null', {
-      timeout: 3000
+      timeout: 3000,
     })
       .toString()
       .trim();
@@ -143,7 +143,7 @@ async function checkSigning() {
     return {
       ok: true,
       label: 'Digital Signatures',
-      detail: `${pending} pending · ${signed} completed`
+      detail: `${pending} pending · ${signed} completed`,
     };
   } catch (e) {
     return { ok: false, label: 'Digital Signatures', detail: e.message };
@@ -160,7 +160,7 @@ async function runAllChecks() {
     checkTwilio(),
     checkWhatsApp(),
     checkPDF(),
-    checkSigning()
+    checkSigning(),
   ]);
   return results;
 }
@@ -173,7 +173,7 @@ async function sendStatusReport({
   subject: subjectOverride,
   label = 'Daily Check',
   extra = '',
-  alwaysSend = false
+  alwaysSend = false,
 } = {}) {
   const when = new Date().toLocaleString('en-US', {
     weekday: 'long',
@@ -182,7 +182,7 @@ async function sendStatusReport({
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'America/New_York'
+    timeZone: 'America/New_York',
   });
 
   console.log(`[StatusScheduler] Running status check (${label}) — ${when}`);
@@ -212,7 +212,7 @@ async function sendStatusReport({
       <td style="padding:10px 14px;font-size:14px">${r.ok ? '🟢' : '🔴'}</td>
       <td style="padding:10px 14px;font-size:13px;font-weight:600;color:${r.ok ? '#2E7D32' : '#C62828'}">${r.label}</td>
       <td style="padding:10px 14px;font-size:13px;color:#555">${r.detail}</td>
-    </tr>`
+    </tr>`,
     )
     .join('');
 
@@ -286,10 +286,10 @@ async function sendStatusReport({
       to: owners,
       subject,
       html,
-      emailType: 'system_alert'
+      emailType: 'system_alert',
     });
     console.log(
-      `[StatusScheduler] Report sent to ${owners.join(', ')} — ${okCount}/${results.length} OK (${label})`
+      `[StatusScheduler] Report sent to ${owners.join(', ')} — ${okCount}/${results.length} OK (${label})`,
     );
   } catch (e) {
     console.error('[StatusScheduler] Failed to send report:', e.message);
@@ -335,7 +335,7 @@ function scheduleNext() {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
+      second: '2-digit',
     });
     const [datePart, timePart] = etStr.split(', ');
     const [m, d, y] = datePart.split('/');
@@ -345,7 +345,7 @@ function scheduleNext() {
     if (target <= etNow) target.setDate(target.getDate() + 1); // push to tomorrow if already past
     delayMs = target - etNow;
     console.log(
-      `📊 Next status report scheduled for ${hourOfDay}:00 ET (in ${Math.round(delayMs / 60000)} min)`
+      `📊 Next status report scheduled for ${hourOfDay}:00 ET (in ${Math.round(delayMs / 60000)} min)`,
     );
   } else {
     delayMs = intervalHours * 60 * 60 * 1000;
@@ -385,5 +385,5 @@ module.exports = {
   stopStatusScheduler,
   rescheduleStatusReports,
   runAllChecks,
-  sendStatusReport
+  sendStatusReport,
 };

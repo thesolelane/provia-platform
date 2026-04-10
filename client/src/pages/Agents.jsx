@@ -14,7 +14,7 @@ function statusDot(online) {
         borderRadius: '50%',
         background: online ? '#43a047' : '#bdbdbd',
         boxShadow: online ? '0 0 6px #43a04790' : 'none',
-        flexShrink: 0
+        flexShrink: 0,
       }}
       title={online ? 'Online' : 'Offline'}
     />
@@ -27,7 +27,7 @@ function fmtDate(s) {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 }
 
@@ -63,7 +63,7 @@ export default function Agents({ token, userRole }) {
         setMessages((prev) => [...prev, msg]);
       } else {
         setAgents((prev) =>
-          prev.map((a) => (a.id === msg.agentId ? { ...a, _unread: (a._unread || 0) + 1 } : a))
+          prev.map((a) => (a.id === msg.agentId ? { ...a, _unread: (a._unread || 0) + 1 } : a)),
         );
       }
     });
@@ -72,8 +72,8 @@ export default function Agents({ token, userRole }) {
       const { agentId } = JSON.parse(e.data);
       setAgents((prev) =>
         prev.map((a) =>
-          a.id === agentId ? { ...a, online: true, last_seen: new Date().toISOString() } : a
-        )
+          a.id === agentId ? { ...a, online: true, last_seen: new Date().toISOString() } : a,
+        ),
       );
     });
 
@@ -105,7 +105,7 @@ export default function Agents({ token, userRole }) {
     setAgents((prev) => prev.map((a) => (a.id === agent.id ? { ...a, _unread: 0 } : a)));
     try {
       const r = await fetch(`/api/agents/${agent.id}/messages`, {
-        headers: { 'x-auth-token': token }
+        headers: { 'x-auth-token': token },
       });
       if (r.ok) {
         const data = await r.json();
@@ -125,7 +125,7 @@ export default function Agents({ token, userRole }) {
       const r = await fetch(`/api/agents/${selected.id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ message: text })
+        body: JSON.stringify({ message: text }),
       });
       if (r.ok) {
         const data = await r.json();
@@ -151,7 +151,7 @@ export default function Agents({ token, userRole }) {
         display: 'flex',
         height: '100vh',
         fontFamily: 'Arial, sans-serif',
-        background: '#f4f6fb'
+        background: '#f4f6fb',
       }}
     >
       {/* Left panel: agent cards */}
@@ -162,7 +162,7 @@ export default function Agents({ token, userRole }) {
           borderRight: '1px solid #e0e7ef',
           display: 'flex',
           flexDirection: 'column',
-          flexShrink: 0
+          flexShrink: 0,
         }}
       >
         <div style={{ padding: '20px 18px 14px', borderBottom: '1px solid #e0e7ef' }}>
@@ -194,7 +194,7 @@ export default function Agents({ token, userRole }) {
                 background: selected?.id === a.id ? '#e8f0fe' : '#f8f9fb',
                 border: `1.5px solid ${selected?.id === a.id ? BLUE : '#e0e7ef'}`,
                 borderRadius: 10,
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -210,7 +210,7 @@ export default function Agents({ token, userRole }) {
                       borderRadius: 10,
                       fontSize: 10,
                       padding: '1px 7px',
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
                     }}
                   >
                     {a._unread}
@@ -239,7 +239,7 @@ export default function Agents({ token, userRole }) {
               color: BLUE,
               fontSize: 12,
               cursor: 'pointer',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
             ↻ Refresh
@@ -257,7 +257,7 @@ export default function Agents({ token, userRole }) {
               alignItems: 'center',
               justifyContent: 'center',
               flexDirection: 'column',
-              color: '#bbb'
+              color: '#bbb',
             }}
           >
             <div style={{ fontSize: 48, marginBottom: 12 }}>🤖</div>
@@ -273,7 +273,7 @@ export default function Agents({ token, userRole }) {
                 borderBottom: '1px solid #e0e7ef',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 10
+                gap: 10,
               }}
             >
               {statusDot(selected.online)}
@@ -296,7 +296,7 @@ export default function Agents({ token, userRole }) {
                 padding: '18px 20px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 10
+                gap: 10,
               }}
             >
               {messages.length === 0 && (
@@ -311,7 +311,7 @@ export default function Agents({ token, userRole }) {
                     key={msg.id || i}
                     style={{
                       display: 'flex',
-                      justifyContent: isOutbound ? 'flex-end' : 'flex-start'
+                      justifyContent: isOutbound ? 'flex-end' : 'flex-start',
                     }}
                   >
                     <div
@@ -323,7 +323,7 @@ export default function Agents({ token, userRole }) {
                         lineHeight: 1.55,
                         background: isOutbound ? BLUE : '#f0f4fb',
                         color: isOutbound ? 'white' : '#222',
-                        whiteSpace: 'pre-wrap'
+                        whiteSpace: 'pre-wrap',
                       }}
                     >
                       {msg.message}
@@ -332,7 +332,7 @@ export default function Agents({ token, userRole }) {
                           fontSize: 10,
                           opacity: 0.55,
                           marginTop: 5,
-                          textAlign: isOutbound ? 'right' : 'left'
+                          textAlign: isOutbound ? 'right' : 'left',
                         }}
                       >
                         {fmtDate(msg.created_at)}
@@ -351,7 +351,7 @@ export default function Agents({ token, userRole }) {
                 background: 'white',
                 borderTop: '1px solid #e0e7ef',
                 display: 'flex',
-                gap: 8
+                gap: 8,
               }}
             >
               <input
@@ -365,7 +365,7 @@ export default function Agents({ token, userRole }) {
                   border: '1.5px solid #C8D4E4',
                   borderRadius: 8,
                   fontSize: 13,
-                  outline: 'none'
+                  outline: 'none',
                 }}
               />
               <button
@@ -381,7 +381,7 @@ export default function Agents({ token, userRole }) {
                   fontWeight: 'bold',
                   fontSize: 13,
                   opacity: !input.trim() || sending ? 0.5 : 1,
-                  flexShrink: 0
+                  flexShrink: 0,
                 }}
               >
                 Send

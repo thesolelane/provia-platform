@@ -18,7 +18,7 @@ const SNOOZE_OPTIONS = [
   { label: '2 days', hours: 48 },
   { label: '3 days', hours: 72 },
   { label: '7 days', hours: 168 },
-  { label: '14 days', hours: 336 }
+  { label: '14 days', hours: 336 },
 ];
 
 // ── Lead pipeline constants ────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ const NEXT_STAGE = {
   quote_draft: 'quote_sent',
   quote_sent: 'follow_up_1',
   follow_up_1: 'follow_up_2',
-  follow_up_2: 'signed'
+  follow_up_2: 'signed',
 };
 const STAGE_LABELS = {
   incoming: 'Incoming',
@@ -42,7 +42,7 @@ const STAGE_LABELS = {
   follow_up_1: 'Follow-up 1',
   follow_up_2: 'Follow-up 2',
   signed: 'Signed ✓',
-  rejected: 'Rejected'
+  rejected: 'Rejected',
 };
 const STAGE_COLORS = {
   incoming: '#7B8EA0',
@@ -54,7 +54,7 @@ const STAGE_COLORS = {
   follow_up_1: '#7B1FA2',
   follow_up_2: '#AD1457',
   signed: '#2E7D32',
-  rejected: '#C62828'
+  rejected: '#C62828',
 };
 const ADVANCE_LABELS = {
   callback_done: '📞 Log Callback Done',
@@ -64,7 +64,7 @@ const ADVANCE_LABELS = {
   quote_sent: '✉ Send Proposal',
   follow_up_1: '📞 Log Follow-up 1',
   follow_up_2: '📞 Log Follow-up 2',
-  signed: '✅ Proceed to Contract'
+  signed: '✅ Proceed to Contract',
 };
 // Stages where we show an inline form before advancing
 const FORM_STAGES = new Set(['appointment_booked', 'quote_draft', 'signed']);
@@ -106,7 +106,7 @@ function LeadPanel({ task, token, onAdvanced }) {
       year: 'numeric',
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: true,
     });
     const line = `${icon} ${method} — ${now}`;
     const updatedNotes = leadNotes ? `${leadNotes}\n${line}` : line;
@@ -114,7 +114,7 @@ function LeadPanel({ task, token, onAdvanced }) {
       const r = await fetch(`/api/leads/${lead.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ notes: updatedNotes })
+        body: JSON.stringify({ notes: updatedNotes }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || r.statusText);
@@ -131,7 +131,7 @@ function LeadPanel({ task, token, onAdvanced }) {
       const r = await fetch(`/api/leads/${lead.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ stage: nextStage, ...extraBody })
+        body: JSON.stringify({ stage: nextStage, ...extraBody }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || r.statusText);
@@ -169,7 +169,7 @@ function LeadPanel({ task, token, onAdvanced }) {
         borderRadius: 20,
         padding: '2px 10px',
         fontSize: 11,
-        fontWeight: 'bold'
+        fontWeight: 'bold',
       }}
     >
       🔖 {lead.caller_name} · {STAGE_LABELS[stage] || stage}
@@ -192,7 +192,7 @@ function LeadPanel({ task, token, onAdvanced }) {
               color: nextStage === 'signed' ? '#2E7D32' : ORANGE,
               border: `1px solid ${nextStage === 'signed' ? '#2E7D3244' : '#E07B2A44'}`,
               borderRadius: 6,
-              cursor: busy ? 'wait' : 'pointer'
+              cursor: busy ? 'wait' : 'pointer',
             }}
           >
             {busy ? '…' : ADVANCE_LABELS[nextStage] || `→ ${STAGE_LABELS[nextStage]}`}
@@ -209,20 +209,32 @@ function LeadPanel({ task, token, onAdvanced }) {
               onClick={() => logContact('Email')}
               title="Log email contact"
               style={{
-                padding: '3px 10px', fontSize: 12, cursor: 'pointer',
-                background: '#E3F2FD', color: '#1565C0',
-                border: '1px solid #90CAF9', borderRadius: 6,
+                padding: '3px 10px',
+                fontSize: 12,
+                cursor: 'pointer',
+                background: '#E3F2FD',
+                color: '#1565C0',
+                border: '1px solid #90CAF9',
+                borderRadius: 6,
               }}
-            >📧 Email</button>
+            >
+              📧 Email
+            </button>
             <button
               onClick={() => logContact('Phone')}
               title="Log phone contact"
               style={{
-                padding: '3px 10px', fontSize: 12, cursor: 'pointer',
-                background: '#E8F5E9', color: '#2E7D32',
-                border: '1px solid #A5D6A7', borderRadius: 6,
+                padding: '3px 10px',
+                fontSize: 12,
+                cursor: 'pointer',
+                background: '#E8F5E9',
+                color: '#2E7D32',
+                border: '1px solid #A5D6A7',
+                borderRadius: 6,
               }}
-            >📞 Phone</button>
+            >
+              📞 Phone
+            </button>
           </div>
           {lastContact && (
             <div style={{ marginTop: 5, fontSize: 11, color: '#666' }}>
@@ -248,7 +260,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 padding: '4px 8px',
                 border: '1px solid #C8D4E4',
                 borderRadius: 5,
-                fontSize: 12
+                fontSize: 12,
               }}
             />
           </label>
@@ -266,7 +278,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 padding: '4px 8px',
                 border: '1px solid #C8D4E4',
                 borderRadius: 5,
-                fontSize: 12
+                fontSize: 12,
               }}
             />
           </label>
@@ -288,7 +300,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 background: BLUE,
                 color: 'white',
                 border: 'none',
-                borderRadius: 6
+                borderRadius: 6,
               }}
             >
               {busy ? '…' : 'Confirm Appointment'}
@@ -302,7 +314,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 background: '#f5f5f5',
                 color: '#555',
                 border: '1px solid #ddd',
-                borderRadius: 6
+                borderRadius: 6,
               }}
             >
               Cancel
@@ -328,7 +340,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 padding: '4px 8px',
                 border: '1px solid #C8D4E4',
                 borderRadius: 5,
-                fontSize: 12
+                fontSize: 12,
               }}
             />
           </label>
@@ -346,7 +358,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 padding: '4px 8px',
                 border: '1px solid #C8D4E4',
                 borderRadius: 5,
-                fontSize: 12
+                fontSize: 12,
               }}
             />
           </label>
@@ -363,7 +375,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 border: '1px solid #C8D4E4',
                 borderRadius: 5,
                 fontSize: 12,
-                background: 'white'
+                background: 'white',
               }}
             >
               <option value="">— select —</option>
@@ -389,7 +401,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 border: '1px solid #C8D4E4',
                 borderRadius: 5,
                 fontSize: 12,
-                resize: 'vertical'
+                resize: 'vertical',
               }}
             />
           </label>
@@ -400,7 +412,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                   job_address: jobAddress,
                   job_city: jobCity,
                   job_type: jobType,
-                  job_scope: jobScope
+                  job_scope: jobScope,
                 })
               }
               disabled={busy}
@@ -412,7 +424,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 background: ORANGE,
                 color: 'white',
                 border: 'none',
-                borderRadius: 6
+                borderRadius: 6,
               }}
             >
               {busy ? '…' : 'Draft S.O.W. Proposal'}
@@ -426,7 +438,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 background: '#f5f5f5',
                 color: '#555',
                 border: '1px solid #ddd',
-                borderRadius: 6
+                borderRadius: 6,
               }}
             >
               Cancel
@@ -446,7 +458,7 @@ function LeadPanel({ task, token, onAdvanced }) {
             padding: 12,
             display: 'flex',
             flexDirection: 'column',
-            gap: 8
+            gap: 8,
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 'bold', color: GREEN }}>
@@ -488,7 +500,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                   padding: '4px 8px',
                   border: '1px solid #C8D4E4',
                   borderRadius: 5,
-                  fontSize: 12
+                  fontSize: 12,
                 }}
               />
             </label>
@@ -508,7 +520,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                   padding: '4px 8px',
                   border: '1px solid #C8D4E4',
                   borderRadius: 5,
-                  fontSize: 12
+                  fontSize: 12,
                 }}
               />
             </label>
@@ -518,7 +530,7 @@ function LeadPanel({ task, token, onAdvanced }) {
               onClick={() =>
                 advance({
                   job_address: jobAddress || lead.job_address || undefined,
-                  job_city: jobCity || lead.job_city || undefined
+                  job_city: jobCity || lead.job_city || undefined,
                 })
               }
               disabled={busy}
@@ -530,7 +542,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 background: GREEN,
                 color: 'white',
                 border: 'none',
-                borderRadius: 6
+                borderRadius: 6,
               }}
             >
               {busy ? '…' : '✅ Confirm — Proceed to Contract'}
@@ -544,7 +556,7 @@ function LeadPanel({ task, token, onAdvanced }) {
                 background: '#f5f5f5',
                 color: '#555',
                 border: '1px solid #ddd',
-                borderRadius: 6
+                borderRadius: 6,
               }}
             >
               Cancel
@@ -630,7 +642,7 @@ export default function Tasks({ token }) {
     await fetch(`/api/tasks/${task.id}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ status: newStatus })
+      body: JSON.stringify({ status: newStatus }),
     });
     load();
   };
@@ -651,7 +663,7 @@ export default function Tasks({ token }) {
     const res = await fetch(`/api/tasks/${task.id}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ remind_at: remindAt, remind_interval_hours: hours })
+      body: JSON.stringify({ remind_at: remindAt, remind_interval_hours: hours }),
     });
     if (res.ok) {
       showToast(`Reminder set for ${SNOOZE_OPTIONS.find((o) => o.hours === hours)?.label}`);
@@ -681,7 +693,7 @@ export default function Tasks({ token }) {
           key = d.toLocaleDateString('en-US', {
             weekday: 'long',
             month: 'short',
-            day: 'numeric'
+            day: 'numeric',
           });
       }
     }
@@ -695,7 +707,7 @@ export default function Tasks({ token }) {
     ...groupOrder.filter((g) => grouped[g]),
     ...Object.keys(grouped)
       .filter((g) => !groupOrder.includes(g))
-      .sort()
+      .sort(),
   ];
 
   return (
@@ -706,7 +718,7 @@ export default function Tasks({ token }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <div>
@@ -722,7 +734,7 @@ export default function Tasks({ token }) {
                   color: ORANGE,
                   padding: '3px 10px',
                   borderRadius: 20,
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 📅 {todayCount} due today
@@ -736,7 +748,7 @@ export default function Tasks({ token }) {
                   color: RED,
                   padding: '3px 10px',
                   borderRadius: 20,
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 🔴 {overdue} overdue
@@ -754,7 +766,7 @@ export default function Tasks({ token }) {
             borderRadius: 8,
             cursor: 'pointer',
             fontWeight: 'bold',
-            fontSize: 13
+            fontSize: 13,
           }}
         >
           + Add Task
@@ -769,7 +781,7 @@ export default function Tasks({ token }) {
             borderRadius: 10,
             padding: 20,
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-            marginBottom: 20
+            marginBottom: 20,
           }}
         >
           <h3 style={{ color: BLUE, margin: '0 0 16px' }}>New Task</h3>
@@ -782,7 +794,7 @@ export default function Tasks({ token }) {
                 padding: '10px 12px',
                 border: '1.5px solid #C8D4E4',
                 borderRadius: 6,
-                fontSize: 14
+                fontSize: 14,
               }}
             />
             <textarea
@@ -795,7 +807,7 @@ export default function Tasks({ token }) {
                 border: '1.5px solid #C8D4E4',
                 borderRadius: 6,
                 fontSize: 13,
-                resize: 'vertical'
+                resize: 'vertical',
               }}
             />
             <div style={{ display: 'flex', gap: 12 }}>
@@ -812,7 +824,7 @@ export default function Tasks({ token }) {
                     padding: '8px 12px',
                     border: '1.5px solid #C8D4E4',
                     borderRadius: 6,
-                    fontSize: 13
+                    fontSize: 13,
                   }}
                 />
               </div>
@@ -828,7 +840,7 @@ export default function Tasks({ token }) {
                     border: '1.5px solid #C8D4E4',
                     borderRadius: 6,
                     fontSize: 13,
-                    height: 37
+                    height: 37,
                   }}
                 >
                   <option value="high">🔴 High</option>
@@ -849,7 +861,7 @@ export default function Tasks({ token }) {
                   borderRadius: 6,
                   cursor: 'pointer',
                   fontWeight: 'bold',
-                  fontSize: 13
+                  fontSize: 13,
                 }}
               >
                 {saving ? 'Saving...' : 'Create Task'}
@@ -863,7 +875,7 @@ export default function Tasks({ token }) {
                   borderRadius: 6,
                   cursor: 'pointer',
                   fontSize: 13,
-                  color: '#888'
+                  color: '#888',
                 }}
               >
                 Cancel
@@ -878,7 +890,7 @@ export default function Tasks({ token }) {
         {[
           ['pending', '⬜ Pending'],
           ['done', '✅ Done'],
-          ['all', 'All']
+          ['all', 'All'],
         ].map(([v, l]) => (
           <button
             key={v}
@@ -891,7 +903,7 @@ export default function Tasks({ token }) {
               color: filter === v ? 'white' : '#555',
               fontSize: 12,
               cursor: 'pointer',
-              fontWeight: filter === v ? 'bold' : 'normal'
+              fontWeight: filter === v ? 'bold' : 'normal',
             }}
           >
             {l}
@@ -901,7 +913,7 @@ export default function Tasks({ token }) {
         {[
           ['all', 'All Dates'],
           ['today', 'Today'],
-          ['week', 'This Week']
+          ['week', 'This Week'],
         ].map(([v, l]) => (
           <button
             key={v}
@@ -914,7 +926,7 @@ export default function Tasks({ token }) {
               color: range === v ? 'white' : '#555',
               fontSize: 12,
               cursor: 'pointer',
-              fontWeight: range === v ? 'bold' : 'normal'
+              fontWeight: range === v ? 'bold' : 'normal',
             }}
           >
             {l}
@@ -932,7 +944,7 @@ export default function Tasks({ token }) {
             borderRadius: 10,
             padding: 48,
             textAlign: 'center',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
+            boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
           }}
         >
           <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
@@ -950,7 +962,7 @@ export default function Tasks({ token }) {
                 color: group.includes('Overdue') ? RED : group.includes('Today') ? ORANGE : '#555',
                 marginBottom: 8,
                 textTransform: 'uppercase',
-                letterSpacing: '.5px'
+                letterSpacing: '.5px',
               }}
             >
               {group}
@@ -969,7 +981,7 @@ export default function Tasks({ token }) {
                       padding: '14px 16px',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
                       borderLeft: `4px solid ${isDone ? '#ddd' : PRIORITY_COLORS[task.priority]}`,
-                      opacity: isDone ? 0.65 : 1
+                      opacity: isDone ? 0.65 : 1,
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -983,7 +995,7 @@ export default function Tasks({ token }) {
                           width: 16,
                           height: 16,
                           cursor: 'pointer',
-                          flexShrink: 0
+                          flexShrink: 0,
                         }}
                       />
 
@@ -994,7 +1006,7 @@ export default function Tasks({ token }) {
                             fontWeight: 'bold',
                             fontSize: 14,
                             color: isDone ? '#aaa' : BLUE,
-                            textDecoration: isDone ? 'line-through' : 'none'
+                            textDecoration: isDone ? 'line-through' : 'none',
                           }}
                         >
                           {task.title}
@@ -1010,7 +1022,7 @@ export default function Tasks({ token }) {
                             gap: 12,
                             marginTop: 6,
                             flexWrap: 'wrap',
-                            alignItems: 'center'
+                            alignItems: 'center',
                           }}
                         >
                           {task.due_at && (
@@ -1020,7 +1032,7 @@ export default function Tasks({ token }) {
                                 month: 'short',
                                 day: 'numeric',
                                 hour: '2-digit',
-                                minute: '2-digit'
+                                minute: '2-digit',
                               })}
                             </span>
                           )}
@@ -1052,7 +1064,7 @@ export default function Tasks({ token }) {
                               alignItems: 'center',
                               gap: 8,
                               marginTop: 8,
-                              flexWrap: 'wrap'
+                              flexWrap: 'wrap',
                             }}
                           >
                             <span style={{ fontSize: 11, color: '#888' }}>🔔 Next reminder:</span>
@@ -1071,7 +1083,7 @@ export default function Tasks({ token }) {
                                 fontSize: 11,
                                 color: '#555',
                                 cursor: 'pointer',
-                                background: 'white'
+                                background: 'white',
                               }}
                             >
                               <option value="" disabled>
@@ -1114,7 +1126,7 @@ export default function Tasks({ token }) {
                               fontSize: 11,
                               fontWeight: 'bold',
                               border: '1px solid #4285F440',
-                              whiteSpace: 'nowrap'
+                              whiteSpace: 'nowrap',
                             }}
                           >
                             📅 Calendar
@@ -1129,7 +1141,7 @@ export default function Tasks({ token }) {
                             border: '1px solid #ff000022',
                             borderRadius: 6,
                             cursor: 'pointer',
-                            fontSize: 11
+                            fontSize: 11,
                           }}
                         >
                           Delete

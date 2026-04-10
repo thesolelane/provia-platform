@@ -17,7 +17,7 @@ const fmtDate = (d) =>
     ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: 'numeric'
+        year: 'numeric',
       })
     : '—';
 
@@ -40,7 +40,7 @@ const EMPTY_IN = {
   time_received: nowTime(),
   payment_type: 'deposit',
   credit_debit: 'credit',
-  notes: ''
+  notes: '',
 };
 const EMPTY_OUT = {
   job_id: '',
@@ -51,7 +51,7 @@ const EMPTY_OUT = {
   time_paid: nowTime(),
   category: 'subcontractor',
   credit_debit: 'debit',
-  notes: ''
+  notes: '',
 };
 
 export default function Payments({ token }) {
@@ -87,11 +87,11 @@ export default function Payments({ token }) {
     if (filterTo) params.set('date_to', filterTo);
     Promise.all([
       fetch(`/api/payments/received?${params}`, { headers: { 'x-auth-token': token } }).then((r) =>
-        r.json()
+        r.json(),
       ),
       fetch(`/api/payments/made?${params}`, { headers: { 'x-auth-token': token } }).then((r) =>
-        r.json()
-      )
+        r.json(),
+      ),
     ]).then(([recData, madeData]) => {
       setReceived(recData.payments || []);
       setMade(madeData.payments || []);
@@ -124,7 +124,7 @@ export default function Payments({ token }) {
     const res = await fetch('/api/payments/received', {
       method: 'POST',
       headers,
-      body: JSON.stringify(formIn)
+      body: JSON.stringify(formIn),
     });
     const data = await res.json();
     if (res.ok) {
@@ -147,7 +147,7 @@ export default function Payments({ token }) {
     const res = await fetch('/api/payments/made', {
       method: 'POST',
       headers,
-      body: JSON.stringify(formOut)
+      body: JSON.stringify(formOut),
     });
     const data = await res.json();
     if (res.ok) {
@@ -164,7 +164,7 @@ export default function Payments({ token }) {
   const deleteReceived = async (p) => {
     if (
       !(await showConfirm(
-        `Delete this payment record (${fmt(p.amount)} from ${p.customer_name || 'customer'})?`
+        `Delete this payment record (${fmt(p.amount)} from ${p.customer_name || 'customer'})?`,
       ))
     )
       return;
@@ -200,7 +200,7 @@ export default function Payments({ token }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <div>
@@ -225,7 +225,7 @@ export default function Payments({ token }) {
               borderRadius: 8,
               cursor: 'pointer',
               fontWeight: 'bold',
-              fontSize: 13
+              fontSize: 13,
             }}
           >
             + Check In
@@ -243,7 +243,7 @@ export default function Payments({ token }) {
               borderRadius: 8,
               cursor: 'pointer',
               fontWeight: 'bold',
-              fontSize: 13
+              fontSize: 13,
             }}
           >
             + Check Out
@@ -256,7 +256,7 @@ export default function Payments({ token }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 16,
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <SummaryCard label="Total Received" value={fmt(totalReceived)} color={GREEN} />
@@ -460,7 +460,7 @@ export default function Payments({ token }) {
           gap: 12,
           marginBottom: 16,
           flexWrap: 'wrap',
-          alignItems: 'flex-end'
+          alignItems: 'flex-end',
         }}
       >
         <div>
@@ -529,7 +529,7 @@ export default function Payments({ token }) {
               cursor: 'pointer',
               fontSize: 12,
               color: '#888',
-              alignSelf: 'flex-end'
+              alignSelf: 'flex-end',
             }}
           >
             Clear
@@ -540,7 +540,7 @@ export default function Payments({ token }) {
       <div style={{ display: 'flex', gap: 4, borderBottom: '2px solid #eee', marginBottom: 16 }}>
         {[
           ['received', 'Checks Received'],
-          ['made', 'Checks Paid Out']
+          ['made', 'Checks Paid Out'],
         ].map(([v, l]) => (
           <button
             key={v}
@@ -554,7 +554,7 @@ export default function Payments({ token }) {
               fontWeight: tab === v ? 'bold' : 'normal',
               color: tab === v ? BLUE : '#888',
               borderBottom: tab === v ? `2px solid ${BLUE}` : '2px solid transparent',
-              marginBottom: -2
+              marginBottom: -2,
             }}
           >
             {l}
@@ -582,24 +582,24 @@ export default function Payments({ token }) {
                     ''
                   )}
                 </span>
-              )
+              ),
             },
             {
               key: 'job',
               label: 'Job',
-              render: (p) => <span style={{ fontSize: 12 }}>{jobLabel(p)}</span>
+              render: (p) => <span style={{ fontSize: 12 }}>{jobLabel(p)}</span>,
             },
             { key: 'customer_name', label: 'From', render: (p) => p.customer_name || '—' },
             { key: 'check_number', label: 'Check #', render: (p) => p.check_number || '—' },
             {
               key: 'payment_type',
               label: 'Type',
-              render: (p) => <TypeBadge type={p.payment_type} />
+              render: (p) => <TypeBadge type={p.payment_type} />,
             },
             {
               key: 'credit_debit',
               label: 'Cr / Dr',
-              render: (p) => <CrDrBadge value={p.credit_debit} />
+              render: (p) => <CrDrBadge value={p.credit_debit} />,
             },
             {
               key: 'amount',
@@ -610,20 +610,20 @@ export default function Payments({ token }) {
                 >
                   {fmt(p.amount)}
                 </span>
-              )
+              ),
             },
             {
               key: 'recorded_by',
               label: 'Recorded By',
               render: (p) => (
                 <span style={{ fontSize: 11, color: '#888' }}>{p.recorded_by || '—'}</span>
-              )
+              ),
             },
             {
               key: 'notes',
               label: 'Notes',
-              render: (p) => <span style={{ fontSize: 11, color: '#888' }}>{p.notes || ''}</span>
-            }
+              render: (p) => <span style={{ fontSize: 11, color: '#888' }}>{p.notes || ''}</span>,
+            },
           ]}
           onDelete={deleteReceived}
           emptyMsg="No checks received yet."
@@ -646,24 +646,24 @@ export default function Payments({ token }) {
                     ''
                   )}
                 </span>
-              )
+              ),
             },
             {
               key: 'job',
               label: 'Job',
-              render: (p) => <span style={{ fontSize: 12 }}>{jobLabel(p)}</span>
+              render: (p) => <span style={{ fontSize: 12 }}>{jobLabel(p)}</span>,
             },
             { key: 'payee_name', label: 'To', render: (p) => p.payee_name },
             { key: 'check_number', label: 'Check #', render: (p) => p.check_number || '—' },
             {
               key: 'category',
               label: 'Category',
-              render: (p) => <CategoryBadge cat={p.category} />
+              render: (p) => <CategoryBadge cat={p.category} />,
             },
             {
               key: 'credit_debit',
               label: 'Cr / Dr',
-              render: (p) => <CrDrBadge value={p.credit_debit} />
+              render: (p) => <CrDrBadge value={p.credit_debit} />,
             },
             {
               key: 'amount',
@@ -674,20 +674,20 @@ export default function Payments({ token }) {
                 >
                   {fmt(p.amount)}
                 </span>
-              )
+              ),
             },
             {
               key: 'recorded_by',
               label: 'Recorded By',
               render: (p) => (
                 <span style={{ fontSize: 11, color: '#888' }}>{p.recorded_by || '—'}</span>
-              )
+              ),
             },
             {
               key: 'notes',
               label: 'Notes',
-              render: (p) => <span style={{ fontSize: 11, color: '#888' }}>{p.notes || ''}</span>
-            }
+              render: (p) => <span style={{ fontSize: 11, color: '#888' }}>{p.notes || ''}</span>,
+            },
           ]}
           onDelete={deleteMade}
           emptyMsg="No checks paid out yet."
@@ -705,7 +705,7 @@ function SummaryCard({ label, value, color }) {
         borderRadius: 10,
         padding: '16px 20px',
         boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-        borderTop: `3px solid ${color}`
+        borderTop: `3px solid ${color}`,
       }}
     >
       <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{label}</div>
@@ -723,7 +723,7 @@ function PaymentForm({ title, color, onCancel, onSubmit, saving, children }) {
         padding: 20,
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
         marginBottom: 20,
-        borderTop: `3px solid ${color}`
+        borderTop: `3px solid ${color}`,
       }}
     >
       <h3 style={{ color, margin: '0 0 16px', fontSize: 14 }}>{title}</h3>
@@ -740,7 +740,7 @@ function PaymentForm({ title, color, onCancel, onSubmit, saving, children }) {
             borderRadius: 6,
             cursor: 'pointer',
             fontWeight: 'bold',
-            fontSize: 13
+            fontSize: 13,
           }}
         >
           {saving ? 'Saving...' : 'Save Payment'}
@@ -754,7 +754,7 @@ function PaymentForm({ title, color, onCancel, onSubmit, saving, children }) {
             borderRadius: 6,
             cursor: 'pointer',
             fontSize: 13,
-            color: '#888'
+            color: '#888',
           }}
         >
           Cancel
@@ -771,7 +771,7 @@ function FormGrid({ children }) {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
         gap: 12,
-        marginBottom: 12
+        marginBottom: 12,
       }}
     >
       {children}
@@ -812,7 +812,7 @@ function PaymentTable({ payments, columns, onDelete, emptyMsg }) {
           borderRadius: 10,
           padding: 48,
           textAlign: 'center',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
         }}
       >
         <div style={{ fontSize: 36, marginBottom: 12 }}>💳</div>
@@ -826,7 +826,7 @@ function PaymentTable({ payments, columns, onDelete, emptyMsg }) {
         background: 'white',
         borderRadius: 10,
         boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-        overflow: 'auto'
+        overflow: 'auto',
       }}
     >
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -843,7 +843,7 @@ function PaymentTable({ payments, columns, onDelete, emptyMsg }) {
                   fontWeight: 'bold',
                   textTransform: 'uppercase',
                   letterSpacing: '.4px',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {c.label}
@@ -870,7 +870,7 @@ function PaymentTable({ payments, columns, onDelete, emptyMsg }) {
                     border: '1px solid #ff000022',
                     borderRadius: 5,
                     cursor: 'pointer',
-                    fontSize: 11
+                    fontSize: 11,
                   }}
                 >
                   Delete
@@ -895,7 +895,7 @@ function TypeBadge({ type }) {
         borderRadius: 10,
         background: color + '22',
         color,
-        fontWeight: 'bold'
+        fontWeight: 'bold',
       }}
     >
       {type?.charAt(0).toUpperCase() + type?.slice(1)}
@@ -914,7 +914,7 @@ function CategoryBadge({ cat }) {
         borderRadius: 10,
         background: color + '22',
         color,
-        fontWeight: 'bold'
+        fontWeight: 'bold',
       }}
     >
       {cat?.charAt(0).toUpperCase() + cat?.slice(1)}
@@ -932,7 +932,7 @@ function CrDrBadge({ value }) {
         borderRadius: 10,
         background: isCredit ? '#2E7D3222' : '#C6282822',
         color: isCredit ? '#2E7D32' : '#C62828',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
       }}
     >
       {isCredit ? 'CR' : 'DR'}
@@ -946,5 +946,5 @@ const inputStyle = {
   border: '1.5px solid #C8D4E4',
   borderRadius: 6,
   fontSize: 13,
-  boxSizing: 'border-box'
+  boxSizing: 'border-box',
 };

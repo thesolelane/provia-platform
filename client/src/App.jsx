@@ -41,7 +41,7 @@ function App() {
     if (currentToken) {
       fetch('/api/auth/logout', {
         method: 'POST',
-        headers: { 'x-auth-token': currentToken }
+        headers: { 'x-auth-token': currentToken },
       }).catch(() => {});
     }
     localStorage.removeItem('pb_token');
@@ -73,7 +73,7 @@ function App() {
     const validate = async () => {
       try {
         const res = await fetch('/api/auth/validate', {
-          headers: { 'x-auth-token': token }
+          headers: { 'x-auth-token': token },
         });
         if (res.status === 401) handleLogout();
       } catch {}

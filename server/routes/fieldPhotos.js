@@ -12,7 +12,7 @@ const ALLOWED_MIMES = [
   'image/gif',
   'image/webp',
   'image/heic',
-  'image/heif'
+  'image/heif',
 ];
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
 
@@ -55,7 +55,7 @@ router.post('/', requireAuth, (req, res) => {
           `
         INSERT INTO field_photos (filename, original_name, taken_at, lat, lon, location_label, accuracy, uploaded_by, job_id, lead_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `
+      `,
         )
         .run(
           filename,
@@ -67,7 +67,7 @@ router.post('/', requireAuth, (req, res) => {
           accuracy,
           uploaded_by,
           job_id,
-          lead_id
+          lead_id,
         );
 
       res.json({
@@ -81,7 +81,7 @@ router.post('/', requireAuth, (req, res) => {
         accuracy,
         job_id,
         lead_id,
-        uploaded_by
+        uploaded_by,
       });
     });
   } catch (err) {
@@ -143,7 +143,7 @@ router.patch('/:id/assign', requireAuth, (req, res) => {
 
       db.prepare('UPDATE field_photos SET job_id = ?, lead_id = NULL WHERE id = ?').run(
         job_id,
-        req.params.id
+        req.params.id,
       );
 
       const jobDir = path.resolve(__dirname, '../../uploads/jobs', job_id);
@@ -153,7 +153,7 @@ router.patch('/:id/assign', requireAuth, (req, res) => {
       if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) fs.copyFileSync(srcPath, destPath);
 
       db.prepare(
-        `INSERT OR IGNORE INTO job_photos (job_id, filename, original_name, caption) VALUES (?, ?, ?, '')`
+        `INSERT OR IGNORE INTO job_photos (job_id, filename, original_name, caption) VALUES (?, ?, ?, '')`,
       ).run(job_id, photo.filename, photo.original_name || photo.filename);
 
       return res.json({ ok: true, job_id, lead_id: null });
@@ -165,14 +165,14 @@ router.patch('/:id/assign', requireAuth, (req, res) => {
       if (!lead) return res.status(404).json({ error: 'Lead not found' });
       db.prepare('UPDATE field_photos SET lead_id = ?, job_id = NULL WHERE id = ?').run(
         parseInt(lead_id, 10),
-        req.params.id
+        req.params.id,
       );
       return res.json({ ok: true, lead_id: parseInt(lead_id, 10), job_id: null });
     }
 
     // Clear assignment (null both)
     db.prepare('UPDATE field_photos SET job_id = NULL, lead_id = NULL WHERE id = ?').run(
-      req.params.id
+      req.params.id,
     );
     res.json({ ok: true, job_id: null, lead_id: null });
   } catch (err) {

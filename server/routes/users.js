@@ -7,7 +7,7 @@ const {
   requireFields,
   validateEmail,
   validateEnum,
-  validateMinLength
+  validateMinLength,
 } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 
@@ -23,7 +23,7 @@ const safe = (u) => ({
   phone: u.phone || '',
   language: u.language || 'en',
   active: u.active !== 0,
-  created_at: u.created_at
+  created_at: u.created_at,
 });
 
 router.get('/', requireAuth, (req, res) => {
@@ -50,7 +50,7 @@ router.post(
     try {
       const result = db
         .prepare(
-          'INSERT INTO users (name, email, password_hash, role, title, phone, language, active) VALUES (?,?,?,?,?,?,?,1)'
+          'INSERT INTO users (name, email, password_hash, role, title, phone, language, active) VALUES (?,?,?,?,?,?,?,1)',
         )
         .run(
           name,
@@ -59,7 +59,7 @@ router.post(
           role,
           title || 'Team Member',
           phone || '',
-          language || 'en'
+          language || 'en',
         );
       const created = db.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
       res.json(safe(created));
@@ -68,7 +68,7 @@ router.post(
         return res.status(409).json({ error: 'Email already exists' });
       throw e;
     }
-  }
+  },
 );
 
 router.put(
@@ -94,10 +94,10 @@ router.put(
       phone: phone !== undefined ? phone : target.phone || '',
       language: language !== undefined ? language : target.language || 'en',
       active: active !== undefined ? (active ? 1 : 0) : target.active !== 0 ? 1 : 0,
-      role: role !== undefined ? role : target.role
+      role: role !== undefined ? role : target.role,
     };
     db.prepare(
-      'UPDATE users SET name=?, title=?, phone=?, language=?, active=?, role=? WHERE id=?'
+      'UPDATE users SET name=?, title=?, phone=?, language=?, active=?, role=? WHERE id=?',
     ).run(
       updated.name,
       updated.title,
@@ -105,11 +105,11 @@ router.put(
       updated.language,
       updated.active,
       updated.role,
-      target.id
+      target.id,
     );
     const refreshed = db.prepare('SELECT * FROM users WHERE id = ?').get(target.id);
     res.json(safe(refreshed));
-  }
+  },
 );
 
 router.put(
@@ -133,7 +133,7 @@ router.put(
     const hash = bcrypt.hashSync(newPassword, 10);
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, target.id);
     res.json({ ok: true });
-  }
+  },
 );
 
 router.delete('/:id', requireAuth, (req, res) => {

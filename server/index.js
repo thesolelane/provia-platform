@@ -41,8 +41,8 @@ app.use(
     crossOriginEmbedderPolicy: false, // required for Puppeteer/PDF generation
     crossOriginOpenerPolicy: false, // required for Replit preview iframe
     crossOriginResourcePolicy: false, // required for Replit preview iframe
-    frameguard: false // allow Replit preview iframe (removes X-Frame-Options)
-  })
+    frameguard: false, // allow Replit preview iframe (removes X-Frame-Options)
+  }),
 );
 app.use(cors({ origin: process.env.NODE_ENV === 'production' ? false : '*' }));
 // Capture raw body for agent M2M routes (needed for HMAC signature verification).
@@ -55,7 +55,7 @@ app.use(
     limit: '1mb',
     verify: (req, _res, buf) => {
       req.rawBody = buf.toString('utf8');
-    }
+    },
   }),
   (req, res, next) => {
     // Parse JSON body from rawBody for convenience on endpoints that need it
@@ -67,7 +67,7 @@ app.use(
       }
     }
     next();
-  }
+  },
 );
 
 app.use(express.json({ limit: '50mb' }));
@@ -100,7 +100,7 @@ app.get('/outputs/:filename', (req, res) => {
     const db = getDb();
     const session = db
       .prepare(
-        "SELECT id, status, email_sent_at, created_at FROM signing_sessions WHERE token = ? AND status != 'void'"
+        "SELECT id, status, email_sent_at, created_at FROM signing_sessions WHERE token = ? AND status != 'void'",
       )
       .get(signToken);
     if (session) {
@@ -150,7 +150,7 @@ const apiLimiter = rateLimit({
   message: { error: 'Too many requests. Please slow down.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === '/health' // don't limit keep-alive pings
+  skip: (req) => req.path === '/health', // don't limit keep-alive pings
 });
 app.use('/api/', apiLimiter);
 
@@ -160,7 +160,7 @@ const loginLimiter = rateLimit({
   max: 10,
   message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 app.use('/api/auth/login', loginLimiter);
 
@@ -170,7 +170,7 @@ const webhookLimiter = rateLimit({
   max: 60,
   message: { error: 'Webhook rate limit exceeded.' },
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
 });
 app.use('/webhook/', webhookLimiter);
 
@@ -181,7 +181,7 @@ app.get('/api/blank-contract', requireAuth, async (req, res) => {
     const buffer = await generateBlankContractDocx();
     res.setHeader(
       'Content-Type',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     );
     res.setHeader('Content-Disposition', 'attachment; filename="PB_Contract_Template_BLANK.docx"');
     res.send(buffer);
@@ -270,7 +270,7 @@ function listenWithRetry(port, maxRetries = 5, delayMs = 2000) {
         if (err.code === 'EADDRINUSE' && attempts < maxRetries) {
           attempts++;
           console.log(
-            `Port ${port} in use, retrying in ${delayMs}ms (attempt ${attempts}/${maxRetries})...`
+            `Port ${port} in use, retrying in ${delayMs}ms (attempt ${attempts}/${maxRetries})...`,
           );
           setTimeout(attempt, delayMs);
         } else {

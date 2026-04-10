@@ -49,7 +49,7 @@ router.get('/jobs', requireAgent, (req, res) => {
     .prepare(
       `SELECT id, customer_name, project_address, project_city, project_state,
             scope_summary, status, total_value, created_at, updated_at
-     FROM jobs WHERE archived = 0 ORDER BY created_at DESC LIMIT 100`
+     FROM jobs WHERE archived = 0 ORDER BY created_at DESC LIMIT 100`,
     )
     .all();
   logAudit(null, 'agent_list_jobs', `Agent listed jobs`, req.agent.name);
@@ -76,7 +76,7 @@ router.get('/tasks', requireAgent, (req, res) => {
   const tasks = db
     .prepare(
       `SELECT id, title, description, due_at, job_id, contact_id, status, priority, calendar_url, created_at, updated_at
-     FROM tasks ORDER BY CASE WHEN due_at IS NULL THEN 1 ELSE 0 END, due_at ASC, created_at DESC`
+     FROM tasks ORDER BY CASE WHEN due_at IS NULL THEN 1 ELSE 0 END, due_at ASC, created_at DESC`,
     )
     .all();
   logAudit(null, 'agent_list_tasks', `Agent listed tasks`, req.agent.name);
@@ -94,7 +94,7 @@ router.post('/tasks', requireAgent, (req, res) => {
   const info = db
     .prepare(
       `INSERT INTO tasks (title, description, due_at, job_id, contact_id, priority)
-     VALUES (?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?)`,
     )
     .run(
       title.trim(),
@@ -102,7 +102,7 @@ router.post('/tasks', requireAgent, (req, res) => {
       due_at || null,
       job_id || null,
       contact_id || null,
-      priority || 'normal'
+      priority || 'normal',
     );
 
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
@@ -110,7 +110,7 @@ router.post('/tasks', requireAgent, (req, res) => {
     job_id || null,
     'agent_task_created',
     `Agent created task: ${task.title}`,
-    req.agent.name
+    req.agent.name,
   );
   notifyClients('agent_task', { task, agentName: req.agent.name });
   res.json({ ok: true, task });
@@ -131,7 +131,7 @@ router.post('/message', requireAgent, (req, res) => {
     null,
     'agent_message_inbound',
     `Agent message: ${message.slice(0, 200)}`,
-    req.agent.name
+    req.agent.name,
   );
 
   notifyAgentClients('agent_message', {
@@ -140,7 +140,7 @@ router.post('/message', requireAgent, (req, res) => {
     agentName: req.agent.name,
     direction: 'inbound',
     message,
-    created_at: new Date().toISOString()
+    created_at: new Date().toISOString(),
   });
 
   res.json({ ok: true, id: result.lastInsertRowid });
@@ -162,7 +162,7 @@ router.get('/', requireAuth, requireRole('admin', 'pm', 'system_admin'), (req, r
                 THEN 1 ELSE 0 END AS online
     FROM agent_keys
     ORDER BY id ASC
-  `
+  `,
     )
     .all();
 
@@ -177,7 +177,7 @@ router.get('/:id/messages', requireAuth, requireRole('admin', 'pm', 'system_admi
 
   const messages = db
     .prepare(
-      'SELECT id, direction, message, created_at FROM agent_messages WHERE agent_id = ? ORDER BY created_at ASC'
+      'SELECT id, direction, message, created_at FROM agent_messages WHERE agent_id = ? ORDER BY created_at ASC',
     )
     .all(agent.id);
 
@@ -201,7 +201,7 @@ router.post(
     // Store in DB as outbound
     const result = db
       .prepare(
-        "INSERT INTO agent_messages (agent_id, direction, message) VALUES (?, 'outbound', ?)"
+        "INSERT INTO agent_messages (agent_id, direction, message) VALUES (?, 'outbound', ?)",
       )
       .run(agent.id, message.slice(0, 10000));
 
@@ -211,14 +211,14 @@ router.post(
       agentName: agent.name,
       direction: 'outbound',
       message,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
     logAudit(
       null,
       'agent_message_outbound',
       `Admin → ${agent.name}: ${message.slice(0, 200)}`,
-      req.session?.name || 'admin'
+      req.session?.name || 'admin',
     );
 
     // If the agent has a callback URL, post the message signed with the agent's secret
@@ -234,10 +234,10 @@ router.post(
             headers: {
               'Content-Type': 'application/json',
               'x-timestamp': timestamp,
-              'x-signature': sig
+              'x-signature': sig,
             },
             body: bodyStr,
-            signal: controller.signal
+            signal: controller.signal,
           });
         } finally {
           clearTimeout(timer);
@@ -249,7 +249,7 @@ router.post(
 
     notifyAgentClients('agent_message', msgRow);
     res.json({ ok: true, message: msgRow });
-  }
+  },
 );
 
 // GET /api/agents/events — SSE stream for live agent messages

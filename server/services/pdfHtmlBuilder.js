@@ -105,7 +105,7 @@ function buildProposalHTML(data) {
       name: 'Dumpster & Debris Removal',
       reason:
         'Not included in this contract. Customer is responsible for all debris removal and disposal.',
-      budget: 'Approx. $600–$1,500 depending on volume'
+      budget: 'Approx. $600–$1,500 depending on volume',
     });
   }
   const fmt = (n) => (n ? `$${Number(n).toLocaleString()}` : '$0');
@@ -270,7 +270,7 @@ function buildExclusionsHTML(exclusions) {
       <td><strong>${item.name || ''}</strong></td>
       <td>${item.reason || '—'}</td>
       <td>${item.budget || '—'}</td>
-    </tr>`
+    </tr>`,
       )
       .join('')}
   </table>`;
@@ -336,7 +336,7 @@ function buildPermitChecklistHTML(data) {
     <tr>
       <td>${item}</td>
       <td style="color:#2E7D32;font-weight:bold;">✓ Included</td>
-    </tr>`
+    </tr>`,
       )
       .join('')}
   </table>`;
@@ -349,7 +349,7 @@ function buildCostSummaryHTML(lineItems, pricing, data, fmt) {
     <tr>
       <td>${item.trade}</td>
       <td style="text-align:right;">${fmt(item.finalPrice)}</td>
-    </tr>`
+    </tr>`,
     )
     .join('');
 
@@ -378,7 +378,7 @@ function buildResponsibilitiesHTML() {
     'Submit all material selections no later than framing completion',
     'Provide written approval for any change orders before work begins',
     'Obtain any required easements or property line clearances',
-    'Be available for walkthroughs and milestone inspections when scheduled'
+    'Be available for walkthroughs and milestone inspections when scheduled',
   ];
   return `
   <ul class="check-list">
@@ -567,7 +567,7 @@ function buildNoticeOfContractHTML({
   total,
   lineItems,
   fmt,
-  county = 'Worcester'
+  county = 'Worcester',
 }) {
   const workDescription =
     lineItems.map((i) => i.trade).join('; ') || 'General construction and home improvement work';
@@ -755,5 +755,5 @@ module.exports = {
   buildResponsibilitiesHTML,
   buildSignatureHTML,
   buildExhibitAHTML,
-  buildNoticeOfContractHTML
+  buildNoticeOfContractHTML,
 };

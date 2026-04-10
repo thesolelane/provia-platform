@@ -22,7 +22,7 @@ const {
   saveReviewPending,
   generatePBNumber,
   generateQuoteNumber,
-  extractExternalRef
+  extractExternalRef,
 } = require('../services/jobHelpers');
 
 // Helper: convert HEIC/HEIF buffer to JPEG buffer
@@ -80,22 +80,31 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
           extractedParts.push(`[From PDF: ${file.name}]\n${text}`);
         }
       } else if (file.mimetype.startsWith('image/')) {
-        const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        const SUPPORTED_IMAGE_TYPES = [
+          'image/jpeg',
+          'image/jpg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+        ];
         if (isHeicMime(file.mimetype)) {
           try {
             fileBuffer = Buffer.from(await convertHeicToJpeg(fileBuffer));
           } catch (heicErr) {
             extractedParts.push(
-              `[Could not convert HEIC image "${file.name}" — please try a JPG or PNG export]`
+              `[Could not convert HEIC image "${file.name}" — please try a JPG or PNG export]`,
             );
             continue;
           }
         } else if (!SUPPORTED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())) {
           extractedParts.push(
-            `[Unsupported image format "${file.mimetype}" for ${file.name} — please convert to JPG or PNG and re-upload]`
+            `[Unsupported image format "${file.mimetype}" for ${file.name} — please convert to JPG or PNG and re-upload]`,
           );
         }
-        if (isHeicMime(file.mimetype) || SUPPORTED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())) {
+        if (
+          isHeicMime(file.mimetype) ||
+          SUPPORTED_IMAGE_TYPES.includes(file.mimetype.toLowerCase())
+        ) {
           const base64 = fileBuffer.toString('base64');
           const imgMime = isHeicMime(file.mimetype)
             ? 'image/jpeg'
@@ -112,7 +121,7 @@ router.post('/extract-from-files', requireAuth, async (req, res) => {
                 content: [
                   {
                     type: 'image',
-                    source: { type: 'base64', media_type: imgMime, data: base64 }
+                    source: { type: 'base64', media_type: imgMime, data: base64 },
                   },
                   {
                     type: 'text',
@@ -128,11 +137,11 @@ Extract ALL technically relevant information:
 - Any scope notes or annotations written on the plans
 - Quantities and specifications if labeled
 
-Format as a clear, detailed construction scope description. Include the project address at the very top if found, labeled "PROJECT ADDRESS: [address]". Do NOT include owner/client personal information (names, phone numbers, email). Focus on the technical scope.`
-                  }
-                ]
-              }
-            ]
+Format as a clear, detailed construction scope description. Include the project address at the very top if found, labeled "PROJECT ADDRESS: [address]". Do NOT include owner/client personal information (names, phone numbers, email). Focus on the technical scope.`,
+                  },
+                ],
+              },
+            ],
           });
           const extracted = response.content[0].text.trim();
           if (extracted.length > 10) {
@@ -166,9 +175,9 @@ Format as a clear, detailed construction scope description. Include the project 
       messages: [
         {
           role: 'user',
-          content: `From the following construction document text, extract the PROJECT ADDRESS (job site address, not the owner's mailing address). Return ONLY a JSON object like: {"street":"123 Main St","city":"Boston","state":"MA","zip":"02101"} — or {"street":""} if no address is found. No explanation, just JSON.\n\n${allExtractedText.slice(0, 3000)}`
-        }
-      ]
+          content: `From the following construction document text, extract the PROJECT ADDRESS (job site address, not the owner's mailing address). Return ONLY a JSON object like: {"street":"123 Main St","city":"Boston","state":"MA","zip":"02101"} — or {"street":""} if no address is found. No explanation, just JSON.\n\n${allExtractedText.slice(0, 3000)}`,
+        },
+      ],
     });
     const raw = addrRes.content[0].text
       .trim()
@@ -186,7 +195,7 @@ Format as a clear, detailed construction scope description. Include the project 
     extractedText: allExtractedText,
     extractedAddress,
     tempId,
-    savedFiles
+    savedFiles,
   });
 });
 
@@ -203,7 +212,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     customerName = '',
     customerEmail = '',
     customerPhone = '',
-    projectAddress = ''
+    projectAddress = '',
   } = req.body;
 
   const rawFiles = req.files.estimate;
@@ -230,7 +239,8 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
         let fileBuffer = file.tempFilePath
           ? require('fs').readFileSync(file.tempFilePath)
           : file.data;
-        let imgMime = file.mimetype.toLowerCase() === 'image/jpg' ? 'image/jpeg' : file.mimetype.toLowerCase();
+        let imgMime =
+          file.mimetype.toLowerCase() === 'image/jpg' ? 'image/jpeg' : file.mimetype.toLowerCase();
         if (isHeicMime(imgMime)) {
           try {
             fileBuffer = Buffer.from(await convertHeicToJpeg(fileBuffer));
@@ -255,15 +265,15 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
               content: [
                 {
                   type: 'image',
-                  source: { type: 'base64', media_type: imgMime, data: base64 }
+                  source: { type: 'base64', media_type: imgMime, data: base64 },
                 },
                 {
                   type: 'text',
-                  text: 'This is a construction estimate or invoice image. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names, and project address (for jurisdiction). Do NOT include or repeat any customer personal information such as names, email addresses, or phone numbers — omit those entirely. Format as plain text.'
-                }
-              ]
-            }
-          ]
+                  text: 'This is a construction estimate or invoice image. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names, and project address (for jurisdiction). Do NOT include or repeat any customer personal information such as names, email addresses, or phone numbers — omit those entirely. Format as plain text.',
+                },
+              ],
+            },
+          ],
         });
         const extracted = response.content[0].text.trim();
         if (extracted.length > 10) {
@@ -297,7 +307,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
         phone: customerPhone,
         address: projectAddress,
         city: '',
-        state: 'MA'
+        state: 'MA',
       });
     } catch (e) {
       console.warn('[Upload] Contact upsert failed:', e.message);
@@ -313,7 +323,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
   const uploadedBy = req.session?.name ? `web:${req.session.name}` : 'web:upload';
   db.prepare(
     `INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
-    VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)`
+    VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)`,
   ).run(
     jobId,
     customerName,
@@ -322,7 +332,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     projectAddress,
     fullEstimate,
     uploadedBy,
-    contactRef?.id || null
+    contactRef?.id || null,
   );
 
   try {
@@ -330,7 +340,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     const extRef = extractExternalRef(rawText);
     const qNum = generateQuoteNumber(db);
     db.prepare(
-      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
+      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?',
     ).run(pbNum, extRef, qNum, jobId);
   } catch (e) {
     console.warn('[Upload] PB/Quote number generation failed:', e.message);
@@ -342,13 +352,17 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
       job_id: jobId,
       event_type: 'ESTIMATE_CREATED',
       description: `Estimate created via file upload (${fileCount} file${fileCount > 1 ? 's' : ''}) for ${projectAddress || customerName}`,
-      recorded_by: req.session?.name || 'web:upload'
+      recorded_by: req.session?.name || 'web:upload',
     });
   } catch (e) {
     console.warn('[Upload] logActivity failed:', e.message);
   }
 
-  res.json({ jobId, status: 'received', message: `${fileCount > 1 ? fileCount + ' files' : 'File'} uploaded. Processing estimate...` });
+  res.json({
+    jobId,
+    status: 'received',
+    message: `${fileCount > 1 ? fileCount + ' files' : 'File'} uploaded. Processing estimate...`,
+  });
 
   // Background property enrichment (non-blocking)
   if (projectAddress) {
@@ -361,12 +375,12 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     try {
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
         'processing',
-        jobId
+        jobId,
       );
       const { context: priorCtx } = findPriorQuoteContext(db, {
         rawText: sanitizedText,
         contactId: contactRef?.id,
-        projectAddress
+        projectAddress,
       });
       const proposalData = await processEstimate(
         fullEstimate,
@@ -374,14 +388,14 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
         'en',
         db,
         projectAddress,
-        priorCtx
+        priorCtx,
       );
       mergeContactIntoProposal(db, jobId, proposalData);
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         finalizeJobVersioning(db, jobId, proposalData);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
           'clarification',
-          jobId
+          jobId,
         );
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
@@ -389,7 +403,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
           jobId,
           'upload_estimate_clarification',
           `${proposalData.clarificationsNeeded.length} questions needed`,
-          'admin'
+          'admin',
         );
       } else {
         finalizeJobVersioning(db, jobId, proposalData);
@@ -401,7 +415,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
             versionNumber: proposalData.quoteVersion || 1,
             totalValue: proposalData.totalValue,
             lineItems: proposalData.lineItems,
-            scopeSummary: (proposalData.project?.description || '').slice(0, 300)
+            scopeSummary: (proposalData.project?.description || '').slice(0, 300),
           });
         } catch (memErr) {
           console.warn('[JobMemory] saveVersion failed:', memErr.message);
@@ -410,7 +424,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
           jobId,
           'upload_estimate_processed',
           `Proposal ready. Total: $${proposalData.totalValue}`,
-          'admin'
+          'admin',
         );
         tickQuoteCounter(db);
         notifyClients('job_updated', { jobId, status: 'proposal_ready' });
@@ -420,7 +434,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
             : `whatsapp:${process.env.OWNER_WHATSAPP}`;
           await sendWhatsApp(
             ownerTo,
-            `📋 Upload job ready for review.\nCustomer: *${proposalData.customer?.name || 'Unknown'}*\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review line items.`
+            `📋 Upload job ready for review.\nCustomer: *${proposalData.customer?.name || 'Unknown'}*\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review line items.`,
           );
         }
       }
@@ -428,7 +442,7 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
       console.error(`[Upload Job ${jobId}] ERROR:`, err.message);
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
         'error',
-        jobId
+        jobId,
       );
     }
   })();
@@ -455,7 +469,7 @@ router.post(
           phone: customerPhone,
           address: projectAddress,
           city: '',
-          state: 'MA'
+          state: 'MA',
         });
       } catch (e) {
         console.warn('[Manual Job] Contact upsert failed:', e.message);
@@ -467,7 +481,7 @@ router.post(
       `
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
-  `
+  `,
     ).run(
       jobId,
       customerName,
@@ -476,7 +490,7 @@ router.post(
       projectAddress,
       estimateText,
       manualBy,
-      contactRef?.id || null
+      contactRef?.id || null,
     );
 
     try {
@@ -484,7 +498,7 @@ router.post(
       const extRef = extractExternalRef(estimateText);
       const qNum = generateQuoteNumber(db);
       db.prepare(
-        'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
+        'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?',
       ).run(pbNum, extRef, qNum, jobId);
     } catch (e) {
       console.warn('[Manual] PB/Quote number generation failed:', e.message);
@@ -498,7 +512,7 @@ router.post(
         job_id: jobId,
         event_type: 'ESTIMATE_CREATED',
         description: `New estimate created for ${customerName || 'unknown customer'} at ${projectAddress || 'unknown address'}`,
-        recorded_by: req.session?.name || 'staff'
+        recorded_by: req.session?.name || 'staff',
       });
     } catch {
       /* ignore */
@@ -516,7 +530,7 @@ router.post(
         console.log(`[Manual Job ${jobId}] Starting Claude processEstimate...`);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
           'processing',
-          jobId
+          jobId,
         );
 
         const sanitizedScope = stripPII(estimateText);
@@ -526,7 +540,7 @@ router.post(
         const { context: priorCtx } = findPriorQuoteContext(db, {
           rawText: sanitizedScope,
           contactId: contactRef?.id,
-          projectAddress
+          projectAddress,
         });
         const proposalData = await processEstimate(
           fullEstimate,
@@ -534,11 +548,11 @@ router.post(
           'en',
           db,
           projectAddress,
-          priorCtx
+          priorCtx,
         );
         mergeContactIntoProposal(db, jobId, proposalData);
         console.log(
-          `[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`
+          `[Manual Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`,
         );
 
         if (
@@ -548,14 +562,14 @@ router.post(
           finalizeJobVersioning(db, jobId, proposalData);
           db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
             'clarification',
-            jobId
+            jobId,
           );
           const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
           for (const q of proposalData.clarificationsNeeded) {
             insertQ.run(jobId, q);
           }
           console.log(
-            `[Manual Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`
+            `[Manual Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`,
           );
 
           const ownerWhatsApp = process.env.OWNER_WHATSAPP;
@@ -567,7 +581,7 @@ router.post(
             const total = proposalData.clarificationsNeeded.length;
             await sendWhatsApp(
               to,
-              `Hey! 👋 I'm working on the estimate for *${customerName}* at ${projectAddress} but I'm missing a few details.\n\nI'll ask you one question at a time — just reply and I'll move to the next one.\n\n❓ Question 1 of ${total}:\n${firstQ}`
+              `Hey! 👋 I'm working on the estimate for *${customerName}* at ${projectAddress} but I'm missing a few details.\n\nI'll ask you one question at a time — just reply and I'll move to the next one.\n\n❓ Question 1 of ${total}:\n${firstQ}`,
             );
           }
         } else {
@@ -575,7 +589,7 @@ router.post(
           saveReviewPending(db, proposalData, jobId);
           logAudit(jobId, 'manual_estimate_processed', `Manual entry — pending review`, 'admin');
           console.log(
-            `[Manual Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`
+            `[Manual Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`,
           );
           tickQuoteCounter(db);
           notifyClients('job_updated', { jobId, status: 'review_pending' });
@@ -584,11 +598,11 @@ router.post(
         console.error(`[Manual Job ${jobId}] ERROR:`, err.message, err.stack);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
           'error',
-          jobId
+          jobId,
         );
       }
     })();
-  }
+  },
 );
 
 // POST answer a clarification question
@@ -598,7 +612,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
   if (!answer) return res.status(400).json({ error: 'Answer is required' });
 
   db.prepare(
-    'UPDATE clarifications SET answer = ?, answered_at = CURRENT_TIMESTAMP WHERE id = ? AND job_id = ?'
+    'UPDATE clarifications SET answer = ?, answered_at = CURRENT_TIMESTAMP WHERE id = ? AND job_id = ?',
   ).run(answer, req.params.clarId, req.params.id);
 
   const remaining = db
@@ -609,7 +623,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
     res.json({
       success: true,
       allAnswered: true,
-      message: 'All questions answered. Generating proposal...'
+      message: 'All questions answered. Generating proposal...',
     });
 
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(req.params.id);
@@ -619,7 +633,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
           console.log(`[Job ${job.id}] All clarifications answered. Generating proposal...`);
           db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
             'processing',
-            job.id
+            job.id,
           );
 
           const allAnswers = db
@@ -634,7 +648,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
           const { context: priorCtx } = findPriorQuoteContext(db, {
             rawText: rawEstimate,
             contactId: job.contact_id,
-            projectAddress: job.project_address
+            projectAddress: job.project_address,
           });
           const proposalData = await processEstimate(
             `${rawEstimate}\n\nCLARIFICATION ANSWERS:\n${answersText}`,
@@ -642,7 +656,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
             'en',
             db,
             job.project_address || null,
-            priorCtx
+            priorCtx,
           );
           mergeContactIntoProposal(db, job.id, proposalData);
 
@@ -657,7 +671,7 @@ router.post('/:id/clarify/:clarId', requireAuth, async (req, res) => {
           console.error(`[Job ${job.id}] Proposal generation error:`, err.message);
           db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
             'error',
-            job.id
+            job.id,
           );
         }
       })();
@@ -679,7 +693,7 @@ router.patch(
     if (!job.proposal_data)
       return res.status(400).json({
         error:
-          'No editable estimate data found. This estimate was revised but has no stored line items — use the AI to regenerate the estimate from the original scope.'
+          'No editable estimate data found. This estimate was revised but has no stored line items — use the AI to regenerate the estimate from the original scope.',
       });
 
     const { lineItems } = req.body;
@@ -724,11 +738,11 @@ router.patch(
       baseCost: Math.max(0, Number(li.baseCost) || 0),
       finalPrice: li.isStretchCode
         ? Math.max(0, Number(li.baseCost))
-        : Math.round(Math.max(0, Number(li.baseCost) || 0) * multiplier)
+        : Math.round(Math.max(0, Number(li.baseCost) || 0) * multiplier),
     }));
 
     const dumpsterItem = updatedItems.find((i) =>
-      /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || '')
+      /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || ''),
     );
     const dumpsterExplicitlyExcluded = dumpsterItem && (Number(dumpsterItem.baseCost) || 0) === 0;
     const hasDumpster = !!dumpsterItem && !dumpsterExplicitlyExcluded;
@@ -754,7 +768,7 @@ router.patch(
         description: 'Dumpster rental and debris disposal for project duration.',
         scopeIncluded: ['Dumpster rental', 'Debris hauling and disposal'],
         scopeExcluded: ['Hazardous material disposal'],
-        autoAdded: true
+        autoAdded: true,
       });
     }
 
@@ -771,24 +785,24 @@ router.patch(
       depositPercent: Math.round(deposit * 100),
       depositAmount,
       appliedRates: { subOandP, gcOandP, contingency },
-      dumpsterExcluded: dumpsterExplicitlyExcluded || false
+      dumpsterExcluded: dumpsterExplicitlyExcluded || false,
     };
     proposalData.totalValue = total;
     proposalData.depositAmount = depositAmount;
 
     db.prepare(
-      'UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      'UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     ).run(JSON.stringify(proposalData), total, depositAmount, job.id);
 
     logAudit(
       job.id,
       'line_items_edited',
       `Line items edited by ${editor}. Total changed from $${prevTotal.toLocaleString()} → $${total.toLocaleString()}`,
-      editor
+      editor,
     );
 
     res.json({ success: true, total, depositAmount, lineItems: updatedItems });
-  }
+  },
 );
 
 // POST /:id/generate-proposal — generate PDF from stored (possibly edited) proposal_data
@@ -803,7 +817,7 @@ router.post(
     if (!job.proposal_data)
       return res.status(400).json({
         error:
-          'No estimate data to generate from. Edit and save line items first, or reprocess the job to regenerate from the original scope.'
+          'No estimate data to generate from. Edit and save line items first, or reprocess the job to regenerate from the original scope.',
       });
 
     try {
@@ -815,7 +829,7 @@ router.post(
         job.id,
         'proposal_generated',
         'Proposal PDF generated after line item review',
-        req.session?.name || 'admin'
+        req.session?.name || 'admin',
       );
       notifyClients('job_updated', { jobId: job.id, status: 'proposal_ready' });
       res.json({ success: true, pdfPath: `/outputs/${require('path').basename(pdfPath)}` });
@@ -823,7 +837,7 @@ router.post(
       console.error('[generate-proposal] Error:', err.message);
       res.status(500).json({ error: 'Failed to generate proposal: ' + err.message });
     }
-  }
+  },
 );
 
 // POST manually mark proposal as approved (in-person/verbal approval)
@@ -838,16 +852,16 @@ router.post(
     if (!job.proposal_data) return res.status(400).json({ error: 'No proposal to approve' });
     db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
       'proposal_approved',
-      job.id
+      job.id,
     );
     logAudit(
       job.id,
       'proposal_approved',
       'Proposal manually approved via admin panel',
-      req.session?.name || 'admin'
+      req.session?.name || 'admin',
     );
     res.json({ success: true, message: 'Proposal marked as approved' });
-  }
+  },
 );
 
 // POST mark proposal as rejected by customer — resets to review_pending for revision
@@ -861,13 +875,13 @@ router.post(
     if (!job) return res.status(404).json({ error: 'Job not found' });
     if (!['proposal_ready', 'proposal_sent'].includes(job.status)) {
       return res.status(400).json({
-        error: 'Can only reject a proposal that is in proposal_ready or proposal_sent status'
+        error: 'Can only reject a proposal that is in proposal_ready or proposal_sent status',
       });
     }
 
     db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
       'review_pending',
-      job.id
+      job.id,
     );
 
     try {
@@ -880,7 +894,7 @@ router.post(
       job.id,
       'proposal_rejected',
       `Proposal v${job.version} marked as rejected by customer — returned to review_pending for revision`,
-      req.session?.name || 'admin'
+      req.session?.name || 'admin',
     );
 
     const { notifyClients } = require('../services/sseManager');
@@ -888,9 +902,9 @@ router.post(
 
     res.json({
       success: true,
-      message: 'Proposal marked as rejected. Job returned to review pending for revision.'
+      message: 'Proposal marked as rejected. Job returned to review pending for revision.',
     });
-  }
+  },
 );
 
 // POST approve proposal → generate contract
@@ -907,7 +921,7 @@ router.post(
     try {
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
         'customer_approved',
-        job.id
+        job.id,
       );
 
       const { generateContract } = require('../services/claudeService');
@@ -935,7 +949,7 @@ router.post(
 
       const contractPDF = await generatePDF(contractData, 'contract', job.id);
       db.prepare(
-        'UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+        'UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       ).run(JSON.stringify(contractData), contractPDF, 'contract_ready', job.id);
 
       logAudit(job.id, 'contract_generated', 'Contract approved via admin panel', 'admin');
@@ -948,7 +962,7 @@ router.post(
           job_id: job.id,
           event_type: 'CONTRACT_GENERATED',
           description: `Contract generated for ${job.project_address || 'project'}`,
-          recorded_by: req.session?.name || 'admin'
+          recorded_by: req.session?.name || 'admin',
         });
       } catch {
         /* ignore */
@@ -956,12 +970,12 @@ router.post(
       res.json({
         success: true,
         message: 'Contract generated',
-        contractPDF: `/outputs/${require('path').basename(contractPDF)}`
+        contractPDF: `/outputs/${require('path').basename(contractPDF)}`,
       });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
-  }
+  },
 );
 
 // POST /:id/revise — reopen any estimate for editing
@@ -991,14 +1005,14 @@ router.post('/:id/revise', requireAuth, requireRole('admin', 'pm', 'system_admin
     SET status = 'review_pending', version = ?, proposal_data = ?, contract_pdf_path = NULL,
         updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `
+  `,
   ).run(nextVersion, proposalDataStr, job.id);
 
   logAudit(
     job.id,
     'estimate_revised',
     `Estimate reopened for revision — now version ${nextVersion}`,
-    req.session?.name || 'admin'
+    req.session?.name || 'admin',
   );
   res.json({ success: true, version: nextVersion });
 });

@@ -24,7 +24,7 @@ function getTransporter() {
     port: smtpPort,
     secure: false,
     tls: { rejectUnauthorized: false },
-    auth: { user: smtpUser, pass: smtpPass }
+    auth: { user: smtpUser, pass: smtpPass },
   });
 }
 
@@ -36,14 +36,14 @@ function logEmail(db, { messageId, to, subject, emailType, jobId, htmlBody }) {
     }
     const toAddress = Array.isArray(to) ? to.join(', ') : to || 'unknown';
     db.prepare(
-      'INSERT INTO email_log (message_id, to_address, subject, email_type, job_id, html_body) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO email_log (message_id, to_address, subject, email_type, job_id, html_body) VALUES (?, ?, ?, ?, ?, ?)',
     ).run(
       messageId || null,
       toAddress,
       subject || null,
       emailType || 'general',
       jobId || null,
-      htmlBody || null
+      htmlBody || null,
     );
     console.log(`[EmailLog] Logged: type=${emailType} to=${toAddress}`);
   } catch (e) {
@@ -63,11 +63,11 @@ async function sendEmail({
   replyTo,
   emailType,
   jobId,
-  db
+  db,
 }) {
   const recipients = Array.isArray(to) ? to : [to];
   const validRecipients = recipients.filter(
-    (addr) => addr && typeof addr === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr.trim())
+    (addr) => addr && typeof addr === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr.trim()),
   );
   if (validRecipients.length === 0) {
     console.warn('[Email] Skipped — no valid recipients in:', recipients);
@@ -96,8 +96,8 @@ async function sendEmail({
     headers: {
       'Disposition-Notification-To': ownerReceiptAddress,
       'Return-Receipt-To': ownerReceiptAddress,
-      'X-Confirm-Reading-To': ownerReceiptAddress
-    }
+      'X-Confirm-Reading-To': ownerReceiptAddress,
+    },
   };
 
   // Build attachments list — supports both array and legacy single-attachment params
@@ -105,7 +105,7 @@ async function sendEmail({
   if (attachmentPath && fs.existsSync(attachmentPath)) {
     allAttachments.push({
       filename: attachmentName || path.basename(attachmentPath),
-      path: attachmentPath
+      path: attachmentPath,
     });
   }
   if (Array.isArray(attachments)) {

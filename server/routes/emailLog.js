@@ -14,7 +14,7 @@ router.get('/', requireAuth, (req, res) => {
       `
     SELECT COUNT(*) as count FROM email_log
     WHERE date(sent_at) = date('now')
-  `
+  `,
     )
     .get();
 
@@ -23,7 +23,7 @@ router.get('/', requireAuth, (req, res) => {
       `
     SELECT COUNT(*) as count FROM email_log
     WHERE strftime('%Y-%m', sent_at) = strftime('%Y-%m', 'now')
-  `
+  `,
     )
     .get();
 
@@ -32,7 +32,7 @@ router.get('/', requireAuth, (req, res) => {
       `
     SELECT COUNT(*) as count FROM email_log
     WHERE strftime('%Y', sent_at) = strftime('%Y', 'now')
-  `
+  `,
     )
     .get();
 
@@ -47,7 +47,7 @@ router.get('/', requireAuth, (req, res) => {
       `
     SELECT email_type, COUNT(*) as count FROM email_log
     GROUP BY email_type ORDER BY count DESC
-  `
+  `,
     )
     .all();
 
@@ -58,7 +58,7 @@ router.get('/', requireAuth, (req, res) => {
     FROM email_log
     WHERE sent_at >= date('now', '-30 days')
     GROUP BY day ORDER BY day DESC
-  `
+  `,
     )
     .all();
 
@@ -68,7 +68,7 @@ router.get('/', requireAuth, (req, res) => {
     SELECT strftime('%Y-%m', sent_at) as month, COUNT(*) as count
     FROM email_log
     GROUP BY month ORDER BY month DESC LIMIT 12
-  `
+  `,
     )
     .all();
 
@@ -80,7 +80,7 @@ router.get('/', requireAuth, (req, res) => {
            CASE WHEN html_body IS NOT NULL THEN 1 ELSE 0 END as has_preview
     FROM email_log
     ORDER BY sent_at DESC LIMIT ?
-  `
+  `,
     )
     .all(limit);
 
@@ -90,12 +90,12 @@ router.get('/', requireAuth, (req, res) => {
       thisMonth: thisMonth.count,
       thisYear: thisYear.count,
       total: total.count,
-      opened: openedCount.count
+      opened: openedCount.count,
     },
     byType,
     byDay,
     byMonth,
-    emails
+    emails,
   });
 });
 
@@ -150,7 +150,7 @@ router.post('/resend', express.json(), async (req, res) => {
         .prepare(
           `
         SELECT opened_at FROM email_log WHERE message_id = ?
-      `
+      `,
         )
         .get(emailId);
 
@@ -160,7 +160,7 @@ router.post('/resend', express.json(), async (req, res) => {
         SET opened_at    = COALESCE(opened_at, CURRENT_TIMESTAMP),
             opened_count = opened_count + 1
         WHERE message_id = ?
-      `
+      `,
       ).run(emailId);
 
       // Notify owners on first open only
@@ -169,7 +169,7 @@ router.post('/resend', express.json(), async (req, res) => {
           .prepare(
             `
           SELECT to_address, subject, email_type, job_id FROM email_log WHERE message_id = ?
-        `
+        `,
           )
           .get(emailId);
 
@@ -180,14 +180,14 @@ router.post('/resend', express.json(), async (req, res) => {
             const when = new Date().toLocaleString('en-US', {
               dateStyle: 'medium',
               timeStyle: 'short',
-              timeZone: 'America/New_York'
+              timeZone: 'America/New_York',
             });
             const typeLabel =
               {
                 proposal_signing: 'Proposal signing link',
                 contract: 'Contract email',
                 acknowledgement: 'Acknowledgement email',
-                general: 'Email'
+                general: 'Email',
               }[logRow.email_type] || 'Email';
 
             await sendEmail({
@@ -198,7 +198,7 @@ router.post('/resend', express.json(), async (req, res) => {
                      <p><strong>Time:</strong> ${when}</p>
                      ${logRow.job_id ? `<p><a href="${process.env.APP_URL || ''}/jobs/${logRow.job_id}">View job →</a></p>` : ''}`,
               emailType: 'system_alert',
-              jobId: logRow.job_id || null
+              jobId: logRow.job_id || null,
             });
           }
         }

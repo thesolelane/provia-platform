@@ -56,7 +56,7 @@ function runReport(db, type, period) {
       WHERE is_pass_through_reimbursement = 0 ${rFilter}
       GROUP BY payment_type
       ORDER BY total DESC
-    `
+    `,
       )
       .all();
 
@@ -70,7 +70,7 @@ function runReport(db, type, period) {
       WHERE payment_class = 'cost_of_revenue' ${mFilter}
       GROUP BY category
       ORDER BY total DESC
-    `
+    `,
       )
       .all();
 
@@ -80,7 +80,7 @@ function runReport(db, type, period) {
         `
       SELECT COALESCE(SUM(CASE WHEN credit_debit='debit' THEN amount ELSE -amount END), 0) AS total
       FROM payments_made pm WHERE payment_class = 'pass_through' AND paid_by != 'customer_direct' ${mFilter}
-    `
+    `,
       )
       .get().total;
 
@@ -89,7 +89,7 @@ function runReport(db, type, period) {
         `
       SELECT COALESCE(SUM(CASE WHEN credit_debit='credit' THEN amount ELSE -amount END), 0) AS total
       FROM payments_received pr WHERE is_pass_through_reimbursement = 1 ${rFilter}
-    `
+    `,
       )
       .get().total;
 
@@ -109,7 +109,7 @@ function runReport(db, type, period) {
       FROM invoices i
       WHERE 1=1 ${iFilter}
       GROUP BY invoice_type
-    `
+    `,
       )
       .all();
 
@@ -123,7 +123,7 @@ function runReport(db, type, period) {
       ptNet: ptReimbursed - ptFronted,
       revenueByType: revenueRows,
       costsByCategory: costRows,
-      invoiceTypes
+      invoiceTypes,
     };
   }
 
@@ -144,7 +144,7 @@ function runReport(db, type, period) {
              SUM(CASE WHEN credit_debit='credit' THEN amount ELSE -amount END) AS total
       FROM payments_received pr
       WHERE date_received >= ? GROUP BY mo
-    `
+    `,
       )
       .all(months[0] + '-01');
 
@@ -156,7 +156,7 @@ function runReport(db, type, period) {
              SUM(CASE WHEN credit_debit='debit' THEN amount ELSE -amount END) AS total
       FROM payments_made pm
       WHERE date_paid >= ? AND paid_by != 'customer_direct' GROUP BY mo
-    `
+    `,
       )
       .all(months[0] + '-01');
 
@@ -174,7 +174,7 @@ function runReport(db, type, period) {
         in: Math.round(inAmt),
         out: Math.round(outAmt),
         net: Math.round(net),
-        balance: Math.round(running)
+        balance: Math.round(running),
       };
     });
 
@@ -193,7 +193,7 @@ function runReport(db, type, period) {
       LEFT JOIN jobs j ON i.job_id = j.id
       WHERE i.status NOT IN ('paid','void')
       ORDER BY i.created_at ASC
-    `
+    `,
       )
       .all();
 
@@ -203,7 +203,7 @@ function runReport(db, type, period) {
       { key: 'current', label: 'Current (0–30 days)', min: 0, max: 30 },
       { key: 'days31', label: '31–60 days', min: 31, max: 60 },
       { key: 'days61', label: '61–90 days', min: 61, max: 90 },
-      { key: 'days91', label: '91+ days', min: 91, max: Infinity }
+      { key: 'days91', label: '91+ days', min: 91, max: Infinity },
     ];
 
     const buckets = BUCKETS.map((b) => ({ ...b, items: [], total: 0 }));
@@ -228,9 +228,9 @@ function runReport(db, type, period) {
     return {
       buckets: buckets.map((b) => ({ ...b, total: Math.round(b.total) })),
       total: Math.round(
-        open.reduce((s, i) => s + Math.max(0, (i.amount || 0) - (i.amount_paid || 0)), 0)
+        open.reduce((s, i) => s + Math.max(0, (i.amount || 0) - (i.amount_paid || 0)), 0),
       ),
-      byType
+      byType,
     };
   }
 
@@ -265,7 +265,7 @@ function runReport(db, type, period) {
       WHERE j.archived = 0
       ORDER BY j.created_at DESC
       LIMIT 100
-    `
+    `,
       )
       .all();
 
@@ -278,7 +278,7 @@ function runReport(db, type, period) {
       FROM payments_made pm
       WHERE payment_class = 'cost_of_revenue' ${mFilter}
       GROUP BY category ORDER BY total DESC
-    `
+    `,
       )
       .all();
 
@@ -310,7 +310,7 @@ function runReport(db, type, period) {
         ptFronted: j.pt_fronted,
         ptReimbursed: j.pt_reimbursed,
         ptOwed: Math.max(0, j.pt_fronted - j.pt_reimbursed),
-        address: [j.project_address, j.project_city].filter(Boolean).join(', ')
+        address: [j.project_address, j.project_city].filter(Boolean).join(', '),
       };
     });
 
@@ -328,7 +328,7 @@ function runReport(db, type, period) {
       FROM payments_made pm
       WHERE payment_class = 'pass_through' AND paid_by != 'customer_direct' ${mFilter}
       GROUP BY category ORDER BY fronted DESC
-    `
+    `,
       )
       .all();
 
@@ -338,7 +338,7 @@ function runReport(db, type, period) {
         `
       SELECT COALESCE(SUM(CASE WHEN credit_debit='credit' THEN amount ELSE -amount END), 0) AS total
       FROM payments_received pr WHERE is_pass_through_reimbursement = 1 ${rFilter}
-    `
+    `,
       )
       .get().total;
 
@@ -359,12 +359,12 @@ function runReport(db, type, period) {
         FROM jobs j WHERE j.archived = 0
       ) WHERE fronted > 0
       ORDER BY (fronted - reimbursed) DESC
-    `
+    `,
       )
       .all()
       .map((j) => ({
         ...j,
-        outstanding: Math.max(0, j.fronted - j.reimbursed)
+        outstanding: Math.max(0, j.fronted - j.reimbursed),
       }));
 
     return {
@@ -372,7 +372,7 @@ function runReport(db, type, period) {
       totalFronted,
       totalReimbursed,
       totalOutstanding: Math.max(0, totalFronted - totalReimbursed),
-      jobs
+      jobs,
     };
   }
 
@@ -385,7 +385,7 @@ function runReport(db, type, period) {
       SELECT DISTINCT status FROM jobs
       WHERE status IN ('contract_sent','contract_signed','proposal_approved','complete')
         AND archived = 0
-    `
+    `,
       )
       .all()
       .map((r) => r.status);
@@ -409,7 +409,7 @@ function runReport(db, type, period) {
       FROM jobs j
       WHERE j.status IN (${contractStatuses.map(() => '?').join(',')}) AND j.archived=0
       ORDER BY j.created_at DESC
-    `
+    `,
       )
       .all(...contractStatuses);
 
@@ -437,7 +437,7 @@ function runReport(db, type, period) {
         shortfall: Math.round(shortfall),
         totalReceived: j.total_received,
         createdAt: j.created_at,
-        depositMet: shortfall < 1
+        depositMet: shortfall < 1,
       };
     });
 
@@ -445,7 +445,7 @@ function runReport(db, type, period) {
       total: rows.length,
       withDeposit: rows.filter((r) => r.depositMet).length,
       missing: rows.filter((r) => !r.depositMet).length,
-      shortfall: Math.round(rows.reduce((s, r) => s + r.shortfall, 0))
+      shortfall: Math.round(rows.reduce((s, r) => s + r.shortfall, 0)),
     };
 
     return { jobs: rows, depositPct, summary };
@@ -455,7 +455,9 @@ function runReport(db, type, period) {
   if (type === 'purchase_orders') {
     const dFilter = dateFrom ? `AND po.created_at >= '${dateFrom}'` : '';
 
-    const totals = db.prepare(`
+    const totals = db
+      .prepare(
+        `
       SELECT
         COUNT(*) AS count,
         SUM(CASE WHEN po.status NOT IN ('closed') THEN po.amount ELSE 0 END) AS total_spend,
@@ -464,17 +466,25 @@ function runReport(db, type, period) {
         SUM(CASE WHEN po.status = 'closed'   THEN po.amount ELSE 0 END) AS closed
       FROM purchase_orders po
       WHERE 1=1 ${dFilter}
-    `).get();
+    `,
+      )
+      .get();
 
-    const byCategory = db.prepare(`
+    const byCategory = db
+      .prepare(
+        `
       SELECT po.category, COUNT(*) AS count, SUM(po.amount) AS total
       FROM purchase_orders po
       WHERE po.status != 'closed' ${dFilter}
       GROUP BY po.category
       ORDER BY total DESC
-    `).all();
+    `,
+      )
+      .all();
 
-    const openByJob = db.prepare(`
+    const openByJob = db
+      .prepare(
+        `
       SELECT po.job_id, j.pb_number, j.customer_name, j.project_address,
              COUNT(*) AS po_count, SUM(po.amount) AS po_total
       FROM purchase_orders po
@@ -483,24 +493,34 @@ function runReport(db, type, period) {
       GROUP BY po.job_id
       ORDER BY po_total DESC
       LIMIT 20
-    `).all();
+    `,
+      )
+      .all();
 
-    const byStatus = db.prepare(`
+    const byStatus = db
+      .prepare(
+        `
       SELECT po.status, COUNT(*) AS count, SUM(po.amount) AS total
       FROM purchase_orders po
       WHERE 1=1 ${dFilter}
       GROUP BY po.status
       ORDER BY total DESC
-    `).all();
+    `,
+      )
+      .all();
 
-    const recent = db.prepare(`
+    const recent = db
+      .prepare(
+        `
       SELECT po.*, j.pb_number, j.customer_name, j.project_address
       FROM purchase_orders po
       LEFT JOIN jobs j ON j.id = po.job_id
       WHERE 1=1 ${dFilter}
       ORDER BY po.created_at DESC
       LIMIT 50
-    `).all();
+    `,
+      )
+      .all();
 
     return { totals, byCategory, openByJob, byStatus, recent };
   }
@@ -522,13 +542,13 @@ router.post('/run', requireAuth, (req, res) => {
       `
       INSERT INTO saved_reports (type, period, label, data, run_at)
       VALUES (?, ?, ?, ?, ?)
-    `
+    `,
     ).run(
       savePrevious.type,
       savePrevious.period,
       savePrevious.label || `${savePrevious.type} — ${savePrevious.period}`,
       JSON.stringify(savePrevious.data),
-      savePrevious.runAt || new Date().toISOString()
+      savePrevious.runAt || new Date().toISOString(),
     );
   }
 
@@ -561,7 +581,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
 
     const payments = db
       .prepare(
-        'SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC'
+        'SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC',
       )
       .all(job.id);
 
@@ -573,7 +593,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
           month: 'short',
           day: 'numeric',
           year: 'numeric',
-          timeZone: 'America/New_York'
+          timeZone: 'America/New_York',
         });
       } catch {
         return d;
@@ -582,7 +602,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
 
     const sigSession = db
       .prepare(
-        `SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`
+        `SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`,
       )
       .get(job.id);
 
@@ -592,7 +612,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
       icon: '📋',
       label: 'Job Created',
       sub: `Status: ${job.status || 'received'}`,
-      color: '#1B3A6B'
+      color: '#1B3A6B',
     });
 
     if (job.quote_number) {
@@ -601,7 +621,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
         icon: '📄',
         label: 'Proposal / Scope of Work',
         sub: `PB-${job.quote_number}`,
-        color: '#7C3AED'
+        color: '#7C3AED',
       });
     }
 
@@ -611,7 +631,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
         icon: '✍️',
         label: 'Contract Signed',
         sub: `Signed by ${sigSession.signer_name || '—'} · Contract No. PB-${job.quote_number || job.id}`,
-        color: '#0D9488'
+        color: '#0D9488',
       });
     }
 
@@ -620,7 +640,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
         contract_invoice: 'Deposit Invoice',
         pass_through_invoice: 'Pass-Through Invoice',
         change_order: 'Change Order Invoice',
-        combined_invoice: 'Invoice'
+        combined_invoice: 'Invoice',
       };
       const typeLabel = typeMap[inv.invoice_type] || 'Invoice';
       const statusBadge =
@@ -637,7 +657,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
         icon: '🧾',
         label: `${typeLabel} — ${inv.invoice_number}`,
         sub: `${money(inv.amount)} total · ${money(pbDue)} due to PB${statusBadge}`,
-        color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A'
+        color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A',
       });
     }
 
@@ -647,7 +667,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
         icon: '💵',
         label: `Payment Received — ${money(pmt.amount)}`,
         sub: `${pmt.payment_type || 'Check'}${pmt.check_number ? ` #${pmt.check_number}` : ''}${pmt.notes ? ` · ${pmt.notes}` : ''}`,
-        color: '#2E7D32'
+        color: '#2E7D32',
       });
     }
 
@@ -657,7 +677,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
         icon: '🏁',
         label: 'Job Complete',
         sub: '',
-        color: '#2E7D32'
+        color: '#2E7D32',
       });
     }
 
@@ -677,7 +697,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
     <div style="font-size:12px;font-weight:600;color:${row.color}">${row.label}</div>
     ${row.sub ? `<div style="font-size:11px;color:#888;margin-top:2px">${row.sub}</div>` : ''}
   </td>
-</tr>`
+</tr>`,
       )
       .join('');
 
@@ -685,7 +705,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
       month: 'long',
       day: 'numeric',
       year: 'numeric',
-      timeZone: 'America/New_York'
+      timeZone: 'America/New_York',
     });
 
     const html = `<!DOCTYPE html>
@@ -749,7 +769,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `inline; filename="doc-history-${job.quote_number || job.id}.pdf"`
+      `inline; filename="doc-history-${job.quote_number || job.id}.pdf"`,
     );
     const fs = require('fs');
     fs.createReadStream(pdfPath).pipe(res);
@@ -775,7 +795,7 @@ router.get('/doc-history/search', requireAuth, (req, res) => {
        LEFT JOIN contacts c ON c.id = j.contact_id
        WHERE j.quote_number LIKE ? OR j.pb_number LIKE ? OR j.customer_name LIKE ?
           OR c.name LIKE ? OR c.pb_customer_number LIKE ? OR j.project_address LIKE ?
-       ORDER BY j.created_at DESC LIMIT 12`
+       ORDER BY j.created_at DESC LIMIT 12`,
     )
     .all(like, like, like, like, like, like);
   res.json({ jobs: rows });
@@ -800,7 +820,7 @@ router.get('/customer/search', requireAuth, (req, res) => {
     WHERE c.name LIKE ? OR c.pb_customer_number LIKE ? OR c.email LIKE ? OR c.phone LIKE ?
     GROUP BY c.id
     ORDER BY c.name ASC LIMIT 10
-  `
+  `,
     )
     .all(like, like, like, like);
 
@@ -814,7 +834,7 @@ router.get('/customer/search', requireAuth, (req, res) => {
     WHERE contact_id IS NULL AND customer_name LIKE ?
     GROUP BY customer_name
     ORDER BY customer_name ASC LIMIT 5
-  `
+  `,
     )
     .all(like);
 
@@ -822,7 +842,7 @@ router.get('/customer/search', requireAuth, (req, res) => {
     ...contacts.map((c) => ({ ...c, type: 'contact' })),
     ...unlinked
       .filter((u) => !contacts.some((c) => c.name === u.name))
-      .map((u) => ({ ...u, type: 'unlinked' }))
+      .map((u) => ({ ...u, type: 'unlinked' })),
   ].slice(0, 12);
 
   res.json({ customers: results });
@@ -849,7 +869,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
     } else {
       jobs = db
         .prepare(
-          'SELECT * FROM jobs WHERE contact_id IS NULL AND customer_name = ? ORDER BY created_at ASC'
+          'SELECT * FROM jobs WHERE contact_id IS NULL AND customer_name = ? ORDER BY created_at ASC',
         )
         .all(customer_name);
     }
@@ -867,7 +887,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
           hour: '2-digit',
           minute: '2-digit',
           hour12: true,
-          timeZone: 'America/New_York'
+          timeZone: 'America/New_York',
         });
       } catch {
         return d;
@@ -879,7 +899,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
       month: 'long',
       day: 'numeric',
       year: 'numeric',
-      timeZone: 'America/New_York'
+      timeZone: 'America/New_York',
     });
 
     // Aggregate totals
@@ -894,7 +914,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
         .all(job.id);
       const payments = db
         .prepare(
-          'SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC'
+          'SELECT * FROM payments_received WHERE job_id = ? ORDER BY date_received ASC, time_received ASC',
         )
         .all(job.id);
 
@@ -912,7 +932,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
         icon: '📋',
         label: 'Job Created',
         sub: `Status: ${job.status || 'received'}`,
-        color: '#1B3A6B'
+        color: '#1B3A6B',
       });
 
       if (job.quote_number) {
@@ -921,13 +941,13 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
           icon: '📄',
           label: 'Proposal / Scope of Work',
           sub: `PB-${job.quote_number}${job.total_value ? ' · ' + money(job.total_value) : ''}`,
-          color: '#7C3AED'
+          color: '#7C3AED',
         });
       }
 
       const sigSess = db
         .prepare(
-          `SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`
+          `SELECT * FROM signing_sessions WHERE job_id = ? AND doc_type = 'contract' AND status = 'signed' ORDER BY signed_at ASC LIMIT 1`,
         )
         .get(job.id);
       if (sigSess?.signed_at) {
@@ -936,7 +956,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
           icon: '✍️',
           label: 'Contract Signed',
           sub: `Signed by ${sigSess.signer_name || '—'} · Contract No. PB-${job.quote_number || job.id}`,
-          color: '#0D9488'
+          color: '#0D9488',
         });
       }
 
@@ -945,7 +965,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
           contract_invoice: 'Deposit Invoice',
           pass_through_invoice: 'Pass-Through Invoice',
           change_order: 'Change Order Invoice',
-          combined_invoice: 'Invoice'
+          combined_invoice: 'Invoice',
         };
         const tLabel = typeMap[inv.invoice_type] || 'Invoice';
         const statusBadge =
@@ -971,7 +991,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
           icon: '🧾',
           label: `${tLabel} — ${inv.invoice_number}`,
           sub,
-          color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A'
+          color: inv.status === 'paid' ? '#2E7D32' : '#E07B2A',
         });
       }
 
@@ -982,7 +1002,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
           icon: '💵',
           label: `Payment Received — ${money(pmt.amount)}${crDr}`,
           sub: `${pmt.payment_type || 'check'}${pmt.check_number ? ' #' + pmt.check_number : ''}${pmt.notes ? ' · ' + pmt.notes : ''} · Recorded by ${pmt.recorded_by || '—'}`,
-          color: '#2E7D32'
+          color: '#2E7D32',
         });
       }
 
@@ -992,13 +1012,13 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
           icon: '🏁',
           label: 'Job Completed',
           sub: job.closed_note || '',
-          color: '#2E7D32'
+          color: '#2E7D32',
         });
       }
 
       timeline.sort(
         (a, b) =>
-          (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0)
+          (a.date ? new Date(a.date).getTime() : 0) - (b.date ? new Date(b.date).getTime() : 0),
       );
 
       const rowsHTML = timeline
@@ -1011,7 +1031,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
     <div style="font-size:11px;font-weight:600;color:${row.color}">${row.label}</div>
     ${row.sub ? `<div style="font-size:10px;color:#888;margin-top:1px">${row.sub}</div>` : ''}
   </td>
-</tr>`
+</tr>`,
         )
         .join('');
 
@@ -1021,7 +1041,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
           completed: '#2E7D32',
           contract_signed: '#0D9488',
           in_progress: '#3B82F6',
-          proposal_sent: '#F59E0B'
+          proposal_sent: '#F59E0B',
         }[job.status] || '#888';
 
       jobSections.push(`
@@ -1121,12 +1141,12 @@ ${jobSections.join('') || '<p style="color:#aaa;font-size:12px">No jobs on recor
 
     const pdfPath = await generatePDFFromHTML(
       html,
-      `customer_report_${contact_id || customer_name.replace(/\s+/g, '_')}`
+      `customer_report_${contact_id || customer_name.replace(/\s+/g, '_')}`,
     );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `inline; filename="customer-report-${displayName.replace(/\s+/g, '-')}.pdf"`
+      `inline; filename="customer-report-${displayName.replace(/\s+/g, '-')}.pdf"`,
     );
     const fs = require('fs');
     fs.createReadStream(pdfPath).pipe(res);
@@ -1144,7 +1164,7 @@ router.get('/saved', requireAuth, (req, res) => {
     .prepare(
       `
     SELECT id, type, period, label, run_at FROM saved_reports ORDER BY run_at DESC LIMIT 50
-  `
+  `,
     )
     .all();
   res.json({ reports: rows });

@@ -20,14 +20,14 @@ function detectRecord(html) {
     /no records found/i,
     /no results found/i,
     /did not return any results/i,
-    /0 records/i
+    /0 records/i,
   ];
   const positive = [
     /class="searchResults"/i,
     /class="GridRow"/i,
     /StreetNum/i,
     /Inspection Date/i,
-    /Compliance/i
+    /Compliance/i,
   ];
 
   for (const pat of negative) {
@@ -48,7 +48,8 @@ function detectRecord(html) {
  * @param {string} opts.town - MA city/town name (e.g. "FITCHBURG")
  * @param {string} opts.street - Street name (e.g. "MAIN ST")
  * @param {string} [opts.number] - Street number (e.g. "100")
- * @returns {Promise<{hasRecord: boolean, leadsafeUrl: string, leadsafe2Url: string, note: string, queriedAt: string}>}
+ * @returns {Promise<{hasRecord: boolean, leadsafeUrl: string, leadsafe2Url: string,
+ *   note: string, queriedAt: string}>}
  */
 async function checkLeadRecord({ town, street, number = '' } = {}) {
   if (!town || !street) {
@@ -58,7 +59,7 @@ async function checkLeadRecord({ town, street, number = '' } = {}) {
   // Step 1: GET the page to grab ASP.NET hidden fields
   const pageRes = await fetch(LEAD_URL, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PBLeadCheckProxy/1.0)' },
-    signal: AbortSignal.timeout(20000)
+    signal: AbortSignal.timeout(20000),
   });
 
   if (!pageRes.ok) {
@@ -79,10 +80,10 @@ async function checkLeadRecord({ town, street, number = '' } = {}) {
     __VIEWSTATE: viewstate,
     __VIEWSTATEGENERATOR: viewstateGen,
     __EVENTVALIDATION: eventValidation,
-    'ctl00$ContentPlaceHolder1$ddlCity': town.toUpperCase(),
-    'ctl00$ContentPlaceHolder1$txtStreetName': street.toUpperCase(),
-    'ctl00$ContentPlaceHolder1$txtStreetNum': number || '',
-    'ctl00$ContentPlaceHolder1$btnSearch': 'Search'
+    ctl00$ContentPlaceHolder1$ddlCity: town.toUpperCase(),
+    ctl00$ContentPlaceHolder1$txtStreetName: street.toUpperCase(),
+    ctl00$ContentPlaceHolder1$txtStreetNum: number || '',
+    ctl00$ContentPlaceHolder1$btnSearch: 'Search',
   });
 
   const searchRes = await fetch(LEAD_URL, {
@@ -91,10 +92,10 @@ async function checkLeadRecord({ town, street, number = '' } = {}) {
       'Content-Type': 'application/x-www-form-urlencoded',
       'User-Agent': 'Mozilla/5.0 (compatible; PBLeadCheckProxy/1.0)',
       Cookie: cookies,
-      Referer: LEAD_URL
+      Referer: LEAD_URL,
     },
     body: formBody.toString(),
-    signal: AbortSignal.timeout(20000)
+    signal: AbortSignal.timeout(20000),
   });
 
   const resultHtml = await searchRes.text();
@@ -108,7 +109,7 @@ async function checkLeadRecord({ town, street, number = '' } = {}) {
       ? 'A lead inspection record exists. Visit Lead Safe Homes 2.0 for full documents.'
       : 'No lead inspection record found in the historical database.',
     source: 'Lead Safe Homes 1.0 (CLPPP historical database)',
-    queriedAt: new Date().toISOString()
+    queriedAt: new Date().toISOString(),
   };
 }
 

@@ -435,7 +435,7 @@ router.post('/api/signing/opened/:token', (req, res) => {
   if (!session.opened_at) {
     const ip = clientIP(req);
     db.prepare(
-      'UPDATE signing_sessions SET opened_at = CURRENT_TIMESTAMP, opened_ip = ?, status = ? WHERE token = ?'
+      'UPDATE signing_sessions SET opened_at = CURRENT_TIMESTAMP, opened_ip = ?, status = ? WHERE token = ?',
     ).run(ip, 'opened', req.params.token);
 
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
@@ -444,12 +444,12 @@ router.post('/api/signing/opened/:token', (req, res) => {
       session.job_id,
       `${session.doc_type}_opened`,
       `${docLabel} opened by customer (IP: ${ip})`,
-      'customer'
+      'customer',
     );
     notifyClients('job_updated', {
       jobId: session.job_id,
       event: `${session.doc_type}_opened`,
-      message: `📬 ${job?.customer_name || 'Customer'} opened the ${docLabel.toLowerCase()} — ${new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/New_York' })}`
+      message: `📬 ${job?.customer_name || 'Customer'} opened the ${docLabel.toLowerCase()} — ${new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/New_York' })}`,
     });
 
     // Email owners on first open
@@ -461,7 +461,7 @@ router.post('/api/signing/opened/:token', (req, res) => {
           const when = new Date().toLocaleString('en-US', {
             dateStyle: 'medium',
             timeStyle: 'short',
-            timeZone: 'America/New_York'
+            timeZone: 'America/New_York',
           });
           await sendEmail({
             to: owners,
@@ -471,7 +471,7 @@ router.post('/api/signing/opened/:token', (req, res) => {
                    <p><strong>Time:</strong> ${when}</p>
                    <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}">View job →</a></p>`,
             emailType: 'system_alert',
-            jobId: session.job_id
+            jobId: session.job_id,
           });
         }
       } catch (e) {
@@ -503,18 +503,18 @@ router.post('/api/signing/declined/:token', async (req, res) => {
 
   if (isSessionExpired(session))
     return res.status(410).json({
-      error: 'This signing link has expired. Please contact Preferred Builders for a new link.'
+      error: 'This signing link has expired. Please contact Preferred Builders for a new link.',
     });
 
   const ip = clientIP(req);
   const reason = String(decline_reason).trim();
 
   db.prepare(
-    `UPDATE signing_sessions SET status = 'declined', decline_reason = ? WHERE token = ?`
+    `UPDATE signing_sessions SET status = 'declined', decline_reason = ? WHERE token = ?`,
   ).run(reason, req.params.token);
 
   db.prepare(
-    "UPDATE jobs SET status = 'proposal_declined', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    "UPDATE jobs SET status = 'proposal_declined', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
   ).run(session.job_id);
 
   try {
@@ -529,13 +529,13 @@ router.post('/api/signing/declined/:token', async (req, res) => {
     session.job_id,
     'proposal_declined',
     `Proposal declined by customer (IP: ${ip}). Reason: ${reason}`,
-    'customer'
+    'customer',
   );
 
   notifyClients('job_updated', {
     jobId: session.job_id,
     status: 'proposal_declined',
-    message: `❌ ${job?.customer_name || 'Customer'} requested changes — ${reason.slice(0, 80)}${reason.length > 80 ? '…' : ''}`
+    message: `❌ ${job?.customer_name || 'Customer'} requested changes — ${reason.slice(0, 80)}${reason.length > 80 ? '…' : ''}`,
   });
 
   setImmediate(async () => {
@@ -546,7 +546,7 @@ router.post('/api/signing/declined/:token', async (req, res) => {
         const when = new Date().toLocaleString('en-US', {
           dateStyle: 'medium',
           timeStyle: 'short',
-          timeZone: 'America/New_York'
+          timeZone: 'America/New_York',
         });
         const jobLink = `${process.env.APP_URL || ''}/jobs/${session.job_id}`;
         const escapeHtml = (s) =>
@@ -567,7 +567,7 @@ router.post('/api/signing/declined/:token', async (req, res) => {
                  </div>
                  <p><a href="${jobLink}">View job →</a></p>`,
           emailType: 'system_alert',
-          jobId: session.job_id
+          jobId: session.job_id,
         });
       }
     } catch (e) {
@@ -590,11 +590,11 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
   if (session.status === 'declined')
     return res.status(400).json({
       error:
-        'This session has been declined. Please contact Preferred Builders for a revised proposal.'
+        'This session has been declined. Please contact Preferred Builders for a revised proposal.',
     });
   if (isSessionExpired(session))
     return res.status(410).json({
-      error: 'This signing link has expired. Please contact Preferred Builders for a new link.'
+      error: 'This signing link has expired. Please contact Preferred Builders for a new link.',
     });
 
   const { signer_name, signature_data } = req.body;
@@ -603,14 +603,14 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
 
   const ip = clientIP(req);
   db.prepare(
-    `UPDATE signing_sessions SET signed_at = CURRENT_TIMESTAMP, signed_ip = ?, signer_name = ?, signature_data = ?, status = 'signed' WHERE token = ?`
+    `UPDATE signing_sessions SET signed_at = CURRENT_TIMESTAMP, signed_ip = ?, signer_name = ?, signature_data = ?, status = 'signed' WHERE token = ?`,
   ).run(ip, signer_name, signature_data, req.params.token);
 
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(session.job_id);
 
   if (session.doc_type === 'proposal') {
     db.prepare(
-      "UPDATE jobs SET status = 'proposal_approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+      "UPDATE jobs SET status = 'proposal_approved', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     ).run(session.job_id);
     try {
       jobMemory.markOutcome(session.job_id, 'approved');
@@ -621,12 +621,12 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
       session.job_id,
       'proposal_signed',
       `Proposal signed by ${signer_name} (IP: ${ip})`,
-      'customer'
+      'customer',
     );
     notifyClients('job_updated', {
       jobId: session.job_id,
       status: 'proposal_approved',
-      message: `✅ Proposal signed by ${signer_name}`
+      message: `✅ Proposal signed by ${signer_name}`,
     });
     {
       const contact = job?.contact_id
@@ -637,7 +637,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
         job_id: session.job_id,
         event_type: 'ESTIMATE_APPROVED',
         description: `Proposal approved & signed by ${signer_name}`,
-        recorded_by: 'customer'
+        recorded_by: 'customer',
       });
     }
 
@@ -650,7 +650,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
           const when = new Date().toLocaleString('en-US', {
             dateStyle: 'medium',
             timeStyle: 'short',
-            timeZone: 'America/New_York'
+            timeZone: 'America/New_York',
           });
           await sendEmail({
             to: owners,
@@ -662,7 +662,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
                    <p>The contract is now being auto-generated.</p>
                    <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}">View job →</a></p>`,
             emailType: 'system_alert',
-            jobId: session.job_id
+            jobId: session.job_id,
           });
         }
       } catch (e) {
@@ -680,18 +680,18 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
         const contractData = await generateContract(proposalData, session.job_id, 'en');
         const contractPDF = await generatePDF(contractData, 'contract', session.job_id);
         db.prepare(
-          "UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = 'contract_ready', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+          "UPDATE jobs SET contract_data = ?, contract_pdf_path = ?, status = 'contract_ready', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         ).run(JSON.stringify(contractData), contractPDF, session.job_id);
         logAudit(
           session.job_id,
           'contract_auto_generated',
           'Contract auto-generated after proposal approval',
-          'system'
+          'system',
         );
         try {
           const contactRow = db
             .prepare(
-              'SELECT pb_customer_number FROM contacts WHERE id = (SELECT contact_id FROM jobs WHERE id = ?)'
+              'SELECT pb_customer_number FROM contacts WHERE id = (SELECT contact_id FROM jobs WHERE id = ?)',
             )
             .get(session.job_id);
           logActivity({
@@ -699,7 +699,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
             job_id: session.job_id,
             event_type: 'CONTRACT_GENERATED',
             description: 'Contract auto-generated and ready to send',
-            recorded_by: 'system'
+            recorded_by: 'system',
           });
         } catch {
           /* ignore */
@@ -707,7 +707,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
         notifyClients('job_updated', {
           jobId: session.job_id,
           status: 'contract_ready',
-          message: '📋 Contract auto-generated and ready to send'
+          message: '📋 Contract auto-generated and ready to send',
         });
       } catch (e) {
         console.error('[AutoContract]', e.message);
@@ -715,7 +715,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
     });
   } else {
     db.prepare(
-      "UPDATE jobs SET status = 'contract_signed', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+      "UPDATE jobs SET status = 'contract_signed', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     ).run(session.job_id);
     try {
       jobMemory.lock(session.job_id, 'contract_signed');
@@ -726,7 +726,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
       session.job_id,
       'contract_signed',
       `Contract signed by ${signer_name} (IP: ${ip})`,
-      'customer'
+      'customer',
     );
     // Auto-wipe stored email HTML previews for this job now that contract is signed
     try {
@@ -737,7 +737,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
     notifyClients('job_updated', {
       jobId: session.job_id,
       status: 'contract_signed',
-      message: `🎉 Contract signed by ${signer_name}`
+      message: `🎉 Contract signed by ${signer_name}`,
     });
     {
       const contact = job?.contact_id
@@ -748,7 +748,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
         job_id: session.job_id,
         event_type: 'CONTRACT_SIGNED',
         description: `Contract signed by ${signer_name}`,
-        recorded_by: 'customer'
+        recorded_by: 'customer',
       });
     }
     // Auto-create deposit invoice on contract sign and email to customer
@@ -795,8 +795,8 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
             amount: depositAmt,
             type: 'contract',
             pay_direct: false,
-            pay_direct_received: false
-          }
+            pay_direct_received: false,
+          },
         ];
         if (ptPermit > 0) {
           invLineItems.push({
@@ -804,7 +804,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
             amount: ptPermit,
             type: 'pass_through',
             pay_direct: false,
-            pay_direct_received: false
+            pay_direct_received: false,
           });
         }
         if (ptArchEng > 0) {
@@ -813,7 +813,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
             amount: ptArchEng,
             type: 'pass_through',
             pay_direct: false,
-            pay_direct_received: false
+            pay_direct_received: false,
           });
         }
 
@@ -836,7 +836,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
             `INSERT INTO invoices
               (job_id, invoice_number, invoice_type, status, amount, contract_amount,
                pass_through_amount, pb_due_amount, full_contract_value, line_items, notes)
-             VALUES (?, ?, 'contract_invoice', 'draft', ?, ?, ?, ?, ?, ?, ?)`
+             VALUES (?, ?, 'contract_invoice', 'draft', ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
             session.job_id,
@@ -847,7 +847,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
             pbDueAmt,
             fullContractValue,
             JSON.stringify(invLineItems),
-            'Deposit invoice — auto-created on contract signing'
+            'Deposit invoice — auto-created on contract signing',
           );
         const invId = invResult.lastInsertRowid;
 
@@ -857,7 +857,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
           event_type: 'INVOICE_ISSUED',
           description: `Deposit invoice ${invNum} created — $${totalInvoiceAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })} total / $${pbDueAmt.toLocaleString('en-US', { minimumFractionDigits: 2 })} due to PB`,
           document_ref: invNum,
-          recorded_by: 'system'
+          recorded_by: 'system',
         });
 
         // ── Build Invoice 1 PDF ───────────────────────────────────────────────
@@ -867,15 +867,15 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
           month: 'long',
           day: 'numeric',
           year: 'numeric',
-          timeZone: 'America/New_York'
+          timeZone: 'America/New_York',
         });
 
         // Scope summary table from proposal line items (contract work, no PT rows)
         const scopeItems = (proposalData?.lineItems || []).filter(
           (li) =>
             !['permit', 'engineer', 'architect', 'designer'].includes(
-              (li.trade || '').toLowerCase()
-            )
+              (li.trade || '').toLowerCase(),
+            ),
         );
         const scopeTableHTML = scopeItems.length
           ? `<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:4px">
@@ -889,7 +889,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
   <tr style="border-bottom:1px solid #f0f0f0">
     <td style="padding:5px 8px;color:#333">${li.trade || '—'}${li.description ? `<div style="font-size:9px;color:#888;margin-top:1px">${li.description}</div>` : ''}</td>
     <td style="padding:5px 8px;text-align:right;font-weight:600">${money(li.finalPrice || 0)}</td>
-  </tr>`
+  </tr>`,
     )
     .join('')}
 </table>`
@@ -1036,7 +1036,7 @@ ${payDirectNote}
           try {
             const pdfPath = await generatePDFFromHTML(
               invoiceHTML,
-              `invoice_${invNum.replace(/[^a-zA-Z0-9-]/g, '_')}`
+              `invoice_${invNum.replace(/[^a-zA-Z0-9-]/g, '_')}`,
             );
             await sendEmail({
               to: job.customer_email,
@@ -1065,7 +1065,7 @@ ${payDirectNote}
               text: `Hi ${job.customer_name || 'there'},\n\nYour deposit invoice (${invNum}) is attached.\n\nContract Value: ${money(fullContractValue)}\nAmount Due to Preferred Builders: ${money(pbDueAmt)}\nProject: ${job.project_address || '—'}\n\nPlease make checks payable to Preferred Builders General Services Inc.\n\n— Preferred Builders · 978-377-1784`,
               emailType: 'deposit_invoice',
               jobId: session.job_id,
-              db
+              db,
             });
             console.log(`[AutoDepositInvoice] Invoice ${invNum} emailed to ${job.customer_email}`);
             db.prepare("UPDATE invoices SET status = 'sent' WHERE id = ?").run(invId);
@@ -1084,7 +1084,7 @@ ${payDirectNote}
         const signedWhen = new Date().toLocaleString('en-US', {
           dateStyle: 'long',
           timeStyle: 'short',
-          timeZone: 'America/New_York'
+          timeZone: 'America/New_York',
         });
         const { mergePDFs } = require('../services/pdfMergeService');
         const safeName = (job.customer_name || job.id)
@@ -1095,7 +1095,7 @@ ${payDirectNote}
         try {
           mergedPdfPath = await mergePDFs(
             [job.proposal_pdf_path, job.contract_pdf_path],
-            `pb-signed-${job.id}.pdf`
+            `pb-signed-${job.id}.pdf`,
           );
         } catch (mergeErr) {
           console.warn('[MergePDF] Merge failed, falling back to contract only:', mergeErr.message);
@@ -1167,7 +1167,7 @@ ${payDirectNote}
           </div>`,
           text: `Hi ${job.customer_name || 'there'},\n\nYour construction contract with Preferred Builders is signed and on file. A copy is attached.\n\nProject: ${job.project_address}\nSigned: ${signedWhen}\n\nYour deposit is due per the contract. Once received your project will be scheduled.\n\nNote: You have 3 business days to cancel per M.G.L. c. 93 §48.\n\nRefer a friend who signs a contract and receive $250 off your next project.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
           emailType: 'contract_signed',
-          jobId: job.id
+          jobId: job.id,
         });
       }
     } catch (e) {
@@ -1183,7 +1183,7 @@ ${payDirectNote}
           const when = new Date().toLocaleString('en-US', {
             dateStyle: 'medium',
             timeStyle: 'short',
-            timeZone: 'America/New_York'
+            timeZone: 'America/New_York',
           });
           await sendEmail({
             to: owners,
@@ -1195,7 +1195,7 @@ ${payDirectNote}
                    <p><strong>Time:</strong> ${when}</p>
                    <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}">View job →</a></p>`,
             emailType: 'system_alert',
-            jobId: session.job_id
+            jobId: session.job_id,
           });
         }
       } catch (e) {

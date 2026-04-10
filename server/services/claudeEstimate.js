@@ -6,6 +6,8 @@ const { getDb } = require('../db/database');
 const jobMemory = require('./jobMemory');
 const perplexity = require('./perplexityService');
 const { logTokenUsage } = require('../utils/tokenLogger');
+const { lookupPropertyByAddress } = require('./massGisService');
+const { checkLeadRecord } = require('./leadCheckService');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -39,7 +41,7 @@ function getMarkupRates(settings) {
     subOandP: Number(settings['markup.subOandP']) || Number(settings['markup.subOP']) || 0.15,
     gcOandP: Number(settings['markup.gcOandP']) || Number(settings['markup.gcOP']) || 0.25,
     contingency: Number(settings['markup.contingency']) || 0.1,
-    deposit: Number(settings['markup.deposit']) || 0.33
+    deposit: Number(settings['markup.deposit']) || 0.33,
   };
 }
 
@@ -58,7 +60,7 @@ function buildRatesSection(settings) {
     'labor.drywall': 'Drywall labor',
     'labor.insulation': 'Insulation labor',
     'labor.tile': 'Tile labor',
-    'labor.flooring': 'Flooring (LVP/hardwood) install labor'
+    'labor.flooring': 'Flooring (LVP/hardwood) install labor',
   };
   const allowanceMap = {
     'allowance.lvp': 'LVP flooring material allowance',
@@ -71,7 +73,7 @@ function buildRatesSection(settings) {
     'allowance.vanity': 'Full bathroom vanity allowance (each)',
     'allowance.toilet': 'Toilet allowance (each)',
     'allowance.tub': 'Bathtub allowance (each)',
-    'allowance.intDoor': 'Interior door (slab) allowance (each)'
+    'allowance.intDoor': 'Interior door (slab) allowance (each)',
   };
 
   for (const [key, label] of Object.entries(laborMap)) {
@@ -80,7 +82,7 @@ function buildRatesSection(settings) {
       const v = typeof val === 'string' ? JSON.parse(val) : val;
       const mid = Math.round((v.low + v.high) / 2);
       laborLines.push(
-        `  ${label}: $${mid} per ${v.unit} (use this exact rate — range is $${v.low}–$${v.high})`
+        `  ${label}: $${mid} per ${v.unit} (use this exact rate — range is $${v.low}–$${v.high})`,
       );
     }
   }
@@ -100,7 +102,7 @@ function buildRatesSection(settings) {
     sub: Math.round((Number(settings['markup.subOandP']) || 0.15) * 100),
     gc: Math.round((Number(settings['markup.gcOandP']) || 0.25) * 100),
     cont: Math.round((Number(settings['markup.contingency']) || 0.1) * 100),
-    dep: Math.round((Number(settings['markup.deposit']) || 0.33) * 100)
+    dep: Math.round((Number(settings['markup.deposit']) || 0.33) * 100),
   };
 
   const sqftLow = Number(settings['pricing.sqftLow']) || 320;
@@ -191,7 +193,7 @@ function buildMemoryContext(db, projectAddress) {
         AND archived = 0
       ORDER BY created_at DESC
       LIMIT 3
-    `
+    `,
       )
       .all(`%${projectAddress.trim()}%`);
 
@@ -238,7 +240,7 @@ function getPriorVersionContext(db, quoteNumber) {
     WHERE j.quote_number = ? AND j.proposal_data IS NOT NULL
     ORDER BY j.version DESC
     LIMIT 1
-  `
+  `,
     )
     .get(quoteNumber);
   if (!prior) return null;
@@ -250,7 +252,7 @@ function getPriorVersionContext(db, quoteNumber) {
     const items = (data.lineItems || [])
       .map(
         (li) =>
-          `  - ${li.trade}: baseCost $${(li.baseCost || 0).toLocaleString()} → client price $${(li.finalPrice || 0).toLocaleString()} | ${li.description || ''}`
+          `  - ${li.trade}: baseCost $${(li.baseCost || 0).toLocaleString()} → client price $${(li.finalPrice || 0).toLocaleString()} | ${li.description || ''}`,
       )
       .join('\n');
     return `## IMPORTANT: YOU ALREADY PRICED THIS QUOTE (Quote #${quoteNumber}, Version ${prior.version} — ${new Date(prior.created_at).toLocaleDateString('en-US')})
@@ -283,15 +285,15 @@ Falls back to web search if MassGIS returns no result (new construction, rural p
     properties: {
       address: {
         type: 'string',
-        description: 'Full property address (e.g. "123 Main St, Fitchburg, MA")'
+        description: 'Full property address (e.g. "123 Main St, Fitchburg, MA")',
       },
       town: {
         type: 'string',
-        description: 'Massachusetts city or town name (e.g. "FITCHBURG")'
-      }
+        description: 'Massachusetts city or town name (e.g. "FITCHBURG")',
+      },
     },
-    required: ['address']
-  }
+    required: ['address'],
+  },
 };
 
 const CHECK_LEAD_RECORD_TOOL = {
@@ -304,19 +306,19 @@ Use this when evaluating renovation scope at properties built before 1978, or wh
     properties: {
       town: {
         type: 'string',
-        description: 'Massachusetts city or town name (e.g. "FITCHBURG")'
+        description: 'Massachusetts city or town name (e.g. "FITCHBURG")',
       },
       street: {
         type: 'string',
-        description: 'Street name without number (e.g. "MAIN ST")'
+        description: 'Street name without number (e.g. "MAIN ST")',
       },
       number: {
         type: 'string',
-        description: 'Street number (e.g. "123")'
-      }
+        description: 'Street number (e.g. "123")',
+      },
     },
-    required: ['town', 'street']
-  }
+    required: ['town', 'street'],
+  },
 };
 
 // ── WEB SEARCH TOOL DEFINITION ───────────────────────────────────────
@@ -332,7 +334,7 @@ Keep queries specific and under 15 words. You may call this up to 3 times per es
       query: {
         type: 'string',
         description:
-          'Targeted search query. Be specific. Example: "2x4 lumber price per board foot Massachusetts 2025"'
+          'Targeted search query. Be specific. Example: "2x4 lumber price per board foot Massachusetts 2025"',
       },
       search_type: {
         type: 'string',
@@ -342,26 +344,23 @@ Keep queries specific and under 15 words. You may call this up to 3 times per es
           'labor_rate',
           'building_code',
           'supplier',
-          'general'
+          'general',
         ],
         description:
-          'material_price: lumber/concrete/roofing costs. permit_fee: municipal permit fees. labor_rate: subcontractor market rates. building_code: code requirements. supplier: local vendors. general: other.'
-      }
+          'material_price: lumber/concrete/roofing costs. permit_fee: municipal permit fees. labor_rate: subcontractor market rates. building_code: code requirements. supplier: local vendors. general: other.',
+      },
     },
-    required: ['query', 'search_type']
-  }
+    required: ['query', 'search_type'],
+  },
 };
 
 // ── TOOL USE LOOP — runs Claude with Perplexity + property tools available ──
 async function runWithTools(systemPrompt, userMessage, maxToolCalls = 5, jobId = null) {
-  const { lookupPropertyByAddress } = require('./massGisService');
-  const { checkLeadRecord } = require('./leadCheckService');
-
   const messages = [{ role: 'user', content: userMessage }];
   const tools = [
     LOOKUP_PROPERTY_TOOL,
     CHECK_LEAD_RECORD_TOOL,
-    ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [])
+    ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : []),
   ];
   let toolCallCount = 0;
   let totalInput = 0;
@@ -374,7 +373,7 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 5, jobId =
       temperature: 0.1,
       system: systemPrompt,
       messages,
-      tools
+      tools,
     });
 
     totalInput += response.usage?.input_tokens || 0;
@@ -391,7 +390,7 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 5, jobId =
         try {
           if (block.name === 'web_search') {
             console.log(
-              `[Claude→Perplexity] #${toolCallCount} type=${block.input.search_type} query="${block.input.query}"`
+              `[Claude→Perplexity] #${toolCallCount} type=${block.input.search_type} query="${block.input.query}"`,
             );
             result = await perplexity.search(block.input.query, block.input.search_type);
           } else if (block.name === 'lookup_property') {
@@ -402,21 +401,21 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 5, jobId =
             } else if (perplexity.isConfigured()) {
               result = await perplexity.search(
                 `property assessor data year built ${block.input.address} Massachusetts`,
-                'general'
+                'general',
               );
             } else {
               result = 'No MassGIS record found for this address.';
             }
           } else if (block.name === 'check_lead_record') {
             console.log(
-              `[Claude→LeadCheck] town="${block.input.town}" street="${block.input.street}"`
+              `[Claude→LeadCheck] town="${block.input.town}" street="${block.input.street}"`,
             );
             result = JSON.stringify(
               await checkLeadRecord({
                 town: block.input.town,
                 street: block.input.street,
-                number: block.input.number || ''
-              })
+                number: block.input.number || '',
+              }),
             );
           }
         } catch (err) {
@@ -432,7 +431,7 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 5, jobId =
         inputTokens: totalInput,
         outputTokens: totalOutput,
         jobId,
-        context: 'estimate'
+        context: 'estimate',
       });
       return response.content.find((b) => b.type === 'text')?.text?.trim() || '';
     }
@@ -446,7 +445,7 @@ async function processEstimate(
   language = 'en',
   db = null,
   projectAddress = null,
-  priorVersionContext = null
+  priorVersionContext = null,
 ) {
   const settings = loadSettings();
   const knowledgeBase = loadKnowledgeBase();
@@ -519,7 +518,7 @@ Return this EXACT JSON structure:
   "notes": ""
 }`,
     3,
-    jobId
+    jobId,
   );
 
   let extractedData;
@@ -537,31 +536,31 @@ Return this EXACT JSON structure:
   const STRETCH_CODE_COSTS = {
     'HERS Rater': {
       cost: 1800,
-      desc: 'HERS energy rating and blower door test (Stretch Code compliance)'
+      desc: 'HERS energy rating and blower door test (Stretch Code compliance)',
     },
     'ERV System': {
       cost: 3200,
-      desc: 'Energy Recovery Ventilator (ERV) — Stretch Code requirement'
+      desc: 'Energy Recovery Ventilator (ERV) — Stretch Code requirement',
     },
     'EV-Ready Outlet': {
       cost: 850,
-      desc: 'EV-ready 240V outlet in garage (Stretch Code requirement)'
+      desc: 'EV-ready 240V outlet in garage (Stretch Code requirement)',
     },
     'Solar Conduit': {
       cost: 1200,
-      desc: 'Solar-ready conduit and panel capacity (Stretch Code requirement)'
+      desc: 'Solar-ready conduit and panel capacity (Stretch Code requirement)',
     },
     'LED Lighting Package': {
       cost: 2400,
-      desc: 'LED lighting package (Stretch Code energy compliance)'
-    }
+      desc: 'LED lighting package (Stretch Code energy compliance)',
+    },
   };
 
   for (const item of scItems) {
     const cfg = STRETCH_CODE_COSTS[item];
     if (!cfg) continue;
     const already = (extractedData.lineItems || []).some((li) =>
-      li.trade?.toLowerCase().includes(item.toLowerCase())
+      li.trade?.toLowerCase().includes(item.toLowerCase()),
     );
     if (!already) {
       extractedData.lineItems = extractedData.lineItems || [];
@@ -571,7 +570,7 @@ Return this EXACT JSON structure:
         baseCost: cfg.cost,
         isStretchCode: true,
         scopeIncluded: [item],
-        scopeExcluded: []
+        scopeExcluded: [],
       });
     }
   }
@@ -592,7 +591,7 @@ function applyPricing(data, rates, settings) {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    timeZone: 'America/New_York'
+    timeZone: 'America/New_York',
   });
 
   const items = data.lineItems || [];
@@ -611,7 +610,7 @@ function applyPricing(data, rates, settings) {
   }
 
   const dumpsterItem = items.find((i) =>
-    /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || '')
+    /dumpster|waste\s*removal|debris\s*removal/i.test(i.trade || ''),
   );
   const dumpsterExplicitlyExcluded = dumpsterItem && (Number(dumpsterItem.baseCost) || 0) === 0;
   const hasDumpster = !!dumpsterItem && !dumpsterExplicitlyExcluded;
@@ -670,10 +669,10 @@ function applyPricing(data, rates, settings) {
     appliedRates: {
       subOandP: rates.subOandP,
       gcOandP: rates.gcOandP,
-      contingency: rates.contingency
+      contingency: rates.contingency,
     },
     implicitDumpsterBaseCost,
-    dumpsterExcluded: dumpsterExplicitlyExcluded || false
+    dumpsterExcluded: dumpsterExplicitlyExcluded || false,
   };
 
   data.totalValue = totalContractPrice;
@@ -681,11 +680,11 @@ function applyPricing(data, rates, settings) {
 
   if (pricePerSqft !== null) {
     console.log(
-      `[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → $${pricePerSqft}/sqft (${isReno ? 'reno' : 'new-const'} target $${sqftLow}–$${sqftHigh}) → Deposit: $${depositAmount.toLocaleString()}`
+      `[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → $${pricePerSqft}/sqft (${isReno ? 'reno' : 'new-const'} target $${sqftLow}–$${sqftHigh}) → Deposit: $${depositAmount.toLocaleString()}`,
     );
   } else {
     console.log(
-      `[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`
+      `[Pricing] Markup: ${markupMultiplier.toFixed(4)}x → Total: $${totalContractPrice.toLocaleString()} → Deposit: $${depositAmount.toLocaleString()}`,
     );
   }
 }
@@ -701,5 +700,5 @@ module.exports = {
   WEB_SEARCH_TOOL,
   runWithTools,
   processEstimate,
-  applyPricing
+  applyPricing,
 };

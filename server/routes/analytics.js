@@ -17,7 +17,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
     'contract_ready',
     'contract_sent',
     'contract_signed',
-    'complete'
+    'complete',
   ];
   const statusLabels = {
     received: 'Received',
@@ -30,7 +30,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
     contract_ready: 'Contract Ready',
     contract_sent: 'Contract Sent',
     contract_signed: 'Contract Signed',
-    complete: 'Complete'
+    complete: 'Complete',
   };
 
   const allCounts = db
@@ -41,7 +41,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
   const pipeline = statusOrder.map((s) => ({
     status: s,
     label: statusLabels[s] || s,
-    count: countMap[s] || 0
+    count: countMap[s] || 0,
   }));
 
   const { range } = req.query;
@@ -53,12 +53,12 @@ router.get('/pipeline', requireAuth, (req, res) => {
   let wonDateFilter = dateFilter.replace(/archived_at/g, 'updated_at');
   const wonCount = db
     .prepare(
-      `SELECT COUNT(*) as count FROM jobs WHERE status IN ('complete','contract_signed') ${wonDateFilter}`
+      `SELECT COUNT(*) as count FROM jobs WHERE status IN ('complete','contract_signed') ${wonDateFilter}`,
     )
     .get().count;
   const lostCount = db
     .prepare(
-      `SELECT COUNT(*) as count FROM jobs WHERE archived = 1 AND closed_reason IN ('lost_price','lost_timing','lost_competitor','ghosted') ${dateFilter}`
+      `SELECT COUNT(*) as count FROM jobs WHERE archived = 1 AND closed_reason IN ('lost_price','lost_timing','lost_competitor','ghosted') ${dateFilter}`,
     )
     .get().count;
   const totalClosed = wonCount + lostCount;
@@ -70,7 +70,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
     SELECT closed_reason, COUNT(*) as count FROM jobs
     WHERE archived = 1 AND closed_reason IN ('lost_price','lost_timing','lost_competitor','ghosted') ${dateFilter}
     GROUP BY closed_reason ORDER BY count DESC
-  `
+  `,
     )
     .all();
 
@@ -78,12 +78,12 @@ router.get('/pipeline', requireAuth, (req, res) => {
     lost_price: 'Price',
     lost_timing: 'Timing',
     lost_competitor: 'Competitor',
-    ghosted: 'Ghosted'
+    ghosted: 'Ghosted',
   };
   const lossBreakdown = lossReasons.map((r) => ({
     reason: r.closed_reason,
     label: lossLabels[r.closed_reason] || r.closed_reason,
-    count: r.count
+    count: r.count,
   }));
 
   const velocityRows = db
@@ -91,7 +91,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
       `
     SELECT id, created_at FROM jobs
     WHERE status IN ('complete','contract_signed') ${wonDateFilter}
-  `
+  `,
     )
     .all();
 
@@ -103,7 +103,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
         SELECT job_id, action, created_at FROM audit_log
         WHERE action IN ('proposal_sent_for_signing','contract_signed')
         ORDER BY created_at ASC
-      `
+      `,
           )
           .all()
       : [];
@@ -139,7 +139,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
     proposalToSigned: avg(proposalToSignedDays),
     sampleSize: velocityRows.length,
     intakeToProposalCount: intakeToProposalDays.length,
-    proposalToSignedCount: proposalToSignedDays.length
+    proposalToSignedCount: proposalToSignedDays.length,
   };
 
   const revenueRows = db
@@ -148,7 +148,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
     SELECT total_value, updated_at FROM jobs
     WHERE status IN ('complete','contract_signed') AND total_value > 0 ${wonDateFilter}
     ORDER BY updated_at ASC
-  `
+  `,
     )
     .all();
 
@@ -168,7 +168,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
     .get().count;
   const quotesYTD = db
     .prepare(
-      "SELECT COUNT(*) as count FROM jobs WHERE created_at >= date('now', 'start of year') AND status NOT IN ('received','processing')"
+      "SELECT COUNT(*) as count FROM jobs WHERE created_at >= date('now', 'start of year') AND status NOT IN ('received','processing')",
     )
     .get().count;
   const pipelineValue = db
@@ -176,7 +176,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
     .get().total;
   const wonRevenueYTD = db
     .prepare(
-      "SELECT COALESCE(SUM(total_value), 0) as total FROM jobs WHERE status IN ('complete','contract_signed') AND updated_at >= date('now', 'start of year')"
+      "SELECT COALESCE(SUM(total_value), 0) as total FROM jobs WHERE status IN ('complete','contract_signed') AND updated_at >= date('now', 'start of year')",
     )
     .get().total;
 
@@ -185,7 +185,7 @@ router.get('/pipeline', requireAuth, (req, res) => {
       `
     SELECT proposal_data FROM jobs
     WHERE status IN ('complete','contract_signed') AND proposal_data IS NOT NULL
-  `
+  `,
     )
     .all();
 
@@ -219,8 +219,8 @@ router.get('/pipeline', requireAuth, (req, res) => {
       quotesYTD,
       pipelineValue: Math.round(pipelineValue),
       wonRevenueYTD: Math.round(wonRevenueYTD),
-      avgWonMargin
-    }
+      avgWonMargin,
+    },
   });
 });
 
@@ -242,7 +242,7 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
     'contract_sent',
     'contract_signed',
     'customer_approved',
-    'marked_complete'
+    'marked_complete',
   ];
 
   const lastStatusChange = db
@@ -251,7 +251,7 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
     SELECT created_at FROM audit_log
     WHERE job_id = ? AND action IN (${STATUS_ACTIONS.map(() => '?').join(',')})
     ORDER BY created_at DESC LIMIT 1
-  `
+  `,
     )
     .get(req.params.id, ...STATUS_ACTIONS);
 
@@ -265,7 +265,7 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
     .prepare(
       `
     SELECT id, created_at FROM jobs WHERE status IN ('complete','contract_signed')
-  `
+  `,
     )
     .all();
 
@@ -278,7 +278,7 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
         WHERE action IN ('proposal_sent_for_signing','contract_signed')
         AND job_id IN (${wonJobs.map(() => '?').join(',')})
         ORDER BY created_at ASC
-      `
+      `,
           )
           .all(...wonJobs.map((j) => j.id))
       : [];
@@ -309,7 +309,7 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
       `
     SELECT proposal_data FROM jobs
     WHERE status IN ('complete','contract_signed') AND proposal_data IS NOT NULL
-  `
+  `,
     )
     .all();
 
@@ -349,7 +349,7 @@ router.get('/job/:id/context', requireAuth, (req, res) => {
     avgWonMargin,
     avgWonMarginSample: margins.length,
     avgWonSqftPrice,
-    avgWonSqftPriceSample: sqftPrices.length
+    avgWonSqftPriceSample: sqftPrices.length,
   });
 });
 

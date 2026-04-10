@@ -10,7 +10,7 @@ const { execSync } = require('child_process');
 const {
   buildContractHTML: buildContractHTMLNew,
   adaptToContractSchema,
-  blankContractSchema
+  blankContractSchema,
 } = require('./contractTemplate');
 
 const { buildProposalHTML, buildNoticeOfContractHTML } = require('./pdfHtmlBuilder');
@@ -34,7 +34,7 @@ function resolveChromiumPath() {
       'C:\\Users\\theso\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Program Files\\Chromium\\Application\\chrome.exe',
       (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
-      (process.env.PROGRAMFILES || '') + '\\Google\\Chrome\\Application\\chrome.exe'
+      (process.env.PROGRAMFILES || '') + '\\Google\\Chrome\\Application\\chrome.exe',
     ];
     for (const p of winPaths) {
       try {
@@ -49,7 +49,7 @@ function resolveChromiumPath() {
   try {
     const p = execSync(
       'which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null',
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
       .toString()
       .trim();
@@ -80,7 +80,7 @@ async function generatePDF(data, type, jobId) {
   const browser = await puppeteer.launch({
     headless: 'new',
     executablePath: CHROMIUM_PATH,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
   });
 
   try {
@@ -99,7 +99,7 @@ async function generatePDF(data, type, jobId) {
         <span style="color:#888;">Preferred Builders General Services Inc.</span>
         <span style="font-weight:bold;color:#1B3A6B;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
         <span style="color:#888;">${type === 'proposal' ? 'PROPOSAL' : 'CONTRACT'} — Confidential</span>
-      </div>`
+      </div>`,
     });
   } finally {
     await browser.close();
@@ -122,7 +122,7 @@ async function generateBlankContractDocx() {
     table: { row: { cantSplit: true } },
     footer: true,
     pageNumber: true,
-    margins: { top: 1080, right: 1080, bottom: 1080, left: 1080 }
+    margins: { top: 1080, right: 1080, bottom: 1080, left: 1080 },
   });
 
   return buffer;
@@ -135,7 +135,7 @@ async function generatePDFFromHTML(html, filenameBase) {
   const browser = await puppeteer.launch({
     headless: 'new',
     executablePath: CHROMIUM_PATH,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
   });
 
   try {
@@ -145,7 +145,7 @@ async function generatePDFFromHTML(html, filenameBase) {
       path: outputPath,
       format: 'Letter',
       margin: { top: '0.5in', right: '0.75in', bottom: '0.5in', left: '0.75in' },
-      printBackground: true
+      printBackground: true,
     });
   } finally {
     await browser.close();
@@ -158,5 +158,5 @@ module.exports = {
   generatePDF,
   generatePDFFromHTML,
   generateBlankContractDocx,
-  buildNoticeOfContractHTML
+  buildNoticeOfContractHTML,
 };

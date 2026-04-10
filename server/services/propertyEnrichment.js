@@ -35,10 +35,12 @@ async function enrichProperty(db, type, id, address) {
     try {
       massGisData = await lookupPropertyByAddress(address);
       if (!massGisData && perplexity.isConfigured()) {
-        console.log(`[PropertyEnrichment] MassGIS returned no result — falling back to web_search for ${address}`);
+        console.log(
+          `[PropertyEnrichment] MassGIS no result — falling back to web_search for ${address}`,
+        );
         const webResult = await perplexity.search(
           `property assessor data year built ${address} Massachusetts`,
-          'general'
+          'general',
         );
         if (webResult) {
           massGisData = { webSearchFallback: true, webResult, queriedAt: new Date().toISOString() };
@@ -55,7 +57,7 @@ async function enrichProperty(db, type, id, address) {
         leadData = await checkLeadRecord({
           town: parsed.town,
           street: parsed.streetName,
-          number: parsed.streetNumber
+          number: parsed.streetNumber,
         });
       }
     } catch (err) {
@@ -65,18 +67,18 @@ async function enrichProperty(db, type, id, address) {
     const propertyData = {
       massGis: massGisData,
       leadCheck: leadData,
-      enrichedAt: new Date().toISOString()
+      enrichedAt: new Date().toISOString(),
     };
 
     db.prepare(`UPDATE ${table} SET property_data = ? WHERE id = ?`).run(
       JSON.stringify(propertyData),
-      id
+      id,
     );
 
     console.log(
       `[PropertyEnrichment] Saved property_data for ${type} ${id} — ` +
         `MassGIS: ${massGisData ? 'found' : 'null'}, ` +
-        `Lead: ${leadData ? (leadData.hasRecord ? 'found' : 'not found') : 'null'}`
+        `Lead: ${leadData ? (leadData.hasRecord ? 'found' : 'not found') : 'null'}`,
     );
   } catch (err) {
     console.error(`[PropertyEnrichment] Unexpected error for ${type} ${id}:`, err.message);
@@ -90,7 +92,7 @@ function enrichPropertyBackground(db, type, id, address) {
   if (!address || !id) return;
   setImmediate(() => {
     enrichProperty(db, type, id, address).catch((err) =>
-      console.error('[PropertyEnrichment] Unhandled:', err.message)
+      console.error('[PropertyEnrichment] Unhandled:', err.message),
     );
   });
 }

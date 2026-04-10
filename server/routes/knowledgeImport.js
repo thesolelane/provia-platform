@@ -57,9 +57,9 @@ Return this EXACT JSON structure:
   "warrantyTerms": "description or null",
   "pricingNotes": "any notable pricing observations",
   "estimatedMarketPosition": "high|mid-high|mid|mid-low|low|unknown"
-}`
-      }
-    ]
+}`,
+      },
+    ],
   });
 
   try {
@@ -98,7 +98,7 @@ function upsertContact(db, customer, customerType, source) {
       state = COALESCE(NULLIF(?, ''), state),
       zip = COALESCE(NULLIF(?, ''), zip),
       updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?`
+      WHERE id = ?`,
     ).run(
       name || '',
       email || '',
@@ -107,14 +107,14 @@ function upsertContact(db, customer, customerType, source) {
       city || '',
       state || '',
       zip || '',
-      existing.id
+      existing.id,
     );
     return existing.id;
   } else {
     const result = db
       .prepare(
         `INSERT INTO contacts (name, email, phone, address, city, state, zip, customer_type, source)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         name || null,
@@ -125,7 +125,7 @@ function upsertContact(db, customer, customerType, source) {
         state || null,
         zip || null,
         customerType || 'residential',
-        source || 'bulk_import'
+        source || 'bulk_import',
       );
     return result.lastInsertRowid;
   }
@@ -183,21 +183,21 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
                   content: [
                     {
                       type: 'document',
-                      source: { type: 'base64', media_type: 'application/pdf', data: base64Pdf }
+                      source: { type: 'base64', media_type: 'application/pdf', data: base64Pdf },
                     },
                     {
                       type: 'text',
-                      text: 'This is a scanned construction estimate or invoice. Extract ALL visible text, line items, dollar amounts, customer info, trade names, and addresses exactly as they appear. Return plain text.'
-                    }
-                  ]
-                }
-              ]
+                      text: 'This is a scanned construction estimate or invoice. Extract ALL visible text, line items, dollar amounts, customer info, trade names, and addresses exactly as they appear. Return plain text.',
+                    },
+                  ],
+                },
+              ],
             });
             rawText = visionRes.content[0].text?.trim() || '';
           } catch (visionErr) {
             console.error(
               `[Bulk Import] Claude vision failed for ${file.name}:`,
-              visionErr.message
+              visionErr.message,
             );
           }
         }
@@ -274,7 +274,7 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
       // Save to knowledge base (no file path — we won't keep the file)
       const dbResult = db
         .prepare(
-          'INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)'
+          'INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)',
         )
         .run(title, 'past_contracts', content, 'en');
 
@@ -304,7 +304,7 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
 
           db.prepare(
             `INSERT INTO contact_documents (contact_id, filename, original_name, mime_type, file_path, source)
-             VALUES (?, ?, ?, ?, ?, 'bulk_import')`
+             VALUES (?, ?, ?, ?, ?, 'bulk_import')`,
           ).run(contactId, unique, file.name, file.mimetype, destPath);
 
           console.log(`[Bulk Import] Saved ${file.name} → contact #${contactId}`);
@@ -331,7 +331,7 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
             totalContractValue: extracted.totalContractValue,
             tradesCount: extracted.trades?.length || 0,
             marketPosition: extracted.estimatedMarketPosition,
-            customerFound: !!(extracted.customer?.name || extracted.customer?.email)
+            customerFound: !!(extracted.customer?.name || extracted.customer?.email),
           }
         : null;
     } catch (err) {
@@ -353,7 +353,7 @@ router.post('/bulk-import', requireAuth, async (req, res) => {
     total: files.length,
     imported: results.filter((r) => r.success).length,
     failed: results.filter((r) => !r.success).length,
-    results
+    results,
   });
 });
 
@@ -375,7 +375,7 @@ router.get('/assessment', requireAuth, (req, res) => {
   const db = getDb();
   const doc = db
     .prepare(
-      "SELECT * FROM knowledge_base WHERE title = 'Competitive Assessment Report' AND category = 'pricing' ORDER BY created_at DESC LIMIT 1"
+      "SELECT * FROM knowledge_base WHERE title = 'Competitive Assessment Report' AND category = 'pricing' ORDER BY created_at DESC LIMIT 1",
     )
     .get();
   if (!doc) return res.json({ report: null });

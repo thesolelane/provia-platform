@@ -25,7 +25,7 @@ function preExtractQuoteNumber(text) {
   const patterns = [
     /(?:quote|estimate|proposal|job|ref|#|no\.?)\s*[:\-#]?\s*(\d{2,6})\b/i,
     /\b(\d{3,6})\s*(?:rev|revision|version|v)\s*\d/i,
-    /^[\s\S]{0,500}?#\s*(\d{3,6})\b/
+    /^[\s\S]{0,500}?#\s*(\d{3,6})\b/,
   ];
   for (const re of patterns) {
     const m = text.match(re);
@@ -44,7 +44,7 @@ function findPriorQuoteContext(db, { rawText, contactId, projectAddress }) {
       SELECT quote_number FROM jobs
       WHERE contact_id = ? AND project_address = ? AND quote_number IS NOT NULL AND proposal_data IS NOT NULL
       ORDER BY created_at DESC LIMIT 1
-    `
+    `,
       )
       .get(contactId, projectAddress);
     if (prior?.quote_number) {
@@ -60,7 +60,7 @@ function findPriorQuoteContext(db, { rawText, contactId, projectAddress }) {
       SELECT quote_number FROM jobs
       WHERE contact_id = ? AND quote_number IS NOT NULL AND proposal_data IS NOT NULL
       ORDER BY created_at DESC LIMIT 1
-    `
+    `,
       )
       .get(contactId);
     if (prior?.quote_number) {
@@ -76,7 +76,7 @@ function findPriorQuoteContext(db, { rawText, contactId, projectAddress }) {
       SELECT quote_number FROM jobs
       WHERE project_address = ? AND quote_number IS NOT NULL AND proposal_data IS NOT NULL
       ORDER BY created_at DESC LIMIT 1
-    `
+    `,
       )
       .get(projectAddress);
     if (prior?.quote_number) {
@@ -115,7 +115,7 @@ function finalizeJobVersioning(db, jobId, proposalData) {
   const versionedDisplay = formatVersionedQuote(rawQuoteNum, version);
 
   db.prepare(
-    `UPDATE jobs SET quote_number = ?, version = ?, parent_job_id = ?, estimate_source = 'ai' WHERE id = ?`
+    `UPDATE jobs SET quote_number = ?, version = ?, parent_job_id = ?, estimate_source = 'ai' WHERE id = ?`,
   ).run(rawQuoteNum, version, parentJobId, jobId);
 
   proposalData.quoteNumberRaw = rawQuoteNum;
@@ -123,7 +123,7 @@ function finalizeJobVersioning(db, jobId, proposalData) {
   proposalData.quoteNumber = versionedDisplay;
 
   console.log(
-    `[Versioning] Job ${jobId}: quote ${rawQuoteNum} → version ${version} (${versionedDisplay})`
+    `[Versioning] Job ${jobId}: quote ${rawQuoteNum} → version ${version} (${versionedDisplay})`,
   );
 }
 
@@ -132,7 +132,7 @@ function mergeContactIntoProposal(db, jobId, proposalData) {
     const job = db
       .prepare(
         `SELECT customer_name, customer_email, customer_phone, project_address, project_city,
-              contact_id, pb_number, external_ref, quote_number FROM jobs WHERE id = ?`
+              contact_id, pb_number, external_ref, quote_number FROM jobs WHERE id = ?`,
       )
       .get(jobId);
     if (!job) return;
@@ -141,21 +141,21 @@ function mergeContactIntoProposal(db, jobId, proposalData) {
     if (job.contact_id) {
       contact = db
         .prepare(
-          'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE id = ?'
+          'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE id = ?',
         )
         .get(job.contact_id);
     }
     if (!contact && job.customer_email) {
       contact = db
         .prepare(
-          'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1'
+          'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE email = ? COLLATE NOCASE LIMIT 1',
         )
         .get(job.customer_email);
     }
     if (!contact && job.customer_phone) {
       contact = db
         .prepare(
-          'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE phone = ? LIMIT 1'
+          'SELECT name, email, phone, address, city, state, pb_customer_number FROM contacts WHERE phone = ? LIMIT 1',
         )
         .get(job.customer_phone);
     }
@@ -181,7 +181,7 @@ function mergeContactIntoProposal(db, jobId, proposalData) {
 
     if (c.name)
       console.log(
-        `[mergeContact] Job ${jobId}: customer="${c.name}", quoteNumber="${proposalData.quoteNumber}"`
+        `[mergeContact] Job ${jobId}: customer="${c.name}", quoteNumber="${proposalData.quoteNumber}"`,
       );
   } catch (e) {
     console.warn('[mergeContactIntoProposal] Error:', e.message);
@@ -202,7 +202,7 @@ function saveProposalReady(db, proposalData, pdfPath, jobId) {
       customer_phone = COALESCE(NULLIF(?, ''), customer_phone),
       project_address = COALESCE(NULLIF(?, ''), project_address),
       project_city    = COALESCE(NULLIF(?, ''), project_city)
-    WHERE id = ?`
+    WHERE id = ?`,
   ).run(
     JSON.stringify(proposalData),
     pdfPath,
@@ -214,12 +214,12 @@ function saveProposalReady(db, proposalData, pdfPath, jobId) {
     c.phone || '',
     p.address || '',
     p.city || '',
-    jobId
+    jobId,
   );
 
   const job = db
     .prepare(
-      'SELECT customer_name, customer_email, customer_phone, project_address, project_city, contact_id FROM jobs WHERE id = ?'
+      'SELECT customer_name, customer_email, customer_phone, project_address, project_city, contact_id FROM jobs WHERE id = ?',
     )
     .get(jobId);
   const contactName = c.name || job?.customer_name || '';
@@ -236,7 +236,7 @@ function saveProposalReady(db, proposalData, pdfPath, jobId) {
         phone: contactPhone,
         address: contactAddr,
         city: contactCity,
-        state: p.state || 'MA'
+        state: p.state || 'MA',
       });
       if (!job?.contact_id) {
         db.prepare('UPDATE jobs SET contact_id = ? WHERE id = ?').run(contactRef.id, jobId);
@@ -260,7 +260,7 @@ function saveReviewPending(db, proposalData, jobId) {
       customer_phone = COALESCE(NULLIF(?, ''), customer_phone),
       project_address = COALESCE(NULLIF(?, ''), project_address),
       project_city    = COALESCE(NULLIF(?, ''), project_city)
-    WHERE id = ?`
+    WHERE id = ?`,
   ).run(
     JSON.stringify(proposalData),
     proposalData.totalValue || 0,
@@ -270,7 +270,7 @@ function saveReviewPending(db, proposalData, jobId) {
     c.phone || '',
     p.address || '',
     p.city || '',
-    jobId
+    jobId,
   );
 }
 
@@ -280,12 +280,12 @@ function generateCustomerSerial(db) {
   const year = new Date().getFullYear();
   const assign = db.transaction(() => {
     db.prepare('INSERT OR IGNORE INTO customer_serial_counter (year, next_seq) VALUES (?, 1)').run(
-      year
+      year,
     );
     const row = db.prepare('SELECT next_seq FROM customer_serial_counter WHERE year = ?').get(year);
     const seq = row.next_seq;
     db.prepare('UPDATE customer_serial_counter SET next_seq = next_seq + 1 WHERE year = ?').run(
-      year
+      year,
     );
     return `PB-C-${year}-${String(seq).padStart(4, '0')}`;
   });
@@ -351,7 +351,7 @@ function findOrCreateContact(db, { name, email, phone, address, city, state }) {
         city    = COALESCE(NULLIF(?, ''), city),
         state   = COALESCE(NULLIF(?, ''), state),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?`
+      WHERE id = ?`,
     ).run(
       name || '',
       email || '',
@@ -359,7 +359,7 @@ function findOrCreateContact(db, { name, email, phone, address, city, state }) {
       address || '',
       city || '',
       state || 'MA',
-      contact.id
+      contact.id,
     );
     if (!contact.customer_number) {
       const csn = generateCustomerSerial(db);
@@ -376,7 +376,7 @@ function findOrCreateContact(db, { name, email, phone, address, city, state }) {
     return {
       id: contact.id,
       csn: contact.customer_number,
-      pb_customer_number: contact.pb_customer_number
+      pb_customer_number: contact.pb_customer_number,
     };
   } else {
     const csn = generateCustomerSerial(db);
@@ -385,7 +385,7 @@ function findOrCreateContact(db, { name, email, phone, address, city, state }) {
       .prepare(
         `
       INSERT INTO contacts (name, email, phone, address, city, state, customer_number, pb_customer_number, source)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'estimate')`
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'estimate')`,
       )
       .run(
         name || '',
@@ -395,7 +395,7 @@ function findOrCreateContact(db, { name, email, phone, address, city, state }) {
         city || '',
         state || 'MA',
         csn,
-        pbn
+        pbn,
       );
     return { id: result.lastInsertRowid, csn, pb_customer_number: pbn };
   }
@@ -413,7 +413,7 @@ function purgeOldArchived() {
     const db = getDb();
     const old = db
       .prepare(
-        "SELECT id FROM jobs WHERE archived = 1 AND archived_at < datetime('now', '-90 days')"
+        "SELECT id FROM jobs WHERE archived = 1 AND archived_at < datetime('now', '-90 days')",
       )
       .all();
     for (const job of old) {
@@ -424,7 +424,7 @@ function purgeOldArchived() {
     }
     if (old.length > 0)
       console.log(
-        `[Auto-purge] Permanently deleted ${old.length} archived job(s) older than 90 days`
+        `[Auto-purge] Permanently deleted ${old.length} archived job(s) older than 90 days`,
       );
   } catch {
     /* ignore purge errors */
@@ -449,5 +449,5 @@ module.exports = {
   generatePbCustomerNumber,
   findOrCreateContact,
   stripPII,
-  purgeOldArchived
+  purgeOldArchived,
 };

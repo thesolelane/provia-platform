@@ -13,7 +13,7 @@ const ALLOWED_MIMES = [
   'image/gif',
   'image/webp',
   'image/heic',
-  'image/heif'
+  'image/heif',
 ];
 const ALLOWED_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif'];
 
@@ -80,7 +80,7 @@ router.post('/:id/photos', requireAuth, (req, res) => {
 
       const result = db
         .prepare(
-          'INSERT INTO job_photos (job_id, filename, original_name, caption) VALUES (?, ?, ?, ?)'
+          'INSERT INTO job_photos (job_id, filename, original_name, caption) VALUES (?, ?, ?, ?)',
         )
         .run(jobId, filename, file.name, caption);
 
@@ -90,7 +90,7 @@ router.post('/:id/photos', requireAuth, (req, res) => {
         filename,
         original_name: file.name,
         caption,
-        uploaded_at: new Date().toISOString()
+        uploaded_at: new Date().toISOString(),
       });
     });
   } catch (err) {

@@ -20,7 +20,7 @@ const STAGES = [
   { key: 'follow_up_1', label: 'Follow-up 1', color: '#7B1FA2', bg: '#f3e5f5' },
   { key: 'follow_up_2', label: 'Follow-up 2', color: '#AD1457', bg: '#fce4ec' },
   { key: 'signed', label: 'Signed ✓', color: GREEN, bg: '#e8f5e9' },
-  { key: 'rejected', label: 'Rejected', color: RED, bg: '#ffebee' }
+  { key: 'rejected', label: 'Rejected', color: RED, bg: '#ffebee' },
 ];
 const STAGE_MAP = Object.fromEntries(STAGES.map((s) => [s.key, s]));
 
@@ -32,7 +32,7 @@ const NEXT_STAGE = {
   quote_draft: 'quote_sent',
   quote_sent: 'follow_up_1',
   follow_up_1: 'follow_up_2',
-  follow_up_2: 'signed'
+  follow_up_2: 'signed',
 };
 
 const SOURCE_LABELS = {
@@ -40,21 +40,21 @@ const SOURCE_LABELS = {
   referral: '🤝 Referral',
   web: '🌐 Web',
   'walk-in': '🚶 Walk-in',
-  other: 'Other'
+  other: 'Other',
 };
 
 const JOB_TYPE_LABELS = {
   residential: 'Residential',
   commercial: 'Commercial',
   new_construction: 'New Construction',
-  renovation: 'Renovation'
+  renovation: 'Renovation',
 };
 
 const ARCHIVE_REASONS = [
   { value: 'price', label: 'Price — too expensive' },
   { value: 'timing', label: 'Timing — not ready yet' },
   { value: 'no_response', label: 'No response (×3)' },
-  { value: 'other', label: 'Other' }
+  { value: 'other', label: 'Other' },
 ];
 
 // ── local date/time string for datetime-local input ──────────────────────────
@@ -73,7 +73,7 @@ function fmtDateTime(iso) {
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
-    minute: '2-digit'
+    minute: '2-digit',
   });
 }
 
@@ -88,7 +88,7 @@ const inputStyle = {
   width: '100%',
   fontFamily: 'inherit',
   background: 'white',
-  boxSizing: 'border-box'
+  boxSizing: 'border-box',
 };
 const btnPrimary = (bg = BLUE) => ({
   background: bg,
@@ -98,7 +98,7 @@ const btnPrimary = (bg = BLUE) => ({
   padding: '8px 16px',
   cursor: 'pointer',
   fontWeight: 600,
-  fontSize: 13
+  fontSize: 13,
 });
 const btnSecondary = {
   background: '#f1f5f9',
@@ -107,7 +107,7 @@ const btnSecondary = {
   borderRadius: 6,
   padding: '7px 14px',
   cursor: 'pointer',
-  fontSize: 12
+  fontSize: 12,
 };
 const overlayStyle = {
   position: 'fixed',
@@ -116,7 +116,7 @@ const overlayStyle = {
   zIndex: 2000,
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center'
+  justifyContent: 'center',
 };
 const modalStyle = {
   background: 'white',
@@ -126,7 +126,7 @@ const modalStyle = {
   maxWidth: 480,
   boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
   maxHeight: '90vh',
-  overflowY: 'auto'
+  overflowY: 'auto',
 };
 
 // ── Appointment modal ─────────────────────────────────────────────────────────
@@ -144,7 +144,7 @@ function AppointmentModal({ lead, onConfirm, onClose }) {
       appointment_at: new Date(apptAt).toISOString(),
       job_address: address,
       job_city: city,
-      job_email: email
+      job_email: email,
     });
     setSaving(false);
   };
@@ -261,7 +261,7 @@ const labelStyle = {
   color: '#888',
   display: 'block',
   marginBottom: 4,
-  fontWeight: 600
+  fontWeight: 600,
 };
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -274,7 +274,7 @@ export default function Leads({ token }) {
     caller_name: '',
     caller_phone: '',
     source: 'other',
-    notes: ''
+    notes: '',
   });
   const [savingNew, setSavingNew] = useState(false);
 
@@ -289,7 +289,7 @@ export default function Leads({ token }) {
     setLoading(true);
     try {
       const res = await fetch(`/api/leads?archived=${showArchived ? 1 : 0}`, {
-        headers: { 'x-auth-token': token }
+        headers: { 'x-auth-token': token },
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -313,7 +313,7 @@ export default function Leads({ token }) {
     const res = await fetch(`/api/leads/${id}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -381,7 +381,7 @@ export default function Leads({ token }) {
       setLeads((prev) =>
         showArchived
           ? prev.map((l) => (l.id === archiveModal.id ? data.lead : l))
-          : prev.filter((l) => l.id !== archiveModal.id)
+          : prev.filter((l) => l.id !== archiveModal.id),
       );
       showToast('Lead archived', 'success');
     } catch (err) {
@@ -414,7 +414,7 @@ export default function Leads({ token }) {
       const res = await fetch('/api/leads', {
         method: 'POST',
         headers,
-        body: JSON.stringify(newForm)
+        body: JSON.stringify(newForm),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -440,7 +440,7 @@ export default function Leads({ token }) {
   }
   const totalActive = STAGES.filter((s) => s.key !== 'rejected').reduce(
     (n, s) => n + byStage[s.key].length,
-    0
+    0,
   );
 
   return (
@@ -453,7 +453,7 @@ export default function Leads({ token }) {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 12,
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <div>
@@ -473,7 +473,7 @@ export default function Leads({ token }) {
               gap: 6,
               fontSize: 13,
               color: '#555',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             <input
@@ -492,7 +492,7 @@ export default function Leads({ token }) {
               borderRadius: 6,
               padding: '7px 12px',
               cursor: 'pointer',
-              fontSize: 13
+              fontSize: 13,
             }}
           >
             ↻ Refresh
@@ -512,7 +512,7 @@ export default function Leads({ token }) {
             borderRadius: 10,
             padding: 20,
             marginBottom: 20,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           }}
         >
           <div style={{ fontWeight: 700, color: BLUE, marginBottom: 14, fontSize: 15 }}>
@@ -582,7 +582,7 @@ export default function Leads({ token }) {
               padding: '8px 18px',
               cursor: 'pointer',
               fontSize: 13,
-              fontWeight: 600
+              fontWeight: 600,
             }}
           >
             ↻ Reload
@@ -605,7 +605,7 @@ export default function Leads({ token }) {
                         padding: '3px 12px',
                         fontSize: 12,
                         fontWeight: 700,
-                        border: `1px solid ${stg.color}30`
+                        border: `1px solid ${stg.color}30`,
                       }}
                     >
                       {stg.label}
@@ -634,7 +634,7 @@ export default function Leads({ token }) {
                   )}
                 </section>
               );
-            }
+            },
           )}
         </div>
       )}
@@ -651,7 +651,7 @@ export default function Leads({ token }) {
                 const r = await fetch(`/api/leads/${wizardLead.id}`, {
                   method: 'PATCH',
                   headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ stage: 'quote_sent', job_id: String(jobId) })
+                  body: JSON.stringify({ stage: 'quote_sent', job_id: String(jobId) }),
                 });
                 if (!r.ok) {
                   const e = await r.json().catch(() => ({}));
@@ -722,7 +722,7 @@ function LeadPhotoThumb({ photo, token }) {
             borderRadius: 6,
             border: '1px solid #dde3ed',
             display: 'block',
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
           onClick={() => {
             const w = window.open();
@@ -740,7 +740,7 @@ function LeadPhotoThumb({ photo, token }) {
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: 11,
-            color: '#aaa'
+            color: '#aaa',
           }}
         >
           …
@@ -761,7 +761,7 @@ function LeadPhotoThumb({ photo, token }) {
             borderRadius: 4,
             padding: '1px 4px',
             textDecoration: 'none',
-            lineHeight: '14px'
+            lineHeight: '14px',
           }}
         >
           📍 Map
@@ -807,7 +807,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
     quote_draft: '✉ Send Proposal',
     quote_sent: '📞 Log Follow-up 1',
     follow_up_1: '📞 Log Follow-up 2',
-    follow_up_2: '✅ Mark as Signed'
+    follow_up_2: '✅ Mark as Signed',
   }[lead.stage];
 
   const handleBlur = async () => {
@@ -829,7 +829,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
         borderRadius: 10,
         padding: '14px 16px',
         boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-        borderLeft: `4px solid ${stg.color}`
+        borderLeft: `4px solid ${stg.color}`,
       }}
     >
       {/* Top row */}
@@ -840,7 +840,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 8,
-          marginBottom: 10
+          marginBottom: 10,
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -863,7 +863,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               gap: 5,
               marginTop: 6,
               flexWrap: 'wrap',
-              alignItems: 'center'
+              alignItems: 'center',
             }}
           >
             <span
@@ -874,7 +874,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
                 padding: '2px 10px',
                 fontSize: 11,
                 fontWeight: 700,
-                border: `1px solid ${stg.color}30`
+                border: `1px solid ${stg.color}30`,
               }}
             >
               {stg.label}
@@ -885,7 +885,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
                 color: GREY,
                 borderRadius: 20,
                 padding: '2px 9px',
-                fontSize: 11
+                fontSize: 11,
               }}
             >
               {SOURCE_LABELS[lead.source] || lead.source}
@@ -899,7 +899,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
                   padding: '2px 9px',
                   fontSize: 11,
                   fontWeight: 700,
-                  fontFamily: 'monospace'
+                  fontFamily: 'monospace',
                 }}
               >
                 {lead.pb_customer_number}
@@ -912,7 +912,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
                   color: GREEN,
                   borderRadius: 20,
                   padding: '2px 9px',
-                  fontSize: 11
+                  fontSize: 11,
                 }}
               >
                 ✓ Contact linked
@@ -925,7 +925,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
                   color: '#92400e',
                   borderRadius: 20,
                   padding: '2px 9px',
-                  fontSize: 11
+                  fontSize: 11,
                 }}
               >
                 {JOB_TYPE_LABELS[lead.job_type] || lead.job_type}
@@ -938,7 +938,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
                   color: RED,
                   borderRadius: 20,
                   padding: '2px 9px',
-                  fontSize: 11
+                  fontSize: 11,
                 }}
               >
                 {lead.archive_reason.replace(/_/g, ' ')}
@@ -986,7 +986,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
                   cursor: 'pointer',
                   fontSize: 12,
                   color: BLUE,
-                  fontWeight: 600
+                  fontWeight: 600,
                 }}
               >
                 📷 {leadPhotos.length} photo{leadPhotos.length !== 1 ? 's' : ''}{' '}
@@ -1007,7 +1007,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           {new Date(lead.created_at).toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
-            year: 'numeric'
+            year: 'numeric',
           })}
         </div>
       </div>
@@ -1028,7 +1028,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               border: '1px solid #a5d6a7',
               borderRadius: 12,
               padding: '3px 10px',
-              textDecoration: 'none'
+              textDecoration: 'none',
             }}
           >
             🔗 Linked Job: {lead.job_pb_number || `#${lead.job_id}`}
@@ -1053,7 +1053,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           resize: 'vertical',
           boxSizing: 'border-box',
           fontFamily: 'inherit',
-          background: saving ? '#fffbe6' : '#fafafa'
+          background: saving ? '#fffbe6' : '#fafafa',
         }}
       />
 
@@ -1066,10 +1066,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
             </button>
           )}
           {isQuoteDraft && (
-            <button
-              onClick={onOpenWizard}
-              style={btnPrimary('#F57C00')}
-            >
+            <button onClick={onOpenWizard} style={btnPrimary('#F57C00')}>
               📝 Open Proposal Wizard
             </button>
           )}
@@ -1083,7 +1080,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
                 borderRadius: 6,
                 padding: '7px 12px',
                 cursor: 'pointer',
-                fontSize: 12
+                fontSize: 12,
               }}
             >
               Archive
@@ -1098,7 +1095,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               borderRadius: 6,
               padding: '7px 10px',
               cursor: 'pointer',
-              fontSize: 11
+              fontSize: 11,
             }}
           >
             Delete
@@ -1116,7 +1113,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               borderRadius: 6,
               padding: '6px 10px',
               cursor: 'pointer',
-              fontSize: 11
+              fontSize: 11,
             }}
           >
             Delete permanently
@@ -1143,7 +1140,7 @@ function buildCalURL(lead) {
       'action=TEMPLATE',
       `text=${encodeURIComponent(`Appointment: ${lead.caller_name}`)}`,
       `dates=${start}/${end}`,
-      `details=${encodeURIComponent(`Site visit with ${lead.caller_name} (${lead.caller_phone})`)}`
+      `details=${encodeURIComponent(`Site visit with ${lead.caller_name} (${lead.caller_phone})`)}`,
     ];
     if (addr) parts.push(`location=${encodeURIComponent(addr)}`);
     return `https://calendar.google.com/calendar/render?${parts.join('&')}`;

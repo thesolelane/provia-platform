@@ -50,7 +50,7 @@ router.get('/status', (req, res) => {
     const hash = execSync('git rev-parse --short HEAD', { cwd: PROJECT_DIR }).toString().trim();
     const msg = execSync('git log -1 --pretty=%s', { cwd: PROJECT_DIR }).toString().trim();
     const date = execSync('git log -1 --pretty=%cd --date=format:"%Y-%m-%d %H:%M"', {
-      cwd: PROJECT_DIR
+      cwd: PROJECT_DIR,
     })
       .toString()
       .trim();

@@ -11,7 +11,7 @@ const COUNTER_KEY = 'quotes_since_last_assessment';
 async function runAssessment(db) {
   const contracts = db
     .prepare(
-      "SELECT id, title, content FROM knowledge_base WHERE category = 'past_contracts' AND active = 1 ORDER BY created_at DESC LIMIT 50"
+      "SELECT id, title, content FROM knowledge_base WHERE category = 'past_contracts' AND active = 1 ORDER BY created_at DESC LIMIT 50",
     )
     .all();
 
@@ -30,7 +30,7 @@ async function runAssessment(db) {
       title: c.title?.substring(0, 60) || '—',
       date: dateMatch?.[1]?.trim() || '—',
       value: valueMatch?.[1] ? `$${valueMatch[1]}` : '—',
-      type: typeMatch?.[1]?.trim() || '—'
+      type: typeMatch?.[1]?.trim() || '—',
     };
   });
 
@@ -103,9 +103,9 @@ Numbered list of the 5 most impactful changes you should make immediately to win
 - Estimated total portfolio value: $X
 - Average contract size: $X
 - Most common project type: X
-- Price positioning: X`
-      }
-    ]
+- Price positioning: X`,
+      },
+    ],
   });
 
   const reportBody = response.content[0].text;
@@ -122,7 +122,7 @@ Numbered list of the 5 most impactful changes you should make immediately to win
 ${referenceLog
   .map(
     (r) =>
-      `| ${r.ref} | ${r.date.substring(0, 12).padEnd(12)} | ${r.value.padEnd(12)} | ${r.type.substring(0, 20).padEnd(20)} | ${r.title} |`
+      `| ${r.ref} | ${r.date.substring(0, 12).padEnd(12)} | ${r.value.padEnd(12)} | ${r.type.substring(0, 20).padEnd(20)} | ${r.title} |`,
   )
   .join('\n')}
 
@@ -131,17 +131,17 @@ ${referenceLog
   // Save (upsert) assessment report
   const existing = db
     .prepare(
-      "SELECT id FROM knowledge_base WHERE title = 'Competitive Assessment Report' AND category = 'pricing'"
+      "SELECT id FROM knowledge_base WHERE title = 'Competitive Assessment Report' AND category = 'pricing'",
     )
     .get();
   if (existing) {
     db.prepare('UPDATE knowledge_base SET content = ?, active = 1 WHERE id = ?').run(
       fullReport,
-      existing.id
+      existing.id,
     );
   } else {
     db.prepare(
-      'INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)'
+      'INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)',
     ).run('Competitive Assessment Report', 'pricing', fullReport, 'en');
   }
 
@@ -160,7 +160,7 @@ ${referenceLog
 function tickQuoteCounter(db) {
   // Ensure the counter row exists
   db.prepare(
-    "INSERT OR IGNORE INTO settings (key, value, category, label) VALUES (?, '0', 'system', 'Quotes since last assessment')"
+    "INSERT OR IGNORE INTO settings (key, value, category, label) VALUES (?, '0', 'system', 'Quotes since last assessment')",
   ).run(COUNTER_KEY);
 
   const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(COUNTER_KEY);
@@ -170,7 +170,7 @@ function tickQuoteCounter(db) {
     // Reset counter immediately so concurrent completions don't double-fire
     db.prepare('UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?').run(
       '0',
-      COUNTER_KEY
+      COUNTER_KEY,
     );
     console.log(`[Assessment] ${count} quotes reached — triggering auto-assessment`);
 
@@ -179,14 +179,14 @@ function tickQuoteCounter(db) {
     runAssessment(getDb())
       .then((r) =>
         console.log(
-          `[Assessment] Auto-assessment complete. ${r.contractsAnalyzed} contracts analyzed, ${r.purged} purged.`
-        )
+          `[Assessment] Auto-assessment complete. ${r.contractsAnalyzed} contracts analyzed, ${r.purged} purged.`,
+        ),
       )
       .catch((err) => console.error('[Assessment] Auto-assessment failed:', err.message));
   } else {
     db.prepare('UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?').run(
       String(count),
-      COUNTER_KEY
+      COUNTER_KEY,
     );
     console.log(`[Assessment] Quote counter: ${count}/${QUOTE_THRESHOLD}`);
   }

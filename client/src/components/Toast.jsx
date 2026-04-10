@@ -5,7 +5,7 @@ const TYPE_STYLES = {
   success: { background: '#1B3A6B', icon: '✓', border: '#E07B2A' },
   error: { background: '#C62828', icon: '✕', border: '#ff6b6b' },
   info: { background: '#0277bd', icon: 'ℹ', border: '#4fc3f7' },
-  warning: { background: '#E65100', icon: '⚠', border: '#ffb74d' }
+  warning: { background: '#E65100', icon: '⚠', border: '#ffb74d' },
 };
 
 export default function Toast() {
@@ -36,7 +36,7 @@ export default function Toast() {
         display: 'flex',
         flexDirection: 'column',
         gap: 10,
-        maxWidth: 360
+        maxWidth: 360,
       }}
     >
       {toasts.map((t) => {
@@ -56,7 +56,7 @@ export default function Toast() {
               gap: 10,
               fontSize: 13,
               lineHeight: 1.5,
-              animation: 'slideIn 0.2s ease'
+              animation: 'slideIn 0.2s ease',
             }}
           >
             <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{style.icon}</span>

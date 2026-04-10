@@ -17,7 +17,7 @@ const VALID_STAGES = [
   'follow_up_1',
   'follow_up_2',
   'signed',
-  'rejected'
+  'rejected',
 ];
 const VALID_SOURCES = ['marblism', 'referral', 'web', 'walk-in', 'other'];
 const VALID_ARCHIVE_REASONS = ['price', 'timing', 'no_response', 'other'];
@@ -106,7 +106,7 @@ function resolveContact(db, { name, phone, email, address, city }) {
     email: email || '',
     address: address || '',
     city: city || '',
-    state: 'MA'
+    state: 'MA',
   });
 }
 
@@ -123,7 +123,7 @@ function autoTask(db, lead, nextStage, performer) {
       priority: 'high',
       remind_at: remindAt(24),
       remind_interval_hours: 24,
-      due_at: remindAt(24)
+      due_at: remindAt(24),
     },
     appointment_booked: lead.appointment_at
       ? {
@@ -138,8 +138,8 @@ function autoTask(db, lead, nextStage, performer) {
             startIso: lead.appointment_at,
             durationHours: 2,
             description: `Site visit with ${name} (${phone})`,
-            location: addr
-          })
+            location: addr,
+          }),
         }
       : null,
     quote_draft: {
@@ -148,7 +148,7 @@ function autoTask(db, lead, nextStage, performer) {
       priority: 'normal',
       due_at: remindAt(48),
       remind_at: remindAt(48),
-      remind_interval_hours: 48
+      remind_interval_hours: 48,
     },
     quote_sent: {
       title: `✉ Proposal Sent: ${name}${addr ? ' — ' + addr : ''}`,
@@ -156,7 +156,7 @@ function autoTask(db, lead, nextStage, performer) {
       priority: 'normal',
       due_at: remindAt(7 * 24),
       remind_at: remindAt(7 * 24),
-      remind_interval_hours: 168
+      remind_interval_hours: 168,
     },
     follow_up_1: {
       title: `📞 Follow-up 1: ${name} (${phone})`,
@@ -164,7 +164,7 @@ function autoTask(db, lead, nextStage, performer) {
       priority: 'normal',
       due_at: remindAt(7 * 24),
       remind_at: remindAt(7 * 24),
-      remind_interval_hours: 168
+      remind_interval_hours: 168,
     },
     follow_up_2: {
       title: `📞 Follow-up 2: ${name} (${phone})`,
@@ -172,8 +172,8 @@ function autoTask(db, lead, nextStage, performer) {
       priority: 'high',
       due_at: remindAt(7 * 24),
       remind_at: remindAt(7 * 24),
-      remind_interval_hours: 168
-    }
+      remind_interval_hours: 168,
+    },
   };
 
   const def = taskDefs[nextStage];
@@ -186,7 +186,7 @@ function autoTask(db, lead, nextStage, performer) {
       INSERT INTO tasks
         (title, description, status, priority, contact_id, lead_id, due_at, remind_at, remind_interval_hours, calendar_url, created_at, updated_at)
       VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `
+    `,
       )
       .run(
         def.title,
@@ -197,13 +197,13 @@ function autoTask(db, lead, nextStage, performer) {
         def.due_at || null,
         def.remind_at || null,
         def.remind_interval_hours || 168,
-        def.calendar_url || null
+        def.calendar_url || null,
       );
     logAudit(
       null,
       'lead_auto_task',
       `Lead #${lead.id}: task #${row.lastInsertRowid} auto-created for stage ${nextStage}`,
-      performer
+      performer,
     );
     return row.lastInsertRowid;
   } catch (e) {
@@ -218,13 +218,15 @@ router.get('/', requireAuth, (req, res) => {
     const db = getDb();
     const archived = req.query.archived === '1' ? 1 : 0;
     const leads = db
-      .prepare(`
+      .prepare(
+        `
         SELECT l.*, j.pb_number AS job_pb_number
         FROM leads l
         LEFT JOIN jobs j ON l.job_id = j.id
         WHERE l.archived = ?
         ORDER BY l.updated_at DESC
-      `)
+      `,
+      )
       .all(archived);
     res.json({ leads });
   } catch (err) {
@@ -258,7 +260,7 @@ router.post('/', requireAuth, (req, res) => {
       job_city = '',
       job_email = '',
       job_scope = '',
-      job_type = ''
+      job_type = '',
     } = req.body;
     if (!caller_name || !caller_phone) {
       return res.status(400).json({ error: 'caller_name and caller_phone are required' });
@@ -271,7 +273,7 @@ router.post('/', requireAuth, (req, res) => {
       INSERT INTO leads
         (caller_name, caller_phone, source, notes, job_address, job_city, job_email, job_scope, job_type, stage, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'incoming', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `
+    `,
       )
       .run(
         caller_name.trim(),
@@ -282,7 +284,7 @@ router.post('/', requireAuth, (req, res) => {
         job_city,
         job_email,
         job_scope,
-        jt
+        jt,
       );
 
     const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(result.lastInsertRowid);
@@ -290,7 +292,7 @@ router.post('/', requireAuth, (req, res) => {
       null,
       'lead_created',
       `Lead #${lead.id} created — ${caller_name} (${caller_phone}) source=${src}`,
-      req.session?.name || 'admin'
+      req.session?.name || 'admin',
     );
     res.status(201).json({ lead });
 
@@ -336,7 +338,10 @@ router.patch('/:id', requireAuth, async (req, res) => {
         params.push(val);
       }
     }
-    if (job_id !== undefined) { updates.push('job_id = ?'); params.push(job_id || null); }
+    if (job_id !== undefined) {
+      updates.push('job_id = ?');
+      params.push(job_id || null);
+    }
     if (job_type !== undefined && (VALID_JOB_TYPES.includes(job_type) || job_type === '')) {
       updates.push('job_type = ?');
       params.push(job_type);
@@ -361,7 +366,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
         job_city: job_city ?? lead.job_city,
         job_email: job_email ?? lead.job_email,
         job_scope: job_scope ?? lead.job_scope,
-        appointment_at: appointment_at ?? lead.appointment_at
+        appointment_at: appointment_at ?? lead.appointment_at,
       };
 
       // Archiving
@@ -382,7 +387,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
             phone: lead.caller_phone,
             email: merged.job_email || '',
             address: merged.job_address || '',
-            city: merged.job_city || ''
+            city: merged.job_city || '',
           });
           updates.push('contact_id = ?');
           params.push(ref.id);
@@ -393,7 +398,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
             null,
             'lead_contact_created',
             `Lead #${leadId}: contact #${ref.id} (${ref.pb_customer_number || 'n/a'}) created — ${lead.caller_name}`,
-            performer
+            performer,
           );
         } catch (e) {
           console.error('[Leads] contact creation error:', e.message);
@@ -414,26 +419,26 @@ router.patch('/:id', requireAuth, async (req, res) => {
             INSERT INTO tasks
               (title, description, status, priority, contact_id, lead_id, remind_at, remind_interval_hours, created_at, updated_at)
             VALUES (?, ?, 'pending', 'high', ?, ?, ?, 168, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-          `
+          `,
           ).run(
             `Generate contract — ${lead.caller_name}`,
             [
               `Auto-created from signed lead #${leadId}.`,
               `Caller: ${lead.caller_name} (${lead.caller_phone})`,
               pbNum ? `PB#: ${pbNum}` : '',
-              addrLine ? `Address: ${addrLine}` : ''
+              addrLine ? `Address: ${addrLine}` : '',
             ]
               .filter(Boolean)
               .join('\n'),
             contactId,
             leadId,
-            remindAt(24)
+            remindAt(24),
           );
           logAudit(
             null,
             'lead_contract_task_created',
             `Lead #${leadId}: contract task created for ${lead.caller_name}`,
-            performer
+            performer,
           );
         } catch (e) {
           console.error('[Leads] contract task error:', e.message);
@@ -444,7 +449,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
         null,
         'lead_stage_changed',
         `Lead #${leadId}: ${lead.stage} → ${stage} by ${performer}`,
-        performer
+        performer,
       );
     }
 
@@ -479,7 +484,7 @@ router.delete('/:id', requireAuth, (req, res) => {
       null,
       'lead_deleted',
       `Lead #${req.params.id} deleted — ${lead.caller_name}`,
-      req.session?.name || 'admin'
+      req.session?.name || 'admin',
     );
     res.json({ ok: true });
   } catch (err) {

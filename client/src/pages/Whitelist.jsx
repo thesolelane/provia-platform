@@ -15,7 +15,7 @@ export default function Whitelist({ token }) {
     type: 'email',
     name: '',
     role: 'pm',
-    language: 'en'
+    language: 'en',
   });
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
@@ -40,7 +40,7 @@ export default function Whitelist({ token }) {
     await fetch(`/api/whitelist/${id}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ active: active ? 0 : 1 })
+      body: JSON.stringify({ active: active ? 0 : 1 }),
     });
     load();
   };
@@ -58,7 +58,7 @@ export default function Whitelist({ token }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <div>
@@ -78,7 +78,7 @@ export default function Whitelist({ token }) {
             border: 'none',
             borderRadius: 8,
             cursor: 'pointer',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
           }}
         >
           + Add Sender
@@ -93,7 +93,7 @@ export default function Whitelist({ token }) {
           padding: 14,
           marginBottom: 20,
           fontSize: 12,
-          color: '#5D3A00'
+          color: '#5D3A00',
         }}
       >
         ⚠️ Messages from numbers or emails NOT on this list are silently dropped — no reply is sent,
@@ -105,7 +105,7 @@ export default function Whitelist({ token }) {
           background: 'white',
           borderRadius: 10,
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
       >
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -134,7 +134,7 @@ export default function Whitelist({ token }) {
                 key={s.id}
                 style={{
                   borderBottom: '1px solid #f0f0f0',
-                  background: i % 2 === 0 ? 'white' : '#fafafa'
+                  background: i % 2 === 0 ? 'white' : '#fafafa',
                 }}
               >
                 <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: '500' }}>
@@ -145,7 +145,7 @@ export default function Whitelist({ token }) {
                     padding: '12px 16px',
                     fontSize: 12,
                     color: '#555',
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
                   }}
                 >
                   {s.identifier}
@@ -158,7 +158,7 @@ export default function Whitelist({ token }) {
                       padding: '2px 8px',
                       borderRadius: 10,
                       fontSize: 11,
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
                     }}
                   >
                     {s.type === 'email' ? '📧 Email' : '📱 WhatsApp'}
@@ -169,7 +169,7 @@ export default function Whitelist({ token }) {
                     padding: '12px 16px',
                     fontSize: 12,
                     color: '#666',
-                    textTransform: 'capitalize'
+                    textTransform: 'capitalize',
                   }}
                 >
                   {s.role}
@@ -194,7 +194,7 @@ export default function Whitelist({ token }) {
                         border: '1px solid #ddd',
                         borderRadius: 4,
                         cursor: 'pointer',
-                        background: 'white'
+                        background: 'white',
                       }}
                     >
                       {s.active ? 'Disable' : 'Enable'}
@@ -208,7 +208,7 @@ export default function Whitelist({ token }) {
                         borderRadius: 4,
                         cursor: 'pointer',
                         color: RED,
-                        background: 'white'
+                        background: 'white',
                       }}
                     >
                       Remove
@@ -230,7 +230,7 @@ export default function Whitelist({ token }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div style={{ background: 'white', borderRadius: 12, padding: 32, width: 440 }}>
@@ -240,8 +240,8 @@ export default function Whitelist({ token }) {
               {
                 label: 'Email or WhatsApp number (with country code)',
                 key: 'identifier',
-                placeholder: 'email@example.com or +11234567890'
-              }
+                placeholder: 'email@example.com or +11234567890',
+              },
             ].map((f) => (
               <div key={f.key} style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>
@@ -257,7 +257,7 @@ export default function Whitelist({ token }) {
                     border: '1px solid #ddd',
                     borderRadius: 6,
                     fontSize: 13,
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
@@ -268,8 +268,8 @@ export default function Whitelist({ token }) {
                 key: 'type',
                 options: [
                   ['email', '📧 Email'],
-                  ['whatsapp', '📱 WhatsApp']
-                ]
+                  ['whatsapp', '📱 WhatsApp'],
+                ],
               },
               {
                 label: 'Role',
@@ -277,17 +277,17 @@ export default function Whitelist({ token }) {
                 options: [
                   ['owner', 'Owner'],
                   ['pm', 'Project Manager'],
-                  ['staff', 'Staff']
-                ]
+                  ['staff', 'Staff'],
+                ],
               },
               {
                 label: 'Language',
                 key: 'language',
                 options: [
                   ['en', '🇺🇸 English'],
-                  ['pt-BR', '🇧🇷 Português']
-                ]
-              }
+                  ['pt-BR', '🇧🇷 Português'],
+                ],
+              },
             ].map((f) => (
               <div key={f.key} style={{ marginBottom: 12 }}>
                 <label style={{ fontSize: 12, color: '#555', display: 'block', marginBottom: 4 }}>
@@ -301,7 +301,7 @@ export default function Whitelist({ token }) {
                     padding: 10,
                     border: '1px solid #ddd',
                     borderRadius: 6,
-                    fontSize: 13
+                    fontSize: 13,
                   }}
                 >
                   {f.options.map(([v, l]) => (
@@ -321,7 +321,7 @@ export default function Whitelist({ token }) {
                   border: '1px solid #ddd',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  background: 'white'
+                  background: 'white',
                 }}
               >
                 Cancel
@@ -337,7 +337,7 @@ export default function Whitelist({ token }) {
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 Add to Whitelist

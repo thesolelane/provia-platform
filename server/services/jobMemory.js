@@ -43,8 +43,8 @@ function saveVersion(
     totalValue,
     lineItems,
     scopeSummary,
-    claudeNotes
-  }
+    claudeNotes,
+  },
 ) {
   let mem = read(jobId);
 
@@ -56,7 +56,7 @@ function saveVersion(
       status: 'open',
       lockedAt: null,
       lockedReason: null,
-      versions: []
+      versions: [],
     };
   }
 
@@ -73,14 +73,14 @@ function saveVersion(
       trade: li.trade,
       description: li.description || '',
       baseCost: li.baseCost || 0,
-      finalPrice: li.finalPrice || 0
+      finalPrice: li.finalPrice || 0,
     })),
     scopeSummary: scopeSummary || '',
     claudeNotes: claudeNotes || '',
     sentToCustomer: false,
     sentAt: null,
     customerOutcome: 'pending', // pending | rejected | approved
-    approvedAt: null
+    approvedAt: null,
   };
 
   if (existing >= 0) mem.versions[existing] = { ...mem.versions[existing], ...versionData };
@@ -148,7 +148,7 @@ function getContextForClaude(jobId) {
   lines.push(`Status: ${mem.status === 'locked' ? '🔒 LOCKED (contract signed)' : 'open'}`);
   if (mem.lockedAt)
     lines.push(
-      `Locked: ${new Date(mem.lockedAt).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}`
+      `Locked: ${new Date(mem.lockedAt).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}`,
     );
   lines.push('');
 
@@ -163,7 +163,7 @@ function getContextForClaude(jobId) {
             : '📝 Draft (not yet sent)';
 
     lines.push(
-      `### Version ${v.versionNumber} (${v.quoteNumber || '—'}) — ${new Date(v.createdAt).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}`
+      `### Version ${v.versionNumber} (${v.quoteNumber || '—'}) — ${new Date(v.createdAt).toLocaleDateString('en-US', { timeZone: 'America/New_York' })}`,
     );
     lines.push(`Total: $${(v.totalValue || 0).toLocaleString()} | ${outcome}`);
 
@@ -171,7 +171,7 @@ function getContextForClaude(jobId) {
       lines.push('Line items:');
       for (const li of v.lineItems) {
         lines.push(
-          `  - ${li.trade}: base $${(li.baseCost || 0).toLocaleString()} → client $${(li.finalPrice || 0).toLocaleString()}${li.description ? ` (${li.description})` : ''}`
+          `  - ${li.trade}: base $${(li.baseCost || 0).toLocaleString()} → client $${(li.finalPrice || 0).toLocaleString()}${li.description ? ` (${li.description})` : ''}`,
         );
       }
     }
@@ -183,11 +183,11 @@ function getContextForClaude(jobId) {
 
   if (mem.status === 'locked') {
     lines.push(
-      'RULE: This job is locked. Use the approved version above as the binding scope and price baseline for any change orders or future work. Do NOT deviate from approved line items without explicit new scope.'
+      'RULE: This job is locked. Use the approved version above as the binding scope and price baseline for any change orders or future work. Do NOT deviate from approved line items without explicit new scope.',
     );
   } else if (mem.versions.length > 1) {
     lines.push(
-      'RULE: Multiple versions exist. Compare carefully. Only revise what the new scope explicitly changes.'
+      'RULE: Multiple versions exist. Compare carefully. Only revise what the new scope explicitly changes.',
     );
   }
 

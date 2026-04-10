@@ -211,21 +211,21 @@ async function initDatabase() {
 
   // Ensure uniqueness at the DB level (add if not already present)
   db.exec(
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_customer_number ON contacts(customer_number)`
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_customer_number ON contacts(customer_number)`,
   );
 
   // Migration: backfill customer_number on any existing contacts that don't have one
   {
     const untagged = db
       .prepare(
-        "SELECT id FROM contacts WHERE customer_number IS NULL OR customer_number = '' ORDER BY id ASC"
+        "SELECT id FROM contacts WHERE customer_number IS NULL OR customer_number = '' ORDER BY id ASC",
       )
       .all();
     const year = new Date().getFullYear();
     const prefix = `PB-C-${year}-`;
     const lastRow = db
       .prepare(
-        'SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1'
+        'SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1',
       )
       .get(prefix + '%');
     let seq = lastRow ? parseInt(lastRow.customer_number.slice(prefix.length)) + 1 : 1;
@@ -240,20 +240,20 @@ async function initDatabase() {
   {
     const years = db
       .prepare(
-        'SELECT DISTINCT CAST(substr(customer_number, 6, 4) AS INTEGER) AS yr FROM contacts WHERE customer_number IS NOT NULL'
+        'SELECT DISTINCT CAST(substr(customer_number, 6, 4) AS INTEGER) AS yr FROM contacts WHERE customer_number IS NOT NULL',
       )
       .all();
     for (const { yr } of years) {
       const pfx = `PB-C-${yr}-`;
       const last = db
         .prepare(
-          'SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1'
+          'SELECT customer_number FROM contacts WHERE customer_number LIKE ? ORDER BY customer_number DESC LIMIT 1',
         )
         .get(pfx + '%');
       if (last) {
         const maxSeq = parseInt(last.customer_number.slice(pfx.length)) + 1;
         db.prepare(
-          'INSERT INTO customer_serial_counter (year, next_seq) VALUES (?, ?) ON CONFLICT(year) DO UPDATE SET next_seq = MAX(next_seq, ?)'
+          'INSERT INTO customer_serial_counter (year, next_seq) VALUES (?, ?) ON CONFLICT(year) DO UPDATE SET next_seq = MAX(next_seq, ?)',
         ).run(yr, maxSeq, maxSeq);
       }
     }
@@ -319,10 +319,10 @@ async function initDatabase() {
 
   // Migration: update roles to new permission system
   db.prepare(
-    "UPDATE users SET role='system_admin', title='Project Manager' WHERE id=1 AND role IN ('owner','system_admin')"
+    "UPDATE users SET role='system_admin', title='Project Manager' WHERE id=1 AND role IN ('owner','system_admin')",
   ).run();
   db.prepare(
-    "UPDATE users SET role='admin', title='Project Manager' WHERE id=2 AND role IN ('pm','admin')"
+    "UPDATE users SET role='admin', title='Project Manager' WHERE id=2 AND role IN ('pm','admin')",
   ).run();
 
   db.exec(`
@@ -343,13 +343,13 @@ async function initDatabase() {
       message_sid TEXT PRIMARY KEY,
       processed_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-  `
+  `,
   ).run();
 
   db.prepare(
     `
     DELETE FROM whatsapp_processed WHERE processed_at < datetime('now', '-24 hours')
-  `
+  `,
   ).run();
 
   // Payment tracking tables
@@ -433,13 +433,13 @@ async function initDatabase() {
     const maxRow = db
       .prepare(
         `SELECT MAX(CAST(quote_number AS INTEGER)) AS mx FROM jobs
-       WHERE quote_number IS NOT NULL AND quote_number GLOB '[0-9]*' AND LENGTH(quote_number) <= 6`
+       WHERE quote_number IS NOT NULL AND quote_number GLOB '[0-9]*' AND LENGTH(quote_number) <= 6`,
       )
       .get();
     if (maxRow?.mx) {
       const needed = maxRow.mx + 1;
       db.prepare(`UPDATE quote_auto_counter SET next_seq = MAX(next_seq, ?) WHERE id = 1`).run(
-        needed
+        needed,
       );
     }
   }
@@ -472,7 +472,7 @@ async function initDatabase() {
   // Backfill existing pending/in_progress tasks with remind_at = now + 7 days
   db.prepare(
     `UPDATE tasks SET remind_at = datetime('now', '+168 hours'), remind_interval_hours = 168
-     WHERE status NOT IN ('done','cancelled') AND remind_at IS NULL`
+     WHERE status NOT IN ('done','cancelled') AND remind_at IS NULL`,
   ).run();
 
   // Email log table
@@ -517,7 +517,7 @@ async function initDatabase() {
   `);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_field_photos_job_id ON field_photos(job_id)`);
   db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_field_photos_location_label ON field_photos(location_label)`
+    `CREATE INDEX IF NOT EXISTS idx_field_photos_location_label ON field_photos(location_label)`,
   );
 
   // ── Customer Activity Log ────────────────────────────────────────────────────
@@ -534,7 +534,7 @@ async function initDatabase() {
     )
   `);
   db.exec(
-    `CREATE INDEX IF NOT EXISTS idx_cal_customer_number ON customer_activity_log(customer_number)`
+    `CREATE INDEX IF NOT EXISTS idx_cal_customer_number ON customer_activity_log(customer_number)`,
   );
   db.exec(`CREATE INDEX IF NOT EXISTS idx_cal_job_id ON customer_activity_log(job_id)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_cal_created_at ON customer_activity_log(created_at)`);
@@ -560,7 +560,7 @@ async function initDatabase() {
     )
   `);
   db.exec(
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number)`
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_invoice_number ON invoices(invoice_number)`,
   );
   db.exec(`CREATE INDEX IF NOT EXISTS idx_invoices_job_id ON invoices(job_id)`);
 
@@ -591,7 +591,7 @@ async function initDatabase() {
   addColIfMissing(
     'payments_received',
     'is_pass_through_reimbursement',
-    'INTEGER NOT NULL DEFAULT 0'
+    'INTEGER NOT NULL DEFAULT 0',
   );
   addColIfMissing('payments_received', 'invoice_id', 'INTEGER');
   addColIfMissing('payments_received', 'line_item_ref', 'TEXT');
@@ -635,12 +635,12 @@ async function initDatabase() {
   {
     const untagged = db
       .prepare(
-        "SELECT id FROM contacts WHERE pb_customer_number IS NULL OR pb_customer_number = '' ORDER BY id ASC"
+        "SELECT id FROM contacts WHERE pb_customer_number IS NULL OR pb_customer_number = '' ORDER BY id ASC",
       )
       .all();
     const lastRow = db
       .prepare(
-        "SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1"
+        "SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1",
       )
       .get();
     let seq = 1;
@@ -656,7 +656,7 @@ async function initDatabase() {
     }
   }
   db.exec(
-    `CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_pb_customer_number ON contacts(pb_customer_number)`
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_contacts_pb_customer_number ON contacts(pb_customer_number)`,
   );
 
   // ── pb_customer_counter: simple sequential counter for new contacts ───────────
@@ -670,7 +670,7 @@ async function initDatabase() {
   {
     const lastPN = db
       .prepare(
-        "SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1"
+        "SELECT pb_customer_number FROM contacts WHERE pb_customer_number LIKE 'PB-C-%' AND LENGTH(pb_customer_number) <= 10 ORDER BY LENGTH(pb_customer_number) DESC, pb_customer_number DESC LIMIT 1",
       )
       .get();
     if (lastPN?.pb_customer_number) {
@@ -678,7 +678,7 @@ async function initDatabase() {
       const lastSeq = parseInt(parts[parts.length - 1]);
       if (!isNaN(lastSeq)) {
         db.prepare('UPDATE pb_customer_counter SET next_seq = MAX(next_seq, ?) WHERE id = 1').run(
-          lastSeq + 1
+          lastSeq + 1,
         );
       }
     }
@@ -800,11 +800,11 @@ async function initDatabase() {
   `);
 
   // ── Purchase Orders migrations (safe addColIfMissing for existing DBs) ───────
-  addColIfMissing('purchase_orders', 'contact_id',  'INTEGER');
-  addColIfMissing('purchase_orders', 'issued_at',   'DATETIME');
+  addColIfMissing('purchase_orders', 'contact_id', 'INTEGER');
+  addColIfMissing('purchase_orders', 'issued_at', 'DATETIME');
   addColIfMissing('purchase_orders', 'received_at', 'DATETIME');
-  addColIfMissing('purchase_orders', 'closed_at',   'DATETIME');
-  addColIfMissing('purchase_orders', 'created_by',  'TEXT');
+  addColIfMissing('purchase_orders', 'closed_at', 'DATETIME');
+  addColIfMissing('purchase_orders', 'created_by', 'TEXT');
   // Index on contact_id must come AFTER addColIfMissing for existing databases
   db.exec(`CREATE INDEX IF NOT EXISTS idx_po_contact_id ON purchase_orders(contact_id)`);
 
@@ -839,286 +839,286 @@ function seedDefaultSettings() {
       key: 'labor.framing',
       value: JSON.stringify({ low: 12, high: 16, unit: 'sqft' }),
       category: 'labor',
-      label: 'Framing'
+      label: 'Framing',
     },
     {
       key: 'labor.roofing',
       value: JSON.stringify({ low: 10, high: 15, unit: 'sqft' }),
       category: 'labor',
-      label: 'Roofing'
+      label: 'Roofing',
     },
     {
       key: 'labor.siding',
       value: JSON.stringify({ low: 8, high: 12, unit: 'sqft' }),
       category: 'labor',
-      label: 'Siding'
+      label: 'Siding',
     },
     {
       key: 'labor.electrical',
       value: JSON.stringify({ low: 85, high: 110, unit: 'hour' }),
       category: 'labor',
-      label: 'Electrical'
+      label: 'Electrical',
     },
     {
       key: 'labor.plumbing',
       value: JSON.stringify({ low: 90, high: 115, unit: 'hour' }),
       category: 'labor',
-      label: 'Plumbing'
+      label: 'Plumbing',
     },
     {
       key: 'labor.hvac',
       value: JSON.stringify({ low: 85, high: 105, unit: 'hour' }),
       category: 'labor',
-      label: 'HVAC'
+      label: 'HVAC',
     },
     {
       key: 'labor.drywall',
       value: JSON.stringify({ low: 3, high: 5, unit: 'sqft' }),
       category: 'labor',
-      label: 'Drywall'
+      label: 'Drywall',
     },
     {
       key: 'labor.insulation',
       value: JSON.stringify({ low: 2, high: 4, unit: 'sqft' }),
       category: 'labor',
-      label: 'Insulation'
+      label: 'Insulation',
     },
     {
       key: 'labor.tile',
       value: JSON.stringify({ low: 12, high: 18, unit: 'sqft' }),
       category: 'labor',
-      label: 'Tile'
+      label: 'Tile',
     },
     {
       key: 'labor.flooring',
       value: JSON.stringify({ low: 5, high: 8, unit: 'sqft' }),
       category: 'labor',
-      label: 'Flooring'
+      label: 'Flooring',
     },
     // Allowances
     {
       key: 'allowance.lvp',
       value: JSON.stringify({ amount: 6.5, unit: 'sqft' }),
       category: 'allowance',
-      label: 'LVP Flooring'
+      label: 'LVP Flooring',
     },
     {
       key: 'allowance.hardwood',
       value: JSON.stringify({ amount: 8.0, unit: 'sqft' }),
       category: 'allowance',
-      label: 'Engineered Hardwood'
+      label: 'Engineered Hardwood',
     },
     {
       key: 'allowance.carpet',
       value: JSON.stringify({ amount: 3.5, unit: 'sqft' }),
       category: 'allowance',
-      label: 'Carpet'
+      label: 'Carpet',
     },
     {
       key: 'allowance.tileBath',
       value: JSON.stringify({ amount: 4.5, unit: 'sqft' }),
       category: 'allowance',
-      label: 'Bath Floor Tile'
+      label: 'Bath Floor Tile',
     },
     {
       key: 'allowance.tileShower',
       value: JSON.stringify({ amount: 5.5, unit: 'sqft' }),
       category: 'allowance',
-      label: 'Shower Tile'
+      label: 'Shower Tile',
     },
     {
       key: 'allowance.cabinets',
       value: JSON.stringify({ amount: 12000, unit: 'fixed' }),
       category: 'allowance',
-      label: 'Kitchen Cabinets'
+      label: 'Kitchen Cabinets',
     },
     {
       key: 'allowance.quartz',
       value: JSON.stringify({ amount: 4250, unit: 'fixed' }),
       category: 'allowance',
-      label: 'Quartz Countertop'
+      label: 'Quartz Countertop',
     },
     {
       key: 'allowance.kitFaucet',
       value: JSON.stringify({ amount: 250, unit: 'each' }),
       category: 'allowance',
-      label: 'Kitchen Faucet'
+      label: 'Kitchen Faucet',
     },
     {
       key: 'allowance.kitSink',
       value: JSON.stringify({ amount: 350, unit: 'each' }),
       category: 'allowance',
-      label: 'Kitchen Sink'
+      label: 'Kitchen Sink',
     },
     {
       key: 'allowance.disposal',
       value: JSON.stringify({ amount: 150, unit: 'each' }),
       category: 'allowance',
-      label: 'Disposal'
+      label: 'Disposal',
     },
     {
       key: 'allowance.vanity',
       value: JSON.stringify({ amount: 650, unit: 'each' }),
       category: 'allowance',
-      label: 'Vanity (full)'
+      label: 'Vanity (full)',
     },
     {
       key: 'allowance.vanitySmall',
       value: JSON.stringify({ amount: 350, unit: 'each' }),
       category: 'allowance',
-      label: 'Vanity (small)'
+      label: 'Vanity (small)',
     },
     {
       key: 'allowance.vanityTop',
       value: JSON.stringify({ amount: 350, unit: 'each' }),
       category: 'allowance',
-      label: 'Vanity Top/Sink'
+      label: 'Vanity Top/Sink',
     },
     {
       key: 'allowance.bathFaucet',
       value: JSON.stringify({ amount: 180, unit: 'each' }),
       category: 'allowance',
-      label: 'Bath Faucet'
+      label: 'Bath Faucet',
     },
     {
       key: 'allowance.toilet',
       value: JSON.stringify({ amount: 280, unit: 'each' }),
       category: 'allowance',
-      label: 'Toilet'
+      label: 'Toilet',
     },
     {
       key: 'allowance.tub',
       value: JSON.stringify({ amount: 850, unit: 'each' }),
       category: 'allowance',
-      label: 'Bathtub'
+      label: 'Bathtub',
     },
     {
       key: 'allowance.showerValve',
       value: JSON.stringify({ amount: 350, unit: 'each' }),
       category: 'allowance',
-      label: 'Shower Valve'
+      label: 'Shower Valve',
     },
     {
       key: 'allowance.showerDoor',
       value: JSON.stringify({ amount: 250, unit: 'each' }),
       category: 'allowance',
-      label: 'Shower Door'
+      label: 'Shower Door',
     },
     {
       key: 'allowance.bathAcc',
       value: JSON.stringify({ amount: 150, unit: 'set' }),
       category: 'allowance',
-      label: 'Bath Accessories'
+      label: 'Bath Accessories',
     },
     {
       key: 'allowance.exhaustFan',
       value: JSON.stringify({ amount: 85, unit: 'each' }),
       category: 'allowance',
-      label: 'Exhaust Fan'
+      label: 'Exhaust Fan',
     },
     {
       key: 'allowance.intDoor',
       value: JSON.stringify({ amount: 180, unit: 'each' }),
       category: 'allowance',
-      label: 'Interior Door'
+      label: 'Interior Door',
     },
     {
       key: 'allowance.passage',
       value: JSON.stringify({ amount: 45, unit: 'each' }),
       category: 'allowance',
-      label: 'Passage Set (Doorknob)'
+      label: 'Passage Set (Doorknob)',
     },
     {
       key: 'allowance.privacy',
       value: JSON.stringify({ amount: 55, unit: 'each' }),
       category: 'allowance',
-      label: 'Privacy Set'
+      label: 'Privacy Set',
     },
     {
       key: 'allowance.bifold',
       value: JSON.stringify({ amount: 175, unit: 'each' }),
       category: 'allowance',
-      label: 'Bifold Door'
+      label: 'Bifold Door',
     },
     {
       key: 'allowance.baseMold',
       value: JSON.stringify({ amount: 1.85, unit: 'lf' }),
       category: 'allowance',
-      label: 'Base Molding (per LF)'
+      label: 'Base Molding (per LF)',
     },
     {
       key: 'allowance.casing',
       value: JSON.stringify({ amount: 1.65, unit: 'lf' }),
       category: 'allowance',
-      label: 'Door/Window Casing (per LF)'
+      label: 'Door/Window Casing (per LF)',
     },
     {
       key: 'allowance.windowStool',
       value: JSON.stringify({ amount: 85, unit: 'each' }),
       category: 'allowance',
-      label: 'Window Stool & Apron'
+      label: 'Window Stool & Apron',
     },
     // Pricing targets
     {
       key: 'pricing.sqftLow',
       value: '320',
       category: 'pricing',
-      label: 'Target Price Low ($/sqft)'
+      label: 'Target Price Low ($/sqft)',
     },
     {
       key: 'pricing.sqftHigh',
       value: '350',
       category: 'pricing',
-      label: 'Target Price High ($/sqft)'
+      label: 'Target Price High ($/sqft)',
     },
     {
       key: 'pricing.sqftRenoLow',
       value: '100',
       category: 'pricing',
-      label: 'Renovation Target Price Low ($/sqft)'
+      label: 'Renovation Target Price Low ($/sqft)',
     },
     {
       key: 'pricing.sqftRenoHigh',
       value: '150',
       category: 'pricing',
-      label: 'Renovation Target Price High ($/sqft)'
+      label: 'Renovation Target Price High ($/sqft)',
     },
     // Bot behavior
     {
       key: 'bot.maxClarifications',
       value: '3',
       category: 'behavior',
-      label: 'Max Clarification Rounds'
+      label: 'Max Clarification Rounds',
     },
     {
       key: 'bot.autoStretchCode',
       value: 'true',
       category: 'behavior',
-      label: 'Auto-detect Stretch Code Town'
+      label: 'Auto-detect Stretch Code Town',
     },
     {
       key: 'bot.flagVariance',
       value: '15',
       category: 'behavior',
-      label: 'Flag Variance % Threshold'
+      label: 'Flag Variance % Threshold',
     },
     {
       key: 'bot.requireReview',
       value: 'true',
       category: 'behavior',
-      label: 'Require Review Before Sending to Customer'
+      label: 'Require Review Before Sending to Customer',
     },
     {
       key: 'bot.defaultRatePoint',
       value: 'mid',
       category: 'behavior',
-      label: 'Default Rate Point (low/mid/high)'
+      label: 'Default Rate Point (low/mid/high)',
     },
     {
       key: 'bot.proposalFirst',
       value: 'true',
       category: 'behavior',
-      label: 'Generate Proposal Before Contract'
+      label: 'Generate Proposal Before Contract',
     },
     { key: 'bot.ccOwner', value: 'true', category: 'behavior', label: 'CC Owner on All Emails' },
     // Google Calendar
@@ -1127,27 +1127,27 @@ function seedDefaultSettings() {
       key: 'gcal.enabled',
       value: 'true',
       category: 'calendar',
-      label: 'Auto-add tasks to Google Calendar'
+      label: 'Auto-add tasks to Google Calendar',
     },
     // Status report schedule
     {
       key: 'status.reportIntervalHours',
       value: '24',
       category: 'status',
-      label: 'Status Report Interval (hours)'
+      label: 'Status Report Interval (hours)',
     },
     {
       key: 'status.reportHourOfDay',
       value: '-1',
       category: 'status',
-      label: 'Status Report Hour of Day (-1 = use interval only)'
+      label: 'Status Report Hour of Day (-1 = use interval only)',
     },
     // Backup schedule
     {
       key: 'backup.intervalHours',
       value: '24',
       category: 'backup',
-      label: 'Backup Interval (hours)'
+      label: 'Backup Interval (hours)',
     },
     { key: 'backup.lastRanAt', value: '', category: 'backup', label: 'Last Backup Timestamp' },
     { key: 'backup.lastFile', value: '', category: 'backup', label: 'Last Backup Filename' },
@@ -1155,8 +1155,8 @@ function seedDefaultSettings() {
       key: 'backup.customPath',
       value: '',
       category: 'backup',
-      label: 'Custom Backup Folder Path (leave blank for default)'
-    }
+      label: 'Custom Backup Folder Path (leave blank for default)',
+    },
   ];
 
   const insert = db.prepare(`
@@ -1178,15 +1178,15 @@ function seedDefaultSenders() {
       type: 'email',
       name: 'Jackson Deaquino',
       role: 'pm',
-      language: 'pt-BR'
+      language: 'pt-BR',
     },
     {
       identifier: 'cooper@preferredbuilders.com',
       type: 'email',
       name: 'Anthony Cooper',
       role: 'owner',
-      language: 'en'
-    }
+      language: 'en',
+    },
   ];
 
   const insert = db.prepare(`
@@ -1242,7 +1242,7 @@ Ashby, Fitchburg, Leominster, Gardner, Westminster, Winchendon,
 Athol, Orange, Templeton, Phillipston, Royalston, Petersham,
 Barre, Hubbardston, Princeton, Sterling, Bolton, Lancaster,
 Harvard, Shirley, Lunenburg, Townsend, Pepperell, Groton, Ayer
-      `
+      `,
     },
     {
       title: 'MA Residential Contract Requirements (780 CMR / HIC Law)',
@@ -1284,7 +1284,7 @@ Harvard, Shirley, Lunenburg, Townsend, Pepperell, Groton, Ayer
 4. Force majeure
 5. Insurance requirements (contractor must carry GL + Workers Comp)
 6. Termination rights for both parties
-      `
+      `,
     },
     {
       title: 'Standard Scope Language — Framing',
@@ -1320,7 +1320,7 @@ Harvard, Shirley, Lunenburg, Townsend, Pepperell, Groton, Ayer
 - Windows and doors (separate line item)
 - Insulation (separate scope)
 - Any MEP rough-in
-      `
+      `,
     },
     {
       title: 'Preferred Builders — Pricing Reference',
@@ -1355,8 +1355,8 @@ Harvard, Shirley, Lunenburg, Townsend, Pepperell, Groton, Ayer
 - Driveway/paving
 - Wood stove and chimney
 - Garage insulation/drywall (not required for CO)
-      `
-    }
+      `,
+    },
   ];
 
   const insert = db.prepare(`
@@ -1382,7 +1382,7 @@ function seedAgentKeys(db) {
       const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
       const secretHash = crypto.createHash('sha256').update(rawSecret).digest('hex');
       db.prepare(
-        'INSERT INTO agent_keys (name, key_hash, secret_hash, key_displayed) VALUES (?, ?, ?, 0)'
+        'INSERT INTO agent_keys (name, key_hash, secret_hash, key_displayed) VALUES (?, ?, ?, 0)',
       ).run(agent.name, keyHash, secretHash);
       const row = db.prepare('SELECT id FROM agent_keys WHERE name = ?').get(agent.name);
       console.log(`\n${'='.repeat(60)}`);
@@ -1417,14 +1417,14 @@ function seedUsers() {
       name: 'Anthony Cooper',
       email: 'cooper@preferredbuildersusa.com',
       role: 'system_admin',
-      title: 'Project Manager'
+      title: 'Project Manager',
     },
     {
       name: 'Jackson Deaquino',
       email: 'jackson.deaquino@preferredbuildersusa.com',
       role: 'admin',
-      title: 'Project Manager'
-    }
+      title: 'Project Manager',
+    },
   ];
 
   const insert = db.prepare(`

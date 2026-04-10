@@ -53,17 +53,17 @@ async function checkPerplexity() {
           hostname: 'api.perplexity.ai',
           path: '/chat/completions',
           method: 'POST',
-          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }
+          headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
         },
-        (res) => resolve({ status: res.statusCode })
+        (res) => resolve({ status: res.statusCode }),
       );
       req.on('error', () => resolve({ status: 0 }));
       req.write(
         JSON.stringify({
           model: 'sonar',
           messages: [{ role: 'user', content: 'ping' }],
-          max_tokens: 1
-        })
+          max_tokens: 1,
+        }),
       );
       req.end();
     });
@@ -93,7 +93,7 @@ async function checkTwilio() {
   try {
     const auth = Buffer.from(`${sid}:${token}`).toString('base64');
     const res = await httpsGet(`https://api.twilio.com/2010-04-01/Accounts/${sid}.json`, {
-      Authorization: `Basic ${auth}`
+      Authorization: `Basic ${auth}`,
     });
     if (res.status === 200) {
       const data = JSON.parse(res.body);
@@ -116,7 +116,7 @@ async function checkWhatsApp() {
   if (!twilio.ok) return { ok: false, detail: `Twilio invalid — ${twilio.detail}` };
   return {
     ok: true,
-    detail: `From: ${waNumber} · Jackson: ${jacksonWA}${ownerWA ? ` · Owner: ${ownerWA}` : ''}`
+    detail: `From: ${waNumber} · Jackson: ${jacksonWA}${ownerWA ? ` · Owner: ${ownerWA}` : ''}`,
   };
 }
 
@@ -130,7 +130,7 @@ async function checkGoogleCalendar() {
       ok: false,
       detail: onWindows
         ? 'Google Calendar runs via Replit — not available on Windows server (tasks still save locally)'
-        : 'Google Calendar connector not configured — connect via Settings → Calendar'
+        : 'Google Calendar connector not configured — connect via Settings → Calendar',
     };
   }
   try {
@@ -140,7 +140,7 @@ async function checkGoogleCalendar() {
       .get()?.value;
     return {
       ok: true,
-      detail: `Connector available · auto-add ${enabled !== 'false' ? 'ON' : 'OFF'}`
+      detail: `Connector available · auto-add ${enabled !== 'false' ? 'ON' : 'OFF'}`,
     };
   } catch (e) {
     return { ok: false, detail: e.message };
@@ -163,7 +163,7 @@ async function checkPDF() {
       'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Users\\theso\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe',
-      (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe'
+      (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
     ];
     for (const p of winPaths) {
       if (p && fs.existsSync(p)) return { ok: true, detail: `Chrome (Windows): ${p}` };
@@ -177,7 +177,7 @@ async function checkPDF() {
     return {
       ok: false,
       detail:
-        'Chrome not found on Windows — set CHROME_PATH in ecosystem.config.js or install Chrome'
+        'Chrome not found on Windows — set CHROME_PATH in ecosystem.config.js or install Chrome',
     };
   }
 
@@ -185,7 +185,7 @@ async function checkPDF() {
   try {
     const p = execSync(
       'which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null',
-      { timeout: 3000 }
+      { timeout: 3000 },
     )
       .toString()
       .trim();
@@ -227,7 +227,7 @@ router.post('/email-test', requireAuth, async (req, res) => {
     const when = new Date().toLocaleString('en-US', {
       dateStyle: 'medium',
       timeStyle: 'short',
-      timeZone: 'America/New_York'
+      timeZone: 'America/New_York',
     });
     const result = await sendEmail({
       to: owners,
@@ -244,7 +244,7 @@ router.post('/email-test', requireAuth, async (req, res) => {
         </div>
       </div>`,
       emailType: 'system_alert',
-      db: getDb()
+      db: getDb(),
     });
     res.json({ ok: true, messageId: result?.id, sentTo: owners });
   } catch (e) {
@@ -259,12 +259,12 @@ router.get('/schedule', requireAuth, (req, res) => {
     const intervalHours = parseInt(
       db.prepare("SELECT value FROM settings WHERE key = 'status.reportIntervalHours'").get()
         ?.value || '24',
-      10
+      10,
     );
     const hourOfDay = parseInt(
       db.prepare("SELECT value FROM settings WHERE key = 'status.reportHourOfDay'").get()?.value ||
         '-1',
-      10
+      10,
     );
     res.json({ intervalHours, hourOfDay });
   } catch (e) {
@@ -282,13 +282,13 @@ router.post('/schedule', requireAuth, (req, res) => {
     if (intervalHours !== undefined) {
       const val = Math.min(Math.max(1, parseInt(intervalHours, 10)), 168);
       db.prepare("UPDATE settings SET value = ? WHERE key = 'status.reportIntervalHours'").run(
-        String(val)
+        String(val),
       );
     }
     if (hourOfDay !== undefined) {
       const val = parseInt(hourOfDay, 10);
       db.prepare("UPDATE settings SET value = ? WHERE key = 'status.reportHourOfDay'").run(
-        String(val)
+        String(val),
       );
     }
     const { rescheduleStatusReports } = require('../services/statusScheduler');
@@ -326,7 +326,7 @@ router.get('/backup', requireAuth, (req, res) => {
     const intervalHours = parseInt(
       db.prepare("SELECT value FROM settings WHERE key = 'backup.intervalHours'").get()?.value ||
         '24',
-      10
+      10,
     );
     const customPath =
       db.prepare("SELECT value FROM settings WHERE key = 'backup.customPath'").get()?.value || '';
@@ -362,7 +362,7 @@ router.post('/backup/schedule', requireAuth, (req, res) => {
     if (intervalHours !== undefined) {
       const val = Math.min(Math.max(1, parseInt(intervalHours, 10)), 168);
       db.prepare("UPDATE settings SET value = ? WHERE key = 'backup.intervalHours'").run(
-        String(val)
+        String(val),
       );
     }
     if (customPath !== undefined) {
@@ -371,7 +371,7 @@ router.post('/backup/schedule', requireAuth, (req, res) => {
         INSERT INTO settings (key, value, category, label)
         VALUES ('backup.customPath', ?, 'backup', 'Custom Backup Folder Path')
         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-      `
+      `,
       ).run(customPath.trim());
     }
     const { rescheduleBackups } = require('../services/backupService');
@@ -411,7 +411,7 @@ router.get('/signing-receipts', requireAuth, async (req, res) => {
       LEFT JOIN jobs j ON j.id = ss.job_id
       ORDER BY ss.created_at DESC
       LIMIT 200
-    `
+    `,
       )
       .all();
 
@@ -425,7 +425,7 @@ router.get('/signing-receipts', requireAuth, async (req, res) => {
         : 0,
       signRate: rows.length
         ? Math.round((rows.filter((r) => r.status === 'signed').length / rows.length) * 100)
-        : 0
+        : 0,
     };
 
     res.json({ receipts: rows, stats });
@@ -449,7 +449,7 @@ function getTokenUsageSummary() {
         COUNT(*)           AS calls
       FROM token_usage
       GROUP BY service, model
-    `
+    `,
       )
       .all();
 
@@ -462,7 +462,7 @@ function getTokenUsageSummary() {
       FROM token_usage
       WHERE DATE(created_at) = ?
       GROUP BY service
-    `
+    `,
       )
       .all(today);
 
@@ -475,7 +475,7 @@ function getTokenUsageSummary() {
       FROM token_usage
       WHERE DATE(created_at) >= ?
       GROUP BY service
-    `
+    `,
       )
       .all(monthStart);
 
@@ -487,7 +487,7 @@ function getTokenUsageSummary() {
         model: r.model,
         in: r.total_in,
         out: r.total_out,
-        calls: r.calls
+        calls: r.calls,
       });
     }
     for (const r of todayRows) {
@@ -521,7 +521,7 @@ router.get('/', requireAuth, async (req, res) => {
       checkWhatsApp(),
       checkGoogleCalendar(),
       checkPDF(),
-      checkSigning()
+      checkSigning(),
     ]);
 
   res.json({
@@ -536,11 +536,11 @@ router.get('/', requireAuth, async (req, res) => {
       whatsapp: { label: 'WhatsApp (Twilio)', ...whatsapp },
       calendar: { label: 'Google Calendar', ...calendar },
       pdf: { label: 'PDF Generation', ...pdf },
-      signing: { label: 'Digital Signatures', ...signing }
+      signing: { label: 'Digital Signatures', ...signing },
     },
     recentErrors: getRecentErrors(20),
     alertsSummary: getAlertsSummary(),
-    tokenUsage: getTokenUsageSummary()
+    tokenUsage: getTokenUsageSummary(),
   });
 });
 

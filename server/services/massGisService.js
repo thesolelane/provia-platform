@@ -14,31 +14,31 @@ const FIELDS =
   'CONDO_UNIT,PROP_ID,MAP_PAR_ID';
 
 const USE_CODES = {
-  '0': 'Undeveloped Land',
-  '101': 'Single Family Residential',
-  '102': 'Condominium',
-  '103': 'Mobile Home',
-  '104': 'Two Family',
-  '105': 'Three Family',
-  '106': 'Apartment 4-8 Units',
-  '107': 'Apartment 9+ Units',
-  '111': 'Apt w/ Store',
-  '112': 'Apt 4-8 Mixed',
-  '300': 'Commercial',
-  '310': 'Restaurant / Food',
-  '320': 'Motor Vehicle',
-  '325': 'Parking',
-  '340': 'Office Building',
-  '360': 'Medical / Dental',
-  '400': 'Industrial',
-  '401': 'Manufacturing',
-  '500': 'Mixed Use',
-  '600': 'Cemetery / Church',
-  '700': 'Agricultural',
-  '800': 'Recreational',
-  '900': 'Exempt',
-  '903': 'Tax Exempt (Govt)',
-  '910': 'Utilities'
+  0: 'Undeveloped Land',
+  101: 'Single Family Residential',
+  102: 'Condominium',
+  103: 'Mobile Home',
+  104: 'Two Family',
+  105: 'Three Family',
+  106: 'Apartment 4-8 Units',
+  107: 'Apartment 9+ Units',
+  111: 'Apt w/ Store',
+  112: 'Apt 4-8 Mixed',
+  300: 'Commercial',
+  310: 'Restaurant / Food',
+  320: 'Motor Vehicle',
+  325: 'Parking',
+  340: 'Office Building',
+  360: 'Medical / Dental',
+  400: 'Industrial',
+  401: 'Manufacturing',
+  500: 'Mixed Use',
+  600: 'Cemetery / Church',
+  700: 'Agricultural',
+  800: 'Recreational',
+  900: 'Exempt',
+  903: 'Tax Exempt (Govt)',
+  910: 'Utilities',
 };
 
 function normalizeTown(town) {
@@ -79,9 +79,9 @@ function normalize(attrs) {
     siteAddress: attrs.SITE_ADDR || null,
     owner1: attrs.OWNER1 || null,
     owner2: attrs.OWNER2 || null,
-    ownerAddress: [attrs.OWN_ADDR, attrs.OWN_CITY, attrs.OWN_STATE, attrs.OWN_ZIP]
-      .filter(Boolean)
-      .join(', ') || null,
+    ownerAddress:
+      [attrs.OWN_ADDR, attrs.OWN_CITY, attrs.OWN_STATE, attrs.OWN_ZIP].filter(Boolean).join(', ') ||
+      null,
     landValue: attrs.LAND_VAL || null,
     buildingValue: attrs.BLDG_VAL || null,
     totalAssessedValue: attrs.TOTAL_VAL || null,
@@ -101,7 +101,7 @@ function normalize(attrs) {
     propId: attrs.PROP_ID || null,
     mapParId: attrs.MAP_PAR_ID || null,
     source: 'MassGIS L3 Parcel',
-    queriedAt: new Date().toISOString()
+    queriedAt: new Date().toISOString(),
   };
 }
 
@@ -122,7 +122,7 @@ async function lookupProperty({ town, address, owner } = {}) {
     outFields: FIELDS,
     resultRecordCount: 10,
     orderByFields: 'TOWN,SITE_ADDR',
-    f: 'json'
+    f: 'json',
   });
 
   const url = `${FS_URL}?${params}`;
@@ -131,7 +131,7 @@ async function lookupProperty({ town, address, owner } = {}) {
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'PreferredBuilders/1.0 (+property-lookup)' },
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(15000),
     });
     if (!res.ok) {
       console.warn(`[MassGIS] HTTP ${res.status}`);
@@ -156,7 +156,7 @@ async function lookupProperty({ town, address, owner } = {}) {
   // Multiple results — pick best match by address similarity
   const scored = features.map((f) => ({
     attrs: f.attributes,
-    score: addressSimilarity(f.attributes.SITE_ADDR || '', address || '')
+    score: addressSimilarity(f.attributes.SITE_ADDR || '', address || ''),
   }));
   scored.sort((a, b) => b.score - a.score);
 

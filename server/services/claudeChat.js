@@ -28,7 +28,7 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
     If the user's answers complete all missing information, respond with JSON: {"type":"ready","message":"..."} 
     If more questions remain, respond with JSON: {"type":"question","message":"...","questionsRemaining":N}
     If responding to Jackson in Portuguese, use {"type":"question","message":"...em português...","questionsRemaining":N}`,
-    messages
+    messages,
   });
 
   logTokenUsage({
@@ -37,7 +37,7 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
     inputTokens: response.usage?.input_tokens,
     outputTokens: response.usage?.output_tokens,
     jobId,
-    context: 'clarification'
+    context: 'clarification',
   });
   const text = response.content[0].text;
   try {
@@ -61,7 +61,7 @@ Keep queries specific and under 15 words.`,
       query: {
         type: 'string',
         description:
-          'Targeted search query. Example: "Fitchburg MA building permit fee schedule 2025"'
+          'Targeted search query. Example: "Fitchburg MA building permit fee schedule 2025"',
       },
       search_type: {
         type: 'string',
@@ -71,14 +71,14 @@ Keep queries specific and under 15 words.`,
           'labor_rate',
           'building_code',
           'supplier',
-          'general'
+          'general',
         ],
         description:
-          'material_price: lumber/concrete/roofing costs. permit_fee: municipal fees. labor_rate: sub market rates. building_code: code requirements. supplier: local vendors. general: other.'
-      }
+          'material_price: lumber/concrete/roofing costs. permit_fee: municipal fees. labor_rate: sub market rates. building_code: code requirements. supplier: local vendors. general: other.',
+      },
     },
-    required: ['query', 'search_type']
-  }
+    required: ['query', 'search_type'],
+  },
 };
 
 // ── PROPERTY TOOLS ───────────────────────────────────────────────────
@@ -92,11 +92,11 @@ Use this when the user asks about a property's age, size, value, or when evaluat
     properties: {
       address: {
         type: 'string',
-        description: 'Full property address (e.g. "123 Main St, Fitchburg, MA")'
-      }
+        description: 'Full property address (e.g. "123 Main St, Fitchburg, MA")',
+      },
     },
-    required: ['address']
-  }
+    required: ['address'],
+  },
 };
 
 const CHECK_LEAD_RECORD_TOOL = {
@@ -109,19 +109,19 @@ Use this when evaluating renovation work on pre-1978 buildings or when lead abat
     properties: {
       town: {
         type: 'string',
-        description: 'Massachusetts city or town name (e.g. "FITCHBURG")'
+        description: 'Massachusetts city or town name (e.g. "FITCHBURG")',
       },
       street: {
         type: 'string',
-        description: 'Street name without number (e.g. "MAIN ST")'
+        description: 'Street name without number (e.g. "MAIN ST")',
       },
       number: {
         type: 'string',
-        description: 'Street number (e.g. "123")'
-      }
+        description: 'Street number (e.g. "123")',
+      },
     },
-    required: ['town', 'street']
-  }
+    required: ['town', 'street'],
+  },
 };
 
 // ── ADMIN TOOLS (for tool calling) ───────────────────────────────────
@@ -133,10 +133,10 @@ const ADMIN_TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Name, email, or phone to search for' }
+        query: { type: 'string', description: 'Name, email, or phone to search for' },
       },
-      required: ['query']
-    }
+      required: ['query'],
+    },
   },
   {
     name: 'lookup_jobs',
@@ -145,10 +145,10 @@ const ADMIN_TOOLS = [
     input_schema: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: 'Customer name or project address to search for' }
+        query: { type: 'string', description: 'Customer name or project address to search for' },
       },
-      required: ['query']
-    }
+      required: ['query'],
+    },
   },
   {
     name: 'create_task',
@@ -159,27 +159,27 @@ const ADMIN_TOOLS = [
       properties: {
         title: {
           type: 'string',
-          description: 'Short task title (e.g. "Call for inspection at 123 Main St")'
+          description: 'Short task title (e.g. "Call for inspection at 123 Main St")',
         },
         description: { type: 'string', description: 'Additional details or notes about the task' },
         due_at: {
           type: 'string',
           description:
-            'Due date/time in ISO 8601 format (e.g. "2026-03-15T17:00:00"). Use the current date as reference if the user says "tomorrow" or "next week".'
+            'Due date/time in ISO 8601 format (e.g. "2026-03-15T17:00:00"). Use the current date as reference if the user says "tomorrow" or "next week".',
         },
         priority: {
           type: 'string',
           enum: ['high', 'normal', 'low'],
-          description: 'Priority level'
+          description: 'Priority level',
         },
         job_address: {
           type: 'string',
-          description: 'Project address if the task relates to a specific job'
-        }
+          description: 'Project address if the task relates to a specific job',
+        },
       },
-      required: ['title']
-    }
-  }
+      required: ['title'],
+    },
+  },
 ];
 
 async function runAdminTool(toolName, toolInput, db) {
@@ -190,14 +190,14 @@ async function runAdminTool(toolName, toolInput, db) {
     const results = db
       .prepare(
         `SELECT name, email, phone, address, city, state, customer_number FROM contacts
-       WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? LIMIT 5`
+       WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? LIMIT 5`,
       )
       .all(q, q, q);
     if (!results.length) return 'No contacts found matching that search.';
     return results
       .map(
         (c) =>
-          `**${c.name}** (${c.customer_number || 'no ID'})\nEmail: ${c.email || '—'}\nPhone: ${c.phone || '—'}\nAddress: ${[c.address, c.city, c.state].filter(Boolean).join(', ') || '—'}`
+          `**${c.name}** (${c.customer_number || 'no ID'})\nEmail: ${c.email || '—'}\nPhone: ${c.phone || '—'}\nAddress: ${[c.address, c.city, c.state].filter(Boolean).join(', ') || '—'}`,
       )
       .join('\n\n');
   }
@@ -207,14 +207,14 @@ async function runAdminTool(toolName, toolInput, db) {
     const results = db
       .prepare(
         `SELECT id, customer_name, customer_email, customer_phone, project_address, project_city, status, total_value, created_at
-       FROM jobs WHERE archived = 0 AND (customer_name LIKE ? OR project_address LIKE ?) ORDER BY created_at DESC LIMIT 5`
+       FROM jobs WHERE archived = 0 AND (customer_name LIKE ? OR project_address LIKE ?) ORDER BY created_at DESC LIMIT 5`,
       )
       .all(q, q);
     if (!results.length) return 'No jobs found matching that search.';
     return results
       .map(
         (j) =>
-          `**${j.customer_name}** — ${j.project_address}${j.project_city ? ', ' + j.project_city : ''}\nStatus: ${j.status?.replace(/_/g, ' ')}\nValue: ${j.total_value ? '$' + Number(j.total_value).toLocaleString() : '—'}\nEmail: ${j.customer_email || '—'} | Phone: ${j.customer_phone || '—'}`
+          `**${j.customer_name}** — ${j.project_address}${j.project_city ? ', ' + j.project_city : ''}\nStatus: ${j.status?.replace(/_/g, ' ')}\nValue: ${j.total_value ? '$' + Number(j.total_value).toLocaleString() : '—'}\nEmail: ${j.customer_email || '—'} | Phone: ${j.customer_phone || '—'}`,
       )
       .join('\n\n');
   }
@@ -230,7 +230,7 @@ async function runAdminTool(toolName, toolInput, db) {
     }
     const info = db
       .prepare(
-        `INSERT INTO tasks (title, description, due_at, job_id, priority) VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO tasks (title, description, due_at, job_id, priority) VALUES (?, ?, ?, ?, ?)`,
       )
       .run(title, description || null, due_at || null, job_id, priority || 'normal');
     const saved = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
@@ -244,7 +244,7 @@ async function runAdminTool(toolName, toolInput, db) {
       task_id: saved.id,
       title: saved.title,
       due_at: saved.due_at,
-      calendar_url: saved.calendar_url
+      calendar_url: saved.calendar_url,
     });
   }
 
@@ -262,7 +262,7 @@ async function runAdminTool(toolName, toolInput, db) {
     if (perplexity.isConfigured()) {
       return await perplexity.search(
         `property assessor data year built ${toolInput.address} Massachusetts`,
-        'general'
+        'general',
       );
     }
     return 'No MassGIS record found for this address.';
@@ -273,7 +273,7 @@ async function runAdminTool(toolName, toolInput, db) {
     const result = await checkLeadRecord({
       town: toolInput.town,
       street: toolInput.street,
-      number: toolInput.number || ''
+      number: toolInput.number || '',
     });
     return JSON.stringify(result, null, 2);
   }
@@ -292,7 +292,7 @@ async function adminChat(messages, language = 'en', db = null, sender = null) {
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: 'America/New_York'
+    timeZone: 'America/New_York',
   });
 
   const senderName = sender ? sender.name : null;
@@ -350,10 +350,10 @@ IMPORTANT STYLE RULES:
             ...ADMIN_TOOLS,
             LOOKUP_PROPERTY_TOOL,
             CHECK_LEAD_RECORD_TOOL,
-            ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : [])
+            ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : []),
           ]
         : [],
-      messages: msgsToSend
+      messages: msgsToSend,
     });
 
     logTokenUsage({
@@ -361,7 +361,7 @@ IMPORTANT STYLE RULES:
       model: 'claude-sonnet-4-20250514',
       inputTokens: response.usage?.input_tokens,
       outputTokens: response.usage?.output_tokens,
-      context: 'admin_chat'
+      context: 'admin_chat',
     });
 
     if (
@@ -405,7 +405,7 @@ async function generateWizardQuestions(
   scopeText,
   projectAddress = '',
   budgetTarget = null,
-  selectedTrades = []
+  selectedTrades = [],
 ) {
   const budgetContext = budgetTarget
     ? `\nBudget Target: $${Number(budgetTarget).toLocaleString()} (client-facing total)`
@@ -467,9 +467,9 @@ RULES:
 5. Keep questions conversational and specific — mention the exact item from the scope.
 6. Trade clarification questions for electrical/HVAC/plumbing MUST be asked when those trades appear with vague extent — even if the scope seems complete otherwise.
 7. If the scope is clear and complete with no ambiguous trades, return an empty array [].
-8. Return ONLY the JSON array. Nothing else.`
-      }
-    ]
+8. Return ONLY the JSON array. Nothing else.`,
+      },
+    ],
   });
 
   logTokenUsage({
@@ -477,7 +477,7 @@ RULES:
     model: 'claude-sonnet-4-20250514',
     inputTokens: response.usage?.input_tokens,
     outputTokens: response.usage?.output_tokens,
-    context: 'wizard'
+    context: 'wizard',
   });
   const text = response.content[0].text.trim();
   try {
@@ -495,5 +495,5 @@ module.exports = {
   ADMIN_TOOLS,
   runAdminTool,
   adminChat,
-  generateWizardQuestions
+  generateWizardQuestions,
 };

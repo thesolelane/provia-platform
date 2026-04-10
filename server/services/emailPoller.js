@@ -20,7 +20,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
     port: parseInt(process.env.IMAP_PORT || '993'),
     secure: true,
     auth: { user: process.env.IMAP_USER, pass: process.env.IMAP_PASSWORD },
-    logger: false
+    logger: false,
   });
 
   try {
@@ -59,7 +59,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
             const phoneMatch = bodyText.match(/received a call from\s*([+\d\s\-().]{7,20})/i);
             const nameMatch = bodyText.match(/(?:The user|The caller|caller)[,\s]+([A-Z][a-z]+)/);
             const summaryMatch = bodyText.match(
-              /Here['']s the summary[:\s]*([\s\S]+?)(?:\n\n|You can head|Speak soon)/i
+              /Here['']s the summary[:\s]*([\s\S]+?)(?:\n\n|You can head|Speak soon)/i,
             );
 
             const callerPhone = phoneMatch ? phoneMatch[1].trim() : 'Unknown number';
@@ -77,7 +77,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
             const leadResult = db
               .prepare(
                 `INSERT INTO leads (caller_name, caller_phone, source, notes, stage, created_at, updated_at)
-               VALUES (?, ?, 'marblism', ?, 'incoming', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+               VALUES (?, ?, 'marblism', ?, 'incoming', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
               )
               .run(callerName, callerPhone, `Call summary from Marblism:\n\n${callSummary}`);
 
@@ -85,17 +85,17 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
               null,
               'marblism_call_lead',
               `Lead #${leadResult.lastInsertRowid} created from Marblism call — ${callerName} ${callerPhone} — "${shortSummary}"`,
-              'marblism-poller'
+              'marblism-poller',
             );
             console.log(
-              `[Email Poller] Marblism call → Lead #${leadResult.lastInsertRowid} created for ${callerName} (${callerPhone})`
+              `[Email Poller] Marblism call → Lead #${leadResult.lastInsertRowid} created for ${callerName} (${callerPhone})`,
             );
 
             const { notifyClients } = require('./sseManager');
             notifyClients('lead_created', {
               leadId: leadResult.lastInsertRowid,
               title: `📞 New lead: ${callerName} (${callerPhone})`,
-              message: `New Marblism missed-call lead — ${callerName}`
+              message: `New Marblism missed-call lead — ${callerName}`,
             });
 
             // Send immediate creation email to all admin/system_admin users
@@ -104,13 +104,13 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
               try {
                 adminUsers = db
                   .prepare(
-                    `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL AND active != 0`
+                    `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL AND active != 0`,
                   )
                   .all();
               } catch {
                 adminUsers = db
                   .prepare(
-                    `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL`
+                    `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL`,
                   )
                   .all();
               }
@@ -133,16 +133,16 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                       </table>
                       <p><a href="${leadsLink}" style="background:#1B3A6B;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:12px">View Leads</a></p>
                     </div>`,
-                  emailType: 'lead_creation_alert'
+                  emailType: 'lead_creation_alert',
                 });
                 console.log(
-                  `[Email Poller] Marblism creation email sent to ${adminEmails.join(', ')}`
+                  `[Email Poller] Marblism creation email sent to ${adminEmails.join(', ')}`,
                 );
               }
             } catch (emailErr) {
               console.error(
                 '[Email Poller] Failed to send Marblism creation email:',
-                emailErr.message
+                emailErr.message,
               );
             }
           } catch (err) {
@@ -190,15 +190,15 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                       content: [
                         {
                           type: 'image',
-                          source: { type: 'base64', media_type: att.contentType, data: base64 }
+                          source: { type: 'base64', media_type: att.contentType, data: base64 },
                         },
                         {
                           type: 'text',
-                          text: 'This is a construction estimate or invoice image. Extract ALL text, line items, dollar amounts, trade names, and addresses exactly as they appear. Return plain text.'
-                        }
-                      ]
-                    }
-                  ]
+                          text: 'This is a construction estimate or invoice image. Extract ALL text, line items, dollar amounts, trade names, and addresses exactly as they appear. Return plain text.',
+                        },
+                      ],
+                    },
+                  ],
                 });
                 const imageText = visionRes.content[0].text?.trim();
                 if (imageText) {
@@ -226,14 +226,14 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
         const fullEstimate = `EMAIL FROM: ${from}\nSUBJECT: ${subject}\n\n${estimateText}`;
 
         db.prepare(
-          `INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'received', ?)`
+          `INSERT INTO jobs (id, raw_estimate_data, status, submitted_by) VALUES (?, ?, 'received', ?)`,
         ).run(jobId, fullEstimate, `email:${from}`);
 
         logAudit(
           jobId,
           'estimate_received_email',
           `Email from ${from} | Subject: ${subject}`,
-          'email-poller'
+          'email-poller',
         );
 
         // Mark email as read
@@ -249,7 +249,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                 ? `<p>Oi ${firstName}! Recebi o orçamento e já estou processando. Ref: <strong>#${shortId}</strong></p><p>Você receberá a proposta em breve.</p>`
                 : `<p>Hey ${firstName}! Got your estimate — processing it now. Ref: <strong>#${shortId}</strong></p><p>You'll receive the proposal shortly.</p>`,
             emailType: 'acknowledgement',
-            jobId
+            jobId,
           });
         } catch (e) {
           console.error('[Email Poller] Could not send receipt email:', e.message);
@@ -279,29 +279,29 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                 ? `<p>Preciso de mais informações sobre o orçamento:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Por favor responda este email com as respostas.</p>`
                 : `<p>I need a few more details about the estimate:</p><pre style="background:#f5f5f5;padding:12px;border-radius:6px">${questions}</pre><p>Please reply to this email with your answers.</p>`,
             emailType: 'clarification',
-            jobId
+            jobId,
           });
           console.log(
-            `[Email Poller] Job ${shortId} needs ${proposalData.clarificationsNeeded.length} clarifications — emailed ${from}`
+            `[Email Poller] Job ${shortId} needs ${proposalData.clarificationsNeeded.length} clarifications — emailed ${from}`,
           );
         } else {
           const pdfPath = await generatePDFFn(proposalData, 'proposal', jobId);
           db.prepare(
-            `UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?`
+            `UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?`,
           ).run(
             JSON.stringify(proposalData),
             pdfPath,
             proposalData.totalValue,
             proposalData.depositAmount,
             'proposal_ready',
-            jobId
+            jobId,
           );
 
           logAudit(
             jobId,
             'proposal_ready_email',
             `Proposal ready. Total: $${proposalData.totalValue}`,
-            'email-poller'
+            'email-poller',
           );
 
           const { getOwnerEmails } = require('./emailService');
@@ -328,11 +328,11 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                 <p>PDF proposal attached. Log in to the admin panel to approve and generate the contract.</p>
               </div>`,
             attachmentPath: pdfPath,
-            attachmentName: `Proposal_${shortId}.pdf`
+            attachmentName: `Proposal_${shortId}.pdf`,
           });
 
           console.log(
-            `[Email Poller] Job ${shortId} — proposal ready. Total: $${proposalData.totalValue}`
+            `[Email Poller] Job ${shortId} — proposal ready. Total: $${proposalData.totalValue}`,
           );
         }
       } catch (err) {
@@ -373,16 +373,16 @@ function startEmailPolling(intervalMs = 60000) {
   const { generatePDF } = require('./pdfService');
 
   console.log(
-    `[Email Poller] Started — watching ${process.env.IMAP_USER} every ${intervalMs / 1000}s`
+    `[Email Poller] Started — watching ${process.env.IMAP_USER} every ${intervalMs / 1000}s`,
   );
 
   // Poll immediately on start, then on interval
   pollOnce(processEstimate, generatePDF).catch((e) =>
-    console.error('[Email Poller] Initial poll error:', e.message)
+    console.error('[Email Poller] Initial poll error:', e.message),
   );
   setInterval(() => {
     pollOnce(processEstimate, generatePDF).catch((e) =>
-      console.error('[Email Poller] Poll error:', e.message)
+      console.error('[Email Poller] Poll error:', e.message),
     );
   }, intervalMs);
 }

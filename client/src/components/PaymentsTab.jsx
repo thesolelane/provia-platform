@@ -21,7 +21,7 @@ const fmtDate = (d) =>
     ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
         month: 'short',
         day: 'numeric',
-        year: 'numeric'
+        year: 'numeric',
       })
     : '—';
 
@@ -43,7 +43,7 @@ const EMPTY_IN = {
   payment_type: 'deposit',
   credit_debit: 'credit',
   notes: '',
-  is_pass_through_reimbursement: false
+  is_pass_through_reimbursement: false,
 };
 const EMPTY_OUT = {
   payee_name: '',
@@ -55,7 +55,7 @@ const EMPTY_OUT = {
   credit_debit: 'debit',
   notes: '',
   payment_class: 'cost_of_revenue',
-  paid_by: 'pb'
+  paid_by: 'pb',
 };
 const EMPTY_LINE = { description: '', amount: '', type: 'contract' };
 const EMPTY_INV = { notes: '', line_items: [{ ...EMPTY_LINE }] };
@@ -66,7 +66,7 @@ const inputStyle = {
   border: '1.5px solid #C8D4E4',
   borderRadius: 6,
   fontSize: 13,
-  boxSizing: 'border-box'
+  boxSizing: 'border-box',
 };
 
 export default function PaymentsTab({ jobId, token, job }) {
@@ -90,11 +90,11 @@ export default function PaymentsTab({ jobId, token, job }) {
     setLoading(true);
     Promise.all([
       fetch(`/api/payments/job/${jobId}`, { headers: { 'x-auth-token': token } }).then((r) =>
-        r.json()
+        r.json(),
       ),
       fetch(`/api/invoices/job/${jobId}`, { headers: { 'x-auth-token': token } }).then((r) =>
-        r.json()
-      )
+        r.json(),
+      ),
     ]).then(([payData, invData]) => {
       setReceived(payData.received || []);
       setMade(payData.made || []);
@@ -116,7 +116,7 @@ export default function PaymentsTab({ jobId, token, job }) {
     const res = await fetch('/api/payments/received', {
       method: 'POST',
       headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (res.ok) {
@@ -124,7 +124,7 @@ export default function PaymentsTab({ jobId, token, job }) {
         ...EMPTY_IN,
         customer_name: job?.customer_name || '',
         date_received: today(),
-        time_received: nowTime()
+        time_received: nowTime(),
       });
       setShowIn(false);
       setSummary(data.summary);
@@ -145,7 +145,7 @@ export default function PaymentsTab({ jobId, token, job }) {
     const res = await fetch('/api/payments/made', {
       method: 'POST',
       headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     if (res.ok) {
@@ -162,7 +162,7 @@ export default function PaymentsTab({ jobId, token, job }) {
 
   const submitInvoice = async () => {
     const validLines = (formInv.line_items || []).filter(
-      (li) => li.description.trim() || Number(li.amount)
+      (li) => li.description.trim() || Number(li.amount),
     );
     if (!validLines.length) return showToast('Add at least one line item', 'error');
     const emptyDesc = validLines.find((li) => !li.description.trim());
@@ -172,12 +172,12 @@ export default function PaymentsTab({ jobId, token, job }) {
     setSaving(true);
     const payload = {
       notes: formInv.notes,
-      line_items: validLines.map((li) => ({ ...li, amount: parseFloat(li.amount) }))
+      line_items: validLines.map((li) => ({ ...li, amount: parseFloat(li.amount) })),
     };
     const res = await fetch(`/api/invoices/job/${jobId}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
     if (res.ok) {
@@ -195,7 +195,7 @@ export default function PaymentsTab({ jobId, token, job }) {
     const res = await fetch(`/api/invoices/${inv.id}`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ status })
+      body: JSON.stringify({ status }),
     });
     if (res.ok) {
       load();
@@ -218,7 +218,7 @@ export default function PaymentsTab({ jobId, token, job }) {
   const deleteReceived = async (p) => {
     if (
       !(await showConfirm(
-        `Delete check record: ${fmt(p.amount)} received on ${fmtDate(p.date_received)}?`
+        `Delete check record: ${fmt(p.amount)} received on ${fmtDate(p.date_received)}?`,
       ))
     )
       return;
@@ -248,14 +248,14 @@ export default function PaymentsTab({ jobId, token, job }) {
       ...p,
       category: cat,
       payment_class: isPassThrough ? 'pass_through' : 'cost_of_revenue',
-      paid_by: 'pb'
+      paid_by: 'pb',
     }));
   };
 
   if (loading) return <div style={{ color: '#888', padding: 20 }}>Loading payments...</div>;
 
   const contractInvoices = invoices.filter(
-    (i) => i.invoice_type === 'contract_invoice' || i.invoice_type === 'combined_invoice'
+    (i) => i.invoice_type === 'contract_invoice' || i.invoice_type === 'combined_invoice',
   );
   const passThroughInvoices = invoices.filter((i) => i.invoice_type === 'pass_through_invoice');
   const changeOrders = invoices.filter((i) => i.invoice_type === 'change_order');
@@ -263,7 +263,7 @@ export default function PaymentsTab({ jobId, token, job }) {
     contract_invoice: 'Contract Invoice',
     pass_through_invoice: 'Pass-Through Invoice',
     change_order: 'Change Order',
-    combined_invoice: 'Combined Invoice'
+    combined_invoice: 'Combined Invoice',
   };
 
   const contractReceived = received.filter((r) => !r.is_pass_through_reimbursement);
@@ -271,32 +271,32 @@ export default function PaymentsTab({ jobId, token, job }) {
   const contractPaid = made.filter((m) => m.payment_class === 'cost_of_revenue');
   const ptPaid = made.filter(
     (m) =>
-      (m.payment_class === 'pass_through' || m.is_pass_through) && m.paid_by !== 'customer_direct'
+      (m.payment_class === 'pass_through' || m.is_pass_through) && m.paid_by !== 'customer_direct',
   );
   const ptPaidDirectByCustomer = made.filter(
     (m) =>
-      (m.payment_class === 'pass_through' || m.is_pass_through) && m.paid_by === 'customer_direct'
+      (m.payment_class === 'pass_through' || m.is_pass_through) && m.paid_by === 'customer_direct',
   );
 
   const totalContractReceived = contractReceived.reduce(
     (s, r) => s + (r.credit_debit === 'debit' ? -1 : 1) * Number(r.amount || 0),
-    0
+    0,
   );
   const totalPtReceived = ptReceived.reduce(
     (s, r) => s + (r.credit_debit === 'debit' ? -1 : 1) * Number(r.amount || 0),
-    0
+    0,
   );
   const totalContractPaid = contractPaid.reduce(
     (s, m) => s + (m.credit_debit === 'credit' ? -1 : 1) * Number(m.amount || 0),
-    0
+    0,
   );
   const totalPtPaid = ptPaid.reduce(
     (s, m) => s + (m.credit_debit === 'credit' ? -1 : 1) * Number(m.amount || 0),
-    0
+    0,
   );
   const totalPtDirectByCustomer = ptPaidDirectByCustomer.reduce(
     (s, m) => s + Number(m.amount || 0),
-    0
+    0,
   );
   const grossMargin = totalContractReceived - totalContractPaid;
   const ptBalance = totalPtPaid - totalPtReceived; // only PB-fronted costs vs reimbursements
@@ -312,7 +312,7 @@ export default function PaymentsTab({ jobId, token, job }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 20
+          marginBottom: 20,
         }}
       >
         <h3 style={{ color: BLUE, margin: 0 }}>Payment Tracking</h3>
@@ -331,7 +331,7 @@ export default function PaymentsTab({ jobId, token, job }) {
               borderRadius: 6,
               cursor: 'pointer',
               fontWeight: 'bold',
-              fontSize: 12
+              fontSize: 12,
             }}
           >
             + Invoice
@@ -350,7 +350,7 @@ export default function PaymentsTab({ jobId, token, job }) {
               borderRadius: 6,
               cursor: 'pointer',
               fontWeight: 'bold',
-              fontSize: 12
+              fontSize: 12,
             }}
           >
             + Check Received
@@ -369,7 +369,7 @@ export default function PaymentsTab({ jobId, token, job }) {
               borderRadius: 6,
               cursor: 'pointer',
               fontWeight: 'bold',
-              fontSize: 12
+              fontSize: 12,
             }}
           >
             + Check Paid Out
@@ -382,7 +382,7 @@ export default function PaymentsTab({ jobId, token, job }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 12,
-          marginBottom: 20
+          marginBottom: 20,
         }}
       >
         <SummaryCard label="Total Received" value={fmt(summary.total_received)} color={GREEN} />
@@ -400,11 +400,11 @@ export default function PaymentsTab({ jobId, token, job }) {
           const lines = formInv.line_items || [];
           const contractTotal = lines.reduce(
             (s, li) => (li.type === 'contract' ? s + (parseFloat(li.amount) || 0) : s),
-            0
+            0,
           );
           const passThroughTotal = lines.reduce(
             (s, li) => (li.type === 'pass_through' ? s + (parseFloat(li.amount) || 0) : s),
-            0
+            0,
           );
           const grandTotal = contractTotal + passThroughTotal;
           const hasPT = lines.some((li) => li.type === 'pass_through');
@@ -425,7 +425,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 border: `1px solid ${TEAL}40`,
                 borderRadius: 8,
                 padding: 16,
-                marginBottom: 16
+                marginBottom: 16,
               }}
             >
               <div style={{ fontWeight: 'bold', color: TEAL, marginBottom: 14, fontSize: 14 }}>
@@ -441,7 +441,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     padding: '8px 12px',
                     marginBottom: 12,
                     fontSize: 12,
-                    color: '#92400e'
+                    color: '#92400e',
                   }}
                 >
                   Pass-through items are billed for reimbursement only — they are{' '}
@@ -460,7 +460,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                           padding: '7px 8px',
                           textAlign: 'left',
                           fontWeight: 600,
-                          fontSize: 11
+                          fontSize: 11,
                         }}
                       >
                         #
@@ -470,7 +470,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                           padding: '7px 8px',
                           textAlign: 'left',
                           fontWeight: 600,
-                          fontSize: 11
+                          fontSize: 11,
                         }}
                       >
                         Description
@@ -481,7 +481,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                           textAlign: 'center',
                           fontWeight: 600,
                           fontSize: 11,
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         Type
@@ -491,7 +491,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                           padding: '7px 8px',
                           textAlign: 'right',
                           fontWeight: 600,
-                          fontSize: 11
+                          fontSize: 11,
                         }}
                       >
                         Amount
@@ -501,7 +501,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                           padding: '7px 4px',
                           textAlign: 'center',
                           fontWeight: 600,
-                          fontSize: 11
+                          fontSize: 11,
                         }}
                       ></th>
                     </tr>
@@ -512,7 +512,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                         key={i}
                         style={{
                           background: li.type === 'pass_through' ? '#fffef5' : '#ffffff',
-                          borderBottom: '1px solid #e2e8f0'
+                          borderBottom: '1px solid #e2e8f0',
                         }}
                       >
                         <td style={{ padding: '6px 8px', color: '#888', fontSize: 11 }}>{i + 1}</td>
@@ -534,7 +534,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                               padding: '6px 8px',
                               background: li.type === 'pass_through' ? '#fffbeb' : '#f0f4ff',
                               color: li.type === 'pass_through' ? '#92400e' : '#1B3A6B',
-                              fontWeight: 600
+                              fontWeight: 600,
                             }}
                           >
                             <option value="contract">Contract</option>
@@ -553,7 +553,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                               ...inputStyle,
                               fontSize: 12,
                               padding: '6px 8px',
-                              textAlign: 'right'
+                              textAlign: 'right',
                             }}
                           />
                         </td>
@@ -568,7 +568,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                                 color: '#C62828',
                                 fontSize: 16,
                                 lineHeight: 1,
-                                padding: '2px 4px'
+                                padding: '2px 4px',
                               }}
                             >
                               ✕
@@ -592,7 +592,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                   cursor: 'pointer',
                   fontSize: 12,
                   fontWeight: 600,
-                  marginBottom: 14
+                  marginBottom: 14,
                 }}
               >
                 + Add Line Item
@@ -607,7 +607,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     borderRadius: 8,
                     padding: '10px 14px',
                     marginBottom: 14,
-                    fontSize: 13
+                    fontSize: 13,
                   }}
                 >
                   {contractTotal > 0 && (
@@ -616,7 +616,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                         display: 'flex',
                         justifyContent: 'space-between',
                         marginBottom: 4,
-                        color: '#1B3A6B'
+                        color: '#1B3A6B',
                       }}
                     >
                       <span style={{ fontWeight: 500 }}>Contract (PB Revenue):</span>
@@ -629,7 +629,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                         display: 'flex',
                         justifyContent: 'space-between',
                         marginBottom: 4,
-                        color: '#92400e'
+                        color: '#92400e',
                       }}
                     >
                       <span style={{ fontWeight: 500 }}>Pass-Through (Reimbursement):</span>
@@ -647,7 +647,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                       justifyContent: 'space-between',
                       fontWeight: 700,
                       fontSize: 15,
-                      color: hasPT && contractTotal > 0 ? '#E07B2A' : hasPT ? '#92400e' : '#1B3A6B'
+                      color: hasPT && contractTotal > 0 ? '#E07B2A' : hasPT ? '#92400e' : '#1B3A6B',
                     }}
                   >
                     <span>Total Due:</span>
@@ -678,7 +678,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontWeight: 'bold',
-                    fontSize: 12
+                    fontSize: 12,
                   }}
                 >
                   {saving ? 'Creating...' : 'Create Invoice'}
@@ -695,7 +695,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontSize: 12,
-                    color: '#888'
+                    color: '#888',
                   }}
                 >
                   Cancel
@@ -713,7 +713,7 @@ export default function PaymentsTab({ jobId, token, job }) {
             border: `1px solid ${GREEN}40`,
             borderRadius: 8,
             padding: 16,
-            marginBottom: 16
+            marginBottom: 16,
           }}
         >
           <div style={{ fontWeight: 'bold', color: GREEN, marginBottom: 12, fontSize: 13 }}>
@@ -724,7 +724,7 @@ export default function PaymentsTab({ jobId, token, job }) {
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
               gap: 10,
-              marginBottom: 10
+              marginBottom: 10,
             }}
           >
             <Field label="Customer Name">
@@ -810,7 +810,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 gap: 8,
                 fontSize: 12,
                 cursor: 'pointer',
-                marginBottom: 10
+                marginBottom: 10,
               }}
             >
               <input
@@ -838,7 +838,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontWeight: 'bold',
-                fontSize: 12
+                fontSize: 12,
               }}
             >
               {saving ? 'Saving...' : 'Save'}
@@ -852,7 +852,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                color: '#888'
+                color: '#888',
               }}
             >
               Cancel
@@ -869,7 +869,7 @@ export default function PaymentsTab({ jobId, token, job }) {
             border: `1px solid ${RED}40`,
             borderRadius: 8,
             padding: 16,
-            marginBottom: 16
+            marginBottom: 16,
           }}
         >
           <div style={{ fontWeight: 'bold', color: RED, marginBottom: 12, fontSize: 13 }}>
@@ -880,7 +880,7 @@ export default function PaymentsTab({ jobId, token, job }) {
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
               gap: 10,
-              marginBottom: 10
+              marginBottom: 10,
             }}
           >
             <Field label="Payee Name *">
@@ -943,7 +943,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     (t) =>
                       t &&
                       !CATEGORIES.includes(t) &&
-                      !['permit', 'engineer', 'architect', 'designer'].includes(t)
+                      !['permit', 'engineer', 'architect', 'designer'].includes(t),
                   )
                   .filter((t, i, arr) => arr.indexOf(t) === i)
                   .map((t) => (
@@ -994,7 +994,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 padding: '10px 12px',
                 marginBottom: 10,
                 fontSize: 12,
-                color: '#92400e'
+                color: '#92400e',
               }}
             >
               <div style={{ fontWeight: 'bold', marginBottom: 8 }}>Who is paying this cost?</div>
@@ -1004,7 +1004,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                   alignItems: 'center',
                   gap: 8,
                   marginBottom: 6,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 <input
@@ -1051,7 +1051,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontWeight: 'bold',
-                fontSize: 12
+                fontSize: 12,
               }}
             >
               {saving ? 'Saving...' : 'Save'}
@@ -1065,7 +1065,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                color: '#888'
+                color: '#888',
               }}
             >
               Cancel
@@ -1106,7 +1106,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     border: '1px solid #fbbf24',
                     padding: '1px 6px',
                     borderRadius: 10,
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
                   }}
                 >
                   NOT INCOME
@@ -1147,7 +1147,7 @@ export default function PaymentsTab({ jobId, token, job }) {
             marginBottom: 10,
             display: 'flex',
             alignItems: 'center',
-            gap: 8
+            gap: 8,
           }}
         >
           Checks Received
@@ -1174,7 +1174,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     'Amount',
                     'Recorded By',
                     'Notes',
-                    ''
+                    '',
                   ].map((h) => (
                     <th
                       key={h}
@@ -1184,7 +1184,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                         fontSize: 11,
                         color: '#888',
                         fontWeight: 'bold',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {h}
@@ -1198,7 +1198,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     key={p.id}
                     style={{
                       borderBottom: '1px solid #f0f0f0',
-                      background: p.is_pass_through_reimbursement ? '#fffef0' : 'white'
+                      background: p.is_pass_through_reimbursement ? '#fffef0' : 'white',
                     }}
                   >
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
@@ -1224,7 +1224,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                             background: '#fffbeb',
                             color: '#92400e',
                             fontWeight: 'bold',
-                            border: '1px solid #fbbf24'
+                            border: '1px solid #fbbf24',
                           }}
                         >
                           Pass-Thru
@@ -1237,7 +1237,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                             borderRadius: 8,
                             background: '#e8f5e9',
                             color: GREEN,
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
                           }}
                         >
                           Contract
@@ -1251,7 +1251,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                       style={{
                         padding: '8px 10px',
                         fontWeight: 'bold',
-                        color: p.credit_debit === 'debit' ? RED : GREEN
+                        color: p.credit_debit === 'debit' ? RED : GREEN,
                       }}
                     >
                       {fmt(p.amount)}
@@ -1272,7 +1272,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                           border: '1px solid #ff000022',
                           borderRadius: 4,
                           cursor: 'pointer',
-                          fontSize: 11
+                          fontSize: 11,
                         }}
                       >
                         Delete
@@ -1296,7 +1296,7 @@ export default function PaymentsTab({ jobId, token, job }) {
             marginBottom: 10,
             display: 'flex',
             alignItems: 'center',
-            gap: 8
+            gap: 8,
           }}
         >
           Checks Paid Out
@@ -1322,7 +1322,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     'Amount',
                     'Recorded By',
                     'Notes',
-                    ''
+                    '',
                   ].map((h) => (
                     <th
                       key={h}
@@ -1332,7 +1332,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                         fontSize: 11,
                         color: '#888',
                         fontWeight: 'bold',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {h}
@@ -1349,7 +1349,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                       background:
                         p.is_pass_through || p.payment_class === 'pass_through'
                           ? '#fffef0'
-                          : 'white'
+                          : 'white',
                     }}
                   >
                     <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
@@ -1366,7 +1366,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                         padding: '8px 10px',
                         fontSize: 10,
                         color: '#666',
-                        fontFamily: 'monospace'
+                        fontFamily: 'monospace',
                       }}
                     >
                       {p.dept_code || '—'}
@@ -1386,7 +1386,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                               background: '#f0fdf4',
                               color: '#166534',
                               fontWeight: 'bold',
-                              border: '1px solid #86efac'
+                              border: '1px solid #86efac',
                             }}
                           >
                             Cust. Paid Direct
@@ -1400,7 +1400,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                               background: '#fffbeb',
                               color: '#92400e',
                               fontWeight: 'bold',
-                              border: '1px solid #fbbf24'
+                              border: '1px solid #fbbf24',
                             }}
                           >
                             Pass-Thru
@@ -1414,7 +1414,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                             borderRadius: 8,
                             background: '#f0f4ff',
                             color: BLUE,
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
                           }}
                         >
                           Revenue
@@ -1428,7 +1428,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                       style={{
                         padding: '8px 10px',
                         fontWeight: 'bold',
-                        color: p.credit_debit === 'credit' ? GREEN : RED
+                        color: p.credit_debit === 'credit' ? GREEN : RED,
                       }}
                     >
                       {fmt(p.amount)}
@@ -1449,7 +1449,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                           border: '1px solid #ff000022',
                           borderRadius: 4,
                           cursor: 'pointer',
-                          fontSize: 11
+                          fontSize: 11,
                         }}
                       >
                         Delete
@@ -1478,7 +1478,7 @@ export default function PaymentsTab({ jobId, token, job }) {
             fontWeight: 'bold',
             fontSize: 14,
             padding: 0,
-            marginBottom: showBreakdown ? 16 : 0
+            marginBottom: showBreakdown ? 16 : 0,
           }}
         >
           <span style={{ fontSize: 12 }}>{showBreakdown ? '▼' : '▶'}</span>
@@ -1493,7 +1493,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 background: '#f8faff',
                 border: '1px solid #c8d4e4',
                 borderRadius: 8,
-                padding: 16
+                padding: 16,
               }}
             >
               <div
@@ -1503,7 +1503,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                   fontSize: 13,
                   marginBottom: 12,
                   borderBottom: '1px solid #dde8f5',
-                  paddingBottom: 8
+                  paddingBottom: 8,
                 }}
               >
                 Contract Revenue
@@ -1542,7 +1542,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 background: '#fffef5',
                 border: '1px solid #fbbf24',
                 borderRadius: 8,
-                padding: 16
+                padding: 16,
               }}
             >
               <div
@@ -1555,7 +1555,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                   paddingBottom: 8,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 8
+                  gap: 8,
                 }}
               >
                 Pass-Through Costs
@@ -1566,7 +1566,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     color: '#92400e',
                     border: '1px solid #fbbf24',
                     padding: '1px 6px',
-                    borderRadius: 10
+                    borderRadius: 10,
                   }}
                 >
                   NOT IN MARGIN
@@ -1610,7 +1610,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                   background: '#faf5ff',
                   border: '1px solid #e9d5ff',
                   borderRadius: 8,
-                  padding: 16
+                  padding: 16,
                 }}
               >
                 <div
@@ -1620,7 +1620,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                     fontSize: 13,
                     marginBottom: 8,
                     borderBottom: '1px solid #e9d5ff',
-                    paddingBottom: 8
+                    paddingBottom: 8,
                   }}
                 >
                   Change Orders ({changeOrders.length})
@@ -1645,7 +1645,7 @@ export default function PaymentsTab({ jobId, token, job }) {
                 padding: 12,
                 display: 'flex',
                 gap: 20,
-                flexWrap: 'wrap'
+                flexWrap: 'wrap',
               }}
             >
               <SummaryItem label="All Received" value={fmt(summary.total_received)} color={GREEN} />
@@ -1680,7 +1680,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
     setEmailing(inv.id);
     const res = await fetch(`/api/invoices/${inv.id}/email`, {
       method: 'POST',
-      headers: { 'x-auth-token': token, 'Content-Type': 'application/json' }
+      headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
     });
     const d = await res.json();
     if (res.ok) {
@@ -1707,7 +1707,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
               border: `1px solid ${color}22`,
               borderRadius: 7,
               padding: '10px 14px',
-              flexWrap: 'wrap'
+              flexWrap: 'wrap',
             }}
           >
             <div
@@ -1716,7 +1716,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                 fontFamily: 'monospace',
                 fontWeight: 'bold',
                 color,
-                minWidth: 160
+                minWidth: 160,
               }}
             >
               {inv.invoice_number}
@@ -1731,11 +1731,11 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                   <span style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>
                     PB: $
                     {Number(inv.contract_amount).toLocaleString('en-US', {
-                      minimumFractionDigits: 2
+                      minimumFractionDigits: 2,
                     })}{' '}
                     · PT: $
                     {Number(inv.pass_through_amount).toLocaleString('en-US', {
-                      minimumFractionDigits: 2
+                      minimumFractionDigits: 2,
                     })}
                   </span>
                 )}
@@ -1749,7 +1749,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                   background: '#fff3e0',
                   color: '#E07B2A',
                   border: '1px solid #E07B2A44',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 COMBINED
@@ -1763,7 +1763,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                   borderRadius: 10,
                   background: (statusColor[inv.status] || '#888') + '22',
                   color: statusColor[inv.status] || '#888',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 {inv.status?.toUpperCase()}
@@ -1777,7 +1777,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                   maxWidth: 200,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {inv.notes}
@@ -1797,7 +1797,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                   borderRadius: 4,
                   textDecoration: 'none',
                   display: 'inline-flex',
-                  alignItems: 'center'
+                  alignItems: 'center',
                 }}
               >
                 View PDF
@@ -1813,7 +1813,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                     color: '#0D9488',
                     border: '1px solid #0D948822',
                     borderRadius: 4,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
                   }}
                 >
                   {emailing === inv.id ? 'Sending...' : 'Email'}
@@ -1829,7 +1829,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                     color: '#3B82F6',
                     border: '1px solid #3B82F622',
                     borderRadius: 4,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
                   }}
                 >
                   Mark Sent
@@ -1845,7 +1845,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                     color: '#2E7D32',
                     border: '1px solid #2E7D3222',
                     borderRadius: 4,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
                   }}
                 >
                   Mark Paid
@@ -1860,7 +1860,7 @@ function InvoiceGroup({ label, invoices, color, onMark, onDelete, token, job }) 
                   color: '#C62828',
                   border: '1px solid #ff000022',
                   borderRadius: 4,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 Delete
@@ -1891,7 +1891,7 @@ function SummaryCard({ label, value, color }) {
         borderRadius: 8,
         padding: '12px 16px',
         background: color + '11',
-        border: `1px solid ${color}33`
+        border: `1px solid ${color}33`,
       }}
     >
       <div style={{ fontSize: 10, color: '#888', marginBottom: 3 }}>{label}</div>
@@ -1931,7 +1931,7 @@ function TypeBadge({ type }) {
         borderRadius: 10,
         background: color + '22',
         color,
-        fontWeight: 'bold'
+        fontWeight: 'bold',
       }}
     >
       {type?.charAt(0).toUpperCase() + type?.slice(1)}
@@ -1946,7 +1946,7 @@ const CAT_COLORS = {
   other: '#888',
   engineer: '#0891b2',
   architect: '#6366f1',
-  designer: '#ec4899'
+  designer: '#ec4899',
 };
 function CategoryBadge({ cat }) {
   const color = CAT_COLORS[cat] || '#888';
@@ -1958,7 +1958,7 @@ function CategoryBadge({ cat }) {
         borderRadius: 10,
         background: color + '22',
         color,
-        fontWeight: 'bold'
+        fontWeight: 'bold',
       }}
     >
       {cat?.charAt(0).toUpperCase() + cat?.slice(1)}
@@ -1976,7 +1976,7 @@ function CrDrBadge({ value }) {
         borderRadius: 10,
         background: isCredit ? '#2E7D3222' : '#C6282822',
         color: isCredit ? '#2E7D32' : '#C62828',
-        fontWeight: 'bold'
+        fontWeight: 'bold',
       }}
     >
       {isCredit ? 'CR' : 'DR'}

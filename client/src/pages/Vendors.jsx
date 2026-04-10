@@ -5,7 +5,7 @@ import { showConfirm } from '../utils/confirm';
 
 const TYPE_COLORS = {
   subcontractor: { bg: '#e8f5e9', color: '#2e7d32' },
-  vendor: { bg: '#e3f2fd', color: '#1565c0' }
+  vendor: { bg: '#e3f2fd', color: '#1565c0' },
 };
 
 const BLANK_FORM = {
@@ -19,7 +19,7 @@ const BLANK_FORM = {
   state: 'MA',
   zip: '',
   license_number: '',
-  notes: ''
+  notes: '',
 };
 
 export default function Vendors({ token }) {
@@ -82,7 +82,7 @@ export default function Vendors({ token }) {
       state: v.state || 'MA',
       zip: v.zip || '',
       license_number: v.license_number || '',
-      notes: v.notes || ''
+      notes: v.notes || '',
     });
     setShowModal(true);
   };
@@ -112,7 +112,7 @@ export default function Vendors({ token }) {
     const res = await fetch(url, {
       method,
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
+      body: JSON.stringify(form),
     });
     setSaving(false);
     if (res.ok) {
@@ -138,7 +138,7 @@ export default function Vendors({ token }) {
 
   const field = (key) => ({
     value: form[key],
-    onChange: (e) => setForm({ ...form, [key]: e.target.value })
+    onChange: (e) => setForm({ ...form, [key]: e.target.value }),
   });
 
   const inputStyle = {
@@ -147,7 +147,7 @@ export default function Vendors({ token }) {
     border: '1px solid #ddd',
     borderRadius: 6,
     fontSize: 12,
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
   };
   const labelStyle = { fontSize: 11, color: '#555', display: 'block', marginBottom: 3 };
 
@@ -159,7 +159,7 @@ export default function Vendors({ token }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <div>
@@ -179,7 +179,7 @@ export default function Vendors({ token }) {
             padding: '10px 20px',
             borderRadius: 8,
             cursor: 'pointer',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
           }}
         >
           + Add Entry
@@ -199,14 +199,14 @@ export default function Vendors({ token }) {
             border: '1px solid #ddd',
             borderRadius: 8,
             fontSize: 13,
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
           }}
         />
         <div style={{ display: 'flex', gap: 6 }}>
           {[
             ['all', 'All'],
             ['subcontractor', 'Subs'],
-            ['vendor', 'Vendors']
+            ['vendor', 'Vendors'],
           ].map(([val, label]) => (
             <button
               key={val}
@@ -219,7 +219,7 @@ export default function Vendors({ token }) {
                 fontSize: 12,
                 fontWeight: 'bold',
                 background: typeFilter === val ? '#1B3A6B' : '#f0f0f0',
-                color: typeFilter === val ? 'white' : '#555'
+                color: typeFilter === val ? 'white' : '#555',
               }}
             >
               {label}
@@ -234,7 +234,7 @@ export default function Vendors({ token }) {
           background: 'white',
           borderRadius: 10,
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
       >
         {loading && vendors.length === 0 ? (
@@ -265,12 +265,12 @@ export default function Vendors({ token }) {
                           color: 'white',
                           textAlign: 'left',
                           fontSize: 11,
-                          fontWeight: 'bold'
+                          fontWeight: 'bold',
                         }}
                       >
                         {h}
                       </th>
-                    )
+                    ),
                   )}
                 </tr>
               </thead>
@@ -282,7 +282,7 @@ export default function Vendors({ token }) {
                       key={v.id}
                       style={{
                         borderBottom: '1px solid #f0f0f0',
-                        background: i % 2 === 0 ? 'white' : '#fafafa'
+                        background: i % 2 === 0 ? 'white' : '#fafafa',
                       }}
                     >
                       <td
@@ -290,7 +290,7 @@ export default function Vendors({ token }) {
                           padding: '11px 14px',
                           fontWeight: '600',
                           fontSize: 13,
-                          color: '#1B3A6B'
+                          color: '#1B3A6B',
                         }}
                       >
                         {v.company_name}
@@ -304,7 +304,7 @@ export default function Vendors({ token }) {
                             borderRadius: 20,
                             fontSize: 11,
                             fontWeight: 'bold',
-                            textTransform: 'capitalize'
+                            textTransform: 'capitalize',
                           }}
                         >
                           {v.type === 'subcontractor' ? 'Sub' : 'Vendor'}
@@ -349,7 +349,7 @@ export default function Vendors({ token }) {
                           padding: '11px 14px',
                           fontSize: 11,
                           color: '#555',
-                          fontFamily: 'monospace'
+                          fontFamily: 'monospace',
                         }}
                       >
                         {v.license_number || (
@@ -368,7 +368,7 @@ export default function Vendors({ token }) {
                             borderRadius: 6,
                             cursor: 'pointer',
                             fontSize: 11,
-                            fontWeight: 'bold'
+                            fontWeight: 'bold',
                           }}
                         >
                           Edit
@@ -382,7 +382,7 @@ export default function Vendors({ token }) {
                             padding: '5px 10px',
                             borderRadius: 6,
                             cursor: 'pointer',
-                            fontSize: 11
+                            fontSize: 11,
                           }}
                         >
                           ×
@@ -411,7 +411,7 @@ export default function Vendors({ token }) {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'flex-start',
-                        marginBottom: 6
+                        marginBottom: 6,
                       }}
                     >
                       <div>
@@ -431,7 +431,7 @@ export default function Vendors({ token }) {
                           fontSize: 11,
                           fontWeight: 'bold',
                           flexShrink: 0,
-                          marginLeft: 8
+                          marginLeft: 8,
                         }}
                       >
                         {v.type === 'subcontractor' ? 'Sub' : 'Vendor'}
@@ -444,7 +444,7 @@ export default function Vendors({ token }) {
                         gap: '4px 16px',
                         fontSize: 12,
                         color: '#555',
-                        marginBottom: 8
+                        marginBottom: 8,
                       }}
                     >
                       {v.phone && (
@@ -490,7 +490,7 @@ export default function Vendors({ token }) {
                           borderRadius: 6,
                           cursor: 'pointer',
                           fontSize: 12,
-                          fontWeight: 'bold'
+                          fontWeight: 'bold',
                         }}
                       >
                         Edit
@@ -504,7 +504,7 @@ export default function Vendors({ token }) {
                           padding: '7px 16px',
                           borderRadius: 6,
                           cursor: 'pointer',
-                          fontSize: 12
+                          fontSize: 12,
                         }}
                       >
                         Delete
@@ -528,7 +528,7 @@ export default function Vendors({ token }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div
@@ -539,7 +539,7 @@ export default function Vendors({ token }) {
               width: 680,
               maxWidth: '95vw',
               maxHeight: '90vh',
-              overflow: 'auto'
+              overflow: 'auto',
             }}
           >
             <div
@@ -547,7 +547,7 @@ export default function Vendors({ token }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 20
+                marginBottom: 20,
               }}
             >
               <h2 style={{ color: '#1B3A6B', margin: 0, fontSize: 18 }}>
@@ -560,7 +560,7 @@ export default function Vendors({ token }) {
                   border: 'none',
                   fontSize: 22,
                   cursor: 'pointer',
-                  color: '#888'
+                  color: '#888',
                 }}
               >
                 ×
@@ -650,7 +650,7 @@ export default function Vendors({ token }) {
                   borderRadius: 6,
                   cursor: 'pointer',
                   background: 'white',
-                  fontSize: 13
+                  fontSize: 13,
                 }}
               >
                 Cancel
@@ -668,7 +668,7 @@ export default function Vendors({ token }) {
                   cursor: saving ? 'not-allowed' : 'pointer',
                   fontWeight: 'bold',
                   fontSize: 13,
-                  opacity: saving ? 0.7 : 1
+                  opacity: saving ? 0.7 : 1,
                 }}
               >
                 {saving ? 'Saving...' : editing ? 'Save Changes' : 'Add Entry'}

@@ -15,7 +15,7 @@ const MAIN_NAV = [
   { path: '/vendors', icon: '🏗️', label: 'Subs & Vendors' },
   { path: '/takeoff', icon: '📐', label: 'Material Take-Off' },
   { path: '/analytics', icon: '📈', label: 'Analytics' },
-  { path: '/reports', icon: '📋', label: 'Reports' }
+  { path: '/reports', icon: '📋', label: 'Reports' },
 ];
 
 const CONFIG_NAV = [
@@ -23,14 +23,14 @@ const CONFIG_NAV = [
   { path: '/knowledge', icon: '📚', label: 'Knowledge Base' },
   { path: '/team', icon: '👷', label: 'Team' },
   { path: '/agents', icon: '🤖', label: 'Agents' },
-  { path: '/guide', icon: '📋', label: 'Help Guide' }
+  { path: '/guide', icon: '📋', label: 'Help Guide' },
 ];
 
 const BOTTOM_NAV = [
   { path: '/', icon: '📊', label: 'Jobs' },
   { path: '/tasks', icon: '✅', label: 'Tasks' },
   { path: '/field-camera', icon: '📷', label: 'Camera' },
-  { path: '/payments', icon: '💰', label: 'Payments' }
+  { path: '/payments', icon: '💰', label: 'Payments' },
 ];
 
 const ALL_NAV = [...MAIN_NAV, ...CONFIG_NAV];
@@ -49,7 +49,7 @@ function SidebarNavItem({ item, active, collapsed }) {
           color: 'white',
           fontSize: 13,
           cursor: 'pointer',
-          transition: 'background 0.15s'
+          transition: 'background 0.15s',
         }}
         title={collapsed ? item.label : undefined}
       >
@@ -86,7 +86,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
           color: 'white',
           alignItems: 'center',
           padding: '12px 16px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.25)'
+          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
         }}
       >
         <div>
@@ -114,14 +114,14 @@ export default function Layout({ children, token, onLogout, userName, userRole }
             overflow: 'hidden',
             height: '100vh',
             position: 'sticky',
-            top: 0
+            top: 0,
           }}
         >
           <div
             style={{
               padding: '16px 14px 10px',
               borderBottom: '1px solid rgba(255,255,255,0.1)',
-              flexShrink: 0
+              flexShrink: 0,
             }}
           >
             {!collapsed && (
@@ -131,7 +131,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                     fontWeight: 'bold',
                     fontSize: 12,
                     color: ORANGE,
-                    letterSpacing: '0.04em'
+                    letterSpacing: '0.04em',
                   }}
                 >
                   PREFERRED BUILDERS
@@ -148,7 +148,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                 cursor: 'pointer',
                 fontSize: 17,
                 marginTop: collapsed ? 0 : 8,
-                padding: 0
+                padding: 0,
               }}
               title={collapsed ? 'Expand' : 'Collapse'}
             >
@@ -183,7 +183,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                   fontSize: 11,
                   fontWeight: 700,
                   letterSpacing: '0.07em',
-                  textTransform: 'uppercase'
+                  textTransform: 'uppercase',
                 }}
                 title={collapsed ? 'Config & Tools' : undefined}
               >
@@ -228,7 +228,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                           fontSize: 12,
                           cursor: 'pointer',
                           borderRadius: 4,
-                          transition: 'background 0.15s'
+                          transition: 'background 0.15s',
                         }}
                       >
                         <span style={{ fontSize: 15 }}>{item.icon}</span>
@@ -245,7 +245,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
             style={{
               padding: '12px 14px',
               borderTop: '1px solid rgba(255,255,255,0.1)',
-              flexShrink: 0
+              flexShrink: 0,
             }}
           >
             {!collapsed && userName && (
@@ -275,7 +275,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                 borderRadius: 6,
                 cursor: 'pointer',
                 width: '100%',
-                fontSize: 12
+                fontSize: 12,
               }}
             >
               {collapsed ? '🚪' : '🚪 Logout'}
@@ -300,7 +300,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
           zIndex: 1000,
           background: BLUE,
           borderTop: '1px solid rgba(255,255,255,0.15)',
-          paddingBottom: 'env(safe-area-inset-bottom)'
+          paddingBottom: 'env(safe-area-inset-bottom)',
         }}
       >
         {BOTTOM_NAV.map((item) => {
@@ -316,7 +316,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                   color: active ? ORANGE : 'rgba(255,255,255,0.65)',
                   fontSize: 10,
                   fontWeight: active ? 'bold' : 'normal',
-                  borderTop: active ? `2px solid ${ORANGE}` : '2px solid transparent'
+                  borderTop: active ? `2px solid ${ORANGE}` : '2px solid transparent',
                 }}
               >
                 <span style={{ fontSize: 22, marginBottom: 2 }}>{item.icon}</span>
@@ -338,7 +338,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
             padding: '10px 0 8px',
             color: 'rgba(255,255,255,0.65)',
             fontSize: 10,
-            borderTop: '2px solid transparent'
+            borderTop: '2px solid transparent',
           }}
         >
           <span style={{ fontSize: 22, marginBottom: 2 }}>☰</span>
@@ -355,7 +355,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
               position: 'fixed',
               inset: 0,
               background: 'rgba(0,0,0,0.5)',
-              zIndex: 1100
+              zIndex: 1100,
             }}
           />
           <div
@@ -369,7 +369,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
               borderRadius: '16px 16px 0 0',
               maxHeight: '75vh',
               overflowY: 'auto',
-              paddingBottom: 'env(safe-area-inset-bottom)'
+              paddingBottom: 'env(safe-area-inset-bottom)',
             }}
           >
             <div
@@ -377,7 +377,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                 padding: '14px 20px 8px',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
               }}
             >
               <div>
@@ -396,7 +396,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                   color: 'white',
                   fontSize: 22,
                   cursor: 'pointer',
-                  padding: '4px 8px'
+                  padding: '4px 8px',
                 }}
               >
                 ✕
@@ -421,7 +421,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                         background: active ? 'rgba(224,123,42,0.25)' : 'transparent',
                         borderLeft: active ? `3px solid ${ORANGE}` : '3px solid transparent',
                         color: active ? 'white' : 'rgba(255,255,255,0.8)',
-                        fontSize: 15
+                        fontSize: 15,
                       }}
                     >
                       <span style={{ fontSize: 20 }}>{item.icon}</span>
@@ -448,7 +448,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                   padding: '13px',
                   borderRadius: 8,
                   cursor: 'pointer',
-                  fontSize: 15
+                  fontSize: 15,
                 }}
               >
                 🚪 Logout

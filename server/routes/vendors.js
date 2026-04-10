@@ -18,7 +18,7 @@ router.get('/', requireAuth, (req, res) => {
 
   if (search) {
     conditions.push(
-      '(company_name LIKE ? OR trade LIKE ? OR phone LIKE ? OR address LIKE ? OR city LIKE ? OR license_number LIKE ?)'
+      '(company_name LIKE ? OR trade LIKE ? OR phone LIKE ? OR address LIKE ? OR city LIKE ? OR license_number LIKE ?)',
     );
     const s = `%${search}%`;
     params.push(s, s, s, s, s, s);
@@ -45,7 +45,7 @@ router.post('/', requireAuth, (req, res) => {
     state,
     zip,
     license_number,
-    notes
+    notes,
   } = req.body;
   if (!company_name || !company_name.trim()) {
     return res.status(400).json({ error: 'Company name is required' });
@@ -53,7 +53,7 @@ router.post('/', requireAuth, (req, res) => {
   const result = db
     .prepare(
       `INSERT INTO vendors (company_name, type, trade, phone, website, address, city, state, zip, license_number, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       company_name.trim(),
@@ -66,7 +66,7 @@ router.post('/', requireAuth, (req, res) => {
       state || null,
       zip || null,
       license_number || null,
-      notes || null
+      notes || null,
     );
   const vendor = db.prepare('SELECT * FROM vendors WHERE id = ?').get(result.lastInsertRowid);
   res.json({ success: true, id: result.lastInsertRowid, vendor });
@@ -86,7 +86,7 @@ router.put('/:id', requireAuth, (req, res) => {
     state,
     zip,
     license_number,
-    notes
+    notes,
   } = req.body;
   if (!company_name || !company_name.trim()) {
     return res.status(400).json({ error: 'Company name is required' });
@@ -97,7 +97,7 @@ router.put('/:id', requireAuth, (req, res) => {
         company_name = ?, type = ?, trade = ?, phone = ?, website = ?, address = ?,
         city = ?, state = ?, zip = ?, license_number = ?, notes = ?,
         updated_at = CURRENT_TIMESTAMP
-       WHERE id = ?`
+       WHERE id = ?`,
     )
     .run(
       company_name.trim(),
@@ -111,7 +111,7 @@ router.put('/:id', requireAuth, (req, res) => {
       zip || null,
       license_number || null,
       notes || null,
-      req.params.id
+      req.params.id,
     );
   if (info.changes === 0) return res.status(404).json({ error: 'Vendor not found' });
   res.json({ success: true });

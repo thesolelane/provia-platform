@@ -13,7 +13,7 @@ export default function ConfirmDialog() {
     const handler = (e) => {
       setDialog({
         message: e.detail.message,
-        resolve: e.detail.resolve
+        resolve: e.detail.resolve,
       });
     };
     window.addEventListener('pb-confirm', handler);
@@ -36,7 +36,7 @@ export default function ConfirmDialog() {
         zIndex: 10000,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
       }}
     >
       <div
@@ -47,7 +47,7 @@ export default function ConfirmDialog() {
           maxWidth: 400,
           width: '90%',
           boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-          textAlign: 'center'
+          textAlign: 'center',
         }}
       >
         <div style={{ fontSize: 36, marginBottom: 12 }}>⚠️</div>
@@ -65,7 +65,7 @@ export default function ConfirmDialog() {
               color: '#555',
               fontWeight: 600,
               cursor: 'pointer',
-              fontSize: 14
+              fontSize: 14,
             }}
           >
             Cancel
@@ -80,7 +80,7 @@ export default function ConfirmDialog() {
               color: '#fff',
               fontWeight: 600,
               cursor: 'pointer',
-              fontSize: 14
+              fontSize: 14,
             }}
           >
             Confirm

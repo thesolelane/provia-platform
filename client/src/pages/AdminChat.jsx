@@ -10,8 +10,8 @@ export default function AdminChat({ token }) {
     {
       role: 'assistant',
       content:
-        '👋 Hi Jackson! I now have live access to your contacts and jobs, and I can create tasks and reminders for you.\n\nYou can also attach blueprints, building plans, or photos — I\'ll read them and help you build a quote.\n\nTry asking:\n• "What\'s the phone number for [customer name]?"\n• "What\'s the status of the job at 123 Main St?"\n• "Remind me to call for inspection tomorrow at 5pm for Oak St"\n\nOlá! Pode me perguntar em português também.'
-    }
+        '👋 Hi Jackson! I now have live access to your contacts and jobs, and I can create tasks and reminders for you.\n\nYou can also attach blueprints, building plans, or photos — I\'ll read them and help you build a quote.\n\nTry asking:\n• "What\'s the phone number for [customer name]?"\n• "What\'s the status of the job at 123 Main St?"\n• "Remind me to call for inspection tomorrow at 5pm for Oak St"\n\nOlá! Pode me perguntar em português também.',
+    },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,8 +44,8 @@ export default function AdminChat({ token }) {
         {
           role: 'user',
           content: userMsg || `[Attached: ${fileNames}]`,
-          attachments: filesSnapshot.map((f) => f.name)
-        }
+          attachments: filesSnapshot.map((f) => f.name),
+        },
       ]);
 
       try {
@@ -54,7 +54,7 @@ export default function AdminChat({ token }) {
         const extractRes = await fetch('/api/jobs/extract-from-files', {
           method: 'POST',
           headers: { 'x-auth-token': token },
-          body: fd
+          body: fd,
         });
         if (extractRes.ok) {
           const { extractedText, extractedAddress } = await extractRes.json();
@@ -64,7 +64,7 @@ export default function AdminChat({ token }) {
           userMsg = [
             userMsg ||
               "I've attached construction documents. Please analyze them and help me build a quote.",
-            `\n\n[ATTACHED DOCUMENTS: ${fileNames}]${addrNote}\n${extractedText}`
+            `\n\n[ATTACHED DOCUMENTS: ${fileNames}]${addrNote}\n${extractedText}`,
           ].join('');
         } else {
           userMsg = userMsg || `I tried to attach ${fileNames} but couldn't read it. Can you help?`;
@@ -82,12 +82,12 @@ export default function AdminChat({ token }) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ message: userMsg, language })
+        body: JSON.stringify({ message: userMsg, language }),
       });
       if (res.status === 401) {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: '❌ Session expired. Please refresh and log in again.' }
+          { role: 'assistant', content: '❌ Session expired. Please refresh and log in again.' },
         ]);
         setLoading(false);
         return;
@@ -96,19 +96,19 @@ export default function AdminChat({ token }) {
       if (!res.ok) {
         setMessages((prev) => [
           ...prev,
-          { role: 'assistant', content: '❌ Error: ' + (data.error || 'Something went wrong.') }
+          { role: 'assistant', content: '❌ Error: ' + (data.error || 'Something went wrong.') },
         ]);
         setLoading(false);
         return;
       }
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: data.reply, createdTask: data.createdTask || null }
+        { role: 'assistant', content: data.reply, createdTask: data.createdTask || null },
       ]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: '❌ Connection error. Please try again.' }
+        { role: 'assistant', content: '❌ Connection error. Please try again.' },
       ]);
     }
     setLoading(false);
@@ -120,7 +120,7 @@ export default function AdminChat({ token }) {
     'Remind me to call for inspection tomorrow at 5pm',
     'What is the Stretch Code requirement for Ashby?',
     'How do I calculate GC markup on a $50K framing job?',
-    'Quanto custa revestimento spray foam?'
+    'Quanto custa revestimento spray foam?',
   ];
 
   return (
@@ -130,7 +130,7 @@ export default function AdminChat({ token }) {
         flexDirection: 'column',
         height: '100vh',
         padding: 32,
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
       }}
     >
       <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} } @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
@@ -141,7 +141,7 @@ export default function AdminChat({ token }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 16
+          marginBottom: 16,
         }}
       >
         <div>
@@ -163,7 +163,7 @@ export default function AdminChat({ token }) {
               textDecoration: 'none',
               fontSize: 12,
               fontWeight: 'bold',
-              border: '1px solid #C8D4E4'
+              border: '1px solid #C8D4E4',
             }}
           >
             ✅ View Tasks
@@ -192,7 +192,7 @@ export default function AdminChat({ token }) {
               border: '1px solid #1B3A6B33',
               borderRadius: 20,
               cursor: 'pointer',
-              color: BLUE
+              color: BLUE,
             }}
           >
             {p}
@@ -209,7 +209,7 @@ export default function AdminChat({ token }) {
           borderRadius: 10,
           padding: 20,
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          marginBottom: 14
+          marginBottom: 14,
         }}
       >
         {messages.map((msg, i) => (
@@ -218,7 +218,7 @@ export default function AdminChat({ token }) {
               style={{
                 display: 'flex',
                 justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                marginBottom: msg.attachments?.length ? 4 : 12
+                marginBottom: msg.attachments?.length ? 4 : 12,
               }}
             >
               <div
@@ -230,7 +230,7 @@ export default function AdminChat({ token }) {
                   borderRadius: 12,
                   fontSize: 13,
                   lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap'
+                  whiteSpace: 'pre-wrap',
                 }}
               >
                 {msg.content}
@@ -245,7 +245,7 @@ export default function AdminChat({ token }) {
                   justifyContent: 'flex-end',
                   gap: 6,
                   flexWrap: 'wrap',
-                  marginBottom: 12
+                  marginBottom: 12,
                 }}
               >
                 {msg.attachments.map((name, j) => (
@@ -260,7 +260,7 @@ export default function AdminChat({ token }) {
                       padding: '3px 10px',
                       fontSize: 11,
                       color: BLUE,
-                      fontWeight: 600
+                      fontWeight: 600,
                     }}
                   >
                     <span>{name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? '🖼️' : '📄'}</span>
@@ -269,7 +269,7 @@ export default function AdminChat({ token }) {
                         maxWidth: 120,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {name}
@@ -288,7 +288,7 @@ export default function AdminChat({ token }) {
                   border: '1px solid #bbf7d0',
                   borderRadius: 10,
                   padding: '14px 16px',
-                  maxWidth: 380
+                  maxWidth: 380,
                 }}
               >
                 <div style={{ fontSize: 12, fontWeight: 'bold', color: GREEN, marginBottom: 8 }}>
@@ -305,7 +305,7 @@ export default function AdminChat({ token }) {
                       month: 'short',
                       day: 'numeric',
                       hour: '2-digit',
-                      minute: '2-digit'
+                      minute: '2-digit',
                     })}
                   </div>
                 )}
@@ -319,7 +319,7 @@ export default function AdminChat({ token }) {
                       borderRadius: 6,
                       textDecoration: 'none',
                       fontSize: 11,
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
                     }}
                   >
                     View in Tasks
@@ -337,7 +337,7 @@ export default function AdminChat({ token }) {
                         borderRadius: 6,
                         textDecoration: 'none',
                         fontSize: 11,
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
                       }}
                     >
                       📅 Add to Google Calendar
@@ -360,7 +360,7 @@ export default function AdminChat({ token }) {
                 color: '#888',
                 display: 'flex',
                 alignItems: 'center',
-                gap: 8
+                gap: 8,
               }}
             >
               {extracting ? (
@@ -373,7 +373,7 @@ export default function AdminChat({ token }) {
                       border: '2px solid #1B3A6B',
                       borderTopColor: 'transparent',
                       borderRadius: '50%',
-                      animation: 'spin 0.7s linear infinite'
+                      animation: 'spin 0.7s linear infinite',
                     }}
                   />
                   Reading your files...
@@ -402,7 +402,7 @@ export default function AdminChat({ token }) {
                 padding: '4px 10px',
                 fontSize: 11,
                 color: BLUE,
-                fontWeight: 600
+                fontWeight: 600,
               }}
             >
               <span>{f.type.startsWith('image/') ? '🖼️' : '📄'}</span>
@@ -411,7 +411,7 @@ export default function AdminChat({ token }) {
                   maxWidth: 140,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {f.name}
@@ -426,7 +426,7 @@ export default function AdminChat({ token }) {
                   fontSize: 14,
                   lineHeight: 1,
                   padding: 0,
-                  marginLeft: 2
+                  marginLeft: 2,
                 }}
               >
                 ×
@@ -467,7 +467,7 @@ export default function AdminChat({ token }) {
             fontSize: 18,
             lineHeight: 1,
             color: attachedFiles.length ? BLUE : '#888',
-            flexShrink: 0
+            flexShrink: 0,
           }}
         >
           📎
@@ -490,7 +490,7 @@ export default function AdminChat({ token }) {
             border: '1.5px solid #C8D4E4',
             borderRadius: 8,
             fontSize: 14,
-            outline: 'none'
+            outline: 'none',
           }}
         />
 
@@ -507,7 +507,7 @@ export default function AdminChat({ token }) {
             fontWeight: 'bold',
             fontSize: 14,
             opacity: loading || extracting || (!input.trim() && !attachedFiles.length) ? 0.5 : 1,
-            flexShrink: 0
+            flexShrink: 0,
           }}
         >
           Send

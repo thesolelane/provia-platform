@@ -16,7 +16,7 @@ const VALID_EVENT_TYPES = [
   'PASS_THROUGH_REIMBURSED',
   'CHANGE_ORDER_CREATED',
   'JOB_COMPLETED',
-  'NOTE'
+  'NOTE',
 ];
 
 function logActivity({
@@ -25,7 +25,7 @@ function logActivity({
   event_type,
   description,
   document_ref,
-  recorded_by
+  recorded_by,
 }) {
   try {
     const db = getDb();
@@ -33,14 +33,14 @@ function logActivity({
       `
       INSERT INTO customer_activity_log (customer_number, job_id, event_type, description, document_ref, recorded_by)
       VALUES (?, ?, ?, ?, ?, ?)
-    `
+    `,
     ).run(
       customer_number || null,
       job_id || null,
       event_type,
       description,
       document_ref || null,
-      recorded_by || 'system'
+      recorded_by || 'system',
     );
   } catch (e) {
     console.warn('[activityLog] Failed to log:', e.message);
@@ -57,7 +57,7 @@ router.get('/', requireAuth, (req, res) => {
     date_to,
     recorded_by,
     limit = 200,
-    offset = 0
+    offset = 0,
   } = req.query;
 
   let sql = 'SELECT * FROM customer_activity_log WHERE 1=1';
@@ -112,7 +112,7 @@ router.post('/', requireAuth, (req, res) => {
     event_type: evType,
     description,
     document_ref,
-    recorded_by: recorder
+    recorded_by: recorder,
   });
 
   const db = getDb();

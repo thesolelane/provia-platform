@@ -20,7 +20,7 @@ const {
   saveReviewPending,
   generatePBNumber,
   generateQuoteNumber,
-  extractExternalRef
+  extractExternalRef,
 } = require('../services/jobHelpers');
 
 // ── Build trades narrative from selected trades payload ────────────────────
@@ -42,7 +42,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
     city = '',
     state = '',
     zip = '',
-    scopeText = ''
+    scopeText = '',
   } = req.body;
 
   if (!contactName.trim()) return res.status(400).json({ error: 'Contact name is required' });
@@ -62,7 +62,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
         phone: contactPhone,
         address: street,
         city,
-        state: state || 'MA'
+        state: state || 'MA',
       });
     } catch (e) {
       console.warn('[Wizard Job] Contact upsert failed:', e.message);
@@ -74,7 +74,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
     `
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
     VALUES (?, ?, ?, ?, ?, ?, 'processing', ?, ?)
-  `
+  `,
   ).run(
     jobId,
     contactName,
@@ -83,7 +83,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
     projectAddress,
     scopeText,
     wizardBy,
-    contactRef?.id || null
+    contactRef?.id || null,
   );
 
   try {
@@ -91,7 +91,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
     const extRef = extractExternalRef(scopeText);
     const qNum = generateQuoteNumber(db);
     db.prepare(
-      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
+      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?',
     ).run(pbNum, extRef, qNum, jobId);
   } catch (e) {
     console.warn('[Wizard] PB/Quote number generation failed:', e.message);
@@ -103,7 +103,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
       job_id: jobId,
       event_type: 'ESTIMATE_CREATED',
       description: `Estimate created via wizard for ${projectAddress || contactName}`,
-      recorded_by: req.session?.name || 'web:wizard'
+      recorded_by: req.session?.name || 'web:wizard',
     });
   } catch (e) {
     console.warn('[Wizard] logActivity failed:', e.message);
@@ -131,7 +131,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
       const { context: priorCtx } = findPriorQuoteContext(db, {
         rawText: sanitizedScope,
         contactId: contactRef?.id,
-        projectAddress
+        projectAddress,
       });
       const proposalData = await processEstimate(
         fullEstimate,
@@ -139,23 +139,23 @@ router.post('/wizard', requireAuth, async (req, res) => {
         'en',
         db,
         projectAddress,
-        priorCtx
+        priorCtx,
       );
       mergeContactIntoProposal(db, jobId, proposalData);
       console.log(
-        `[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`
+        `[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`,
       );
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         finalizeJobVersioning(db, jobId, proposalData);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
           'clarification',
-          jobId
+          jobId,
         );
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
         console.log(
-          `[Wizard Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`
+          `[Wizard Job ${jobId}] Status: clarification (${proposalData.clarificationsNeeded.length} questions)`,
         );
       } else {
         if (!proposalData.customer) proposalData.customer = {};
@@ -175,14 +175,14 @@ router.post('/wizard', requireAuth, async (req, res) => {
             versionNumber: proposalData.quoteVersion || 1,
             totalValue: proposalData.totalValue,
             lineItems: proposalData.lineItems,
-            scopeSummary: (proposalData.project?.description || '').slice(0, 300)
+            scopeSummary: (proposalData.project?.description || '').slice(0, 300),
           });
         } catch (memErr) {
           console.warn('[JobMemory] saveVersion failed:', memErr.message);
         }
         logAudit(jobId, 'wizard_estimate_processed', `Wizard entry — pending review`, 'admin');
         console.log(
-          `[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`
+          `[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`,
         );
         tickQuoteCounter(db);
         notifyClients('job_updated', { jobId, status: 'review_pending' });
@@ -191,7 +191,7 @@ router.post('/wizard', requireAuth, async (req, res) => {
       console.error(`[Wizard Job ${jobId}] ERROR:`, err.message, err.stack);
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
         'error',
-        jobId
+        jobId,
       );
     }
   })();
@@ -229,15 +229,15 @@ router.post('/wizard/extract-text', requireAuth, async (req, res) => {
             content: [
               {
                 type: 'image',
-                source: { type: 'base64', media_type: file.mimetype, data: base64 }
+                source: { type: 'base64', media_type: file.mimetype, data: base64 },
               },
               {
                 type: 'text',
-                text: 'This is a construction estimate. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names. Do NOT include customer names, emails, or phone numbers. Format as plain text.'
-              }
-            ]
-          }
-        ]
+                text: 'This is a construction estimate. Extract the TECHNICAL SCOPE ONLY: line items, quantities, dollar amounts, material specs, trade names. Do NOT include customer names, emails, or phone numbers. Format as plain text.',
+              },
+            ],
+          },
+        ],
       });
       rawText = response.content[0].text.trim();
     } else if (file.mimetype.startsWith('text/')) {
@@ -263,7 +263,7 @@ router.post('/wizard/questions', requireAuth, async (req, res) => {
       scopeText,
       projectAddress || '',
       budgetTarget || null,
-      selectedTrades || []
+      selectedTrades || [],
     );
     res.json({ questions });
   } catch (err) {
@@ -287,7 +287,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     qaAnswers,
     budgetTarget,
     plansTempId,
-    selectedTrades
+    selectedTrades,
   } = req.body;
 
   if (!scopeText || scopeText.trim().length < 10) {
@@ -305,7 +305,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
         phone: customerPhone,
         address: projectAddress,
         city: '',
-        state: 'MA'
+        state: 'MA',
       });
     } catch (e) {
       console.warn('[Wizard] Contact upsert failed:', e.message);
@@ -316,7 +316,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     .filter((qa) => qa.questionType === 'demo_check' && qa.answer === 'no' && qa.demoCost)
     .map(
       (qa) =>
-        `ADDITIONAL DEMO WORK (not in original scope): Remove/demo ${qa.trade} — cost $${qa.demoCost}`
+        `ADDITIONAL DEMO WORK (not in original scope): Remove/demo ${qa.trade} — cost $${qa.demoCost}`,
     )
     .join('\n');
 
@@ -326,7 +326,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
         (qaAnswers || [])
           .map(
             (qa) =>
-              `Q: ${qa.question}\nA: ${qa.answer}${qa.demoCost ? ` ($${qa.demoCost} for demo)` : ''}`
+              `Q: ${qa.question}\nA: ${qa.answer}${qa.demoCost ? ` ($${qa.demoCost} for demo)` : ''}`,
           )
           .join('\n\n')
       : '';
@@ -353,7 +353,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     `
     INSERT INTO jobs (id, customer_name, customer_email, customer_phone, project_address, raw_estimate_data, status, submitted_by, contact_id)
     VALUES (?, ?, ?, ?, ?, ?, 'received', ?, ?)
-  `
+  `,
   ).run(
     jobId,
     customerName || '',
@@ -362,7 +362,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     projectAddress || '',
     rawEstimateData,
     submittedBy,
-    contactRef?.id || null
+    contactRef?.id || null,
   );
 
   try {
@@ -370,7 +370,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     const extRef = extractExternalRef(scopeText);
     const qNum = generateQuoteNumber(db);
     db.prepare(
-      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?'
+      'UPDATE jobs SET pb_number = ?, external_ref = ?, quote_number = ? WHERE id = ?',
     ).run(pbNum, extRef, qNum, jobId);
   } catch (e) {
     console.warn('[Wizard] PB/Quote number generation failed:', e.message);
@@ -392,14 +392,14 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
         let existing = [];
         try {
           existing = JSON.parse(
-            db.prepare('SELECT attachments FROM jobs WHERE id = ?').get(jobId)?.attachments || '[]'
+            db.prepare('SELECT attachments FROM jobs WHERE id = ?').get(jobId)?.attachments || '[]',
           );
         } catch {
           /* ignore */
         }
         db.prepare('UPDATE jobs SET attachments = ? WHERE id = ?').run(
           JSON.stringify([...existing, ...movedPaths]),
-          jobId
+          jobId,
         );
         console.log(`[Wizard] Saved ${movedPaths.length} plan file(s) for job ${jobId}`);
       }
@@ -414,7 +414,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
       job_id: jobId,
       event_type: 'ESTIMATE_CREATED',
       description: `Estimate created via wizard/submit for ${projectAddress || customerName}`,
-      recorded_by: req.session?.name || 'web:wizard'
+      recorded_by: req.session?.name || 'web:wizard',
     });
   } catch (e) {
     console.warn('[WizardSubmit] logActivity failed:', e.message);
@@ -423,7 +423,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
   res.json({
     jobId,
     status: 'received',
-    message: 'Wizard submission received. Processing estimate...'
+    message: 'Wizard submission received. Processing estimate...',
   });
 
   // Background property enrichment (non-blocking)
@@ -438,12 +438,12 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
       console.log(`[Wizard Job ${jobId}] Starting Claude processEstimate...`);
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
         'processing',
-        jobId
+        jobId,
       );
       const { context: priorCtx } = findPriorQuoteContext(db, {
         rawText: sanitizedScope,
         contactId: contactRef?.id,
-        projectAddress
+        projectAddress,
       });
       const proposalData = await processEstimate(
         fullEstimate,
@@ -451,18 +451,18 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
         'en',
         db,
         projectAddress,
-        priorCtx
+        priorCtx,
       );
       mergeContactIntoProposal(db, jobId, proposalData);
       console.log(
-        `[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`
+        `[Wizard Job ${jobId}] Claude returned proposal. readyToGenerate=${proposalData.readyToGenerate}`,
       );
 
       if (proposalData.readyToGenerate === false && proposalData.clarificationsNeeded?.length > 0) {
         finalizeJobVersioning(db, jobId, proposalData);
         db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
           'clarification',
-          jobId
+          jobId,
         );
         const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
         for (const q of proposalData.clarificationsNeeded) insertQ.run(jobId, q);
@@ -471,7 +471,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
         saveReviewPending(db, proposalData, jobId);
         logAudit(jobId, 'wizard_estimate_processed', `Wizard submission — pending review`, 'admin');
         console.log(
-          `[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`
+          `[Wizard Job ${jobId}] Status: review_pending. Total: $${proposalData.totalValue}`,
         );
         notifyClients('job_updated', { jobId, status: 'review_pending' });
         if (process.env.OWNER_WHATSAPP) {
@@ -482,7 +482,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
           const addr = projectAddress || 'address not provided';
           await sendWhatsApp(
             ownerTo,
-            `🧾 Web wizard quote ready for review.\nCustomer: *${cust}*\nAddress: ${addr}\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review and generate proposal.`
+            `🧾 Web wizard quote ready for review.\nCustomer: *${cust}*\nAddress: ${addr}\nTotal: $${proposalData.totalValue?.toLocaleString()}\nDeposit: $${proposalData.depositAmount?.toLocaleString()}\n${proposalData.flaggedItems?.length ? `⚠️ ${proposalData.flaggedItems.length} item(s) flagged\n` : '✅ No issues flagged\n'}\nLog in to review and generate proposal.`,
           );
         }
       }
@@ -490,7 +490,7 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
       console.error(`[Wizard Job ${jobId}] ERROR:`, err.message, err.stack);
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
         'error',
-        jobId
+        jobId,
       );
     }
   })();

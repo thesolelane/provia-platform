@@ -27,7 +27,7 @@ const NO_MASK_KEYS = new Set([
   'DISABLE_WHATSAPP_POLLER',
   'DISABLE_WHATSAPP_WEBHOOK',
   'PBBKUPS',
-  'SIGNED_CONTRACTS_DIR'
+  'SIGNED_CONTRACTS_DIR',
 ]);
 
 // ------------------------------------------------------------------
@@ -106,7 +106,7 @@ router.get('/', requireAuth, (req, res) => {
       key: e.key,
       value: e.value,
       noMask: NO_MASK_KEYS.has(e.key),
-      disabled: e.type === 'commented-kv'
+      disabled: e.type === 'commented-kv',
     }));
   res.json(kvs);
 });
@@ -147,7 +147,7 @@ router.put('/:key', requireAuth, (req, res) => {
 
   const entries = parseEnv(readEnvFile());
   const entry = entries.find(
-    (e) => (e.type === 'kv' || e.type === 'commented-kv') && e.key === oldKey
+    (e) => (e.type === 'kv' || e.type === 'commented-kv') && e.key === oldKey,
   );
   if (!entry) return res.status(404).json({ error: 'Key not found' });
   // Uncomment if it was a commented-out entry
@@ -174,7 +174,7 @@ router.delete('/:key', requireAuth, (req, res) => {
   const key = req.params.key;
   const entries = parseEnv(readEnvFile());
   const idx = entries.findIndex(
-    (e) => (e.type === 'kv' || e.type === 'commented-kv') && e.key === key
+    (e) => (e.type === 'kv' || e.type === 'commented-kv') && e.key === key,
   );
   if (idx === -1) return res.status(404).json({ error: 'Key not found' });
   entries.splice(idx, 1);

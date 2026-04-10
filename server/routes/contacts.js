@@ -24,10 +24,12 @@ router.get('/', requireAuth, (req, res) => {
     .prepare(
       search
         ? 'SELECT COUNT(*) as c FROM contacts WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? OR address LIKE ? OR city LIKE ?'
-        : 'SELECT COUNT(*) as c FROM contacts'
+        : 'SELECT COUNT(*) as c FROM contacts',
     )
     .get(
-      ...(search ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`] : [])
+      ...(search
+        ? [`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`]
+        : []),
     );
   res.json({ contacts, total: total.c });
 });
@@ -48,13 +50,13 @@ router.get('/:id', requireAuth, (req, res) => {
       (customer_phone IS NOT NULL AND customer_phone = ?) OR
       (customer_name IS NOT NULL AND customer_name = ?)
     ) ORDER BY created_at DESC
-  `
+  `,
     )
     .all(contact.email || '', contact.phone || '', contact.name || '');
 
   const documents = db
     .prepare(
-      'SELECT id, filename, original_name, mime_type, source, created_at FROM contact_documents WHERE contact_id = ? ORDER BY created_at DESC'
+      'SELECT id, filename, original_name, mime_type, source, created_at FROM contact_documents WHERE contact_id = ? ORDER BY created_at DESC',
     )
     .all(req.params.id);
 
@@ -65,7 +67,7 @@ router.get('/:id', requireAuth, (req, res) => {
     const placeholders = jobIds.map(() => '?').join(',');
     const recRows = db
       .prepare(
-        `SELECT amount, credit_debit FROM payments_received WHERE job_id IN (${placeholders})`
+        `SELECT amount, credit_debit FROM payments_received WHERE job_id IN (${placeholders})`,
       )
       .all(...jobIds);
     const paidRows = db
@@ -73,16 +75,16 @@ router.get('/:id', requireAuth, (req, res) => {
       .all(...jobIds);
     const totalIn = recRows.reduce(
       (s, r) => s + (r.credit_debit === 'debit' ? -1 : 1) * (Number(r.amount) || 0),
-      0
+      0,
     );
     const totalOut = paidRows.reduce(
       (s, r) => s + (r.credit_debit === 'credit' ? -1 : 1) * (Number(r.amount) || 0),
-      0
+      0,
     );
     paymentSummary = {
       total_received: totalIn,
       total_paid_out: totalOut,
-      balance: totalIn - totalOut
+      balance: totalIn - totalOut,
     };
 
     // Per-job received totals for the Open Contracts panel
@@ -91,7 +93,7 @@ router.get('/:id', requireAuth, (req, res) => {
         `SELECT job_id,
                 SUM(CASE WHEN credit_debit = 'debit' THEN -amount ELSE amount END) AS total_received
          FROM payments_received WHERE job_id IN (${placeholders})
-         GROUP BY job_id`
+         GROUP BY job_id`,
       )
       .all(...jobIds);
     for (const r of perJobRows) {
@@ -111,14 +113,14 @@ router.get('/:id', requireAuth, (req, res) => {
                   SUM(CASE WHEN status != 'closed' THEN amount ELSE 0 END) AS po_open,
                   SUM(CASE WHEN status = 'received'  THEN amount ELSE 0 END) AS po_received
            FROM purchase_orders WHERE job_id IN (${placeholders2})
-           GROUP BY job_id`
+           GROUP BY job_id`,
         )
         .all(...jobIds);
       for (const r of poRows) {
         perJobPO[r.job_id] = {
-          po_count:    r.po_count || 0,
-          po_open:     Number(r.po_open)     || 0,
-          po_received: Number(r.po_received) || 0
+          po_count: r.po_count || 0,
+          po_open: Number(r.po_open) || 0,
+          po_received: Number(r.po_received) || 0,
         };
       }
     } catch {
@@ -133,9 +135,9 @@ router.get('/:id', requireAuth, (req, res) => {
       ...j,
       total_received: received,
       outstanding: Math.max(0, (j.total_value || 0) - received),
-      po_count:    poInfo.po_count,
-      po_open:     poInfo.po_open,
-      po_received: poInfo.po_received
+      po_count: poInfo.po_count,
+      po_open: poInfo.po_open,
+      po_received: poInfo.po_received,
     };
   });
 
@@ -179,7 +181,7 @@ router.post('/', requireAuth, requireFields(['name']), validateEmail('email'), (
   const result = db
     .prepare(
       `INSERT INTO contacts (name, email, phone, address, city, state, zip, customer_type, notes, source, pb_customer_number)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)`
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual', ?)`,
     )
     .run(
       name || null,
@@ -191,7 +193,7 @@ router.post('/', requireAuth, requireFields(['name']), validateEmail('email'), (
       zip || null,
       customer_type || 'residential',
       notes || null,
-      pbCustomerNumber
+      pbCustomerNumber,
     );
   const contact = db.prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
   res.json({ success: true, id: result.lastInsertRowid, contact });
@@ -205,7 +207,7 @@ router.patch('/:id', requireAuth, validateEmail('email'), (req, res) => {
     `UPDATE contacts SET
     name = ?, email = ?, phone = ?, address = ?, city = ?, state = ?, zip = ?,
     customer_type = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?`
+    WHERE id = ?`,
   ).run(
     name || null,
     email || null,
@@ -216,7 +218,7 @@ router.patch('/:id', requireAuth, validateEmail('email'), (req, res) => {
     zip || null,
     customer_type || 'residential',
     notes || null,
-    req.params.id
+    req.params.id,
   );
   res.json({ success: true });
 });

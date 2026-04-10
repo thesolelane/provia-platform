@@ -13,7 +13,7 @@ const CATEGORY_LABELS = {
   legal: '⚖️ Legal',
   pricing: '💰 Pricing Reference',
   past_contracts: '📁 Past Contracts',
-  faqs: '❓ FAQs'
+  faqs: '❓ FAQs',
 };
 
 function MarkdownReport({ text }) {
@@ -31,7 +31,7 @@ function MarkdownReport({ text }) {
                 marginTop: 24,
                 marginBottom: 8,
                 borderBottom: `2px solid ${BLUE}`,
-                paddingBottom: 4
+                paddingBottom: 4,
               }}
             >
               {line.slice(2)}
@@ -52,7 +52,7 @@ function MarkdownReport({ text }) {
                 fontSize: 13,
                 fontWeight: 'bold',
                 marginTop: 12,
-                marginBottom: 4
+                marginBottom: 4,
               }}
             >
               {line.slice(4)}
@@ -146,7 +146,7 @@ export default function KnowledgeBase({ token }) {
     await fetch('/api/knowledge', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
+      body: JSON.stringify(form),
     });
     setShowAdd(false);
     setForm({ title: '', category: 'codes', content: '' });
@@ -164,7 +164,7 @@ export default function KnowledgeBase({ token }) {
   const handleFileDrop = (e) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer?.files || e.target.files || []).filter(
-      (f) => f.type === 'application/pdf' || f.name.endsWith('.txt')
+      (f) => f.type === 'application/pdf' || f.name.endsWith('.txt'),
     );
     setBulkFiles((prev) => [...prev, ...files]);
   };
@@ -185,7 +185,7 @@ export default function KnowledgeBase({ token }) {
       const res = await fetch('/api/knowledge/bulk-import', {
         method: 'POST',
         headers,
-        body: fd
+        body: fd,
       });
       const data = await res.json();
       setImportResults(data);
@@ -224,7 +224,7 @@ export default function KnowledgeBase({ token }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 20
+          marginBottom: 20,
         }}
       >
         <div>
@@ -249,7 +249,7 @@ export default function KnowledgeBase({ token }) {
               borderRadius: 6,
               cursor: 'pointer',
               fontSize: 12,
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
             📦 Bulk Import Invoices
@@ -264,7 +264,7 @@ export default function KnowledgeBase({ token }) {
               borderRadius: 6,
               cursor: 'pointer',
               fontSize: 12,
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
             + Add Document
@@ -276,7 +276,7 @@ export default function KnowledgeBase({ token }) {
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '2px solid #eee' }}>
         {[
           { key: 'docs', label: `📄 Documents (${docs.length})` },
-          { key: 'assessment', label: `📊 Assessment Report${assessment ? ' ✓' : ''}` }
+          { key: 'assessment', label: `📊 Assessment Report${assessment ? ' ✓' : ''}` },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -290,7 +290,7 @@ export default function KnowledgeBase({ token }) {
               fontWeight: activeTab === tab.key ? 'bold' : 'normal',
               color: activeTab === tab.key ? BLUE : '#888',
               borderBottom: activeTab === tab.key ? `3px solid ${BLUE}` : '3px solid transparent',
-              marginBottom: -2
+              marginBottom: -2,
             }}
           >
             {tab.label}
@@ -313,7 +313,7 @@ export default function KnowledgeBase({ token }) {
                   background: filter === cat ? BLUE : 'white',
                   color: filter === cat ? 'white' : '#555',
                   cursor: 'pointer',
-                  fontSize: 12
+                  fontSize: 12,
                 }}
               >
                 {cat === 'all'
@@ -327,7 +327,7 @@ export default function KnowledgeBase({ token }) {
             style={{
               display: 'grid',
               gridTemplateColumns: selected ? '300px 1fr' : '1fr',
-              gap: 16
+              gap: 16,
             }}
           >
             <div
@@ -335,7 +335,7 @@ export default function KnowledgeBase({ token }) {
                 background: 'white',
                 borderRadius: 10,
                 boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                overflow: 'hidden'
+                overflow: 'hidden',
               }}
             >
               {filtered.length === 0 && (
@@ -353,14 +353,14 @@ export default function KnowledgeBase({ token }) {
                     borderBottom: '1px solid #f0f0f0',
                     background: selected?.id === doc.id ? '#E3ECFF' : 'white',
                     borderLeft:
-                      selected?.id === doc.id ? `3px solid ${BLUE}` : '3px solid transparent'
+                      selected?.id === doc.id ? `3px solid ${BLUE}` : '3px solid transparent',
                   }}
                 >
                   <div
                     style={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'flex-start'
+                      alignItems: 'flex-start',
                     }}
                   >
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -371,7 +371,7 @@ export default function KnowledgeBase({ token }) {
                           color: '#222',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis'
+                          textOverflow: 'ellipsis',
                         }}
                       >
                         {doc.title}
@@ -391,7 +391,7 @@ export default function KnowledgeBase({ token }) {
                         color: '#ccc',
                         cursor: 'pointer',
                         fontSize: 14,
-                        flexShrink: 0
+                        flexShrink: 0,
                       }}
                     >
                       ✕
@@ -407,7 +407,7 @@ export default function KnowledgeBase({ token }) {
                   background: 'white',
                   borderRadius: 10,
                   padding: 24,
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -433,7 +433,7 @@ export default function KnowledgeBase({ token }) {
                     whiteSpace: 'pre-wrap',
                     lineHeight: 1.6,
                     maxHeight: 500,
-                    overflow: 'auto'
+                    overflow: 'auto',
                   }}
                 >
                   {selected.content}
@@ -452,7 +452,7 @@ export default function KnowledgeBase({ token }) {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 20
+              marginBottom: 20,
             }}
           >
             <div>
@@ -466,7 +466,7 @@ export default function KnowledgeBase({ token }) {
                   {new Date(assessmentDate).toLocaleDateString('en-US', {
                     month: 'short',
                     day: 'numeric',
-                    year: 'numeric'
+                    year: 'numeric',
                   })}
                 </p>
               )}
@@ -482,7 +482,7 @@ export default function KnowledgeBase({ token }) {
                 borderRadius: 6,
                 cursor: pastContractCount === 0 ? 'not-allowed' : 'pointer',
                 fontSize: 13,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {assessmentLoading
@@ -500,7 +500,7 @@ export default function KnowledgeBase({ token }) {
                 border: '1px solid #FFD54F',
                 borderRadius: 10,
                 padding: 24,
-                textAlign: 'center'
+                textAlign: 'center',
               }}
             >
               <div style={{ fontSize: 40, marginBottom: 12 }}>📦</div>
@@ -521,7 +521,7 @@ export default function KnowledgeBase({ token }) {
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 📦 Import Invoices Now
@@ -536,7 +536,7 @@ export default function KnowledgeBase({ token }) {
                 borderRadius: 10,
                 padding: 48,
                 textAlign: 'center',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
               }}
             >
               <div style={{ fontSize: 40, marginBottom: 16 }}>🤖</div>
@@ -555,7 +555,7 @@ export default function KnowledgeBase({ token }) {
                 borderRadius: 10,
                 padding: 32,
                 boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                maxWidth: 900
+                maxWidth: 900,
               }}
             >
               <MarkdownReport text={assessment} />
@@ -574,7 +574,7 @@ export default function KnowledgeBase({ token }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div
@@ -584,7 +584,7 @@ export default function KnowledgeBase({ token }) {
               padding: 32,
               width: 560,
               maxHeight: '90vh',
-              overflow: 'auto'
+              overflow: 'auto',
             }}
           >
             <h2 style={{ color: BLUE, marginBottom: 20 }}>Add Knowledge Document</h2>
@@ -601,7 +601,7 @@ export default function KnowledgeBase({ token }) {
                   border: '1px solid #ddd',
                   borderRadius: 6,
                   fontSize: 13,
-                  boxSizing: 'border-box'
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
@@ -617,7 +617,7 @@ export default function KnowledgeBase({ token }) {
                   padding: 10,
                   border: '1px solid #ddd',
                   borderRadius: 6,
-                  fontSize: 13
+                  fontSize: 13,
                 }}
               >
                 {Object.entries(CATEGORY_LABELS).map(([v, l]) => (
@@ -642,7 +642,7 @@ export default function KnowledgeBase({ token }) {
                   borderRadius: 6,
                   fontSize: 13,
                   boxSizing: 'border-box',
-                  resize: 'vertical'
+                  resize: 'vertical',
                 }}
               />
             </div>
@@ -655,7 +655,7 @@ export default function KnowledgeBase({ token }) {
                   border: '1px solid #ddd',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  background: 'white'
+                  background: 'white',
                 }}
               >
                 Cancel
@@ -671,7 +671,7 @@ export default function KnowledgeBase({ token }) {
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 {loading ? 'Saving...' : 'Add to Knowledge Base'}
@@ -691,7 +691,7 @@ export default function KnowledgeBase({ token }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div
@@ -701,7 +701,7 @@ export default function KnowledgeBase({ token }) {
               padding: 32,
               width: 600,
               maxHeight: '90vh',
-              overflow: 'auto'
+              overflow: 'auto',
             }}
           >
             <div
@@ -709,7 +709,7 @@ export default function KnowledgeBase({ token }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 8
+                marginBottom: 8,
               }}
             >
               <h2 style={{ color: BLUE, margin: 0 }}>📦 Bulk Import Old Invoices</h2>
@@ -724,7 +724,7 @@ export default function KnowledgeBase({ token }) {
                   border: 'none',
                   cursor: 'pointer',
                   fontSize: 20,
-                  color: '#888'
+                  color: '#888',
                 }}
               >
                 ✕
@@ -750,7 +750,7 @@ export default function KnowledgeBase({ token }) {
                     cursor: 'pointer',
                     marginBottom: 16,
                     background: '#FAFAFA',
-                    transition: 'border-color 0.2s'
+                    transition: 'border-color 0.2s',
                   }}
                   onDragEnter={(e) => (e.currentTarget.style.borderColor = BLUE)}
                   onDragLeave={(e) => (e.currentTarget.style.borderColor = '#ccc')}
@@ -785,7 +785,7 @@ export default function KnowledgeBase({ token }) {
                         maxHeight: 200,
                         overflow: 'auto',
                         border: '1px solid #eee',
-                        borderRadius: 8
+                        borderRadius: 8,
                       }}
                     >
                       {bulkFiles.map((f, i) => (
@@ -796,7 +796,7 @@ export default function KnowledgeBase({ token }) {
                             justifyContent: 'space-between',
                             alignItems: 'center',
                             padding: '8px 12px',
-                            borderBottom: '1px solid #f5f5f5'
+                            borderBottom: '1px solid #f5f5f5',
                           }}
                         >
                           <div>
@@ -812,7 +812,7 @@ export default function KnowledgeBase({ token }) {
                               border: 'none',
                               color: '#ccc',
                               cursor: 'pointer',
-                              fontSize: 16
+                              fontSize: 16,
                             }}
                           >
                             ✕
@@ -830,7 +830,7 @@ export default function KnowledgeBase({ token }) {
                       borderRadius: 8,
                       padding: 16,
                       marginBottom: 16,
-                      textAlign: 'center'
+                      textAlign: 'center',
                     }}
                   >
                     <div style={{ fontSize: 13, color: '#1565C0', fontWeight: '500' }}>
@@ -854,7 +854,7 @@ export default function KnowledgeBase({ token }) {
                       border: '1px solid #ddd',
                       borderRadius: 6,
                       cursor: 'pointer',
-                      background: 'white'
+                      background: 'white',
                     }}
                   >
                     Cancel
@@ -870,7 +870,7 @@ export default function KnowledgeBase({ token }) {
                       border: 'none',
                       borderRadius: 6,
                       cursor: bulkFiles.length && !importing ? 'pointer' : 'not-allowed',
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
                     }}
                   >
                     {importing
@@ -898,7 +898,7 @@ export default function KnowledgeBase({ token }) {
                     border: '1px solid #eee',
                     borderRadius: 8,
                     overflow: 'hidden',
-                    marginBottom: 20
+                    marginBottom: 20,
                   }}
                 >
                   {importResults.results.map((r, i) => (
@@ -907,14 +907,14 @@ export default function KnowledgeBase({ token }) {
                       style={{
                         padding: '10px 14px',
                         borderBottom: '1px solid #f5f5f5',
-                        background: r.success ? '#F1F8E9' : '#FFF3E0'
+                        background: r.success ? '#F1F8E9' : '#FFF3E0',
                       }}
                     >
                       <div
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'flex-start'
+                          alignItems: 'flex-start',
                         }}
                       >
                         <div>
@@ -922,7 +922,7 @@ export default function KnowledgeBase({ token }) {
                             style={{
                               fontSize: 12,
                               fontWeight: '600',
-                              color: r.success ? GREEN : '#E65100'
+                              color: r.success ? GREEN : '#E65100',
                             }}
                           >
                             {r.success ? '✓' : '✗'} {r.filename}
@@ -961,7 +961,7 @@ export default function KnowledgeBase({ token }) {
                       border: '1px solid #ddd',
                       borderRadius: 6,
                       cursor: 'pointer',
-                      background: 'white'
+                      background: 'white',
                     }}
                   >
                     Done
@@ -982,7 +982,7 @@ export default function KnowledgeBase({ token }) {
                         border: 'none',
                         borderRadius: 6,
                         cursor: 'pointer',
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
                       }}
                     >
                       📊 Generate Assessment Report →
@@ -1006,7 +1006,7 @@ export default function KnowledgeBase({ token }) {
                     color: 'white',
                     border: 'none',
                     borderRadius: 6,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
                   }}
                 >
                   Try Again

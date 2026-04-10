@@ -21,7 +21,7 @@ router.get('/', requireAuth, (req, res) => {
       key: row.key,
       value,
       label: row.label,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
     });
   }
   res.json(grouped);
@@ -48,7 +48,7 @@ router.put('/:key', requireAuth, (req, res) => {
     typeof req.body.value === 'object' ? JSON.stringify(req.body.value) : String(req.body.value);
   db.prepare('UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?').run(
     value,
-    req.params.key
+    req.params.key,
   );
   res.json({ success: true, key: req.params.key, value: req.body.value });
 });
@@ -58,7 +58,7 @@ router.put('/', requireAuth, (req, res) => {
   const db = getDb();
   const updates = req.body; // { key: value, key: value }
   const update = db.prepare(
-    'UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?'
+    'UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?',
   );
   const updateMany = db.transaction((items) => {
     for (const [key, val] of Object.entries(items)) {
@@ -95,7 +95,7 @@ router.get('/integrations/status', requireAuth, (req, res) => {
     whatsapp: { enabled: whatsappEnabled, configured: !!process.env.TWILIO_ACCOUNT_SID },
     email: { enabled: emailEnabled, configured: !!process.env.RESEND_API_KEY },
     hearth: { configured: !!process.env.HEARTH_API_KEY },
-    wave: { configured: false } // placeholder
+    wave: { configured: false }, // placeholder
   });
 });
 
@@ -107,7 +107,7 @@ router.post('/integrations/switch', requireAuth, (req, res) => {
     return res.status(400).json({ error: 'Invalid platform. Must be: hearth, wave, or email' });
   }
   db.prepare(
-    "INSERT OR REPLACE INTO settings (key, value, category, label) VALUES ('integration.platform', ?, 'integrations', 'Active Platform')"
+    "INSERT OR REPLACE INTO settings (key, value, category, label) VALUES ('integration.platform', ?, 'integrations', 'Active Platform')",
   ).run(platform);
   res.json({ success: true, platform, message: `Switched to ${platform}` });
 });

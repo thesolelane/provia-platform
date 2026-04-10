@@ -26,7 +26,7 @@ const STATUS_COLORS = {
   contract_sent: '#047857',
   contract_signed: '#1B3A6B',
   complete: '#111827',
-  error: RED
+  error: RED,
 };
 
 const STATUS_LABELS = {
@@ -42,7 +42,7 @@ const STATUS_LABELS = {
   contract_sent: 'Contract Sent',
   contract_signed: 'Contract Signed ✓',
   complete: 'Complete',
-  error: 'Error'
+  error: 'Error',
 };
 
 export default function JobDetail({ token }) {
@@ -77,13 +77,20 @@ export default function JobDetail({ token }) {
   const [ptResp, setPtResp] = useState({
     permit_paid_by: 'pb',
     engineer_paid_by: 'pb',
-    architect_paid_by: 'pb'
+    architect_paid_by: 'pb',
   });
   const [savingPt, setSavingPt] = useState(false);
 
   const [pos, setPOs] = useState([]);
   const [poLoading, setPOLoading] = useState(false);
-  const [newPO, setNewPO] = useState({ vendor_name: '', description: '', category: 'materials', amount: '', status: 'draft', notes: '' });
+  const [newPO, setNewPO] = useState({
+    vendor_name: '',
+    description: '',
+    category: 'materials',
+    amount: '',
+    status: 'draft',
+    notes: '',
+  });
   const [savingPO, setSavingPO] = useState(false);
   const [editingPO, setEditingPO] = useState(null);
 
@@ -91,7 +98,10 @@ export default function JobDetail({ token }) {
     setPOLoading(true);
     fetch(`/api/purchase-orders?job_id=${id}`, { headers: { 'x-auth-token': token } })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((d) => { setPOs(d.purchase_orders || []); setPOLoading(false); })
+      .then((d) => {
+        setPOs(d.purchase_orders || []);
+        setPOLoading(false);
+      })
       .catch(() => setPOLoading(false));
   };
 
@@ -110,7 +120,7 @@ export default function JobDetail({ token }) {
         setPtResp({
           permit_paid_by: jobData.permit_paid_by || 'pb',
           engineer_paid_by: jobData.engineer_paid_by || 'pb',
-          architect_paid_by: jobData.architect_paid_by || 'pb'
+          architect_paid_by: jobData.architect_paid_by || 'pb',
         });
       })
       .catch(() => setLoading(false));
@@ -144,7 +154,7 @@ export default function JobDetail({ token }) {
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         const existing = (data.tasks || []).find(
-          (t) => t.status !== 'done' && /reach.?out|follow.?up/i.test(t.title)
+          (t) => t.status !== 'done' && /reach.?out|follow.?up/i.test(t.title),
         );
         if (existing) setFollowUpTask(existing);
       })
@@ -195,7 +205,7 @@ export default function JobDetail({ token }) {
   const approveProposal = async () => {
     if (
       !(await showConfirm(
-        'Mark this proposal as approved? This will allow you to generate the contract.'
+        'Mark this proposal as approved? This will allow you to generate the contract.',
       ))
     )
       return;
@@ -214,7 +224,7 @@ export default function JobDetail({ token }) {
   const rejectProposal = async () => {
     if (
       !(await showConfirm(
-        'Mark this proposal as rejected by the customer? The job will return to review so you can revise and resend.'
+        'Mark this proposal as rejected by the customer? The job will return to review so you can revise and resend.',
       ))
     )
       return;
@@ -249,7 +259,7 @@ export default function JobDetail({ token }) {
     const res = await fetch(`/api/jobs/${id}/pass-through-responsibility`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify(ptResp)
+      body: JSON.stringify(ptResp),
     });
     const data = await res.json();
     if (res.ok) {
@@ -278,7 +288,7 @@ export default function JobDetail({ token }) {
   const reprocessJob = async () => {
     if (
       !(await showConfirm(
-        'Retry AI processing on this job? The original scope will be re-submitted to Claude.'
+        'Retry AI processing on this job? The original scope will be re-submitted to Claude.',
       ))
     )
       return;
@@ -299,7 +309,7 @@ export default function JobDetail({ token }) {
     const nextVer = currentVer + 1;
     if (
       !(await showConfirm(
-        `Open Revision ${nextVer} for editing?\n\nThis will reopen the line-item editor so you can adjust trades, costs, and descriptions before generating a new proposal PDF. Version ${currentVer} stays in the activity log. The existing contract PDF will be cleared.`
+        `Open Revision ${nextVer} for editing?\n\nThis will reopen the line-item editor so you can adjust trades, costs, and descriptions before generating a new proposal PDF. Version ${currentVer} stays in the activity log. The existing contract PDF will be cleared.`,
       ))
     )
       return;
@@ -321,7 +331,7 @@ export default function JobDetail({ token }) {
     await fetch(`/api/jobs/${id}/notes`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ notes: note, status: 'complete' })
+      body: JSON.stringify({ notes: note, status: 'complete' }),
     });
     load();
     setActionLoading(false);
@@ -332,7 +342,7 @@ export default function JobDetail({ token }) {
     await fetch(`/api/jobs/${id}/notes`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ notes: note })
+      body: JSON.stringify({ notes: note }),
     });
     showToast('Note saved');
   };
@@ -344,14 +354,14 @@ export default function JobDetail({ token }) {
 
   const updateLineItem = (idx, field, value) => {
     setEditingLineItems((prev) =>
-      prev.map((li, i) => (i === idx ? { ...li, [field]: value } : li))
+      prev.map((li, i) => (i === idx ? { ...li, [field]: value } : li)),
     );
   };
 
   const addLineItem = () => {
     setEditingLineItems((prev) => [
       ...prev,
-      { trade: '', baseCost: 0, description: '', scopeIncluded: [], scopeExcluded: [] }
+      { trade: '', baseCost: 0, description: '', scopeIncluded: [], scopeExcluded: [] },
     ]);
   };
 
@@ -375,8 +385,8 @@ export default function JobDetail({ token }) {
   const addIncludedItem = (rowIdx) => {
     setEditingLineItems((prev) =>
       prev.map((li, i) =>
-        i === rowIdx ? { ...li, scopeIncluded: [...(li.scopeIncluded || []), ''] } : li
-      )
+        i === rowIdx ? { ...li, scopeIncluded: [...(li.scopeIncluded || []), ''] } : li,
+      ),
     );
   };
 
@@ -385,8 +395,8 @@ export default function JobDetail({ token }) {
       prev.map((li, i) =>
         i === rowIdx
           ? { ...li, scopeIncluded: li.scopeIncluded.map((v, j) => (j === itemIdx ? value : v)) }
-          : li
-      )
+          : li,
+      ),
     );
   };
 
@@ -395,8 +405,8 @@ export default function JobDetail({ token }) {
       prev.map((li, i) =>
         i === rowIdx
           ? { ...li, scopeIncluded: li.scopeIncluded.filter((_, j) => j !== itemIdx) }
-          : li
-      )
+          : li,
+      ),
     );
   };
 
@@ -417,7 +427,7 @@ export default function JobDetail({ token }) {
     const res = await fetch(`/api/jobs/${id}/line-items`, {
       method: 'PATCH',
       headers,
-      body: JSON.stringify({ lineItems: editingLineItems })
+      body: JSON.stringify({ lineItems: editingLineItems }),
     });
     const data = await res.json();
     setSavingLineItems(false);
@@ -432,7 +442,7 @@ export default function JobDetail({ token }) {
   const generateProposal = async () => {
     if (
       !(await showConfirm(
-        'Generate the proposal PDF from these line items? This cannot be undone.'
+        'Generate the proposal PDF from these line items? This cannot be undone.',
       ))
     )
       return;
@@ -460,7 +470,7 @@ export default function JobDetail({ token }) {
     const res = await fetch(`/api/jobs/${id}/clarify/${clarId}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ answer: clarAnswer.trim() })
+      body: JSON.stringify({ answer: clarAnswer.trim() }),
     });
     const data = await res.json();
     setClarAnswer('');
@@ -491,7 +501,7 @@ export default function JobDetail({ token }) {
     'proposal',
     'contract',
     'conversation',
-    'assessment'
+    'assessment',
   ];
 
   // ── Read Receipt Badge ────────────────────────────────────────────────────
@@ -504,7 +514,7 @@ export default function JobDetail({ token }) {
           border: '1px solid #e0e7ff',
           borderRadius: 8,
           padding: 14,
-          marginTop: 12
+          marginTop: 12,
         }}
       >
         <div
@@ -514,7 +524,7 @@ export default function JobDetail({ token }) {
             color: '#555',
             marginBottom: 8,
             textTransform: 'uppercase',
-            letterSpacing: '.5px'
+            letterSpacing: '.5px',
           }}
         >
           📬 {label} — Read Receipts
@@ -562,7 +572,7 @@ export default function JobDetail({ token }) {
           color: BLUE,
           cursor: 'pointer',
           fontSize: 13,
-          marginBottom: 16
+          marginBottom: 16,
         }}
       >
         ← Back to Dashboard
@@ -575,7 +585,7 @@ export default function JobDetail({ token }) {
           borderRadius: 12,
           padding: 24,
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          marginBottom: 20
+          marginBottom: 20,
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -602,7 +612,7 @@ export default function JobDetail({ token }) {
               padding: '6px 16px',
               borderRadius: 20,
               fontSize: 12,
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
             {statusLabel}
@@ -617,7 +627,7 @@ export default function JobDetail({ token }) {
             marginTop: 20,
             paddingTop: 16,
             borderTop: '1px solid #eee',
-            flexWrap: 'wrap'
+            flexWrap: 'wrap',
           }}
         >
           <div>
@@ -661,7 +671,7 @@ export default function JobDetail({ token }) {
                 textDecoration: 'none',
                 fontSize: 12,
                 fontWeight: 'bold',
-                border: '1px solid #3B82F640'
+                border: '1px solid #3B82F640',
               }}
             >
               📄 View Proposal PDF
@@ -680,7 +690,7 @@ export default function JobDetail({ token }) {
                 textDecoration: 'none',
                 fontSize: 12,
                 fontWeight: 'bold',
-                border: '1px solid #05966940'
+                border: '1px solid #05966940',
               }}
             >
               📄 View Contract PDF
@@ -703,7 +713,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {actionLoading ? '...' : '📨 Send Proposal for Signature'}
@@ -723,7 +733,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {actionLoading ? '...' : '📨 Resend Proposal Link'}
@@ -743,7 +753,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {actionLoading ? '...' : '📨 Send Revised Proposal'}
@@ -763,7 +773,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {actionLoading ? '...' : '✅ Mark Proposal Approved'}
@@ -783,7 +793,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {actionLoading ? '...' : '❌ Customer Rejected'}
@@ -805,7 +815,7 @@ export default function JobDetail({ token }) {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
-                    flexWrap: 'wrap'
+                    flexWrap: 'wrap',
                   }}
                 >
                   <div style={{ minWidth: 180, fontSize: 12, fontWeight: 600, color: '#78350f' }}>
@@ -823,7 +833,7 @@ export default function JobDetail({ token }) {
                       gap: 5,
                       fontSize: 12,
                       cursor: 'pointer',
-                      color: ptResp[field] === 'pb' ? '#B45309' : '#555'
+                      color: ptResp[field] === 'pb' ? '#B45309' : '#555',
                     }}
                   >
                     <input
@@ -842,7 +852,7 @@ export default function JobDetail({ token }) {
                       gap: 5,
                       fontSize: 12,
                       cursor: 'pointer',
-                      color: ptResp[field] === 'customer_direct' ? '#166534' : '#555'
+                      color: ptResp[field] === 'customer_direct' ? '#166534' : '#555',
                     }}
                   >
                     <input
@@ -864,7 +874,7 @@ export default function JobDetail({ token }) {
                     borderRadius: 8,
                     padding: 0,
                     width: '100%',
-                    marginBottom: 8
+                    marginBottom: 8,
                   }}
                 >
                   <div
@@ -875,7 +885,7 @@ export default function JobDetail({ token }) {
                       borderRadius: '8px 8px 0 0',
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'center'
+                      alignItems: 'center',
                     }}
                   >
                     <div>
@@ -897,7 +907,7 @@ export default function JobDetail({ token }) {
                         borderRadius: 5,
                         cursor: 'pointer',
                         fontSize: 11,
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
                       }}
                     >
                       {savingPt ? 'Saving...' : 'Save'}
@@ -941,7 +951,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {actionLoading ? 'Generating...' : '📋 Generate Contract'}
@@ -968,7 +978,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {actionLoading ? '...' : '📧 Send Contract for Signature'}
@@ -988,7 +998,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {actionLoading ? '...' : '📧 Resend Contract Link'}
@@ -1009,7 +1019,7 @@ export default function JobDetail({ token }) {
                   borderRadius: 6,
                   cursor: 'pointer',
                   fontSize: 12,
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 {actionLoading ? 'Retrying...' : '🔄 Retry AI Processing'}
@@ -1023,7 +1033,7 @@ export default function JobDetail({ token }) {
                     padding: '8px 12px',
                     fontSize: 12,
                     color: '#991B1B',
-                    maxWidth: 420
+                    maxWidth: 420,
                   }}
                 >
                   <strong>Error:</strong> {job.error_message}
@@ -1045,7 +1055,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 12,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {actionLoading ? '...' : '🎉 Mark Job Complete'}
@@ -1066,7 +1076,7 @@ export default function JobDetail({ token }) {
                   borderRadius: 6,
                   cursor: 'pointer',
                   fontSize: 12,
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
                 }}
               >
                 {actionLoading ? '...' : `✏️ Revise Estimate (v${job.version || 1})`}
@@ -1087,7 +1097,7 @@ export default function JobDetail({ token }) {
       {job.status === 'proposal_declined' &&
         (() => {
           const declinedSession = sigSessions.find(
-            (s) => s.doc_type === 'proposal' && s.status === 'declined'
+            (s) => s.doc_type === 'proposal' && s.status === 'declined',
           );
           return (
             <div
@@ -1096,7 +1106,7 @@ export default function JobDetail({ token }) {
                 border: `2px solid ${RED}`,
                 borderRadius: 10,
                 padding: '18px 20px',
-                marginBottom: 16
+                marginBottom: 16,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -1115,7 +1125,7 @@ export default function JobDetail({ token }) {
                         fontSize: 13,
                         color: '#333',
                         lineHeight: 1.6,
-                        whiteSpace: 'pre-wrap'
+                        whiteSpace: 'pre-wrap',
                       }}
                     >
                       {declinedSession.decline_reason}
@@ -1142,7 +1152,7 @@ export default function JobDetail({ token }) {
             border: `2px solid ${ORANGE}`,
             borderRadius: 10,
             padding: '18px 20px',
-            marginBottom: 16
+            marginBottom: 16,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -1164,7 +1174,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 4,
                 background: `linear-gradient(90deg, ${ORANGE}, #f59e0b)`,
                 animation: 'pb-progress 2s ease-in-out infinite',
-                width: '40%'
+                width: '40%',
               }}
             />
           </div>
@@ -1187,7 +1197,7 @@ export default function JobDetail({ token }) {
             borderRadius: 8,
             padding: 14,
             marginBottom: 16,
-            fontSize: 13
+            fontSize: 13,
           }}
         >
           <strong style={{ color: ORANGE }}>
@@ -1209,7 +1219,7 @@ export default function JobDetail({ token }) {
             border: `2px solid ${ORANGE}`,
             borderRadius: 10,
             padding: 20,
-            marginBottom: 16
+            marginBottom: 16,
           }}
         >
           <div
@@ -1217,7 +1227,7 @@ export default function JobDetail({ token }) {
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 14
+              marginBottom: 14,
             }}
           >
             <div>
@@ -1235,7 +1245,7 @@ export default function JobDetail({ token }) {
                     color: '#b45309',
                     borderRadius: 4,
                     padding: '2px 8px',
-                    fontWeight: 600
+                    fontWeight: 600,
                   }}
                 >
                   Sub O&amp;P 15%
@@ -1247,7 +1257,7 @@ export default function JobDetail({ token }) {
                     color: '#b45309',
                     borderRadius: 4,
                     padding: '2px 8px',
-                    fontWeight: 600
+                    fontWeight: 600,
                   }}
                 >
                   GC O&amp;P 25%
@@ -1259,7 +1269,7 @@ export default function JobDetail({ token }) {
                     color: '#b45309',
                     borderRadius: 4,
                     padding: '2px 8px',
-                    fontWeight: 600
+                    fontWeight: 600,
                   }}
                 >
                   Contingency 10%
@@ -1271,7 +1281,7 @@ export default function JobDetail({ token }) {
                     color: '#3730a3',
                     borderRadius: 4,
                     padding: '2px 8px',
-                    fontWeight: 700
+                    fontWeight: 700,
                   }}
                 >
                   = {multiplier.toFixed(4)}× multiplier
@@ -1289,7 +1299,7 @@ export default function JobDetail({ token }) {
                   borderRadius: 6,
                   fontSize: 12,
                   fontWeight: 700,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
                 }}
               >
                 ✏️ Edit Line Items
@@ -1307,7 +1317,7 @@ export default function JobDetail({ token }) {
                       textAlign: 'left',
                       padding: '6px 8px',
                       color: '#555',
-                      fontWeight: 600
+                      fontWeight: 600,
                     }}
                   >
                     Trade
@@ -1317,7 +1327,7 @@ export default function JobDetail({ token }) {
                       textAlign: 'right',
                       padding: '6px 8px',
                       color: '#555',
-                      fontWeight: 600
+                      fontWeight: 600,
                     }}
                   >
                     Sub Cost
@@ -1327,7 +1337,7 @@ export default function JobDetail({ token }) {
                       textAlign: 'right',
                       padding: '6px 8px',
                       color: '#555',
-                      fontWeight: 600
+                      fontWeight: 600,
                     }}
                   >
                     Client Price
@@ -1346,7 +1356,7 @@ export default function JobDetail({ token }) {
                         padding: '7px 8px',
                         textAlign: 'right',
                         fontWeight: 600,
-                        color: BLUE
+                        color: BLUE,
                       }}
                     >
                       ${(li.finalPrice || 0).toLocaleString()}
@@ -1363,7 +1373,7 @@ export default function JobDetail({ token }) {
                       textAlign: 'right',
                       fontWeight: 700,
                       color: ORANGE,
-                      fontSize: 15
+                      fontSize: 15,
                     }}
                   >
                     ${(job.proposal_data?.totalValue || job.total_value || 0).toLocaleString()}
@@ -1376,7 +1386,7 @@ export default function JobDetail({ token }) {
                         ? job.proposal_data.pricing.sqftWarning === 'below'
                           ? '#fff3cd'
                           : '#fde8e8'
-                        : '#f0f9f0'
+                        : '#f0f9f0',
                     }}
                   >
                     <td colSpan={2} style={{ padding: '6px 8px', fontSize: 12, color: '#555' }}>
@@ -1389,7 +1399,7 @@ export default function JobDetail({ token }) {
                             color:
                               job.proposal_data.pricing.sqftWarning === 'below'
                                 ? '#92400e'
-                                : '#991b1b'
+                                : '#991b1b',
                           }}
                         >
                           ⚠️{' '}
@@ -1409,7 +1419,7 @@ export default function JobDetail({ token }) {
                           ? job.proposal_data.pricing.sqftWarning === 'below'
                             ? '#92400e'
                             : '#991b1b'
-                          : '#166534'
+                          : '#166534',
                       }}
                     >
                       ${job.proposal_data.pricing.pricePerSqft}/sqft
@@ -1432,7 +1442,7 @@ export default function JobDetail({ token }) {
                         padding: '6px 4px',
                         color: '#555',
                         fontWeight: 600,
-                        width: '30%'
+                        width: '30%',
                       }}
                     >
                       Trade
@@ -1443,7 +1453,7 @@ export default function JobDetail({ token }) {
                         padding: '6px 4px',
                         color: '#555',
                         fontWeight: 600,
-                        width: '18%'
+                        width: '18%',
                       }}
                     >
                       Sub Cost ($)
@@ -1454,7 +1464,7 @@ export default function JobDetail({ token }) {
                         padding: '6px 4px',
                         color: '#555',
                         fontWeight: 600,
-                        width: '18%'
+                        width: '18%',
                       }}
                     >
                       Client Price
@@ -1464,7 +1474,7 @@ export default function JobDetail({ token }) {
                         textAlign: 'left',
                         padding: '6px 4px',
                         color: '#555',
-                        fontWeight: 600
+                        fontWeight: 600,
                       }}
                     >
                       Description
@@ -1484,7 +1494,7 @@ export default function JobDetail({ token }) {
                         <tr
                           style={{
                             borderBottom: isExpanded ? 'none' : '1px solid #f0f0f0',
-                            verticalAlign: 'top'
+                            verticalAlign: 'top',
                           }}
                         >
                           <td style={{ padding: '5px 4px' }}>
@@ -1499,7 +1509,7 @@ export default function JobDetail({ token }) {
                                 borderRadius: 4,
                                 fontSize: 12,
                                 boxSizing: 'border-box',
-                                background: tradeErr ? '#fff5f5' : 'white'
+                                background: tradeErr ? '#fff5f5' : 'white',
                               }}
                             />
                           </td>
@@ -1517,7 +1527,7 @@ export default function JobDetail({ token }) {
                                 fontSize: 12,
                                 textAlign: 'right',
                                 boxSizing: 'border-box',
-                                background: costErr ? '#fff5f5' : 'white'
+                                background: costErr ? '#fff5f5' : 'white',
                               }}
                             />
                           </td>
@@ -1527,7 +1537,7 @@ export default function JobDetail({ token }) {
                               textAlign: 'right',
                               fontWeight: 600,
                               color: BLUE,
-                              fontSize: 12
+                              fontSize: 12,
                             }}
                           >
                             ${Math.round((Number(li.baseCost) || 0) * multiplier).toLocaleString()}
@@ -1542,7 +1552,7 @@ export default function JobDetail({ token }) {
                                 border: '1px solid #ddd',
                                 borderRadius: 4,
                                 fontSize: 12,
-                                boxSizing: 'border-box'
+                                boxSizing: 'border-box',
                               }}
                             />
                           </td>
@@ -1558,7 +1568,7 @@ export default function JobDetail({ token }) {
                                 cursor: 'pointer',
                                 padding: '4px 7px',
                                 fontSize: 11,
-                                marginRight: 4
+                                marginRight: 4,
                               }}
                             >
                               {isExpanded ? '▲' : '▼'} {includedItems.length}
@@ -1573,7 +1583,7 @@ export default function JobDetail({ token }) {
                                 borderRadius: 4,
                                 cursor: 'pointer',
                                 padding: '4px 8px',
-                                fontSize: 12
+                                fontSize: 12,
                               }}
                             >
                               ✕
@@ -1593,7 +1603,7 @@ export default function JobDetail({ token }) {
                                   color: BLUE,
                                   marginBottom: 6,
                                   textTransform: 'uppercase',
-                                  letterSpacing: 0.4
+                                  letterSpacing: 0.4,
                                 }}
                               >
                                 ✓ What this trade includes (bullet points on proposal)
@@ -1605,7 +1615,7 @@ export default function JobDetail({ token }) {
                                     display: 'flex',
                                     gap: 6,
                                     marginBottom: 4,
-                                    alignItems: 'center'
+                                    alignItems: 'center',
                                   }}
                                 >
                                   <span
@@ -1621,7 +1631,7 @@ export default function JobDetail({ token }) {
                                       padding: '4px 7px',
                                       border: '1px solid #dde8f0',
                                       borderRadius: 4,
-                                      fontSize: 12
+                                      fontSize: 12,
                                     }}
                                   />
                                   <button
@@ -1633,7 +1643,7 @@ export default function JobDetail({ token }) {
                                       borderRadius: 4,
                                       cursor: 'pointer',
                                       padding: '3px 7px',
-                                      fontSize: 11
+                                      fontSize: 11,
                                     }}
                                   >
                                     ✕
@@ -1651,7 +1661,7 @@ export default function JobDetail({ token }) {
                                   borderRadius: 4,
                                   cursor: 'pointer',
                                   fontSize: 11,
-                                  fontWeight: 600
+                                  fontWeight: 600,
                                 }}
                               >
                                 + Add bullet point
@@ -1676,7 +1686,7 @@ export default function JobDetail({ token }) {
                   borderRadius: 6,
                   cursor: 'pointer',
                   fontSize: 12,
-                  fontWeight: 600
+                  fontWeight: 600,
                 }}
               >
                 + Add Line Item
@@ -1692,7 +1702,7 @@ export default function JobDetail({ token }) {
                     background: 'white',
                     cursor: 'pointer',
                     fontSize: 13,
-                    color: '#555'
+                    color: '#555',
                   }}
                 >
                   Cancel
@@ -1708,7 +1718,7 @@ export default function JobDetail({ token }) {
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontSize: 13,
-                    fontWeight: 700
+                    fontWeight: 700,
                   }}
                 >
                   {savingLineItems ? 'Saving...' : '💾 Save Changes'}
@@ -1724,7 +1734,7 @@ export default function JobDetail({ token }) {
               paddingTop: 14,
               borderTop: '1px solid #fcd9a0',
               display: 'flex',
-              justifyContent: 'flex-end'
+              justifyContent: 'flex-end',
             }}
           >
             <button
@@ -1738,7 +1748,7 @@ export default function JobDetail({ token }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 14,
-                fontWeight: 700
+                fontWeight: 700,
               }}
             >
               {actionLoading ? '⏳ Generating...' : '🤖 Generate Proposal PDF'}
@@ -1760,7 +1770,7 @@ export default function JobDetail({ token }) {
                 border: '1px solid #F59E0B',
                 borderRadius: 8,
                 padding: 20,
-                marginBottom: 16
+                marginBottom: 16,
               }}
             >
               <strong style={{ color: '#92400E', fontSize: 14 }}>
@@ -1774,7 +1784,7 @@ export default function JobDetail({ token }) {
                     padding: 10,
                     background: '#f0fdf4',
                     borderRadius: 6,
-                    borderLeft: `3px solid ${GREEN}`
+                    borderLeft: `3px solid ${GREEN}`,
                   }}
                 >
                   <div style={{ fontSize: 12, color: '#888' }}>Question {i + 1}:</div>
@@ -1791,7 +1801,7 @@ export default function JobDetail({ token }) {
                     padding: 10,
                     background: 'white',
                     borderRadius: 6,
-                    borderLeft: '3px solid #F59E0B'
+                    borderLeft: '3px solid #F59E0B',
                   }}
                 >
                   <div style={{ fontSize: 12, color: '#92400E', fontWeight: 'bold' }}>
@@ -1813,7 +1823,7 @@ export default function JobDetail({ token }) {
                         padding: 8,
                         border: '1px solid #ddd',
                         borderRadius: 6,
-                        fontSize: 13
+                        fontSize: 13,
                       }}
                     />
                     <button
@@ -1827,7 +1837,7 @@ export default function JobDetail({ token }) {
                         borderRadius: 6,
                         cursor: 'pointer',
                         fontSize: 12,
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
                       }}
                     >
                       {actionLoading ? '...' : 'Submit'}
@@ -1855,7 +1865,7 @@ export default function JobDetail({ token }) {
               color: activeTab === tab ? BLUE : '#888',
               borderBottom: activeTab === tab ? `2px solid ${BLUE}` : '2px solid transparent',
               marginBottom: -2,
-              textTransform: 'capitalize'
+              textTransform: 'capitalize',
             }}
           >
             {tab === 'signatures'
@@ -1878,7 +1888,7 @@ export default function JobDetail({ token }) {
           background: 'white',
           borderRadius: 10,
           padding: 24,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
         }}
       >
         {/* VERSION HISTORY */}
@@ -1889,7 +1899,7 @@ export default function JobDetail({ token }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                marginBottom: 16
+                marginBottom: 16,
               }}
             >
               <h3 style={{ color: BLUE, margin: 0 }}>Estimate Version History</h3>
@@ -1902,7 +1912,7 @@ export default function JobDetail({ token }) {
                   borderRadius: 6,
                   background: 'white',
                   cursor: 'pointer',
-                  color: '#555'
+                  color: '#555',
                 }}
               >
                 {historySort === 'desc' ? '⬇ Newest First' : '⬆ Oldest First'}
@@ -1954,7 +1964,7 @@ export default function JobDetail({ token }) {
                         .sort((a, b) =>
                           historySort === 'desc'
                             ? new Date(b.created_at) - new Date(a.created_at)
-                            : new Date(a.created_at) - new Date(b.created_at)
+                            : new Date(a.created_at) - new Date(b.created_at),
                         )
                         .map((v, i) => {
                           const isCurrent = v.id === job.id;
@@ -1968,14 +1978,14 @@ export default function JobDetail({ token }) {
                                   : i % 2 === 0
                                     ? 'white'
                                     : '#f8f8f8',
-                                borderBottom: '1px solid #eee'
+                                borderBottom: '1px solid #eee',
                               }}
                             >
                               <td
                                 style={{
                                   padding: '10px 12px',
                                   fontWeight: isCurrent ? 'bold' : 'normal',
-                                  color: isCurrent ? BLUE : '#333'
+                                  color: isCurrent ? BLUE : '#333',
                                 }}
                               >
                                 {rawQuoteNum}/{v.version}
@@ -1987,7 +1997,7 @@ export default function JobDetail({ token }) {
                                       background: BLUE,
                                       color: 'white',
                                       borderRadius: 3,
-                                      padding: '2px 6px'
+                                      padding: '2px 6px',
                                     }}
                                   >
                                     current
@@ -1998,7 +2008,7 @@ export default function JobDetail({ token }) {
                                 {new Date(v.created_at).toLocaleDateString('en-US', {
                                   month: 'short',
                                   day: 'numeric',
-                                  year: 'numeric'
+                                  year: 'numeric',
                                 })}
                               </td>
                               <td
@@ -2006,7 +2016,7 @@ export default function JobDetail({ token }) {
                                   padding: '10px 12px',
                                   textAlign: 'right',
                                   fontWeight: 600,
-                                  color: v.total_value ? BLUE : '#aaa'
+                                  color: v.total_value ? BLUE : '#aaa',
                                 }}
                               >
                                 {v.total_value ? `$${Number(v.total_value).toLocaleString()}` : '—'}
@@ -2018,7 +2028,7 @@ export default function JobDetail({ token }) {
                                     background: '#e0e7ff',
                                     color: '#3730a3',
                                     borderRadius: 3,
-                                    padding: '2px 7px'
+                                    padding: '2px 7px',
                                   }}
                                 >
                                   {(v.status || '').replace(/_/g, ' ')}
@@ -2039,7 +2049,7 @@ export default function JobDetail({ token }) {
                                       fontSize: 12,
                                       color: BLUE,
                                       textDecoration: 'none',
-                                      fontWeight: 600
+                                      fontWeight: 600,
                                     }}
                                   >
                                     View →
@@ -2054,7 +2064,7 @@ export default function JobDetail({ token }) {
                                       marginLeft: 8,
                                       fontSize: 12,
                                       color: '#3B82F6',
-                                      textDecoration: 'none'
+                                      textDecoration: 'none',
                                     }}
                                   >
                                     📄 PDF
@@ -2077,7 +2087,7 @@ export default function JobDetail({ token }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  marginBottom: 10
+                  marginBottom: 10,
                 }}
               >
                 <h4 style={{ color: BLUE, margin: 0, fontSize: 14 }}>📋 Activity Log</h4>
@@ -2091,7 +2101,7 @@ export default function JobDetail({ token }) {
                       borderRadius: 6,
                       background: 'white',
                       cursor: 'pointer',
-                      color: '#555'
+                      color: '#555',
                     }}
                   >
                     {auditSort === 'desc' ? '⬇ Newest First' : '⬆ Oldest First'}
@@ -2105,7 +2115,7 @@ export default function JobDetail({ token }) {
                   .sort((a, b) =>
                     auditSort === 'desc'
                       ? new Date(b.created_at) - new Date(a.created_at)
-                      : new Date(a.created_at) - new Date(b.created_at)
+                      : new Date(a.created_at) - new Date(b.created_at),
                   )
                   .map((a) => (
                     <div
@@ -2116,7 +2126,7 @@ export default function JobDetail({ token }) {
                         padding: '7px 0',
                         borderBottom: '1px solid #f0f0f0',
                         fontSize: 12,
-                        flexWrap: 'wrap'
+                        flexWrap: 'wrap',
                       }}
                     >
                       <span style={{ color: '#aaa', width: 130, flexShrink: 0 }}>
@@ -2150,240 +2160,695 @@ export default function JobDetail({ token }) {
         )}
 
         {/* PURCHASE ORDERS */}
-        {activeTab === 'purchase_orders' && (() => {
-          const PO_CATEGORIES = ['materials', 'subcontractor', 'equipment', 'permits', 'other'];
-          const PO_STATUSES = ['draft', 'issued', 'received', 'closed'];
-          const STATUS_COLORS_PO = { draft: '#888', issued: '#F59E0B', received: '#3B82F6', closed: '#2E7D32' };
-          const STATUS_BG = { draft: '#f8fafc', issued: '#fffbeb', received: '#eff6ff', closed: '#f0fdf4' };
-          const STATUS_LABEL = { draft: 'Draft', issued: 'Issued', received: 'Received', closed: 'Closed' };
+        {activeTab === 'purchase_orders' &&
+          (() => {
+            const PO_CATEGORIES = ['materials', 'subcontractor', 'equipment', 'permits', 'other'];
+            const PO_STATUSES = ['draft', 'issued', 'received', 'closed'];
+            const STATUS_COLORS_PO = {
+              draft: '#888',
+              issued: '#F59E0B',
+              received: '#3B82F6',
+              closed: '#2E7D32',
+            };
+            const STATUS_BG = {
+              draft: '#f8fafc',
+              issued: '#fffbeb',
+              received: '#eff6ff',
+              closed: '#f0fdf4',
+            };
+            const STATUS_LABEL = {
+              draft: 'Draft',
+              issued: 'Issued',
+              received: 'Received',
+              closed: 'Closed',
+            };
 
-          const totalSpend = pos.filter(p => p.status !== 'closed').reduce((s, p) => s + (Number(p.amount) || 0), 0);
-          const receivedAmt = pos.filter(p => p.status === 'received').reduce((s, p) => s + (Number(p.amount) || 0), 0);
-          const openAmt = pos.filter(p => p.status === 'draft' || p.status === 'issued').reduce((s, p) => s + (Number(p.amount) || 0), 0);
+            const totalSpend = pos
+              .filter((p) => p.status !== 'closed')
+              .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+            const receivedAmt = pos
+              .filter((p) => p.status === 'received')
+              .reduce((s, p) => s + (Number(p.amount) || 0), 0);
+            const openAmt = pos
+              .filter((p) => p.status === 'draft' || p.status === 'issued')
+              .reduce((s, p) => s + (Number(p.amount) || 0), 0);
 
-          const submitNewPO = async () => {
-            if (!newPO.description.trim()) { showToast('Description is required', 'error'); return; }
-            if (!newPO.amount || Number(newPO.amount) <= 0) { showToast('Amount must be greater than 0', 'error'); return; }
-            setSavingPO(true);
-            const res = await fetch('/api/purchase-orders', {
-              method: 'POST',
-              headers,
-              body: JSON.stringify({ ...newPO, job_id: id, amount: Number(newPO.amount) })
-            });
-            const d = await res.json();
-            setSavingPO(false);
-            if (res.ok) {
-              setNewPO({ vendor_name: '', description: '', category: 'materials', amount: '', status: 'draft', notes: '' });
-              loadPOs();
-              showToast(`PO ${d.purchase_order.po_number} created`);
-            } else {
-              showToast(d.error || 'Failed to create PO', 'error');
-            }
-          };
+            const submitNewPO = async () => {
+              if (!newPO.description.trim()) {
+                showToast('Description is required', 'error');
+                return;
+              }
+              if (!newPO.amount || Number(newPO.amount) <= 0) {
+                showToast('Amount must be greater than 0', 'error');
+                return;
+              }
+              setSavingPO(true);
+              const res = await fetch('/api/purchase-orders', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ ...newPO, job_id: id, amount: Number(newPO.amount) }),
+              });
+              const d = await res.json();
+              setSavingPO(false);
+              if (res.ok) {
+                setNewPO({
+                  vendor_name: '',
+                  description: '',
+                  category: 'materials',
+                  amount: '',
+                  status: 'draft',
+                  notes: '',
+                });
+                loadPOs();
+                showToast(`PO ${d.purchase_order.po_number} created`);
+              } else {
+                showToast(d.error || 'Failed to create PO', 'error');
+              }
+            };
 
-          const updatePOStatus = async (poId, status) => {
-            const res = await fetch(`/api/purchase-orders/${poId}`, {
-              method: 'PATCH',
-              headers,
-              body: JSON.stringify({ status })
-            });
-            if (res.ok) { loadPOs(); showToast('PO status updated'); }
-            else showToast('Failed to update', 'error');
-          };
+            const updatePOStatus = async (poId, status) => {
+              const res = await fetch(`/api/purchase-orders/${poId}`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ status }),
+              });
+              if (res.ok) {
+                loadPOs();
+                showToast('PO status updated');
+              } else showToast('Failed to update', 'error');
+            };
 
-          const deletePO = async (poId, poNum) => {
-            if (!(await showConfirm(`Delete ${poNum}? This cannot be undone.`))) return;
-            const res = await fetch(`/api/purchase-orders/${poId}`, { method: 'DELETE', headers });
-            if (res.ok) { loadPOs(); showToast('PO deleted'); }
-            else showToast('Failed to delete', 'error');
-          };
+            const deletePO = async (poId, poNum) => {
+              if (!(await showConfirm(`Delete ${poNum}? This cannot be undone.`))) return;
+              const res = await fetch(`/api/purchase-orders/${poId}`, {
+                method: 'DELETE',
+                headers,
+              });
+              if (res.ok) {
+                loadPOs();
+                showToast('PO deleted');
+              } else showToast('Failed to delete', 'error');
+            };
 
-          const saveEditPO = async () => {
-            if (!editingPO) return;
-            setSavingPO(true);
-            const res = await fetch(`/api/purchase-orders/${editingPO.id}`, {
-              method: 'PATCH',
-              headers,
-              body: JSON.stringify({ ...editingPO, amount: Number(editingPO.amount) })
-            });
-            const d = await res.json();
-            setSavingPO(false);
-            if (res.ok) { setEditingPO(null); loadPOs(); showToast('PO updated'); }
-            else showToast(d.error || 'Failed to update', 'error');
-          };
+            const saveEditPO = async () => {
+              if (!editingPO) return;
+              setSavingPO(true);
+              const res = await fetch(`/api/purchase-orders/${editingPO.id}`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ ...editingPO, amount: Number(editingPO.amount) }),
+              });
+              const d = await res.json();
+              setSavingPO(false);
+              if (res.ok) {
+                setEditingPO(null);
+                loadPOs();
+                showToast('PO updated');
+              } else showToast(d.error || 'Failed to update', 'error');
+            };
 
-          const inputStyle = {
-            border: '1px solid #ddd', borderRadius: 6, padding: '7px 10px',
-            fontSize: 13, width: '100%', boxSizing: 'border-box'
-          };
-          const labelStyle = { fontSize: 11, color: '#888', fontWeight: 600, marginBottom: 4, display: 'block' };
+            const inputStyle = {
+              border: '1px solid #ddd',
+              borderRadius: 6,
+              padding: '7px 10px',
+              fontSize: 13,
+              width: '100%',
+              boxSizing: 'border-box',
+            };
+            const labelStyle = {
+              fontSize: 11,
+              color: '#888',
+              fontWeight: 600,
+              marginBottom: 4,
+              display: 'block',
+            };
 
-          return (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
-                <h3 style={{ color: BLUE, margin: 0 }}>Purchase Orders</h3>
-                {pos.length > 0 && (
-                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <div style={{ textAlign: 'center', background: '#eff6ff', borderRadius: 8, padding: '8px 16px', border: '1px solid #bfdbfe' }}>
-                      <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>OPEN (DRAFT / ISSUED)</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: '#3B82F6' }}>${Number(openAmt).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+            return (
+              <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: 20,
+                    flexWrap: 'wrap',
+                    gap: 12,
+                  }}
+                >
+                  <h3 style={{ color: BLUE, margin: 0 }}>Purchase Orders</h3>
+                  {pos.length > 0 && (
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          background: '#eff6ff',
+                          borderRadius: 8,
+                          padding: '8px 16px',
+                          border: '1px solid #bfdbfe',
+                        }}
+                      >
+                        <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>
+                          OPEN (DRAFT / ISSUED)
+                        </div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: '#3B82F6' }}>
+                          $
+                          {Number(openAmt).toLocaleString('en-US', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          })}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          background: '#f0fdf4',
+                          borderRadius: 8,
+                          padding: '8px 16px',
+                          border: '1px solid #bbf7d0',
+                        }}
+                      >
+                        <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>RECEIVED</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: GREEN }}>
+                          $
+                          {Number(receivedAmt).toLocaleString('en-US', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          })}
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          background: '#f8faff',
+                          borderRadius: 8,
+                          padding: '8px 16px',
+                          border: '1px solid #dde8ff',
+                        }}
+                      >
+                        <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>
+                          TOTAL ACTIVE SPEND
+                        </div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: BLUE }}>
+                          $
+                          {Number(totalSpend).toLocaleString('en-US', {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          })}
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'center', background: '#f0fdf4', borderRadius: 8, padding: '8px 16px', border: '1px solid #bbf7d0' }}>
-                      <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>RECEIVED</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: GREEN }}>${Number(receivedAmt).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                  )}
+                </div>
+
+                {/* New PO Form */}
+                <div
+                  style={{
+                    background: '#f8faff',
+                    border: '1px solid #dde8ff',
+                    borderRadius: 10,
+                    padding: 16,
+                    marginBottom: 20,
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, marginBottom: 12 }}>
+                    + New Purchase Order
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 12,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div>
+                      <label style={labelStyle}>VENDOR / SUPPLIER</label>
+                      <input
+                        style={inputStyle}
+                        placeholder="e.g. Home Depot, ABC Supply"
+                        value={newPO.vendor_name}
+                        onChange={(e) => setNewPO((p) => ({ ...p, vendor_name: e.target.value }))}
+                      />
                     </div>
-                    <div style={{ textAlign: 'center', background: '#f8faff', borderRadius: 8, padding: '8px 16px', border: '1px solid #dde8ff' }}>
-                      <div style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>TOTAL ACTIVE SPEND</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: BLUE }}>${Number(totalSpend).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
+                    <div>
+                      <label style={labelStyle}>CATEGORY</label>
+                      <select
+                        style={inputStyle}
+                        value={newPO.category}
+                        onChange={(e) => setNewPO((p) => ({ ...p, category: e.target.value }))}
+                      >
+                        {PO_CATEGORIES.map((c) => (
+                          <option key={c} value={c}>
+                            {c.charAt(0).toUpperCase() + c.slice(1)}
+                          </option>
+                        ))}
+                      </select>
                     </div>
+                  </div>
+                  <div style={{ marginBottom: 12 }}>
+                    <label style={labelStyle}>DESCRIPTION *</label>
+                    <input
+                      style={inputStyle}
+                      placeholder="What is being ordered / purchased?"
+                      value={newPO.description}
+                      onChange={(e) => setNewPO((p) => ({ ...p, description: e.target.value }))}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 12,
+                      marginBottom: 12,
+                    }}
+                  >
+                    <div>
+                      <label style={labelStyle}>AMOUNT *</label>
+                      <input
+                        style={inputStyle}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newPO.amount}
+                        onChange={(e) => setNewPO((p) => ({ ...p, amount: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label style={labelStyle}>INITIAL STATUS</label>
+                      <select
+                        style={inputStyle}
+                        value={newPO.status}
+                        onChange={(e) => setNewPO((p) => ({ ...p, status: e.target.value }))}
+                      >
+                        {PO_STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {STATUS_LABEL[s] || s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={labelStyle}>NOTES</label>
+                    <input
+                      style={inputStyle}
+                      placeholder="Optional notes"
+                      value={newPO.notes}
+                      onChange={(e) => setNewPO((p) => ({ ...p, notes: e.target.value }))}
+                    />
+                  </div>
+                  <button
+                    onClick={submitNewPO}
+                    disabled={savingPO}
+                    style={{
+                      background: BLUE,
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: 7,
+                      padding: '9px 20px',
+                      fontWeight: 700,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {savingPO ? 'Saving…' : 'Create Purchase Order'}
+                  </button>
+                </div>
+
+                {/* PO List */}
+                {poLoading ? (
+                  <div style={{ color: '#888', padding: 16 }}>Loading purchase orders…</div>
+                ) : pos.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 32, color: '#aaa' }}>
+                    <div style={{ fontSize: 32, marginBottom: 8 }}>📦</div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#999' }}>
+                      No purchase orders yet
+                    </div>
+                    <div style={{ fontSize: 12, marginTop: 4 }}>
+                      Use the form above to create the first PO for this job.
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {pos.map((po) => (
+                      <div
+                        key={po.id}
+                        style={{
+                          border: '1px solid #e2e8f0',
+                          borderRadius: 8,
+                          padding: '12px 14px',
+                          marginBottom: 10,
+                          background: STATUS_BG[po.status] || '#fff',
+                        }}
+                      >
+                        {editingPO?.id === po.id ? (
+                          <div>
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 1fr',
+                                gap: 10,
+                                marginBottom: 10,
+                              }}
+                            >
+                              <div>
+                                <label style={labelStyle}>VENDOR</label>
+                                <input
+                                  style={inputStyle}
+                                  value={editingPO.vendor_name || ''}
+                                  onChange={(e) =>
+                                    setEditingPO((p) => ({ ...p, vendor_name: e.target.value }))
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <label style={labelStyle}>CATEGORY</label>
+                                <select
+                                  style={inputStyle}
+                                  value={editingPO.category}
+                                  onChange={(e) =>
+                                    setEditingPO((p) => ({ ...p, category: e.target.value }))
+                                  }
+                                >
+                                  {PO_CATEGORIES.map((c) => (
+                                    <option key={c} value={c}>
+                                      {c.charAt(0).toUpperCase() + c.slice(1)}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                            <div style={{ marginBottom: 10 }}>
+                              <label style={labelStyle}>DESCRIPTION</label>
+                              <input
+                                style={inputStyle}
+                                value={editingPO.description || ''}
+                                onChange={(e) =>
+                                  setEditingPO((p) => ({ ...p, description: e.target.value }))
+                                }
+                              />
+                            </div>
+                            <div
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 1fr',
+                                gap: 10,
+                                marginBottom: 10,
+                              }}
+                            >
+                              <div>
+                                <label style={labelStyle}>AMOUNT</label>
+                                <input
+                                  style={inputStyle}
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={editingPO.amount || ''}
+                                  onChange={(e) =>
+                                    setEditingPO((p) => ({ ...p, amount: e.target.value }))
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <label style={labelStyle}>STATUS</label>
+                                <select
+                                  style={inputStyle}
+                                  value={editingPO.status}
+                                  onChange={(e) =>
+                                    setEditingPO((p) => ({ ...p, status: e.target.value }))
+                                  }
+                                >
+                                  {PO_STATUSES.map((s) => (
+                                    <option key={s} value={s}>
+                                      {STATUS_LABEL[s] || s}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                            <div style={{ marginBottom: 12 }}>
+                              <label style={labelStyle}>NOTES</label>
+                              <input
+                                style={inputStyle}
+                                value={editingPO.notes || ''}
+                                onChange={(e) =>
+                                  setEditingPO((p) => ({ ...p, notes: e.target.value }))
+                                }
+                              />
+                            </div>
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button
+                                onClick={saveEditPO}
+                                disabled={savingPO}
+                                style={{
+                                  background: BLUE,
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  padding: '7px 16px',
+                                  fontWeight: 700,
+                                  fontSize: 12,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                {savingPO ? 'Saving…' : 'Save'}
+                              </button>
+                              <button
+                                onClick={() => setEditingPO(null)}
+                                style={{
+                                  background: '#f1f5f9',
+                                  color: '#555',
+                                  border: 'none',
+                                  borderRadius: 6,
+                                  padding: '7px 14px',
+                                  fontWeight: 600,
+                                  fontSize: 12,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'flex-start',
+                              gap: 10,
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  marginBottom: 4,
+                                  flexWrap: 'wrap',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: BLUE,
+                                    background: '#e8eeff',
+                                    padding: '2px 8px',
+                                    borderRadius: 4,
+                                  }}
+                                >
+                                  {po.po_number}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: STATUS_COLORS_PO[po.status] || '#888',
+                                    background: STATUS_BG[po.status] || '#f0f0f0',
+                                    padding: '2px 8px',
+                                    borderRadius: 4,
+                                  }}
+                                >
+                                  {STATUS_LABEL[po.status] || po.status}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 11,
+                                    color: '#888',
+                                    textTransform: 'capitalize',
+                                  }}
+                                >
+                                  {po.category}
+                                </span>
+                                {po.issued_at && (
+                                  <span style={{ fontSize: 11, color: '#aaa' }}>
+                                    Issued{' '}
+                                    {new Date(po.issued_at).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      timeZone: 'America/New_York',
+                                    })}
+                                  </span>
+                                )}
+                                {po.received_at && (
+                                  <span style={{ fontSize: 11, color: '#3B82F6' }}>
+                                    Received{' '}
+                                    {new Date(po.received_at).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      timeZone: 'America/New_York',
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                              <div
+                                style={{
+                                  fontWeight: 600,
+                                  fontSize: 13,
+                                  color: '#333',
+                                  marginBottom: 2,
+                                }}
+                              >
+                                {po.description}
+                              </div>
+                              {po.vendor_name && (
+                                <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>
+                                  🏪 {po.vendor_name}
+                                </div>
+                              )}
+                              {po.notes && (
+                                <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic' }}>
+                                  {po.notes}
+                                </div>
+                              )}
+                            </div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'flex-end',
+                                gap: 6,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontSize: 16,
+                                  fontWeight: 700,
+                                  color: po.status === 'closed' ? '#aaa' : BLUE,
+                                }}
+                              >
+                                $
+                                {Number(po.amount).toLocaleString('en-US', {
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 0,
+                                })}
+                              </div>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  gap: 6,
+                                  flexWrap: 'wrap',
+                                  justifyContent: 'flex-end',
+                                }}
+                              >
+                                {po.status === 'draft' && (
+                                  <button
+                                    onClick={() => updatePOStatus(po.id, 'issued')}
+                                    style={{
+                                      fontSize: 11,
+                                      padding: '4px 10px',
+                                      background: '#fffbeb',
+                                      color: '#b45309',
+                                      border: '1px solid #fde68a',
+                                      borderRadius: 5,
+                                      cursor: 'pointer',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Mark Issued
+                                  </button>
+                                )}
+                                {po.status === 'issued' && (
+                                  <button
+                                    onClick={() => updatePOStatus(po.id, 'received')}
+                                    style={{
+                                      fontSize: 11,
+                                      padding: '4px 10px',
+                                      background: '#eff6ff',
+                                      color: '#3B82F6',
+                                      border: '1px solid #bfdbfe',
+                                      borderRadius: 5,
+                                      cursor: 'pointer',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Mark Received
+                                  </button>
+                                )}
+                                {(po.status === 'draft' ||
+                                  po.status === 'issued' ||
+                                  po.status === 'received') && (
+                                  <button
+                                    onClick={() => updatePOStatus(po.id, 'closed')}
+                                    style={{
+                                      fontSize: 11,
+                                      padding: '4px 10px',
+                                      background: '#f0fdf4',
+                                      color: GREEN,
+                                      border: '1px solid #bbf7d0',
+                                      borderRadius: 5,
+                                      cursor: 'pointer',
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    Close PO
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setEditingPO({ ...po })}
+                                  style={{
+                                    fontSize: 11,
+                                    padding: '4px 10px',
+                                    background: '#f8fafc',
+                                    color: '#555',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 5,
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deletePO(po.id, po.po_number)}
+                                  style={{
+                                    fontSize: 11,
+                                    padding: '4px 10px',
+                                    background: '#fff5f5',
+                                    color: RED,
+                                    border: '1px solid #fecaca',
+                                    borderRadius: 5,
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
-
-              {/* New PO Form */}
-              <div style={{ background: '#f8faff', border: '1px solid #dde8ff', borderRadius: 10, padding: 16, marginBottom: 20 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, marginBottom: 12 }}>+ New Purchase Order</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                  <div>
-                    <label style={labelStyle}>VENDOR / SUPPLIER</label>
-                    <input style={inputStyle} placeholder="e.g. Home Depot, ABC Supply" value={newPO.vendor_name}
-                      onChange={e => setNewPO(p => ({ ...p, vendor_name: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>CATEGORY</label>
-                    <select style={inputStyle} value={newPO.category}
-                      onChange={e => setNewPO(p => ({ ...p, category: e.target.value }))}>
-                      {PO_CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={labelStyle}>DESCRIPTION *</label>
-                  <input style={inputStyle} placeholder="What is being ordered / purchased?" value={newPO.description}
-                    onChange={e => setNewPO(p => ({ ...p, description: e.target.value }))} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                  <div>
-                    <label style={labelStyle}>AMOUNT *</label>
-                    <input style={inputStyle} type="number" min="0" step="0.01" placeholder="0.00" value={newPO.amount}
-                      onChange={e => setNewPO(p => ({ ...p, amount: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>INITIAL STATUS</label>
-                    <select style={inputStyle} value={newPO.status}
-                      onChange={e => setNewPO(p => ({ ...p, status: e.target.value }))}>
-                      {PO_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABEL[s] || s}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={labelStyle}>NOTES</label>
-                  <input style={inputStyle} placeholder="Optional notes" value={newPO.notes}
-                    onChange={e => setNewPO(p => ({ ...p, notes: e.target.value }))} />
-                </div>
-                <button onClick={submitNewPO} disabled={savingPO}
-                  style={{ background: BLUE, color: '#fff', border: 'none', borderRadius: 7, padding: '9px 20px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                  {savingPO ? 'Saving…' : 'Create Purchase Order'}
-                </button>
-              </div>
-
-              {/* PO List */}
-              {poLoading ? (
-                <div style={{ color: '#888', padding: 16 }}>Loading purchase orders…</div>
-              ) : pos.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 32, color: '#aaa' }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>📦</div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#999' }}>No purchase orders yet</div>
-                  <div style={{ fontSize: 12, marginTop: 4 }}>Use the form above to create the first PO for this job.</div>
-                </div>
-              ) : (
-                <div>
-                  {pos.map(po => (
-                    <div key={po.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginBottom: 10, background: STATUS_BG[po.status] || '#fff' }}>
-                      {editingPO?.id === po.id ? (
-                        <div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                            <div>
-                              <label style={labelStyle}>VENDOR</label>
-                              <input style={inputStyle} value={editingPO.vendor_name || ''} onChange={e => setEditingPO(p => ({ ...p, vendor_name: e.target.value }))} />
-                            </div>
-                            <div>
-                              <label style={labelStyle}>CATEGORY</label>
-                              <select style={inputStyle} value={editingPO.category} onChange={e => setEditingPO(p => ({ ...p, category: e.target.value }))}>
-                                {PO_CATEGORIES.map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>)}
-                              </select>
-                            </div>
-                          </div>
-                          <div style={{ marginBottom: 10 }}>
-                            <label style={labelStyle}>DESCRIPTION</label>
-                            <input style={inputStyle} value={editingPO.description || ''} onChange={e => setEditingPO(p => ({ ...p, description: e.target.value }))} />
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                            <div>
-                              <label style={labelStyle}>AMOUNT</label>
-                              <input style={inputStyle} type="number" min="0" step="0.01" value={editingPO.amount || ''} onChange={e => setEditingPO(p => ({ ...p, amount: e.target.value }))} />
-                            </div>
-                            <div>
-                              <label style={labelStyle}>STATUS</label>
-                              <select style={inputStyle} value={editingPO.status} onChange={e => setEditingPO(p => ({ ...p, status: e.target.value }))}>
-                                {PO_STATUSES.map(s => <option key={s} value={s}>{STATUS_LABEL[s] || s}</option>)}
-                              </select>
-                            </div>
-                          </div>
-                          <div style={{ marginBottom: 12 }}>
-                            <label style={labelStyle}>NOTES</label>
-                            <input style={inputStyle} value={editingPO.notes || ''} onChange={e => setEditingPO(p => ({ ...p, notes: e.target.value }))} />
-                          </div>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button onClick={saveEditPO} disabled={savingPO} style={{ background: BLUE, color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>
-                              {savingPO ? 'Saving…' : 'Save'}
-                            </button>
-                            <button onClick={() => setEditingPO(null)} style={{ background: '#f1f5f9', color: '#555', border: 'none', borderRadius: 6, padding: '7px 14px', fontWeight: 600, fontSize: 12, cursor: 'pointer' }}>
-                              Cancel
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: BLUE, background: '#e8eeff', padding: '2px 8px', borderRadius: 4 }}>{po.po_number}</span>
-                              <span style={{ fontSize: 11, fontWeight: 700, color: STATUS_COLORS_PO[po.status] || '#888', background: STATUS_BG[po.status] || '#f0f0f0', padding: '2px 8px', borderRadius: 4 }}>{STATUS_LABEL[po.status] || po.status}</span>
-                              <span style={{ fontSize: 11, color: '#888', textTransform: 'capitalize' }}>{po.category}</span>
-                              {po.issued_at && <span style={{ fontSize: 11, color: '#aaa' }}>Issued {new Date(po.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })}</span>}
-                              {po.received_at && <span style={{ fontSize: 11, color: '#3B82F6' }}>Received {new Date(po.received_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' })}</span>}
-                            </div>
-                            <div style={{ fontWeight: 600, fontSize: 13, color: '#333', marginBottom: 2 }}>{po.description}</div>
-                            {po.vendor_name && <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>🏪 {po.vendor_name}</div>}
-                            {po.notes && <div style={{ fontSize: 11, color: '#888', fontStyle: 'italic' }}>{po.notes}</div>}
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: po.status === 'closed' ? '#aaa' : BLUE }}>
-                              ${Number(po.amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                            </div>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                              {po.status === 'draft' && (
-                                <button onClick={() => updatePOStatus(po.id, 'issued')} style={{ fontSize: 11, padding: '4px 10px', background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Mark Issued</button>
-                              )}
-                              {po.status === 'issued' && (
-                                <button onClick={() => updatePOStatus(po.id, 'received')} style={{ fontSize: 11, padding: '4px 10px', background: '#eff6ff', color: '#3B82F6', border: '1px solid #bfdbfe', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Mark Received</button>
-                              )}
-                              {(po.status === 'draft' || po.status === 'issued' || po.status === 'received') && (
-                                <button onClick={() => updatePOStatus(po.id, 'closed')} style={{ fontSize: 11, padding: '4px 10px', background: '#f0fdf4', color: GREEN, border: '1px solid #bbf7d0', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Close PO</button>
-                              )}
-                              <button onClick={() => setEditingPO({ ...po })} style={{ fontSize: 11, padding: '4px 10px', background: '#f8fafc', color: '#555', border: '1px solid #e2e8f0', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Edit</button>
-                              <button onClick={() => deletePO(po.id, po.po_number)} style={{ fontSize: 11, padding: '4px 10px', background: '#fff5f5', color: RED, border: '1px solid #fecaca', borderRadius: 5, cursor: 'pointer', fontWeight: 600 }}>Delete</button>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })()}
+            );
+          })()}
 
         {/* PHOTOS */}
         {activeTab === 'photos' && <PhotosTab jobId={id} token={token} />}
@@ -2403,7 +2868,7 @@ export default function JobDetail({ token }) {
                   ['City', job.project_city],
                   [
                     'Stretch Code Town',
-                    job.stretch_code_town ? '✅ Yes — Stretch Code applies' : '❌ No'
+                    job.stretch_code_town ? '✅ Yes — Stretch Code applies' : '❌ No',
                   ],
                   [
                     'Submitted Via',
@@ -2415,16 +2880,16 @@ export default function JobDetail({ token }) {
                       if (s === 'wizard' || s === 'manual') return '🖥️ Web Portal';
                       if (s === 'hearth_api') return '🔗 Hearth API';
                       return s || '—';
-                    })()
+                    })(),
                   ],
                   [
                     'Proposal #',
                     job.quote_number
                       ? `${job.quote_number}${job.version ? `/${job.version}` : ''}`
-                      : '—'
+                      : '—',
                   ],
                   ['Total Value', job.total_value ? `$${job.total_value.toLocaleString()}` : '—'],
-                  ['Deposit', job.deposit_amount ? `$${job.deposit_amount.toLocaleString()}` : '—']
+                  ['Deposit', job.deposit_amount ? `$${job.deposit_amount.toLocaleString()}` : '—'],
                 ]
                   .filter(([, v]) => v != null)
                   .map(([label, value]) => (
@@ -2442,7 +2907,9 @@ export default function JobDetail({ token }) {
             {/* ── PROPERTY RECORD ── */}
             {(() => {
               let pd = null;
-              try { pd = job.property_data ? JSON.parse(job.property_data) : null; } catch {}
+              try {
+                pd = job.property_data ? JSON.parse(job.property_data) : null;
+              } catch {}
               if (!pd) return null;
               const mg = pd.massGis;
               const lc = pd.leadCheck;
@@ -2453,44 +2920,74 @@ export default function JobDetail({ token }) {
                 if (!lc) return null;
                 if (lc.hasRecord) {
                   return (
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 5,
-                      fontSize: 12, fontWeight: 600, padding: '3px 10px',
-                      borderRadius: 6, border: '1px solid #fca5a5',
-                      background: '#fef2f2', color: '#b91c1c'
-                    }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        padding: '3px 10px',
+                        borderRadius: 6,
+                        border: '1px solid #fca5a5',
+                        background: '#fef2f2',
+                        color: '#b91c1c',
+                      }}
+                    >
                       ⚠ Lead record found
                     </span>
                   );
                 }
                 return (
-                  <span style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 5,
-                    fontSize: 12, fontWeight: 600, padding: '3px 10px',
-                    borderRadius: 6, border: '1px solid #86efac',
-                    background: '#f0fdf4', color: '#15803d'
-                  }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 5,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      padding: '3px 10px',
+                      borderRadius: 6,
+                      border: '1px solid #86efac',
+                      background: '#f0fdf4',
+                      color: '#15803d',
+                    }}
+                  >
                     ✓ No lead record found
                   </span>
                 );
               };
 
               const linkStyle = {
-                display: 'inline-flex', alignItems: 'center', gap: 4,
-                fontSize: 11, fontWeight: 600, padding: '3px 10px',
-                borderRadius: 6, border: '1px solid #d1d5db',
-                background: 'transparent', color: '#374151',
-                textDecoration: 'none', marginLeft: 6
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '3px 10px',
+                borderRadius: 6,
+                border: '1px solid #d1d5db',
+                background: 'transparent',
+                color: '#374151',
+                textDecoration: 'none',
+                marginLeft: 6,
               };
 
               const rows = [];
               if (mg && !mg.webSearchFallback) {
                 if (mg.yearBuilt) rows.push(['Year Built', mg.yearBuilt]);
-                if (mg.buildingArea) rows.push(['Building Area', `${Number(mg.buildingArea).toLocaleString()} sq ft`]);
-                if (mg.lotSize) rows.push(['Lot Size', `${Number(mg.lotSize).toLocaleString()} sq ft`]);
-                if (mg.totalAssessedValue) rows.push(['Assessed Value', `$${Number(mg.totalAssessedValue).toLocaleString()}`]);
+                if (mg.buildingArea)
+                  rows.push(['Building Area', `${Number(mg.buildingArea).toLocaleString()} sq ft`]);
+                if (mg.lotSize)
+                  rows.push(['Lot Size', `${Number(mg.lotSize).toLocaleString()} sq ft`]);
+                if (mg.totalAssessedValue)
+                  rows.push([
+                    'Assessed Value',
+                    `$${Number(mg.totalAssessedValue).toLocaleString()}`,
+                  ]);
                 if (mg.useCodeLabel) rows.push(['Use', mg.useCodeLabel]);
-                if (mg.owner1) rows.push(['Owner', [mg.owner1, mg.owner2].filter(Boolean).join(' / ')]);
+                if (mg.owner1)
+                  rows.push(['Owner', [mg.owner1, mg.owner2].filter(Boolean).join(' / ')]);
                 if (mg.numBedrooms) rows.push(['Bedrooms', mg.numBedrooms]);
                 if (mg.numBathrooms) rows.push(['Bathrooms', mg.numBathrooms]);
                 if (mg.style) rows.push(['Style', mg.style]);
@@ -2498,15 +2995,48 @@ export default function JobDetail({ token }) {
               }
 
               return (
-                <div style={{ marginTop: 28, background: '#f8faff', border: '1px solid #e0e7ff', borderRadius: 10, padding: '16px 20px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                <div
+                  style={{
+                    marginTop: 28,
+                    background: '#f8faff',
+                    border: '1px solid #e0e7ff',
+                    borderRadius: 10,
+                    padding: '16px 20px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: 8,
+                      marginBottom: 12,
+                    }}
+                  >
                     <h3 style={{ color: BLUE, margin: 0, fontSize: 15 }}>Property Record</h3>
-                    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}
+                    >
                       <LeadBadge />
                       {lc && (
                         <>
-                          <a href={lc.leadsafeUrl} target="_blank" rel="noopener noreferrer" style={linkStyle}>Lead Safe Homes 1.0 ↗</a>
-                          <a href={lc.leadsafe2Url} target="_blank" rel="noopener noreferrer" style={linkStyle}>Lead Safe Homes 2.0 ↗</a>
+                          <a
+                            href={lc.leadsafeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={linkStyle}
+                          >
+                            Lead Safe Homes 1.0 ↗
+                          </a>
+                          <a
+                            href={lc.leadsafe2Url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={linkStyle}
+                          >
+                            Lead Safe Homes 2.0 ↗
+                          </a>
                         </>
                       )}
                     </div>
@@ -2516,8 +3046,14 @@ export default function JobDetail({ token }) {
                       <tbody>
                         {rows.map(([label, value]) => (
                           <tr key={label} style={{ borderBottom: '1px solid #e8edf5' }}>
-                            <td style={{ padding: '7px 0', fontSize: 12, color: '#888', width: 160 }}>{label}</td>
-                            <td style={{ padding: '7px 0', fontSize: 13, color: '#222' }}>{value}</td>
+                            <td
+                              style={{ padding: '7px 0', fontSize: 12, color: '#888', width: 160 }}
+                            >
+                              {label}
+                            </td>
+                            <td style={{ padding: '7px 0', fontSize: 13, color: '#222' }}>
+                              {value}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2531,7 +3067,11 @@ export default function JobDetail({ token }) {
                   {lc?.note && (
                     <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 8 }}>
                       {lc.note}
-                      {lc.queriedAt && <span style={{ marginLeft: 6 }}>· checked {new Date(lc.queriedAt).toLocaleDateString()}</span>}
+                      {lc.queriedAt && (
+                        <span style={{ marginLeft: 6 }}>
+                          · checked {new Date(lc.queriedAt).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
                   )}
                   {pd.enrichedAt && (
@@ -2557,7 +3097,7 @@ export default function JobDetail({ token }) {
                   borderRadius: 6,
                   fontSize: 13,
                   boxSizing: 'border-box',
-                  resize: 'vertical'
+                  resize: 'vertical',
                 }}
                 placeholder="Add internal notes here..."
               />
@@ -2571,7 +3111,7 @@ export default function JobDetail({ token }) {
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  fontSize: 12
+                  fontSize: 12,
                 }}
               >
                 Save Note
@@ -2602,7 +3142,7 @@ export default function JobDetail({ token }) {
                     border: '1px solid #e0e7ff',
                     borderRadius: 10,
                     padding: 20,
-                    marginBottom: 16
+                    marginBottom: 16,
                   }}
                 >
                   <div
@@ -2610,7 +3150,7 @@ export default function JobDetail({ token }) {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      marginBottom: 14
+                      marginBottom: 14,
                     }}
                   >
                     <div style={{ fontWeight: 'bold', color: BLUE, fontSize: 14 }}>
@@ -2633,7 +3173,7 @@ export default function JobDetail({ token }) {
                             ? '#059669'
                             : s.status === 'opened'
                               ? '#92400E'
-                              : '#888'
+                              : '#888',
                       }}
                     >
                       {s.status === 'signed'
@@ -2649,18 +3189,18 @@ export default function JobDetail({ token }) {
                       [
                         '📨 Sent',
                         s.email_sent_at ? new Date(s.email_sent_at).toLocaleString() : '—',
-                        null
+                        null,
                       ],
                       [
                         '👁 Opened',
                         s.opened_at ? new Date(s.opened_at).toLocaleString() : 'Not yet',
-                        s.opened_ip ? `IP: ${s.opened_ip}` : null
+                        s.opened_ip ? `IP: ${s.opened_ip}` : null,
                       ],
                       [
                         '✍️ Signed',
                         s.signed_at ? new Date(s.signed_at).toLocaleString() : 'Not yet',
-                        s.signer_name || null
-                      ]
+                        s.signer_name || null,
+                      ],
                     ].map(([label, value, sub]) => (
                       <div
                         key={label}
@@ -2668,7 +3208,7 @@ export default function JobDetail({ token }) {
                           padding: '10px 14px',
                           background: 'white',
                           borderRadius: 6,
-                          border: '1px solid #eee'
+                          border: '1px solid #eee',
                         }}
                       >
                         <div style={{ fontSize: 10, color: '#888', marginBottom: 4 }}>{label}</div>
@@ -2676,7 +3216,7 @@ export default function JobDetail({ token }) {
                           style={{
                             fontSize: 13,
                             fontWeight: 'bold',
-                            color: value === 'Not yet' ? '#aaa' : '#1B3A6B'
+                            color: value === 'Not yet' ? '#aaa' : '#1B3A6B',
                           }}
                         >
                           {value}
@@ -2701,7 +3241,7 @@ export default function JobDetail({ token }) {
                           borderRadius: 6,
                           maxWidth: 300,
                           background: 'white',
-                          padding: 4
+                          padding: 4,
                         }}
                       />
                     </div>
@@ -2759,7 +3299,7 @@ export default function JobDetail({ token }) {
                       borderRadius: 6,
                       padding: 12,
                       marginBottom: 12,
-                      fontSize: 12
+                      fontSize: 12,
                     }}
                   >
                     ⚠️ Flagged: {proposalData.flaggedItems.join(' • ')}
@@ -2772,7 +3312,7 @@ export default function JobDetail({ token }) {
                     padding: 16,
                     fontSize: 11,
                     overflow: 'auto',
-                    maxHeight: 400
+                    maxHeight: 400,
                   }}
                 >
                   {JSON.stringify(proposalData, null, 2)}
@@ -2803,7 +3343,7 @@ export default function JobDetail({ token }) {
                     padding: 16,
                     fontSize: 11,
                     overflow: 'auto',
-                    maxHeight: 400
+                    maxHeight: 400,
                   }}
                 >
                   {JSON.stringify(contractData, null, 2)}
@@ -2830,7 +3370,7 @@ export default function JobDetail({ token }) {
                     padding: 12,
                     borderRadius: 8,
                     background: c.direction === 'inbound' ? '#f0f4ff' : '#f9fff9',
-                    borderLeft: `3px solid ${c.direction === 'inbound' ? BLUE : GREEN}`
+                    borderLeft: `3px solid ${c.direction === 'inbound' ? BLUE : GREEN}`,
                   }}
                 >
                   <div
@@ -2840,7 +3380,7 @@ export default function JobDetail({ token }) {
                       style={{
                         fontSize: 11,
                         fontWeight: 'bold',
-                        color: c.direction === 'inbound' ? BLUE : GREEN
+                        color: c.direction === 'inbound' ? BLUE : GREEN,
                       }}
                     >
                       {c.direction.toUpperCase()} · {c.channel.toUpperCase()} · {c.from_address}
@@ -2869,7 +3409,7 @@ export default function JobDetail({ token }) {
               'contract_ready',
               'contract_sent',
               'contract_signed',
-              'complete'
+              'complete',
             ].includes(job.status);
             const isSemiLocked = ['proposal_ready', 'proposal_sent'].includes(job.status);
 
@@ -2927,7 +3467,7 @@ export default function JobDetail({ token }) {
               'in-law',
               'inlaw',
               'garage with apartment',
-              'accessory dwelling'
+              'accessory dwelling',
             ];
             const garageKw = ['garage', 'detached garage', 'attached garage'];
             const isADU =
@@ -2936,7 +3476,7 @@ export default function JobDetail({ token }) {
                 (k) =>
                   jobNameLc.includes(k) ||
                   descLc.includes(k) ||
-                  tradeNames.some((t) => t.includes(k))
+                  tradeNames.some((t) => t.includes(k)),
               );
             const isGarage =
               !isADU &&
@@ -2950,7 +3490,7 @@ export default function JobDetail({ token }) {
               adu: { label: 'Garage w/ Apartment / ADU', low: 130, mid: 190, high: 250 },
               new_construction: { label: 'Custom Home / New Build', low: 180, mid: 250, high: 350 },
               renovation: { label: 'Addition / Renovation', low: 150, mid: 220, high: 300 },
-              addition: { label: 'Addition / Renovation', low: 150, mid: 220, high: 300 }
+              addition: { label: 'Addition / Renovation', low: 150, mid: 220, high: 300 },
             };
             const bandKey = isGarage ? 'garage' : isADU ? 'adu' : projType || null;
             const band = bandKey ? TYPE_BANDS[bandKey] || null : null;
@@ -2968,108 +3508,108 @@ export default function JobDetail({ token }) {
               low: '#fff3cd',
               good_low: '#f0fdf4',
               good_high: '#f0fdf4',
-              high: '#fde8e8'
+              high: '#fde8e8',
             };
             const BAND_LABEL = {
               low: '⬇ Below Low',
               good_low: '✅ Low–Mid Range',
               good_high: '✅ Mid–High Range',
-              high: '🔴 Above High'
+              high: '🔴 Above High',
             };
             const BAND_TEXT = {
               low: '#92400e',
               good_low: '#166534',
               good_high: '#166534',
-              high: '#991b1b'
+              high: '#991b1b',
             };
 
             // ── Expected trades by project type ──────────────────────────────
             const BASE_ADU_TRADES = [
               {
                 label: 'Foundation / Slab',
-                kw: ['foundation', 'slab', 'concrete', 'crawl', 'pier', 'footing']
+                kw: ['foundation', 'slab', 'concrete', 'crawl', 'pier', 'footing'],
               },
               { label: 'Framing', kw: ['framing', 'frame', 'structural'] },
               { label: 'Roofing', kw: ['roof', 'shingle', 'standing seam', 'metal roof'] },
               {
                 label: 'Siding',
-                kw: ['siding', 'hardie', 'fiber cement', 'clapboard', 'board & batten']
+                kw: ['siding', 'hardie', 'fiber cement', 'clapboard', 'board & batten'],
               },
               { label: 'Electrical', kw: ['electric', 'wiring', 'panel'] },
-              { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] }
+              { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] },
             ];
             const EXPECTED_TRADES = {
               garage: [
                 {
                   label: 'Foundation / Slab',
-                  kw: ['foundation', 'slab', 'concrete', 'crawl', 'pier', 'footing']
+                  kw: ['foundation', 'slab', 'concrete', 'crawl', 'pier', 'footing'],
                 },
                 { label: 'Framing', kw: ['framing', 'frame', 'structural'] },
                 { label: 'Roofing', kw: ['roof', 'shingle', 'standing seam', 'metal roof'] },
                 {
                   label: 'Siding / Exterior',
-                  kw: ['siding', 'hardie', 'fiber cement', 'clapboard', 'board & batten']
+                  kw: ['siding', 'hardie', 'fiber cement', 'clapboard', 'board & batten'],
                 },
                 { label: 'Electrical', kw: ['electric', 'wiring', 'panel'] },
-                { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] }
+                { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] },
               ],
               adu: [
                 ...BASE_ADU_TRADES,
                 { label: 'Plumbing', kw: ['plumbing', 'pipe', 'drain', 'fixture'] },
                 {
                   label: 'HVAC / Mini-Split',
-                  kw: ['hvac', 'heat', 'mini-split', 'furnace', 'erv', 'mechanical']
+                  kw: ['hvac', 'heat', 'mini-split', 'furnace', 'erv', 'mechanical'],
                 },
                 { label: 'Insulation', kw: ['insulation', 'spray foam', 'batt', 'blown'] },
                 {
                   label: 'Drywall / Plaster',
-                  kw: ['drywall', 'sheetrock', 'plaster', 'blueboard']
+                  kw: ['drywall', 'sheetrock', 'plaster', 'blueboard'],
                 },
                 ...(aduOnSeptic
                   ? [
                       {
                         label: 'Title 5 / Septic Inspection',
-                        kw: ['title 5', 'title5', 'septic inspection', 'perc test']
+                        kw: ['title 5', 'title5', 'septic inspection', 'perc test'],
                       },
                       {
                         label: 'Septic / Site Work',
-                        kw: ['septic', 'leach', 'site work', 'excavat', 'well']
-                      }
+                        kw: ['septic', 'leach', 'site work', 'excavat', 'well'],
+                      },
                     ]
-                  : [])
+                  : []),
               ],
               new_construction: [
                 {
                   label: 'Foundation / Slab',
-                  kw: ['foundation', 'slab', 'concrete', 'crawl', 'pier', 'footing']
+                  kw: ['foundation', 'slab', 'concrete', 'crawl', 'pier', 'footing'],
                 },
                 { label: 'Framing', kw: ['framing', 'frame', 'structural'] },
                 { label: 'Roofing', kw: ['roof', 'shingle', 'standing seam', 'metal roof', 'tpo'] },
                 {
                   label: 'Siding',
-                  kw: ['siding', 'hardie', 'fiber cement', 'clapboard', 'board & batten']
+                  kw: ['siding', 'hardie', 'fiber cement', 'clapboard', 'board & batten'],
                 },
                 { label: 'Windows & Doors', kw: ['window', 'door', 'entry door', 'garage door'] },
                 { label: 'Electrical', kw: ['electric', 'wiring', 'panel'] },
                 { label: 'Plumbing', kw: ['plumbing', 'pipe', 'drain', 'fixture'] },
                 {
                   label: 'HVAC',
-                  kw: ['hvac', 'heat', 'mini-split', 'furnace', 'erv', 'mechanical']
+                  kw: ['hvac', 'heat', 'mini-split', 'furnace', 'erv', 'mechanical'],
                 },
                 { label: 'Insulation', kw: ['insulation', 'spray foam', 'batt', 'blown'] },
                 { label: 'Drywall', kw: ['drywall', 'sheetrock', 'plaster', 'blueboard'] },
-                { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] }
+                { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] },
               ],
               renovation: [
                 { label: 'Electrical', kw: ['electric', 'wiring', 'panel'] },
                 { label: 'Plumbing', kw: ['plumbing', 'pipe', 'drain', 'fixture'] },
-                { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] }
+                { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] },
               ],
               addition: [
                 { label: 'Electrical', kw: ['electric', 'wiring', 'panel'] },
                 { label: 'Plumbing', kw: ['plumbing', 'pipe', 'drain', 'fixture'] },
-                { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] }
-              ]
+                { label: 'Permits', kw: ['permit', 'fee', 'stretch code'] },
+              ],
             };
             const expectedTradesKey = isGarage
               ? 'garage'
@@ -3080,7 +3620,7 @@ export default function JobDetail({ token }) {
               ? EXPECTED_TRADES[expectedTradesKey] || []
               : [];
             const missingTrades = expectedTrades.filter(
-              (et) => !tradeNames.some((t) => et.kw.some((k) => t.includes(k)))
+              (et) => !tradeNames.some((t) => et.kw.some((k) => t.includes(k))),
             );
 
             // BENCHMARKS: note = display text; low/high = numeric sub-cost floor/ceiling (null = no range check)
@@ -3089,19 +3629,19 @@ export default function JobDetail({ token }) {
                 kw: ['foundation', 'slab', 'concrete', 'basement', 'crawl', 'pier', 'footing'],
                 note: '$18–55/sqft (sub cost)',
                 low: 5000,
-                high: 80000
+                high: 80000,
               },
               {
                 kw: ['framing', 'frame', 'structural', 'lvl', 'tji'],
                 note: '$45–70/sqft labor+materials',
                 low: 8000,
-                high: 200000
+                high: 200000,
               },
               {
                 kw: ['roof', 'shingle', 'metal roofing', 'tpo', 'standing seam'],
                 note: '$450–650/sq; $18–28/sqft metal',
                 low: 3000,
-                high: 60000
+                high: 60000,
               },
               {
                 kw: [
@@ -3110,102 +3650,102 @@ export default function JobDetail({ token }) {
                   'fiber cement',
                   'vinyl siding',
                   'clapboard',
-                  'board & batten'
+                  'board & batten',
                 ],
                 note: '$4–20/sqft installed',
                 low: 2000,
-                high: 50000
+                high: 50000,
               },
               {
                 kw: ['window', 'door', 'entry door', 'garage door'],
                 note: '$600–4,500 each by type',
                 low: 600,
-                high: 40000
+                high: 40000,
               },
               {
                 kw: ['electric', 'wiring', 'panel', 'service upgrade', 'circuit'],
                 note: '$12–20/sqft full house',
                 low: 2000,
-                high: 50000
+                high: 50000,
               },
               {
                 kw: ['plumbing', 'pipe', 'drain', 'fixture', 'bath rough', 'kitchen rough'],
                 note: '$1,500–8,000/trade scope',
                 low: 1500,
-                high: 30000
+                high: 30000,
               },
               {
                 kw: ['hvac', 'heat', 'mini-split', 'minisplit', 'furnace', 'erv', 'mechanical'],
                 note: '$3,500–20,000+ per system',
                 low: 3500,
-                high: 50000
+                high: 50000,
               },
               {
                 kw: ['insulation', 'spray foam', 'batt', 'blown', 'rigid foam'],
                 note: '$1.20–6/sqft by type',
                 low: 800,
-                high: 25000
+                high: 25000,
               },
               {
                 kw: ['drywall', 'sheetrock', 'plaster', 'skim coat', 'blueboard'],
                 note: '$3.50–6/sqft hang & finish',
                 low: 1500,
-                high: 40000
+                high: 40000,
               },
               {
                 kw: ['permit', 'fee', 'inspection', 'compliance', 'stretch code'],
                 note: '0.5–1.5% of project value',
                 low: 500,
-                high: 15000
+                high: 15000,
               },
               {
                 kw: ['demo', 'demolition', 'removal', 'tear out'],
                 note: 'Varies by scope',
                 low: null,
-                high: null
+                high: null,
               },
               {
                 kw: ['floor', 'tile', 'hardwood', 'carpet', 'lvp', 'vinyl plank'],
                 note: '$5–25/sqft installed',
                 low: 1000,
-                high: 40000
+                high: 40000,
               },
               {
                 kw: ['cabinet', 'kitchen', 'counter', 'quartz', 'granite'],
                 note: 'Mid-range kitchen $25K–50K',
                 low: 5000,
-                high: 80000
+                high: 80000,
               },
               {
                 kw: ['painting', 'interior paint', 'exterior paint'],
                 note: '$1.50–4/sqft interior',
                 low: 500,
-                high: 15000
+                high: 15000,
               },
               {
                 kw: ['trim', 'baseboard', 'millwork', 'interior finish', 'crown molding'],
                 note: 'Interior finishes pkg $35K–120K',
                 low: 5000,
-                high: 120000
+                high: 120000,
               },
               {
                 kw: ['septic', 'title 5', 'title5', 'leach field'],
                 note: 'Title 5 + septic $3K–30K+',
                 low: 1500,
-                high: 60000
+                high: 60000,
               },
               {
                 kw: ['site work', 'excavat', 'grading', 'well', 'driveway'],
                 note: 'Typically excluded — verify',
                 low: null,
-                high: null
+                high: null,
               },
               {
                 kw: ['dumpster', 'disposal', 'waste'],
                 note: '$500–1,500 typical',
                 low: 400,
-                high: 2500
-              }
+                high: 2500,
+              },
             ];
             const matchBench = (trade) => {
               const lc = (trade || '').toLowerCase();
@@ -3236,7 +3776,7 @@ export default function JobDetail({ token }) {
                         border: '1px solid #e5e7eb',
                         borderRadius: 8,
                         padding: 28,
-                        textAlign: 'center'
+                        textAlign: 'center',
                       }}
                     >
                       <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
@@ -3294,7 +3834,7 @@ export default function JobDetail({ token }) {
                                 padding: '10px 14px',
                                 textAlign: 'right',
                                 fontWeight: 700,
-                                color: '#333'
+                                color: '#333',
                               }}
                             >
                               ${marginData.baseCost.toLocaleString()}
@@ -3311,7 +3851,7 @@ export default function JobDetail({ token }) {
                               key={layer.label}
                               style={{
                                 background: i % 2 === 0 ? 'white' : '#fafafa',
-                                borderBottom: '1px solid #f0f0f0'
+                                borderBottom: '1px solid #f0f0f0',
                               }}
                             >
                               <td style={{ padding: '10px 14px', color: '#444' }}>{layer.label}</td>
@@ -3325,7 +3865,7 @@ export default function JobDetail({ token }) {
                                   padding: '10px 14px',
                                   textAlign: 'right',
                                   fontWeight: 600,
-                                  color: layer.pass ? '#166534' : '#991b1b'
+                                  color: layer.pass ? '#166534' : '#991b1b',
                                 }}
                               >
                                 {(layer.actualPct * 100).toFixed(1)}%
@@ -3352,7 +3892,7 @@ export default function JobDetail({ token }) {
                                       borderRadius: 12,
                                       padding: '2px 10px',
                                       fontSize: 12,
-                                      fontWeight: 600
+                                      fontWeight: 600,
                                     }}
                                   >
                                     ✓ Pass
@@ -3365,7 +3905,7 @@ export default function JobDetail({ token }) {
                                       borderRadius: 12,
                                       padding: '2px 10px',
                                       fontSize: 12,
-                                      fontWeight: 600
+                                      fontWeight: 600,
                                     }}
                                   >
                                     ✗ Fail
@@ -3379,7 +3919,7 @@ export default function JobDetail({ token }) {
                             style={{
                               background: '#EEF3FB',
                               borderTop: '2px solid #c7d7f4',
-                              fontWeight: 700
+                              fontWeight: 700,
                             }}
                           >
                             <td style={{ padding: '12px 14px', color: BLUE }}>Contract Price</td>
@@ -3394,7 +3934,7 @@ export default function JobDetail({ token }) {
                                 padding: '12px 14px',
                                 textAlign: 'right',
                                 color: BLUE,
-                                fontSize: 15
+                                fontSize: 15,
                               }}
                             >
                               ${marginData.contractPrice.toLocaleString()}
@@ -3410,7 +3950,7 @@ export default function JobDetail({ token }) {
                                     borderRadius: 12,
                                     padding: '2px 10px',
                                     fontSize: 12,
-                                    fontWeight: 600
+                                    fontWeight: 600,
                                   }}
                                 >
                                   ✓ On Target
@@ -3423,7 +3963,7 @@ export default function JobDetail({ token }) {
                                     borderRadius: 12,
                                     padding: '2px 10px',
                                     fontSize: 12,
-                                    fontWeight: 600
+                                    fontWeight: 600,
                                   }}
                                 >
                                   ⚠ Off Target
@@ -3446,7 +3986,7 @@ export default function JobDetail({ token }) {
                           padding: '14px 20px',
                           display: 'flex',
                           justifyContent: 'space-between',
-                          alignItems: 'center'
+                          alignItems: 'center',
                         }}
                       >
                         <div style={{ fontSize: 13, color: '#555' }}>
@@ -3470,7 +4010,7 @@ export default function JobDetail({ token }) {
                                 ? '#166534'
                                 : marginData.actualNetMarginPct >= 20
                                   ? '#92400e'
-                                  : '#991b1b'
+                                  : '#991b1b',
                           }}
                         >
                           {marginData.actualNetMarginPct}%
@@ -3488,7 +4028,7 @@ export default function JobDetail({ token }) {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: 16
+                    marginBottom: 16,
                   }}
                 >
                   <h3 style={{ color: BLUE, margin: 0 }}>Proposal Assessment</h3>
@@ -3501,7 +4041,7 @@ export default function JobDetail({ token }) {
                         padding: '4px 12px',
                         fontSize: 12,
                         color: '#475569',
-                        fontWeight: 700
+                        fontWeight: 700,
                       }}
                     >
                       🔒 Locked — Proposal Approved
@@ -3516,7 +4056,7 @@ export default function JobDetail({ token }) {
                         padding: '4px 12px',
                         fontSize: 12,
                         color: '#c2410c',
-                        fontWeight: 700
+                        fontWeight: 700,
                       }}
                     >
                       📋 Semi-locked — Proposal Ready
@@ -3542,7 +4082,7 @@ export default function JobDetail({ token }) {
                         display: 'grid',
                         gridTemplateColumns: 'repeat(3,1fr)',
                         gap: 12,
-                        marginBottom: 20
+                        marginBottom: 20,
                       }}
                     >
                       <div
@@ -3550,7 +4090,7 @@ export default function JobDetail({ token }) {
                           background: '#EEF3FB',
                           borderRadius: 8,
                           padding: 14,
-                          textAlign: 'center'
+                          textAlign: 'center',
                         }}
                       >
                         <div
@@ -3559,7 +4099,7 @@ export default function JobDetail({ token }) {
                             color: '#666',
                             textTransform: 'uppercase',
                             letterSpacing: '.5px',
-                            marginBottom: 4
+                            marginBottom: 4,
                           }}
                         >
                           Estimate Total
@@ -3581,7 +4121,7 @@ export default function JobDetail({ token }) {
                                   : '#f8f8f8',
                           borderRadius: 8,
                           padding: 14,
-                          textAlign: 'center'
+                          textAlign: 'center',
                         }}
                       >
                         <div
@@ -3590,7 +4130,7 @@ export default function JobDetail({ token }) {
                             color: '#666',
                             textTransform: 'uppercase',
                             letterSpacing: '.5px',
-                            marginBottom: 4
+                            marginBottom: 4,
                           }}
                         >
                           Price / Sq Ft
@@ -3607,7 +4147,7 @@ export default function JobDetail({ token }) {
                                   : '#991b1b'
                                 : sqftPrice
                                   ? '#166534'
-                                  : '#aaa'
+                                  : '#aaa',
                           }}
                         >
                           {sqftPrice ? `$${sqftPrice.toLocaleString()}/sqft` : '—'}
@@ -3623,7 +4163,7 @@ export default function JobDetail({ token }) {
                               fontSize: 10,
                               color: BAND_TEXT[bandStatus],
                               marginTop: 3,
-                              fontWeight: 600
+                              fontWeight: 600,
                             }}
                           >
                             {BAND_LABEL[bandStatus]} (${band.low}–${band.high}/sqft)
@@ -3634,7 +4174,7 @@ export default function JobDetail({ token }) {
                             style={{
                               fontSize: 10,
                               color: computedSqftWarning === 'below' ? '#92400e' : '#991b1b',
-                              marginTop: 2
+                              marginTop: 2,
                             }}
                           >
                             ⚠️ {computedSqftWarning === 'below' ? `Below` : `Above`} target (
@@ -3658,7 +4198,7 @@ export default function JobDetail({ token }) {
                             depositAmt > 0 ? (depositOk ? '#f0fdf4' : '#fff3cd') : '#f8f8f8',
                           borderRadius: 8,
                           padding: 14,
-                          textAlign: 'center'
+                          textAlign: 'center',
                         }}
                       >
                         <div
@@ -3667,7 +4207,7 @@ export default function JobDetail({ token }) {
                             color: '#666',
                             textTransform: 'uppercase',
                             letterSpacing: '.5px',
-                            marginBottom: 4
+                            marginBottom: 4,
                           }}
                         >
                           Deposit
@@ -3676,7 +4216,7 @@ export default function JobDetail({ token }) {
                           style={{
                             fontSize: 20,
                             fontWeight: 700,
-                            color: depositAmt > 0 ? (depositOk ? '#166534' : '#92400e') : '#aaa'
+                            color: depositAmt > 0 ? (depositOk ? '#166534' : '#92400e') : '#aaa',
                           }}
                         >
                           {depositAmt > 0 ? `$${Number(depositAmt).toLocaleString()}` : '—'}
@@ -3686,7 +4226,7 @@ export default function JobDetail({ token }) {
                             style={{
                               fontSize: 10,
                               color: depositOk ? '#166534' : '#92400e',
-                              marginTop: 2
+                              marginTop: 2,
                             }}
                           >
                             {depositPct}% of total {depositOk ? '✅' : '⚠️ (expect ~33%)'}
@@ -3702,7 +4242,7 @@ export default function JobDetail({ token }) {
                           border: '1px solid #e2e8f0',
                           borderRadius: 8,
                           padding: 16,
-                          marginBottom: 16
+                          marginBottom: 16,
                         }}
                       >
                         <div
@@ -3714,7 +4254,7 @@ export default function JobDetail({ token }) {
                           style={{
                             display: 'grid',
                             gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-                            gap: 12
+                            gap: 12,
                           }}
                         >
                           <div style={{ textAlign: 'center' }}>
@@ -3728,7 +4268,7 @@ export default function JobDetail({ token }) {
                                     ? '#991b1b'
                                     : pipelineCtx.daysAtCurrentStage > 7
                                       ? '#92400e'
-                                      : '#166534'
+                                      : '#166534',
                               }}
                             >
                               {pipelineCtx.daysAtCurrentStage}d
@@ -3755,10 +4295,10 @@ export default function JobDetail({ token }) {
                                   color:
                                     marginData?.actualNetMarginPct &&
                                     Math.abs(
-                                      marginData.actualNetMarginPct - pipelineCtx.avgWonMargin
+                                      marginData.actualNetMarginPct - pipelineCtx.avgWonMargin,
                                     ) > 5
                                       ? '#92400e'
-                                      : '#166534'
+                                      : '#166534',
                                 }}
                               >
                                 {pipelineCtx.avgWonMargin}%
@@ -3779,7 +4319,7 @@ export default function JobDetail({ token }) {
                                     sqftPrice &&
                                     Math.abs(sqftPrice - pipelineCtx.avgWonSqftPrice) > 50
                                       ? '#92400e'
-                                      : '#166534'
+                                      : '#166534',
                                 }}
                               >
                                 ${pipelineCtx.avgWonSqftPrice}/sqft
@@ -3800,7 +4340,7 @@ export default function JobDetail({ token }) {
                               background: '#fef2f2',
                               border: '1px solid #fecaca',
                               borderRadius: 6,
-                              padding: '10px 12px'
+                              padding: '10px 12px',
                             }}
                           >
                             <div style={{ fontWeight: 600, marginBottom: 6 }}>
@@ -3832,15 +4372,15 @@ export default function JobDetail({ token }) {
                                             ? `✉️ Email: ${job.customer_email}`
                                             : null,
                                           `📌 Status: ${job.status?.replace(/_/g, ' ')} — stale for ${pipelineCtx.daysAtCurrentStage} days`,
-                                          `💬 Reach out to check interest and keep the job moving forward.`
+                                          `💬 Reach out to check interest and keep the job moving forward.`,
                                         ]
                                           .filter(Boolean)
                                           .join('\n'),
                                         due_at: dueStr,
                                         job_id: job.id,
                                         contact_id: job.contact_id || null,
-                                        priority: 'high'
-                                      })
+                                        priority: 'high',
+                                      }),
                                     });
                                     const data = await res.json();
                                     if (data.task) setFollowUpTask(data.task);
@@ -3857,7 +4397,7 @@ export default function JobDetail({ token }) {
                                   borderRadius: 4,
                                   fontSize: 12,
                                   cursor: 'pointer',
-                                  fontWeight: 600
+                                  fontWeight: 600,
                                 }}
                               >
                                 + Create Reach Out Task
@@ -3883,7 +4423,7 @@ export default function JobDetail({ token }) {
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: 8,
-                                  flexWrap: 'wrap'
+                                  flexWrap: 'wrap',
                                 }}
                               >
                                 <span style={{ color: '#166534', fontWeight: 600 }}>
@@ -3895,7 +4435,7 @@ export default function JobDetail({ token }) {
                                     — due{' '}
                                     {new Date(followUpTask.due_at).toLocaleDateString('en-US', {
                                       month: 'short',
-                                      day: 'numeric'
+                                      day: 'numeric',
                                     })}
                                   </span>
                                 )}
@@ -3932,7 +4472,7 @@ export default function JobDetail({ token }) {
                             border: `1px solid ${ORANGE}`,
                             borderRadius: 8,
                             padding: 14,
-                            marginBottom: 16
+                            marginBottom: 16,
                           }}
                         >
                           <strong style={{ color: ORANGE, fontSize: 13 }}>
@@ -3955,7 +4495,7 @@ export default function JobDetail({ token }) {
                           border: '1px solid #fcd34d',
                           borderRadius: 8,
                           padding: 14,
-                          marginBottom: 16
+                          marginBottom: 16,
                         }}
                       >
                         <strong style={{ color: '#92400e', fontSize: 13 }}>
@@ -3965,7 +4505,7 @@ export default function JobDetail({ token }) {
                               fontWeight: 400,
                               fontSize: 12,
                               marginLeft: 8,
-                              color: '#b45309'
+                              color: '#b45309',
                             }}
                           >
                             — typical for a {band ? band.label : 'this project type'}
@@ -3981,7 +4521,7 @@ export default function JobDetail({ token }) {
                                 borderRadius: 12,
                                 padding: '3px 10px',
                                 fontSize: 12,
-                                fontWeight: 600
+                                fontWeight: 600,
                               }}
                             >
                               {t.label}
@@ -4008,7 +4548,7 @@ export default function JobDetail({ token }) {
                           padding: 10,
                           marginBottom: 16,
                           fontSize: 12,
-                          color: '#166534'
+                          color: '#166534',
                         }}
                       >
                         ✅ All expected trades present for a{' '}
@@ -4085,7 +4625,7 @@ export default function JobDetail({ token }) {
                                   padding: '8px 10px',
                                   textAlign: 'right',
                                   fontWeight: 600,
-                                  color: BLUE
+                                  color: BLUE,
                                 }}
                               >
                                 ${(Number(li.finalPrice) || 0).toLocaleString()}
@@ -4094,7 +4634,7 @@ export default function JobDetail({ token }) {
                                 style={{
                                   padding: '8px 10px',
                                   color: bench ? '#555' : '#bbb',
-                                  fontSize: 12
+                                  fontSize: 12,
                                 }}
                                 title={
                                   bench
@@ -4110,7 +4650,7 @@ export default function JobDetail({ token }) {
                                   textAlign: 'center',
                                   fontSize: 12,
                                   fontWeight: 600,
-                                  color: statusColor
+                                  color: statusColor,
                                 }}
                               >
                                 {statusIcon}
@@ -4122,7 +4662,7 @@ export default function JobDetail({ token }) {
                           style={{
                             background: '#EEF3FB',
                             fontWeight: 700,
-                            borderTop: '2px solid #c7d7f4'
+                            borderTop: '2px solid #c7d7f4',
                           }}
                         >
                           <td style={{ padding: '10px', color: BLUE }}>TOTAL</td>
@@ -4148,7 +4688,7 @@ export default function JobDetail({ token }) {
                           borderRadius: 8,
                           fontSize: 12,
                           color: '#64748b',
-                          textAlign: 'center'
+                          textAlign: 'center',
                         }}
                       >
                         🔒 This assessment was locked when the proposal was approved and is

@@ -11,7 +11,7 @@ router.get('/api/track/o/:pixelId', (req, res) => {
     'Content-Length': PIXEL.length,
     'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
     Pragma: 'no-cache',
-    Expires: '0'
+    Expires: '0',
   });
   res.end(PIXEL);
 
@@ -27,7 +27,7 @@ router.get('/api/track/o/:pixelId', (req, res) => {
         SET opened_at = COALESCE(opened_at, CURRENT_TIMESTAMP),
             opened_count = opened_count + 1
         WHERE id = ?
-      `
+      `,
       ).run(row.id);
     }
   } catch (e) {

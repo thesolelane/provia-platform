@@ -30,5 +30,5 @@ module.exports = {
   ADMIN_TOOLS: chat.ADMIN_TOOLS,
   runAdminTool: chat.runAdminTool,
   adminChat: chat.adminChat,
-  generateWizardQuestions: chat.generateWizardQuestions
+  generateWizardQuestions: chat.generateWizardQuestions,
 };

@@ -16,13 +16,13 @@ const MODEL_MAP = {
   labor_rate: 'sonar', // subcontractor market rates
   building_code: 'sonar-pro', // code sections need more precision
   supplier: 'sonar', // local supplier research
-  general: 'sonar' // catch-all, default to cheap
+  general: 'sonar', // catch-all, default to cheap
 };
 
 // Max tokens per model — keep responses tight
 const MAX_TOKENS = {
   sonar: 250,
-  'sonar-pro': 400
+  'sonar-pro': 400,
 };
 
 // System prompt for all Perplexity calls — instructs it to be concise and factual
@@ -40,8 +40,8 @@ function callPerplexity(model, query, searchType = 'general') {
       temperature: 0.1,
       messages: [
         { role: 'system', content: SONAR_SYSTEM },
-        { role: 'user', content: query }
-      ]
+        { role: 'user', content: query },
+      ],
     });
 
     const opts = {
@@ -51,8 +51,8 @@ function callPerplexity(model, query, searchType = 'general') {
       headers: {
         Authorization: `Bearer ${API_KEY}`,
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body)
-      }
+        'Content-Length': Buffer.byteLength(body),
+      },
     };
 
     const req = https.request(opts, (res) => {
@@ -67,14 +67,14 @@ function callPerplexity(model, query, searchType = 'general') {
           const answer = json.choices?.[0]?.message?.content || '[No result]';
           const usage = json.usage || {};
           console.log(
-            `[Perplexity] model=${model} in=${usage.prompt_tokens || '?'} out=${usage.completion_tokens || '?'} query="${query.slice(0, 60)}"`
+            `[Perplexity] model=${model} in=${usage.prompt_tokens || '?'} out=${usage.completion_tokens || '?'} query="${query.slice(0, 60)}"`,
           );
           logTokenUsage({
             service: 'perplexity',
             model,
             inputTokens: usage.prompt_tokens || 0,
             outputTokens: usage.completion_tokens || 0,
-            context: searchType || 'search'
+            context: searchType || 'search',
           });
           resolve(answer.trim());
         } catch (e) {

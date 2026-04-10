@@ -7,7 +7,7 @@ export async function reverseGeocode(lat, lon) {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1`;
     const res = await fetch(url, {
-      headers: { 'Accept-Language': 'en', 'User-Agent': 'PreferredBuilders/1.0' }
+      headers: { 'Accept-Language': 'en', 'User-Agent': 'PreferredBuilders/1.0' },
     });
     if (!res.ok) throw new Error('Geocode request failed');
     const data = await res.json();
@@ -44,10 +44,10 @@ export function getGpsPosition() {
         resolve({
           lat: pos.coords.latitude,
           lon: pos.coords.longitude,
-          accuracy: pos.coords.accuracy
+          accuracy: pos.coords.accuracy,
         }),
       (err) => reject(err),
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
     );
   });
 }

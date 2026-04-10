@@ -34,48 +34,48 @@ const MILESTONE_DEFS = {
     code: 'NC-2',
     title: 'Foundation / Slab Complete',
     description:
-      'Foundation inspection passed — building department. Required before framing begins.'
+      'Foundation inspection passed — building department. Required before framing begins.',
   },
   'NC-3': {
     code: 'NC-3',
     title: 'Exterior Wall Framing & Envelope Complete',
     description:
-      'Exterior walls framed, sheathed, and building envelope installed including windows and exterior doors. Contractor visual confirmation.'
+      'Exterior walls framed, sheathed, and building envelope installed including windows and exterior doors. Contractor visual confirmation.',
   },
   'NC-4': {
     code: 'NC-4',
     title: 'Interior Wall Framing Complete',
-    description: 'Interior wall framing complete and ready for rough-in trades to begin.'
+    description: 'Interior wall framing complete and ready for rough-in trades to begin.',
   },
   'NC-5': {
     code: 'NC-5',
     title: 'Rough Electrical Inspection Passed',
     description:
-      'Rough electrical inspection passed — building department. Sequenced with rough plumbing per project conditions; both must be complete before Framing Inspection.'
+      'Rough electrical inspection passed — building department. Sequenced with rough plumbing per project conditions; both must be complete before Framing Inspection.',
   },
   'NC-6': {
     code: 'NC-6',
     title: 'Rough Plumbing Inspection Passed',
     description:
-      'Rough plumbing inspection passed — building department. Sequenced with rough electrical per project conditions; both must be complete before Framing Inspection.'
+      'Rough plumbing inspection passed — building department. Sequenced with rough electrical per project conditions; both must be complete before Framing Inspection.',
   },
   'NC-6H': {
     code: 'NC-6H',
     title: 'Rough HVAC Inspection Passed',
     description:
-      'Rough HVAC inspection passed — building department. Must be complete before Framing Inspection is scheduled.'
+      'Rough HVAC inspection passed — building department. Must be complete before Framing Inspection is scheduled.',
   },
   'NC-7': {
     code: 'NC-7',
     title: 'Framing Inspection Passed',
     description:
-      'Framing inspection passed — building department. Always the final inspection milestone before close-in. Triggered only after ALL applicable rough-in inspections (electrical, plumbing, HVAC where applicable) are complete.'
+      'Framing inspection passed — building department. Always the final inspection milestone before close-in. Triggered only after ALL applicable rough-in inspections (electrical, plumbing, HVAC where applicable) are complete.',
   },
   'NC-8': {
     code: 'NC-8',
     title: 'Insulation Complete',
     description:
-      'Insulation inspection passed — building department. Immediately follows framing inspection, before close-in / drywall.'
+      'Insulation inspection passed — building department. Immediately follows framing inspection, before close-in / drywall.',
   },
 
   // ── RENOVATION / REMODEL ──────────────────────────────────────────────────
@@ -83,42 +83,42 @@ const MILESTONE_DEFS = {
     code: 'RN-2',
     title: 'Demolition Complete',
     description:
-      'Demo scope complete — visual sign-off by Contractor and Owner before framing or rough-in work begins.'
+      'Demo scope complete — visual sign-off by Contractor and Owner before framing or rough-in work begins.',
   },
   'RN-3': {
     code: 'RN-3',
     title: 'Framing Rough-In Complete',
-    description: 'New or modified framing complete and ready for rough-in trades.'
+    description: 'New or modified framing complete and ready for rough-in trades.',
   },
   'RN-4': {
     code: 'RN-4',
     title: 'Rough Electrical Inspection Passed',
     description:
-      'Rough electrical inspection passed — building department. Sequenced with rough plumbing per project conditions; both must be complete before Framing Inspection.'
+      'Rough electrical inspection passed — building department. Sequenced with rough plumbing per project conditions; both must be complete before Framing Inspection.',
   },
   'RN-5': {
     code: 'RN-5',
     title: 'Rough Plumbing Inspection Passed',
     description:
-      'Rough plumbing inspection passed — building department. Sequenced with rough electrical per project conditions; both must be complete before Framing Inspection.'
+      'Rough plumbing inspection passed — building department. Sequenced with rough electrical per project conditions; both must be complete before Framing Inspection.',
   },
   'RN-5H': {
     code: 'RN-5H',
     title: 'Rough HVAC Inspection Passed',
     description:
-      'Rough HVAC inspection passed — building department. Must be complete before Framing Inspection is scheduled.'
+      'Rough HVAC inspection passed — building department. Must be complete before Framing Inspection is scheduled.',
   },
   'RN-6': {
     code: 'RN-6',
     title: 'Framing Inspection Passed',
     description:
-      'Framing inspection passed — building department. Always the final inspection milestone before close-in. Triggered only after ALL applicable rough-in inspections are complete.'
+      'Framing inspection passed — building department. Always the final inspection milestone before close-in. Triggered only after ALL applicable rough-in inspections are complete.',
   },
   'RN-7': {
     code: 'RN-7',
     title: 'Insulation Complete',
     description:
-      'Insulation inspection passed — building department. Follows framing inspection, before close-in / drywall.'
+      'Insulation inspection passed — building department. Follows framing inspection, before close-in / drywall.',
   },
 
   // ── ADU — ADDITIONAL (overlaid on NC sequence) ────────────────────────────
@@ -126,31 +126,31 @@ const MILESTONE_DEFS = {
     code: 'ADU-A',
     title: 'Board of Health / Septic System Review & Approval',
     description:
-      'Board of Health confirms existing or new soil absorption system (Title 5) is adequate for the ADU. BOH approval required before or concurrent with building permit issuance.'
+      'Board of Health confirms existing or new soil absorption system (Title 5) is adequate for the ADU. BOH approval required before or concurrent with building permit issuance.',
   },
   'ADU-B': {
     code: 'ADU-B',
     title: 'Utility Provider Coordination & Sign-Off',
     description:
-      'Coordination with electric/gas utility for new or separate service, metering, or upgraded capacity. Utility sign-off required before final inspection.'
+      'Coordination with electric/gas utility for new or separate service, metering, or upgraded capacity. Utility sign-off required before final inspection.',
   },
   'ADU-C': {
     code: 'ADU-C',
     title: 'Fire / Life Safety — Egress Inspection',
     description:
-      'Inspection confirming ADU has a separate entrance meeting 780 CMR egress requirements, as required by M.G.L. c. 40A §7. Conducted by building dept. or fire dept. per municipality.'
+      'Inspection confirming ADU has a separate entrance meeting 780 CMR egress requirements, as required by M.G.L. c. 40A §7. Conducted by building dept. or fire dept. per municipality.',
   },
   'ADU-D': {
     code: 'ADU-D',
     title: 'Municipal Site Plan Review Sign-Off',
     description:
-      'Written approval from planning or building department where site plan review for ADU is required under 760 CMR 71.00. Must precede Certificate of Occupancy.'
+      'Written approval from planning or building department where site plan review for ADU is required under 760 CMR 71.00. Must precede Certificate of Occupancy.',
   },
   'ADU-E': {
     code: 'ADU-E',
     title: 'Sewer / Water Connection Inspection',
     description:
-      'New or upgraded sewer/water connection inspection and connection fee paid before final building inspection.'
+      'New or upgraded sewer/water connection inspection and connection fee paid before final building inspection.',
   },
 
   // ── OPTIONAL ─────────────────────────────────────────────────────────────
@@ -158,19 +158,19 @@ const MILESTONE_DEFS = {
     code: 'OPT-ENG',
     title: 'Engineer / Architect Sign-Off',
     description:
-      'Written sign-off from project engineer or architect of record, where required for permit or structural approval.'
+      'Written sign-off from project engineer or architect of record, where required for permit or structural approval.',
   },
   'OPT-SPR': {
     code: 'OPT-SPR',
     title: 'Fire Suppression / Sprinkler Inspection Passed',
     description:
-      'Sprinkler / fire suppression rough-in inspection passed — local AHJ and/or fire department. Must be complete before Framing Inspection is scheduled.'
+      'Sprinkler / fire suppression rough-in inspection passed — local AHJ and/or fire department. Must be complete before Framing Inspection is scheduled.',
   },
   'OPT-CUSTOM': {
     code: 'OPT-CUSTOM',
     title: '', // Set from job.customMilestone.title
-    description: '' // Set from job.customMilestone.description
-  }
+    description: '', // Set from job.customMilestone.description
+  },
 };
 
 // ─── Main selector ────────────────────────────────────────────────────────────
@@ -311,7 +311,7 @@ function selectPreConAdvances(job) {
       item: 'Building Permit Filing Fees',
       detail: 'Actual municipal fee — paid to building department',
       amount: job.permit_fee || '—',
-      paid_by: paidBy
+      paid_by: paidBy,
     });
   }
   if (job.has_engineer) {
@@ -320,7 +320,7 @@ function selectPreConAdvances(job) {
       item: 'Engineering Fees',
       detail: 'Structural, civil, or MEP engineering required for permit',
       amount: job.engineer_fee || '—',
-      paid_by: paidBy
+      paid_by: paidBy,
     });
   }
   if (job.has_architect) {
@@ -329,7 +329,7 @@ function selectPreConAdvances(job) {
       item: 'Architectural / Design Fees',
       detail: 'Required for permit or design-build scope',
       amount: job.architect_fee || '—',
-      paid_by: paidBy
+      paid_by: paidBy,
     });
   }
   if (job.sub_deposits) {
@@ -337,7 +337,7 @@ function selectPreConAdvances(job) {
       item: 'Subcontractor Mobilization Deposits',
       detail: 'Documented deposits required before project start',
       amount: job.sub_deposits || '—',
-      paid_by: 'pb'
+      paid_by: 'pb',
     });
   }
   if (job.special_order_deposits) {
@@ -345,7 +345,7 @@ function selectPreConAdvances(job) {
       item: 'Special-Order / Long-Lead Material Deposits',
       detail: 'Custom or non-returnable items per M.G.L. c. 142A §2',
       amount: job.special_order_deposits || '—',
-      paid_by: 'pb'
+      paid_by: 'pb',
     });
   }
 

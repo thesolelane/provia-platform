@@ -48,7 +48,7 @@ function validateEnum(field, values) {
     if (val === undefined || val === null) return next();
     if (!values.includes(val)) {
       return res.status(400).json({
-        error: `${field} must be one of: ${values.join(', ')}`
+        error: `${field} must be one of: ${values.join(', ')}`,
       });
     }
     next();

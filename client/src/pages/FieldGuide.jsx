@@ -23,26 +23,26 @@ const sections = [
       {
         en: 'Full project address (street, city, zip)',
         pt: 'Endereço completo da obra (rua, cidade, CEP)',
-        required: true
+        required: true,
       },
       {
         en: 'Is this a new build or renovation?',
         pt: 'É construção nova ou reforma?',
-        required: true
+        required: true,
       },
       {
         en: 'Total square footage (each floor separately)',
         pt: 'Metragem total (por andar separadamente)',
-        required: true
+        required: true,
       },
       { en: 'Number of stories / floors', pt: 'Número de andares', required: true },
       {
         en: 'Is the town a Stretch Energy Code town?',
         pt: 'A cidade segue o Stretch Energy Code?',
         required: true,
-        warning: true
-      }
-    ]
+        warning: true,
+      },
+    ],
   },
   {
     title: 'Site & Foundation / Terreno e Fundação',
@@ -51,30 +51,30 @@ const sections = [
       {
         en: 'Is there an existing structure to demo?',
         pt: 'Há alguma estrutura existente para demolir?',
-        required: false
+        required: false,
       },
       {
         en: 'Foundation type: slab / crawlspace / full basement',
         pt: 'Tipo de fundação: laje / semi-porão / porão completo',
-        required: true
+        required: true,
       },
       {
         en: 'Will customer handle sitework themselves?',
         pt: 'O cliente vai fazer a terraplanagem?',
-        required: true
+        required: true,
       },
       {
         en: 'Well and septic needed? (DO NOT include unless asked)',
         pt: 'Precisa de poço e fossa? (NÃO incluir sem o cliente pedir)',
         required: true,
-        warning: true
+        warning: true,
       },
       {
         en: 'Electrical service: underground or overhead?',
         pt: 'Serviço elétrico: subterrâneo ou aéreo?',
-        required: true
-      }
-    ]
+        required: true,
+      },
+    ],
   },
   {
     title: 'Framing / Estrutura',
@@ -84,33 +84,33 @@ const sections = [
         en: 'Exterior wall framing: 2×4 or 2×6? (Stretch Code = 2×6 required)',
         pt: 'Paredes externas: 2×4 ou 2×6? (Stretch Code = 2×6 obrigatório)',
         required: true,
-        warning: true
+        warning: true,
       },
       {
         en: 'Floor system: TJI engineered / lumber / LVL',
         pt: 'Sistema de piso: TJI / madeira / LVL',
-        required: true
+        required: true,
       },
       {
         en: 'Roof framing: pre-fab trusses or stick frame (rafters)',
         pt: 'Telhado: treliças pré-fabricadas ou ripas',
-        required: true
+        required: true,
       },
       {
         en: 'Roof pitch — e.g. 4:12, 6:12, 8:12',
         pt: 'Inclinação do telhado — ex: 4:12, 6:12, 8:12',
         required: true,
-        warning: true
+        warning: true,
       },
       {
         en: 'Cathedral / vaulted ceilings in any room?',
         pt: 'Teto catedral em algum cômodo?',
-        required: true
+        required: true,
       },
       { en: 'Deck: yes/no — size if yes', pt: 'Deck: sim/não — tamanho se sim', required: false },
       { en: 'Fireplace / chimney: yes/no', pt: 'Lareira / chaminé: sim/não', required: false },
-      { en: 'Garage bays: 1, 2, or 3?', pt: 'Vagas de garagem: 1, 2 ou 3?', required: false }
-    ]
+      { en: 'Garage bays: 1, 2, or 3?', pt: 'Vagas de garagem: 1, 2 ou 3?', required: false },
+    ],
   },
   {
     title: 'Roof & Exterior / Telhado e Exterior',
@@ -119,29 +119,29 @@ const sections = [
       {
         en: 'Roofing: standing seam metal / corrugated metal / architectural shingles',
         pt: 'Telhado: metal seam / metal corrugado / telha asfáltica',
-        required: true
+        required: true,
       },
       {
         en: 'Siding: board & batten / vinyl / fiber cement / other',
         pt: 'Revestimento: board & batten / vinyl / fibrocimento / outro',
-        required: true
+        required: true,
       },
       {
         en: 'Number of windows + size (e.g. 12 windows, 3040)',
         pt: 'Número de janelas + tamanho (ex: 12 janelas, 3040)',
-        required: true
+        required: true,
       },
       {
         en: 'Number of exterior doors (including slider)',
         pt: 'Número de portas externas (incluindo slider)',
-        required: true
+        required: true,
       },
       {
         en: 'Garage door size and quantity',
         pt: 'Tamanho e quantidade de portas de garagem',
-        required: false
-      }
-    ]
+        required: false,
+      },
+    ],
   },
   {
     title: 'Mechanical, Electrical & Plumbing / MEP',
@@ -150,12 +150,12 @@ const sections = [
       {
         en: 'HVAC: mini-splits / forced air / forced hot water (boiler) / other',
         pt: 'HVAC: mini-splits / ar forçado / água quente forçada / outro',
-        required: true
+        required: true,
       },
       {
         en: 'Number of mini-split heads (if applicable)',
         pt: 'Número de cabeças de mini-split (se aplicável)',
-        required: false
+        required: false,
       },
       { en: 'Number of full bathrooms', pt: 'Número de banheiros completos', required: true },
       { en: 'Number of half baths', pt: 'Número de lavabos', required: true },
@@ -164,9 +164,9 @@ const sections = [
       {
         en: 'Water heater: tank / tankless / heat pump water heater',
         pt: 'Aquecedor: reservatório / instantâneo / heat pump',
-        required: false
-      }
-    ]
+        required: false,
+      },
+    ],
   },
   {
     title: 'Insulation & Drywall / Isolamento e Drywall',
@@ -175,19 +175,19 @@ const sections = [
       {
         en: 'Insulation: fiberglass batt / spray foam / dense pack cellulose',
         pt: 'Isolamento: lã de vidro / spray foam / celulose',
-        required: true
+        required: true,
       },
       {
         en: 'Garage drywall: yes/no (not required for CO but required for fire separation)',
         pt: 'Drywall na garagem: sim/não (não obrigatório para CO)',
-        required: true
+        required: true,
       },
       {
         en: 'Wall finish: blueboard+plaster / standard drywall / lightweight drywall',
         pt: 'Acabamento: blueboard+gesso / drywall padrão / drywall leve',
-        required: true
-      }
-    ]
+        required: true,
+      },
+    ],
   },
   {
     title: 'Finishes / Acabamentos',
@@ -196,29 +196,29 @@ const sections = [
       {
         en: 'Flooring: LVP / hardwood / carpet / ceramic tile / other',
         pt: 'Piso: LVP / madeira / carpete / cerâmica / outro',
-        required: true
+        required: true,
       },
       {
         en: 'Kitchen cabinet style and grade (stock / semi-custom / custom)',
         pt: 'Armários de cozinha: estilo e qualidade',
-        required: false
+        required: false,
       },
       {
         en: 'Countertop: quartz / granite / laminate / other',
         pt: 'Bancada: quartzo / granito / laminado / outro',
-        required: false
+        required: false,
       },
       {
         en: 'Paint: PB painting or customer doing it themselves?',
         pt: 'Pintura: PB pinta ou cliente pinta?',
-        required: true
+        required: true,
       },
       {
         en: 'Appliances: customer supplying their own?',
         pt: 'Eletrodomésticos: o cliente vai fornecer?',
-        required: true
-      }
-    ]
+        required: true,
+      },
+    ],
   },
   {
     title: '⚠️ Never Forget / Nunca Esqueça',
@@ -228,34 +228,34 @@ const sections = [
         en: 'ALWAYS get the roof pitch — missing pitch causes estimate delays',
         pt: 'SEMPRE obtenha a inclinação do telhado',
         required: true,
-        warning: true
+        warning: true,
       },
       {
         en: 'ALWAYS check if the town uses Stretch Energy Code (see reference tab)',
         pt: 'SEMPRE verifique se a cidade usa Stretch Energy Code',
         required: true,
-        warning: true
+        warning: true,
       },
       {
         en: 'ALWAYS note sq footage per floor separately, not just total',
         pt: 'SEMPRE anote metragem por andar separadamente',
         required: true,
-        warning: true
+        warning: true,
       },
       {
         en: 'NEVER include well, septic, underground electric, or appliances unless explicitly requested',
         pt: 'NUNCA inclua poço, fossa, elétrica subterrânea ou eletrodomésticos sem pedir',
         required: true,
-        warning: true
+        warning: true,
       },
       {
         en: 'NEVER give a verbal price on site — always go through the system',
         pt: 'NUNCA dê preço verbal no local — sempre use o sistema',
         required: true,
-        warning: true
-      }
-    ]
-  }
+        warning: true,
+      },
+    ],
+  },
 ];
 
 /* ─────────────────────────────────────────────
@@ -307,7 +307,7 @@ const STRETCH_TOWNS = [
   'Westborough',
   'Westminster',
   'Wilmington',
-  'Worcester'
+  'Worcester',
 ].sort();
 
 /* ─────────────────────────────────────────────
@@ -318,50 +318,50 @@ const PROCESS = [
     step: '1',
     icon: '📞',
     title: 'Initial Contact',
-    body: 'Customer calls, texts, or emails. Collect name, phone, email, and project address. Ask if this is a new build or renovation.'
+    body: 'Customer calls, texts, or emails. Collect name, phone, email, and project address. Ask if this is a new build or renovation.',
   },
   {
     step: '2',
     icon: '🏗️',
     title: 'Site Visit / Scope Meeting',
-    body: 'Go to the site. Use the Checklist tab to make sure you capture every required question. Take photos. Get the roof pitch and sq footage per floor.'
+    body: 'Go to the site. Use the Checklist tab to make sure you capture every required question. Take photos. Get the roof pitch and sq footage per floor.',
   },
   {
     step: '3',
     icon: '📊',
     title: 'Create Job in System',
-    body: 'Go to Dashboard → New Job. Enter all customer info and project details. System assigns a PB number automatically.'
+    body: 'Go to Dashboard → New Job. Enter all customer info and project details. System assigns a PB number automatically.',
   },
   {
     step: '4',
     icon: '🤖',
     title: 'Generate Estimate with AI',
-    body: 'Open the job → Ask the AI to build the estimate. Describe the scope in plain English. AI uses your prices, markup chain, and license number.'
+    body: 'Open the job → Ask the AI to build the estimate. Describe the scope in plain English. AI uses your prices, markup chain, and license number.',
   },
   {
     step: '5',
     icon: '📄',
     title: 'Review & Export PDF',
-    body: "Review every line item. Adjust any quantities that don't match the scope. Export the estimate PDF from the job page."
+    body: "Review every line item. Adjust any quantities that don't match the scope. Export the estimate PDF from the job page.",
   },
   {
     step: '6',
     icon: '✍️',
     title: 'Send Contract for Signature',
-    body: 'Generate the contract from the estimate. Send it to the customer via email directly from the system.'
+    body: 'Generate the contract from the estimate. Send it to the customer via email directly from the system.',
   },
   {
     step: '7',
     icon: '💰',
     title: 'Track Payments',
-    body: 'Log deposits and progress payments in the Payments tab. System keeps running balance per job.'
+    body: 'Log deposits and progress payments in the Payments tab. System keeps running balance per job.',
   },
   {
     step: '8',
     icon: '✅',
     title: 'Close Out Job',
-    body: 'Mark job complete when punch list is done. Archive it once final payment is received.'
-  }
+    body: 'Mark job complete when punch list is done. Archive it once final payment is received.',
+  },
 ];
 
 /* ─────────────────────────────────────────────
@@ -370,17 +370,17 @@ const PROCESS = [
 const EXCLUSIONS = [
   {
     item: 'Well drilling & pump',
-    note: 'Subcontracted separately — never include unless customer specifically adds it'
+    note: 'Subcontracted separately — never include unless customer specifically adds it',
   },
   { item: 'Septic design & install', note: 'Engineer + sub — always excluded by default' },
   { item: 'Underground electric service', note: 'Utility work — excluded unless customer asks' },
   {
     item: 'Appliances (range, fridge, dishwasher)',
-    note: 'Customer supplied — note it in the contract as an exclusion'
+    note: 'Customer supplied — note it in the contract as an exclusion',
   },
   {
     item: 'Permits & permit fees',
-    note: 'Listed as customer responsibility unless agreed otherwise'
+    note: 'Listed as customer responsibility unless agreed otherwise',
   },
   { item: 'Survey / lot stakeout', note: 'Customer provides or hires separately' },
   { item: 'Landscaping & loam/seeding', note: 'Excluded unless explicitly in scope' },
@@ -388,8 +388,8 @@ const EXCLUSIONS = [
   { item: 'Temporary power / generator', note: 'Noted separately — not in base estimate' },
   {
     item: 'Building plans / engineer',
-    note: 'Customer provides stamped plans before we pull permit'
-  }
+    note: 'Customer provides stamped plans before we pull permit',
+  },
 ];
 
 /* ─────────────────────────────────────────────
@@ -400,7 +400,7 @@ const MARKUP_ROWS = [
   { label: '+ Sub O&P (15%)', example: '$11,500', note: 'If using a subcontractor' },
   { label: '+ GC O&P (25%)', example: '$14,375', note: "PB's markup on the sub" },
   { label: '+ Contingency (10%)', example: '$15,813', note: 'Buffer for unknowns' },
-  { label: 'Total multiplier ≈ 1.58×', example: '', note: 'Auto-applied by AI' }
+  { label: 'Total multiplier ≈ 1.58×', example: '', note: 'Auto-applied by AI' },
 ];
 
 /* ─────────────────────────────────────────────
@@ -420,7 +420,7 @@ export default function FieldGuide() {
   const progress = Math.round((checkedCount / totalRequired) * 100);
 
   const filteredTowns = STRETCH_TOWNS.filter((t) =>
-    t.toLowerCase().includes(stretchSearch.toLowerCase())
+    t.toLowerCase().includes(stretchSearch.toLowerCase()),
   );
 
   return (
@@ -447,7 +447,7 @@ export default function FieldGuide() {
                 borderRadius: '6px 6px 0 0',
                 whiteSpace: 'nowrap',
                 background: activeTab === tab ? '#f4f6fb' : 'rgba(255,255,255,0.15)',
-                color: activeTab === tab ? BLUE : 'white'
+                color: activeTab === tab ? BLUE : 'white',
               }}
             >
               {tab}
@@ -470,7 +470,7 @@ export default function FieldGuide() {
               display: 'flex',
               alignItems: 'center',
               gap: 16,
-              flexWrap: 'wrap'
+              flexWrap: 'wrap',
             }}
           >
             <div style={{ display: 'flex', gap: 6 }}>
@@ -486,7 +486,7 @@ export default function FieldGuide() {
                     fontSize: 11,
                     fontWeight: 'bold',
                     background: lang === l ? BLUE : '#eee',
-                    color: lang === l ? 'white' : '#555'
+                    color: lang === l ? 'white' : '#555',
                   }}
                 >
                   {l === 'both' ? '🇺🇸🇧🇷 Both' : l === 'en' ? '🇺🇸 EN' : '🇧🇷 PT'}
@@ -500,7 +500,7 @@ export default function FieldGuide() {
                   justifyContent: 'space-between',
                   fontSize: 11,
                   marginBottom: 4,
-                  color: '#666'
+                  color: '#666',
                 }}
               >
                 <span>
@@ -517,7 +517,7 @@ export default function FieldGuide() {
                     height: 7,
                     borderRadius: 8,
                     width: `${progress}%`,
-                    transition: 'width 0.3s'
+                    transition: 'width 0.3s',
                   }}
                 />
               </div>
@@ -536,7 +536,7 @@ export default function FieldGuide() {
                   borderRadius: 10,
                   marginBottom: 10,
                   overflow: 'hidden',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
                 }}
               >
                 <div
@@ -545,7 +545,7 @@ export default function FieldGuide() {
                     color: 'white',
                     padding: '9px 16px',
                     fontWeight: 'bold',
-                    fontSize: 12
+                    fontSize: 12,
                   }}
                 >
                   {section.icon} {section.title}
@@ -565,7 +565,7 @@ export default function FieldGuide() {
                         cursor: 'pointer',
                         background: isChecked ? '#f0fff4' : item.warning ? '#fffbf0' : 'white',
                         borderLeft: item.warning ? `3px solid ${ORANGE}` : '3px solid transparent',
-                        borderBottom: '1px solid #f3f3f3'
+                        borderBottom: '1px solid #f3f3f3',
                       }}
                     >
                       <div
@@ -579,7 +579,7 @@ export default function FieldGuide() {
                           background: isChecked ? GREEN : 'white',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center'
+                          justifyContent: 'center',
                         }}
                       >
                         {isChecked && (
@@ -594,7 +594,7 @@ export default function FieldGuide() {
                             style={{
                               fontSize: 12,
                               color: item.warning ? RED : '#222',
-                              fontWeight: item.warning ? 'bold' : 'normal'
+                              fontWeight: item.warning ? 'bold' : 'normal',
                             }}
                           >
                             {item.required && (
@@ -608,7 +608,7 @@ export default function FieldGuide() {
                             style={{
                               fontSize: 11,
                               color: '#777',
-                              marginTop: lang === 'both' ? 2 : 0
+                              marginTop: lang === 'both' ? 2 : 0,
                             }}
                           >
                             {item.pt}
@@ -633,7 +633,7 @@ export default function FieldGuide() {
                   color: BLUE,
                   fontWeight: 'bold',
                   cursor: 'pointer',
-                  fontSize: 13
+                  fontSize: 13,
                 }}
               >
                 🔄 Reset / Reiniciar
@@ -644,7 +644,7 @@ export default function FieldGuide() {
                   sections.forEach((s) =>
                     s.items.forEach((_, i) => {
                       all[`${s.title}-${i}`] = true;
-                    })
+                    }),
                   );
                   setChecked(all);
                 }}
@@ -657,7 +657,7 @@ export default function FieldGuide() {
                   color: '#555',
                   fontWeight: 'bold',
                   cursor: 'pointer',
-                  fontSize: 13
+                  fontSize: 13,
                 }}
               >
                 ✅ Check All
@@ -678,7 +678,7 @@ export default function FieldGuide() {
               borderRadius: 10,
               padding: 16,
               marginBottom: 14,
-              boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
+              boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 'bold', color: BLUE, marginBottom: 4 }}>
@@ -697,7 +697,7 @@ export default function FieldGuide() {
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  flexShrink: 0
+                  flexShrink: 0,
                 }}
               >
                 <div
@@ -711,7 +711,7 @@ export default function FieldGuide() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 'bold',
-                    fontSize: 13
+                    fontSize: 13,
                   }}
                 >
                   {step.step}
@@ -723,7 +723,7 @@ export default function FieldGuide() {
                       flex: 1,
                       background: '#dde0e8',
                       marginTop: 4,
-                      minHeight: 20
+                      minHeight: 20,
                     }}
                   />
                 )}
@@ -735,7 +735,7 @@ export default function FieldGuide() {
                   padding: '12px 16px',
                   flex: 1,
                   boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-                  marginBottom: 4
+                  marginBottom: 4,
                 }}
               >
                 <div style={{ fontSize: 13, fontWeight: 'bold', color: BLUE }}>
@@ -761,7 +761,7 @@ export default function FieldGuide() {
               border: `1px solid ${YELLOW}`,
               borderRadius: 10,
               padding: 14,
-              marginBottom: 14
+              marginBottom: 14,
             }}
           >
             <div style={{ fontWeight: 'bold', color: '#7B5800', fontSize: 13, marginBottom: 6 }}>
@@ -795,7 +795,7 @@ export default function FieldGuide() {
               border: '1px solid #ccc',
               fontSize: 13,
               marginBottom: 14,
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
             }}
           />
 
@@ -804,7 +804,7 @@ export default function FieldGuide() {
               background: 'white',
               borderRadius: 10,
               boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-              overflow: 'hidden'
+              overflow: 'hidden',
             }}
           >
             <div
@@ -813,7 +813,7 @@ export default function FieldGuide() {
                 color: 'white',
                 padding: '9px 16px',
                 fontWeight: 'bold',
-                fontSize: 12
+                fontSize: 12,
               }}
             >
               🏛️ MA Stretch Code Towns ({filteredTowns.length} shown)
@@ -823,7 +823,7 @@ export default function FieldGuide() {
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
                 padding: 12,
-                gap: 8
+                gap: 8,
               }}
             >
               {filteredTowns.map((town) => (
@@ -836,7 +836,7 @@ export default function FieldGuide() {
                     border: '1px solid #d0d8f0',
                     fontSize: 12,
                     color: BLUE,
-                    fontWeight: 500
+                    fontWeight: 500,
                   }}
                 >
                   ✓ {town}
@@ -856,7 +856,7 @@ export default function FieldGuide() {
               borderRadius: 10,
               boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
               marginTop: 14,
-              padding: 14
+              padding: 14,
             }}
           >
             <div style={{ fontSize: 12, fontWeight: 'bold', color: BLUE, marginBottom: 8 }}>
@@ -886,7 +886,7 @@ export default function FieldGuide() {
               border: `1px solid #f5c6c6`,
               borderRadius: 10,
               padding: 14,
-              marginBottom: 14
+              marginBottom: 14,
             }}
           >
             <div style={{ fontWeight: 'bold', color: RED, fontSize: 13, marginBottom: 4 }}>
@@ -908,7 +908,7 @@ export default function FieldGuide() {
                 marginBottom: 8,
                 padding: '12px 16px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                borderLeft: `3px solid ${RED}`
+                borderLeft: `3px solid ${RED}`,
               }}
             >
               <div style={{ fontSize: 13, fontWeight: 'bold', color: '#222' }}>❌ {row.item}</div>
@@ -922,7 +922,7 @@ export default function FieldGuide() {
               borderRadius: 10,
               padding: 14,
               marginTop: 6,
-              boxShadow: '0 1px 4px rgba(0,0,0,0.07)'
+              boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
             }}
           >
             <div style={{ fontSize: 12, fontWeight: 'bold', color: BLUE, marginBottom: 8 }}>
@@ -955,7 +955,7 @@ export default function FieldGuide() {
               borderRadius: 10,
               boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
               overflow: 'hidden',
-              marginBottom: 14
+              marginBottom: 14,
             }}
           >
             <div
@@ -964,7 +964,7 @@ export default function FieldGuide() {
                 color: 'white',
                 padding: '9px 16px',
                 fontWeight: 'bold',
-                fontSize: 12
+                fontSize: 12,
               }}
             >
               💰 PB Markup Chain — How Prices Are Built
@@ -977,7 +977,7 @@ export default function FieldGuide() {
                   alignItems: 'center',
                   padding: '12px 16px',
                   borderBottom: '1px solid #f3f3f3',
-                  background: i === MARKUP_ROWS.length - 1 ? '#f0f4ff' : 'white'
+                  background: i === MARKUP_ROWS.length - 1 ? '#f0f4ff' : 'white',
                 }}
               >
                 <div
@@ -985,7 +985,7 @@ export default function FieldGuide() {
                     flex: 2,
                     fontSize: 13,
                     fontWeight: i === MARKUP_ROWS.length - 1 ? 'bold' : 'normal',
-                    color: i === MARKUP_ROWS.length - 1 ? BLUE : '#333'
+                    color: i === MARKUP_ROWS.length - 1 ? BLUE : '#333',
                   }}
                 >
                   {row.label}
@@ -998,7 +998,7 @@ export default function FieldGuide() {
                       fontWeight: 'bold',
                       color: GREEN,
                       textAlign: 'right',
-                      paddingRight: 20
+                      paddingRight: 20,
                     }}
                   >
                     {row.example}
@@ -1019,7 +1019,7 @@ export default function FieldGuide() {
               border: `1px solid #a5d6a7`,
               borderRadius: 10,
               padding: 14,
-              marginBottom: 14
+              marginBottom: 14,
             }}
           >
             <div style={{ fontWeight: 'bold', color: GREEN, fontSize: 13, marginBottom: 6 }}>
@@ -1037,7 +1037,7 @@ export default function FieldGuide() {
               background: 'white',
               borderRadius: 10,
               boxShadow: '0 1px 4px rgba(0,0,0,0.07)',
-              padding: 14
+              padding: 14,
             }}
           >
             <div style={{ fontSize: 12, fontWeight: 'bold', color: BLUE, marginBottom: 8 }}>

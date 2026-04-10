@@ -28,7 +28,7 @@ export async function queuePhoto(jobId, file, caption, token) {
       mimeType: file.type,
       caption: caption || '',
       token,
-      queuedAt: Date.now()
+      queuedAt: Date.now(),
     });
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -84,7 +84,7 @@ export async function uploadPendingPhotos(onProgress) {
       const res = await fetch(`/api/jobs/${item.jobId}/photos`, {
         method: 'POST',
         headers: { 'x-auth-token': item.token },
-        body: formData
+        body: formData,
       });
 
       if (res.ok) {

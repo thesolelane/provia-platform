@@ -34,10 +34,10 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
     const link = `${base}/sign/p/${token}`;
 
     db.prepare(
-      `INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'proposal', ?, CURRENT_TIMESTAMP, 'sent')`
+      `INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'proposal', ?, CURRENT_TIMESTAMP, 'sent')`,
     ).run(job.id, token);
     db.prepare(
-      "UPDATE jobs SET status = 'proposal_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+      "UPDATE jobs SET status = 'proposal_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
     ).run(job.id);
     try {
       jobMemory.markSent(job.id);
@@ -48,7 +48,7 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
       job.id,
       'proposal_sent_for_signing',
       `Proposal signing link sent to ${job.customer_email}`,
-      'admin'
+      'admin',
     );
 
     const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
@@ -146,7 +146,7 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
     </div>`,
       text: `Hi ${job.customer_name || 'there'},\n\nYour proposal for ${job.project_address} is ready to review. This is your estimate and scope of work — not a contract. Nothing is binding at this stage.\n\nReview it here: ${link}\n\nWhat happens next:\n1. Review the scope and allowances\n2. We get aligned on the details\n3. You receive the formal contract\n4. Sign + deposit = project starts (after 3-business-day cancellation period)\n\nNeed financing? Apply through Hearth: https://app.gethearth.com/financing/36650/61771/prequalify\n\nRefer a friend who signs a contract and get $250 off your next project.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
       emailType: 'proposal_signing',
-      jobId: job.id
+      jobId: job.id,
     });
 
     notifyClients('job_updated', { jobId: job.id, status: 'proposal_sent' });
@@ -171,16 +171,16 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
   const link = `${base}/sign/c/${token}`;
 
   db.prepare(
-    `INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'contract', ?, CURRENT_TIMESTAMP, 'sent')`
+    `INSERT INTO signing_sessions (job_id, doc_type, token, email_sent_at, status) VALUES (?, 'contract', ?, CURRENT_TIMESTAMP, 'sent')`,
   ).run(job.id, token);
   db.prepare(
-    "UPDATE jobs SET status = 'contract_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    "UPDATE jobs SET status = 'contract_sent', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
   ).run(job.id);
   logAudit(
     job.id,
     'contract_sent_for_signing',
     `Contract signing link sent to ${job.customer_email}`,
-    'admin'
+    'admin',
   );
 
   const amount = job.total_value ? `$${Number(job.total_value).toLocaleString()}` : '';
@@ -189,7 +189,7 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
     job.proposal_pdf_path && fs.existsSync(job.proposal_pdf_path)
       ? {
           attachmentPath: job.proposal_pdf_path,
-          attachmentName: `Preferred-Builders-Proposal-${job.customer_name || job.id}.pdf`
+          attachmentName: `Preferred-Builders-Proposal-${job.customer_name || job.id}.pdf`,
         }
       : {};
 
@@ -277,7 +277,7 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
     </div>`,
     text: `Hi ${job.customer_name || 'there'},\n\nYour construction contract for ${job.project_address} is ready to sign. Your approved proposal scope is included.\n\nSign here: ${link}\n\nWhat happens next:\n1. Sign the contract\n2. Submit your deposit\n3. 3-business-day cancellation window (Massachusetts law)\n4. We break ground\n\nReferral: Send a friend our way — if they sign a contract you get $250 off your next project.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
     emailType: 'contract',
-    jobId: job.id
+    jobId: job.id,
   });
 
   notifyClients('job_updated', { jobId: job.id, status: 'contract_sent' });
@@ -289,7 +289,7 @@ router.get('/api/signing/status/:jobId', requireAuth, (req, res) => {
   const db = getDb();
   const sessions = db
     .prepare(
-      'SELECT id, doc_type, status, email_sent_at, opened_at, opened_ip, signed_at, signer_name, decline_reason, created_at FROM signing_sessions WHERE job_id = ? ORDER BY created_at DESC'
+      'SELECT id, doc_type, status, email_sent_at, opened_at, opened_ip, signed_at, signer_name, decline_reason, created_at FROM signing_sessions WHERE job_id = ? ORDER BY created_at DESC',
     )
     .all(req.params.jobId);
   res.json({ sessions });

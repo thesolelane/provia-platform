@@ -40,9 +40,9 @@ Return this EXACT JSON:
 Rules:
 1. county: the Massachusetts county for the given city/town. Default to "Worcester" if unsure.
 2. estimatedDurationWeeks: realistic duration based on project type and value. New home: 26–52. ADU: 16–26. Major renovation: 12–24. Bath/kitchen: 4–8. Painting/flooring: 1–3.
-3. specialConditions: array of 0–3 short strings (max 120 chars each) for any project-specific legal or permit notes. Usually empty for standard renovations.`
-        }
-      ]
+3. specialConditions: array of 0–3 short strings (max 120 chars each) for any project-specific legal or permit notes. Usually empty for standard renovations.`,
+        },
+      ],
     });
 
     logTokenUsage({
@@ -50,13 +50,13 @@ Rules:
       model: 'claude-opus-4-5',
       inputTokens: response.usage?.input_tokens,
       outputTokens: response.usage?.output_tokens,
-      context: 'contract'
+      context: 'contract',
     });
     const text = response.content.find((b) => b.type === 'text')?.text?.trim() || '';
     const clean = text.replace(/```json|```/g, '').trim();
     enrichment = JSON.parse(clean);
     console.log(
-      `[generateContract] Opus enrichment OK — county: ${enrichment.county}, duration: ${enrichment.estimatedDurationWeeks}w, conditions: ${(enrichment.specialConditions || []).length}`
+      `[generateContract] Opus enrichment OK — county: ${enrichment.county}, duration: ${enrichment.estimatedDurationWeeks}w, conditions: ${(enrichment.specialConditions || []).length}`,
     );
   } catch (e) {
     console.warn('[generateContract] Opus enrichment failed, using defaults:', e.message);
@@ -69,7 +69,7 @@ Rules:
     estimatedDurationWeeks: Number(enrichment.estimatedDurationWeeks) || 12,
     specialConditions: Array.isArray(enrichment.specialConditions)
       ? enrichment.specialConditions
-      : []
+      : [],
   };
 }
 

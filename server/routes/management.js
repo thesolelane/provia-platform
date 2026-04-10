@@ -13,7 +13,7 @@ const {
   mergeContactIntoProposal,
   saveReviewPending,
   findPriorQuoteContext,
-  finalizeJobVersioning
+  finalizeJobVersioning,
 } = require('../services/jobHelpers');
 
 // PATCH /:id/takeoff — save material take-off data to a job
@@ -25,7 +25,7 @@ router.patch('/:id/takeoff', requireAuth, (req, res) => {
   if (!takeoffData) return res.status(400).json({ error: 'takeoffData is required' });
   db.prepare('UPDATE jobs SET takeoff_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
     JSON.stringify(takeoffData),
-    req.params.id
+    req.params.id,
   );
   logAudit(req.params.id, 'takeoff_saved', 'Material take-off saved', req.session?.name || 'user');
   res.json({ success: true });
@@ -65,16 +65,16 @@ router.patch(
     if (architect_paid_by !== undefined) proposal.job.architect_paid_by = architect_paid_by;
 
     db.prepare(
-      'UPDATE jobs SET proposal_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      'UPDATE jobs SET proposal_data = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     ).run(JSON.stringify(proposal), req.params.id);
     logAudit(
       req.params.id,
       'pass_through_responsibility_set',
       `Pass-through payment responsibility updated`,
-      req.session?.name || 'user'
+      req.session?.name || 'user',
     );
     res.json({ success: true });
-  }
+  },
 );
 
 // GET archived jobs (must be before /:id route)
@@ -100,7 +100,7 @@ router.get('/', requireAuth, (req, res) => {
   const jobs = db.prepare(query).all(...params);
   const total = db
     .prepare(
-      'SELECT COUNT(*) as count FROM jobs WHERE archived = 0' + (status ? ' AND status = ?' : '')
+      'SELECT COUNT(*) as count FROM jobs WHERE archived = 0' + (status ? ' AND status = ?' : ''),
     )
     .get(...(status ? [status] : []));
   res.json({ jobs, total: total.count });
@@ -149,7 +149,7 @@ router.get('/:id', requireAuth, (req, res) => {
     versionHistory = db
       .prepare(
         `SELECT id, version, status, total_value, created_at, estimate_source, proposal_pdf_path
-       FROM jobs WHERE quote_number = ? ORDER BY version ASC`
+       FROM jobs WHERE quote_number = ? ORDER BY version ASC`,
       )
       .all(job.quote_number);
   }
@@ -157,7 +157,7 @@ router.get('/:id', requireAuth, (req, res) => {
   if (job.contact_id) {
     const contact = db
       .prepare(
-        'SELECT id, name, email, phone, customer_number, pb_customer_number FROM contacts WHERE id = ?'
+        'SELECT id, name, email, phone, customer_number, pb_customer_number FROM contacts WHERE id = ?',
       )
       .get(job.contact_id);
     if (contact) job.contact = contact;
@@ -179,13 +179,13 @@ router.patch('/:id/notes', requireAuth, requireFields(['notes']), (req, res) => 
       .prepare('SELECT status, contact_id, project_address FROM jobs WHERE id = ?')
       .get(req.params.id);
     db.prepare(
-      'UPDATE jobs SET notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      'UPDATE jobs SET notes = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
     ).run(notes, status, req.params.id);
     logAudit(
       req.params.id,
       `status_changed_to_${status}`,
       `Status set to ${status} by admin`,
-      'admin'
+      'admin',
     );
     if (status === 'complete' && prevJob?.status !== 'complete') {
       try {
@@ -199,7 +199,7 @@ router.patch('/:id/notes', requireAuth, requireFields(['notes']), (req, res) => 
           job_id: req.params.id,
           event_type: 'JOB_COMPLETED',
           description: `Job marked complete for ${prevJob?.project_address || 'project'}`,
-          recorded_by: req.session?.name || 'admin'
+          recorded_by: req.session?.name || 'admin',
         });
       } catch {
         /* ignore */
@@ -208,7 +208,7 @@ router.patch('/:id/notes', requireAuth, requireFields(['notes']), (req, res) => 
   } else {
     db.prepare('UPDATE jobs SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
       notes,
-      req.params.id
+      req.params.id,
     );
   }
   res.json({ success: true });
@@ -231,7 +231,7 @@ router.patch(
     customer_email = COALESCE(NULLIF(?, ''), customer_email),
     customer_phone = COALESCE(NULLIF(?, ''), customer_phone),
     updated_at = CURRENT_TIMESTAMP
-  WHERE id = ?`
+  WHERE id = ?`,
     ).run(name || '', email || '', phone || '', job.id);
 
     if (job.contact_id) {
@@ -241,7 +241,7 @@ router.patch(
       email = COALESCE(NULLIF(?, ''), email),
       phone = COALESCE(NULLIF(?, ''), phone),
       updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?`
+    WHERE id = ?`,
       ).run(name || '', email || '', phone || '', job.contact_id);
     }
 
@@ -249,10 +249,10 @@ router.patch(
       job.id,
       'customer_info_updated',
       `Customer info updated by admin`,
-      req.session?.name || 'admin'
+      req.session?.name || 'admin',
     );
     res.json({ success: true });
-  }
+  },
 );
 
 // SSE endpoint — dashboard subscribes here to receive instant push notifications
@@ -287,7 +287,7 @@ router.get('/stats/summary', requireAuth, (req, res) => {
 
   const total = db
     .prepare(
-      "SELECT COUNT(*) as count FROM jobs WHERE archived = 0 AND created_at >= date('now','start of year')"
+      "SELECT COUNT(*) as count FROM jobs WHERE archived = 0 AND created_at >= date('now','start of year')",
     )
     .get();
 
@@ -295,20 +295,20 @@ router.get('/stats/summary', requireAuth, (req, res) => {
     .prepare(
       `SELECT COUNT(*) as count FROM jobs WHERE archived = 0
      AND status IN ('proposal_ready','proposal_sent','proposal_approved','customer_approved','contract_ready','contract_sent','contract_signed','complete')
-     AND created_at >= date('now','start of year')`
+     AND created_at >= date('now','start of year')`,
     )
     .get();
 
   const pipelineValue = db
     .prepare(
       `SELECT SUM(total_value) as total FROM jobs WHERE archived = 0
-     AND status IN ('proposal_sent','proposal_approved','customer_approved','contract_ready','contract_sent','contract_signed')`
+     AND status IN ('proposal_sent','proposal_approved','customer_approved','contract_ready','contract_sent','contract_signed')`,
     )
     .get();
 
   const revenueWon = db
     .prepare(
-      "SELECT SUM(total_value) as value FROM jobs WHERE archived = 0 AND status = 'complete' AND updated_at >= date('now','start of year')"
+      "SELECT SUM(total_value) as value FROM jobs WHERE archived = 0 AND status = 'complete' AND updated_at >= date('now','start of year')",
     )
     .get();
 
@@ -318,8 +318,8 @@ router.get('/stats/summary', requireAuth, (req, res) => {
     totalValue: pipelineValue.total || 0,
     thisMonth: {
       count: quotesCompleted.count,
-      value: revenueWon.value || 0
-    }
+      value: revenueWon.value || 0,
+    },
   });
 });
 
@@ -336,13 +336,13 @@ router.delete('/:id', requireAuth, requireRole('admin', 'system_admin'), (req, r
     'lost_competitor',
     'ghosted',
     'mistake',
-    'completed'
+    'completed',
   ];
   const reason = validReasons.includes(closed_reason) ? closed_reason : null;
   const note = typeof closed_note === 'string' ? closed_note.trim().slice(0, 500) : null;
 
   db.prepare(
-    'UPDATE jobs SET archived = 1, archived_at = CURRENT_TIMESTAMP, closed_reason = ?, closed_note = ? WHERE id = ?'
+    'UPDATE jobs SET archived = 1, archived_at = CURRENT_TIMESTAMP, closed_reason = ?, closed_note = ? WHERE id = ?',
   ).run(reason, note || null, req.params.id);
   const reasonLabel = reason ? ` (${reason}${note ? ': ' + note : ''})` : '';
   logAudit(req.params.id, 'archived', `Job archived${reasonLabel}`, 'admin');
@@ -350,13 +350,13 @@ router.delete('/:id', requireAuth, requireRole('admin', 'system_admin'), (req, r
   // Void all open signing sessions when job is completed
   if (reason === 'completed') {
     db.prepare(
-      "UPDATE signing_sessions SET status = 'void' WHERE job_id = ? AND status != 'signed'"
+      "UPDATE signing_sessions SET status = 'void' WHERE job_id = ? AND status != 'signed'",
     ).run(req.params.id);
     logAudit(
       req.params.id,
       'signing_sessions_voided',
       'Signing links voided — job marked completed',
-      'admin'
+      'admin',
     );
   }
 
@@ -367,7 +367,7 @@ router.delete('/:id', requireAuth, requireRole('admin', 'system_admin'), (req, r
 router.post('/:id/restore', requireAuth, requireRole('admin', 'system_admin'), (req, res) => {
   const db = getDb();
   db.prepare(
-    'UPDATE jobs SET archived = 0, archived_at = NULL, closed_reason = NULL, closed_note = NULL WHERE id = ?'
+    'UPDATE jobs SET archived = 0, archived_at = NULL, closed_reason = NULL, closed_note = NULL WHERE id = ?',
   ).run(req.params.id);
   logAudit(req.params.id, 'restored', 'Job restored from archive (outcome cleared)', 'admin');
   res.json({ success: true });
@@ -460,24 +460,24 @@ router.get('/:id/margin', requireAuth, (req, res) => {
         targetPct: targetSubOandP,
         actualPct: actualSubOandP,
         dollarAdded: subOandPDollar,
-        pass: layerPass(actualSubOandP, targetSubOandP)
+        pass: layerPass(actualSubOandP, targetSubOandP),
       },
       {
         label: 'GC O&P',
         targetPct: targetGcOandP,
         actualPct: actualGcOandP,
         dollarAdded: gcOandPDollar,
-        pass: layerPass(actualGcOandP, targetGcOandP)
+        pass: layerPass(actualGcOandP, targetGcOandP),
       },
       {
         label: 'Contingency',
         targetPct: targetContingency,
         actualPct: actualContingency,
         dollarAdded: contingencyDollar,
-        pass: layerPass(actualContingency, targetContingency)
-      }
+        pass: layerPass(actualContingency, targetContingency),
+      },
     ],
-    overallPass
+    overallPass,
   });
 });
 
@@ -505,24 +505,24 @@ router.post(
         attachmentPath: job.contract_pdf_path,
         attachmentName: `PB_Contract_${job.customer_name?.replace(/\s/g, '_')}.pdf`,
         emailType: 'contract',
-        jobId: job.id
+        jobId: job.id,
       });
 
       db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
         'contract_sent',
-        job.id
+        job.id,
       );
       logAudit(
         job.id,
         'contract_sent_to_customer',
         `Contract emailed to ${job.customer_email}`,
-        'admin'
+        'admin',
       );
       res.json({ success: true, message: `Contract sent to ${job.customer_email}` });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
-  }
+  },
 );
 
 // POST /:id/reprocess — retry AI estimation for a job stuck in error status
@@ -539,7 +539,7 @@ router.post(
 
     db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
       'processing',
-      job.id
+      job.id,
     );
     res.json({ success: true, message: 'Reprocessing started' });
 
@@ -551,7 +551,7 @@ router.post(
         const { context: priorCtx } = findPriorQuoteContext(db, {
           rawText: job.raw_estimate_data,
           contactId: job.contact_id,
-          projectAddress: job.project_address
+          projectAddress: job.project_address,
         });
         const proposalData = await processEstimate(
           fullEstimate,
@@ -559,11 +559,11 @@ router.post(
           'en',
           db,
           job.project_address || null,
-          priorCtx
+          priorCtx,
         );
         mergeContactIntoProposal(db, job.id, proposalData);
         console.log(
-          `[Reprocess Job ${job.id}] Claude returned. readyToGenerate=${proposalData.readyToGenerate}`
+          `[Reprocess Job ${job.id}] Claude returned. readyToGenerate=${proposalData.readyToGenerate}`,
         );
 
         if (
@@ -573,7 +573,7 @@ router.post(
           finalizeJobVersioning(db, job.id, proposalData);
           db.prepare('UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(
             'clarification',
-            job.id
+            job.id,
           );
           const insertQ = db.prepare('INSERT INTO clarifications (job_id, question) VALUES (?, ?)');
           for (const q of proposalData.clarificationsNeeded) insertQ.run(job.id, q);
@@ -584,7 +584,7 @@ router.post(
             job.id,
             'reprocessed',
             'Job reprocessed after error',
-            req.session?.name || 'admin'
+            req.session?.name || 'admin',
           );
           notifyClients('job_updated', { jobId: job.id, status: 'review_pending' });
         }
@@ -592,11 +592,11 @@ router.post(
         const errMsg = err.message || String(err);
         console.error(`[Reprocess Job ${job.id}] ERROR: ${errMsg}\n${err.stack || ''}`);
         db.prepare(
-          'UPDATE jobs SET status = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+          'UPDATE jobs SET status = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         ).run('error', errMsg, job.id);
       }
     })();
-  }
+  },
 );
 
 module.exports = router;

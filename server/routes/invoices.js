@@ -12,7 +12,7 @@ const VALID_TYPES = [
   'contract_invoice',
   'pass_through_invoice',
   'change_order',
-  'combined_invoice'
+  'combined_invoice',
 ];
 const VALID_STATUSES = ['draft', 'sent', 'paid', 'void'];
 
@@ -91,7 +91,7 @@ router.post(
         .map((li) => ({
           description: String(li.description || '').trim(),
           amount: parseFloat(li.amount) || 0,
-          type: ['contract', 'pass_through'].includes(li.type) ? li.type : 'contract'
+          type: ['contract', 'pass_through'].includes(li.type) ? li.type : 'contract',
         }))
         .filter((li) => li.description || li.amount);
 
@@ -120,7 +120,7 @@ router.post(
     INSERT INTO invoices
       (job_id, invoice_number, invoice_type, status, amount, contract_amount, pass_through_amount, line_items, notes)
     VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?)
-  `
+  `,
       )
       .run(
         jobId,
@@ -130,7 +130,7 @@ router.post(
         contractAmt,
         passThroughAmt,
         items ? JSON.stringify(items) : null,
-        notes || null
+        notes || null,
       );
 
     const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(info.lastInsertRowid);
@@ -146,11 +146,11 @@ router.post(
       event_type: 'INVOICE_ISSUED',
       description: `Invoice ${invNum} created (${invType.replace(/_/g, ' ')}) — $${totalAmt.toLocaleString()}`,
       document_ref: invNum,
-      recorded_by: recorder
+      recorded_by: recorder,
     });
 
     res.json({ invoice });
-  }
+  },
 );
 
 router.patch(
@@ -175,7 +175,7 @@ router.patch(
       status = ?, amount = ?, amount_paid = ?, notes = ?, line_items = ?,
       issued_at = ?, paid_at = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `
+  `,
     ).run(
       newStatus,
       newAmount,
@@ -184,7 +184,7 @@ router.patch(
       line_items !== undefined ? (line_items ? JSON.stringify(line_items) : null) : inv.line_items,
       issued_at ?? inv.issued_at,
       paid_at ?? inv.paid_at,
-      inv.id
+      inv.id,
     );
 
     if (newStatus === 'paid' && inv.status !== 'paid') {
@@ -201,13 +201,13 @@ router.patch(
             : 'PAYMENT_RECEIVED',
         description: `Invoice ${inv.invoice_number} marked paid — $${newAmtPaid.toLocaleString()}`,
         document_ref: inv.invoice_number,
-        recorded_by: req.session?.name || 'staff'
+        recorded_by: req.session?.name || 'staff',
       });
     }
 
     const updated = db.prepare('SELECT * FROM invoices WHERE id = ?').get(inv.id);
     res.json({ invoice: updated });
-  }
+  },
 );
 
 // PATCH /:id/pay-direct — toggle pay_direct flag on a specific line item, recompute pb_due_amount
@@ -238,7 +238,7 @@ router.patch('/:id/pay-direct', requireAuth, (req, res) => {
   const newPbDue = items.filter((li) => !li.pay_direct).reduce((s, li) => s + (li.amount || 0), 0);
 
   db.prepare(
-    'UPDATE invoices SET line_items = ?, pb_due_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    'UPDATE invoices SET line_items = ?, pb_due_amount = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
   ).run(JSON.stringify(items), newPbDue, inv.id);
 
   const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(inv.job_id);
@@ -252,7 +252,7 @@ router.patch('/:id/pay-direct', requireAuth, (req, res) => {
     event_type: 'INVOICE_UPDATED',
     description: `Invoice ${inv.invoice_number} line item "${item.description}" marked ${item.pay_direct ? 'Pay Direct' : 'Pay to PB'}${item.pay_direct_received ? ' (received)' : ''}`,
     document_ref: inv.invoice_number,
-    recorded_by: req.session?.name || 'staff'
+    recorded_by: req.session?.name || 'staff',
   });
 
   const updated = db.prepare('SELECT * FROM invoices WHERE id = ?').get(inv.id);
@@ -283,7 +283,7 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
       contract_invoice: 'Contract Invoice',
       pass_through_invoice: 'Pass-Through Invoice',
       change_order: 'Change Order',
-      combined_invoice: 'Invoice'
+      combined_invoice: 'Invoice',
     };
     const typeLabel = typeLabels[inv.invoice_type] || 'Invoice';
     const isPT = inv.invoice_type === 'pass_through_invoice';
@@ -302,7 +302,7 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
     const buildLineItemsHTML = () => {
       if (!storedItems.length) return '';
       const hasPayDirect = storedItems.some(
-        (li) => li.type === 'pass_through' && li.pay_direct !== undefined
+        (li) => li.type === 'pass_through' && li.pay_direct !== undefined,
       );
       const grandTotal = storedItems.reduce((s, li) => s + (li.amount || 0), 0);
       const pbDue =
@@ -448,7 +448,7 @@ ${inv.notes ? `<div class="section"><h3>Notes</h3><p style="font-size:13px">${in
 
     const pdfPath = await generatePDFFromHTML(
       html,
-      `invoice_${inv.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}`
+      `invoice_${inv.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}`,
     );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${inv.invoice_number}.pdf"`);
@@ -486,7 +486,7 @@ router.post('/:id/email', requireAuth, async (req, res) => {
     const typeLabels = {
       contract_invoice: 'Contract Invoice',
       pass_through_invoice: 'Pass-Through Invoice',
-      change_order: 'Change Order'
+      change_order: 'Change Order',
     };
     const typeLabel = typeLabels[inv.invoice_type] || 'Invoice';
     const isPT = inv.invoice_type === 'pass_through_invoice';
@@ -554,7 +554,7 @@ Please make checks payable to: <strong>Preferred Builders General Services Inc.<
 
     const pdfPath = await generatePDFFromHTML(
       html,
-      `invoice_${inv.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}_email`
+      `invoice_${inv.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}_email`,
     );
 
     const subject = `Invoice ${inv.invoice_number} from Preferred Builders${job ? ' — ' + (job.project_address || job.description || 'Your Project') : ''}`;
@@ -572,7 +572,7 @@ ${isPT ? '<p><em>Note: This is a pass-through cost invoice billed for direct rei
       attachments: [{ path: pdfPath, filename: `${inv.invoice_number}.pdf` }],
       emailType: 'invoice',
       jobId: inv.job_id,
-      db
+      db,
     });
 
     db.prepare("UPDATE invoices SET status = 'sent' WHERE id = ? AND status = 'draft'").run(inv.id);
@@ -583,7 +583,7 @@ ${isPT ? '<p><em>Note: This is a pass-through cost invoice billed for direct rei
       event_type: 'INVOICE_ISSUED',
       description: `Invoice ${inv.invoice_number} emailed to ${customerEmail}`,
       document_ref: inv.invoice_number,
-      recorded_by: req.session?.name || req.user?.name || 'system'
+      recorded_by: req.session?.name || req.user?.name || 'system',
     });
 
     res.json({ success: true, to: customerEmail });

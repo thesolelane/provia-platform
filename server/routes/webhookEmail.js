@@ -56,7 +56,7 @@ router.post('/', async (req, res) => {
       `
       INSERT INTO jobs (id, raw_estimate_data, status, submitted_by)
       VALUES (?, ?, 'received', ?)
-    `
+    `,
     ).run(jobId, estimateText, from);
 
     const senderFirstName = sender.name ? sender.name.split(' ')[0] : 'there';
@@ -68,7 +68,7 @@ router.post('/', async (req, res) => {
       html:
         language === 'pt-BR'
           ? `<p>Oi ${senderFirstName}! Recebi a estimativa e já estou processando. Você receberá a proposta em breve.</p><p>Ref: ${jobId.slice(0, 8).toUpperCase()}</p>`
-          : `<p>Hey ${senderFirstName}! Got your estimate — processing it now. You'll receive the proposal shortly.</p><p>Ref: ${jobId.slice(0, 8).toUpperCase()}</p>`
+          : `<p>Hey ${senderFirstName}! Got your estimate — processing it now. You'll receive the proposal shortly.</p><p>Ref: ${jobId.slice(0, 8).toUpperCase()}</p>`,
     });
 
     const proposalData = await processEstimate(estimateText, jobId, language);
@@ -85,21 +85,21 @@ router.post('/', async (req, res) => {
         html:
           language === 'pt-BR'
             ? `<p>Preciso de mais informações:</p><pre>${questions}</pre><p>Por favor responda este email.</p>`
-            : `<p>I need a few more details:</p><pre>${questions}</pre><p>Please reply to this email.</p>`
+            : `<p>I need a few more details:</p><pre>${questions}</pre><p>Please reply to this email.</p>`,
       });
     } else {
       const { generatePDF } = require('../services/pdfService');
       const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
 
       db.prepare(
-        'UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?'
+        'UPDATE jobs SET proposal_data = ?, proposal_pdf_path = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?',
       ).run(
         JSON.stringify(proposalData),
         pdfPath,
         proposalData.totalValue,
         proposalData.depositAmount,
         'proposal_sent',
-        jobId
+        jobId,
       );
 
       const { getOwnerEmails } = require('../services/emailService');
@@ -120,13 +120,13 @@ router.post('/', async (req, res) => {
                <p><strong>Deposit:</strong> $${proposalData.depositAmount?.toLocaleString()}</p>
                ${proposalData.flaggedItems?.length ? `<p>⚠️ ${proposalData.flaggedItems.length} item(s) flagged for review</p>` : ''}
                <p>See attached PDF. Reply APPROVE to generate the contract.</p>`,
-        attachmentPath: pdfPath
+        attachmentPath: pdfPath,
       });
 
       if (process.env.JACKSON_WHATSAPP) {
         await sendWhatsApp(
           process.env.JACKSON_WHATSAPP,
-          `📋 Proposta pronta via email!\n${proposalData.customer?.name}\n$${proposalData.totalValue?.toLocaleString()}\nResponda APROVAR para gerar contrato.`
+          `📋 Proposta pronta via email!\n${proposalData.customer?.name}\n$${proposalData.totalValue?.toLocaleString()}\nResponda APROVAR para gerar contrato.`,
         );
       }
 

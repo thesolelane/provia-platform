@@ -11,7 +11,7 @@ const BASE_TABS = [
   'Integrations',
   'Bot Behavior',
   'Calendar',
-  'Email Log'
+  'Email Log',
 ];
 
 export default function Settings({ token, userRole }) {
@@ -100,7 +100,7 @@ export default function Settings({ token, userRole }) {
       ...prev,
       [Object.keys(prev).find((cat) => prev[cat].find((s) => s.key === key))]: prev[
         Object.keys(prev).find((cat) => prev[cat].find((s) => s.key === key))
-      ].map((s) => (s.key === key ? { ...s, value } : s))
+      ].map((s) => (s.key === key ? { ...s, value } : s)),
     }));
   };
 
@@ -133,7 +133,10 @@ export default function Settings({ token, userRole }) {
     await fetch('/api/settings', {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ 'gcal.calendarId': calId, 'gcal.enabled': enabled ? 'true' : 'false' })
+      body: JSON.stringify({
+        'gcal.calendarId': calId,
+        'gcal.enabled': enabled ? 'true' : 'false',
+      }),
     });
     setCalSaved(true);
     setTimeout(() => setCalSaved(false), 2000);
@@ -143,7 +146,7 @@ export default function Settings({ token, userRole }) {
     await fetch('/api/settings/integrations/switch', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ platform })
+      body: JSON.stringify({ platform }),
     });
     setIntegration((prev) => ({ ...prev, platform }));
   };
@@ -168,7 +171,7 @@ export default function Settings({ token, userRole }) {
                 fontWeight: 'bold',
                 color: '#333',
                 display: 'block',
-                marginBottom: 6
+                marginBottom: 6,
               }}
             >
               {s.label}
@@ -219,7 +222,7 @@ export default function Settings({ token, userRole }) {
                     border: '1px solid #ddd',
                     borderRadius: 4,
                     fontSize: 14,
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
                   }}
                 />
               </div>
@@ -244,7 +247,7 @@ export default function Settings({ token, userRole }) {
                     border: '1px solid #ddd',
                     borderRadius: 4,
                     fontSize: 14,
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
                   }}
                 />
               </div>
@@ -257,7 +260,7 @@ export default function Settings({ token, userRole }) {
                 borderRadius: 6,
                 fontSize: 12,
                 color: BLUE,
-                fontWeight: 500
+                fontWeight: 500,
               }}
             >
               per finished sq ft
@@ -296,7 +299,7 @@ export default function Settings({ token, userRole }) {
                     border: '1px solid #ddd',
                     borderRadius: 4,
                     fontSize: 14,
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
                   }}
                 />
               </div>
@@ -323,7 +326,7 @@ export default function Settings({ token, userRole }) {
                     border: '1px solid #ddd',
                     borderRadius: 4,
                     fontSize: 14,
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
                   }}
                 />
               </div>
@@ -336,7 +339,7 @@ export default function Settings({ token, userRole }) {
                 borderRadius: 6,
                 fontSize: 12,
                 color: ORANGE,
-                fontWeight: 500
+                fontWeight: 500,
               }}
             >
               per finished sq ft · renovation
@@ -385,7 +388,7 @@ export default function Settings({ token, userRole }) {
                         padding: 6,
                         border: '1px solid #ddd',
                         borderRadius: 4,
-                        fontSize: 13
+                        fontSize: 13,
                       }}
                     />
                   </td>
@@ -399,7 +402,7 @@ export default function Settings({ token, userRole }) {
                         padding: 6,
                         border: '1px solid #ddd',
                         borderRadius: 4,
-                        fontSize: 13
+                        fontSize: 13,
                       }}
                     />
                   </td>
@@ -456,7 +459,7 @@ export default function Settings({ token, userRole }) {
                           padding: 6,
                           border: '1px solid #ddd',
                           borderRadius: 4,
-                          fontSize: 13
+                          fontSize: 13,
                         }}
                       />
                     </div>
@@ -485,15 +488,15 @@ export default function Settings({ token, userRole }) {
             name: 'HEARTH',
             desc: 'Current platform. Jackson uses Hearth for estimates and invoicing.',
             cost: '$1,800/yr',
-            configured: integration.hearth?.configured
+            configured: integration.hearth?.configured,
           },
           {
             id: 'wave',
             name: 'WAVE',
             desc: 'Free alternative. Switch when ready — same workflow, lower cost.',
             cost: '$192/yr (API only)',
-            configured: integration.wave?.configured
-          }
+            configured: integration.wave?.configured,
+          },
         ].map((p) => (
           <div
             key={p.id}
@@ -501,7 +504,7 @@ export default function Settings({ token, userRole }) {
               border: `2px solid ${integration.platform === p.id ? BLUE : '#ddd'}`,
               borderRadius: 10,
               padding: 20,
-              background: integration.platform === p.id ? '#E3ECFF' : 'white'
+              background: integration.platform === p.id ? '#E3ECFF' : 'white',
             }}
           >
             <div
@@ -509,7 +512,7 @@ export default function Settings({ token, userRole }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 8
+                marginBottom: 8,
               }}
             >
               <span style={{ fontWeight: 'bold', fontSize: 16, color: BLUE }}>{p.name}</span>
@@ -520,7 +523,7 @@ export default function Settings({ token, userRole }) {
                     color: 'white',
                     padding: '2px 10px',
                     borderRadius: 20,
-                    fontSize: 11
+                    fontSize: 11,
                   }}
                 >
                   ● ACTIVE
@@ -532,7 +535,7 @@ export default function Settings({ token, userRole }) {
                     color: '#888',
                     padding: '2px 10px',
                     borderRadius: 20,
-                    fontSize: 11
+                    fontSize: 11,
                   }}
                 >
                   STANDBY
@@ -554,7 +557,7 @@ export default function Settings({ token, userRole }) {
                   border: 'none',
                   borderRadius: 6,
                   cursor: 'pointer',
-                  fontSize: 12
+                  fontSize: 12,
                 }}
               >
                 Switch to {p.name}
@@ -571,7 +574,7 @@ export default function Settings({ token, userRole }) {
           borderRadius: 8,
           padding: 16,
           fontSize: 12,
-          color: '#5D3A00'
+          color: '#5D3A00',
         }}
       >
         ⚠️ Switching platforms only affects new estimates going forward. All existing jobs remain in
@@ -602,7 +605,7 @@ export default function Settings({ token, userRole }) {
             padding: '14px 16px',
             background: '#fafafa',
             borderRadius: 8,
-            marginBottom: 20
+            marginBottom: 20,
           }}
         >
           <div>
@@ -625,7 +628,7 @@ export default function Settings({ token, userRole }) {
               fontWeight: 'bold',
               fontSize: 12,
               background: calEnabled ? '#2E7D32' : '#ccc',
-              color: 'white'
+              color: 'white',
             }}
           >
             {calEnabled ? 'ON' : 'OFF'}
@@ -651,7 +654,7 @@ export default function Settings({ token, userRole }) {
                     background: currentCalId === cal.id ? '#E3ECFF' : 'white',
                     border: `2px solid ${currentCalId === cal.id ? BLUE : '#eee'}`,
                     borderRadius: 8,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
                   }}
                 >
                   <input
@@ -679,7 +682,7 @@ export default function Settings({ token, userRole }) {
                 border: '1px solid #e0e7ff',
                 borderRadius: 8,
                 fontSize: 13,
-                color: '#555'
+                color: '#555',
               }}
             >
               {calLoading ? (
@@ -705,7 +708,7 @@ export default function Settings({ token, userRole }) {
               borderRadius: 6,
               cursor: 'pointer',
               fontSize: 12,
-              fontWeight: 'bold'
+              fontWeight: 'bold',
             }}
           >
             {calLoading ? 'Loading...' : '📅 Load My Calendars'}
@@ -723,7 +726,7 @@ export default function Settings({ token, userRole }) {
             borderRadius: 8,
             cursor: 'pointer',
             fontWeight: 'bold',
-            fontSize: 13
+            fontSize: 13,
           }}
         >
           {calSaved ? '✅ Saved!' : 'Save Calendar Settings'}
@@ -737,7 +740,7 @@ export default function Settings({ token, userRole }) {
             borderRadius: 8,
             padding: 14,
             fontSize: 12,
-            color: '#444'
+            color: '#444',
           }}
         >
           <strong>How it works:</strong> When you (or the bot) create a task with a due date, the
@@ -765,7 +768,7 @@ export default function Settings({ token, userRole }) {
               borderRadius: 8,
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
             }}
           >
             <div>
@@ -785,7 +788,7 @@ export default function Settings({ token, userRole }) {
                   fontWeight: 'bold',
                   fontSize: 12,
                   background: s.value === 'true' || s.value === true ? '#2E7D32' : '#ccc',
-                  color: 'white'
+                  color: 'white',
                 }}
               >
                 {s.value === 'true' || s.value === true ? 'ON' : 'OFF'}
@@ -800,7 +803,7 @@ export default function Settings({ token, userRole }) {
                   border: '1px solid #ddd',
                   borderRadius: 4,
                   fontSize: 13,
-                  textAlign: 'center'
+                  textAlign: 'center',
                 }}
               />
             )}
@@ -846,7 +849,7 @@ export default function Settings({ token, userRole }) {
     const res = await fetch(`/api/secrets/${encodeURIComponent(originalKey)}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
     });
     if (res.ok) {
       await loadSecrets();
@@ -862,7 +865,7 @@ export default function Settings({ token, userRole }) {
     if (!window.confirm(`Delete secret "${key}"?`)) return;
     const res = await fetch(`/api/secrets/${encodeURIComponent(key)}`, {
       method: 'DELETE',
-      headers
+      headers,
     });
     if (res.ok) {
       setSecrets((prev) => prev.filter((s) => s.key !== key));
@@ -875,7 +878,7 @@ export default function Settings({ token, userRole }) {
     const res = await fetch('/api/secrets', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ key: newSecret.key.trim(), value: newSecret.value })
+      body: JSON.stringify({ key: newSecret.key.trim(), value: newSecret.value }),
     });
     if (res.ok) {
       setAddingNew(false);
@@ -908,7 +911,7 @@ export default function Settings({ token, userRole }) {
               borderRadius: 8,
               cursor: 'pointer',
               fontWeight: 'bold',
-              fontSize: 13
+              fontSize: 13,
             }}
           >
             🔑 Load Secrets
@@ -922,7 +925,7 @@ export default function Settings({ token, userRole }) {
       alignItems: 'center',
       gap: 8,
       padding: '8px 0',
-      borderBottom: '1px solid #f0f0f0'
+      borderBottom: '1px solid #f0f0f0',
     };
     const BTN = (extra = {}) => ({
       padding: '5px 10px',
@@ -931,7 +934,7 @@ export default function Settings({ token, userRole }) {
       cursor: 'pointer',
       fontSize: 12,
       background: 'white',
-      ...extra
+      ...extra,
     });
 
     return (
@@ -944,7 +947,7 @@ export default function Settings({ token, userRole }) {
             padding: 12,
             fontSize: 12,
             color: '#5D3A00',
-            marginBottom: 16
+            marginBottom: 16,
           }}
         >
           ⚠️ Changes write directly to your <strong>.env</strong> file. API key changes (Claude,
@@ -961,7 +964,7 @@ export default function Settings({ token, userRole }) {
               fontWeight: 600,
               background: secretsMsg.startsWith('❌') ? '#fff0f0' : '#f0fff4',
               color: secretsMsg.startsWith('❌') ? '#c00' : '#2E7D32',
-              border: `1px solid ${secretsMsg.startsWith('❌') ? '#fcc' : '#b2dfdb'}`
+              border: `1px solid ${secretsMsg.startsWith('❌') ? '#fcc' : '#b2dfdb'}`,
             }}
           >
             {secretsMsg}
@@ -978,7 +981,7 @@ export default function Settings({ token, userRole }) {
             fontWeight: 700,
             color: '#999',
             textTransform: 'uppercase',
-            letterSpacing: 0.8
+            letterSpacing: 0.8,
           }}
         >
           <div style={{ width: 220, flexShrink: 0 }}>Key Name</div>
@@ -1000,7 +1003,7 @@ export default function Settings({ token, userRole }) {
                   borderRadius: 6,
                   padding: '8px',
                   margin: '4px 0',
-                  border: `1px solid ${ORANGE}`
+                  border: `1px solid ${ORANGE}`,
                 }}
               >
                 <input
@@ -1008,7 +1011,7 @@ export default function Settings({ token, userRole }) {
                   onChange={(e) =>
                     setEditDraft((p) => ({
                       ...p,
-                      key: e.target.value.toUpperCase().replace(/\s/g, '_')
+                      key: e.target.value.toUpperCase().replace(/\s/g, '_'),
                     }))
                   }
                   style={{
@@ -1019,7 +1022,7 @@ export default function Settings({ token, userRole }) {
                     borderRadius: 6,
                     fontSize: 12,
                     fontFamily: 'monospace',
-                    fontWeight: 600
+                    fontWeight: 600,
                   }}
                   placeholder="KEY_NAME"
                 />
@@ -1033,7 +1036,7 @@ export default function Settings({ token, userRole }) {
                     border: '1px solid #ccc',
                     borderRadius: 6,
                     fontSize: 12,
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
                   }}
                   placeholder="value"
                   autoFocus
@@ -1066,7 +1069,7 @@ export default function Settings({ token, userRole }) {
                 opacity: s.disabled ? 0.6 : 1,
                 background: s.disabled ? '#fff8f0' : 'transparent',
                 borderRadius: s.disabled ? 6 : 0,
-                padding: s.disabled ? '6px 8px' : '8px 0'
+                padding: s.disabled ? '6px 8px' : '8px 0',
               }}
             >
               <div
@@ -1075,7 +1078,7 @@ export default function Settings({ token, userRole }) {
                   flexShrink: 0,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
                 }}
                 title={s.key}
               >
@@ -1084,7 +1087,7 @@ export default function Settings({ token, userRole }) {
                     fontFamily: 'monospace',
                     fontSize: 12,
                     fontWeight: 600,
-                    color: s.disabled ? '#b45' : '#333'
+                    color: s.disabled ? '#b45' : '#333',
                   }}
                 >
                   {s.key}
@@ -1098,7 +1101,7 @@ export default function Settings({ token, userRole }) {
                       color: '#5D3A00',
                       borderRadius: 4,
                       padding: '1px 5px',
-                      fontWeight: 700
+                      fontWeight: 700,
                     }}
                   >
                     COMMENTED OUT
@@ -1113,7 +1116,7 @@ export default function Settings({ token, userRole }) {
                   color: '#666',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
                 }}
               >
                 {isVisible ? (
@@ -1141,7 +1144,7 @@ export default function Settings({ token, userRole }) {
                       background: '#E07B2A',
                       color: 'white',
                       border: 'none',
-                      fontWeight: 700
+                      fontWeight: 700,
                     })}
                     title="Enable this key"
                   >
@@ -1172,7 +1175,7 @@ export default function Settings({ token, userRole }) {
               padding: 12,
               border: `1px solid ${BLUE}`,
               borderRadius: 8,
-              background: '#f8faff'
+              background: '#f8faff',
             }}
           >
             <div style={{ fontSize: 12, fontWeight: 700, color: BLUE, marginBottom: 10 }}>
@@ -1184,7 +1187,7 @@ export default function Settings({ token, userRole }) {
                 onChange={(e) =>
                   setNewSecret((p) => ({
                     ...p,
-                    key: e.target.value.toUpperCase().replace(/\s/g, '_')
+                    key: e.target.value.toUpperCase().replace(/\s/g, '_'),
                   }))
                 }
                 placeholder="KEY_NAME"
@@ -1196,7 +1199,7 @@ export default function Settings({ token, userRole }) {
                   borderRadius: 6,
                   fontSize: 12,
                   fontFamily: 'monospace',
-                  fontWeight: 600
+                  fontWeight: 600,
                 }}
                 autoFocus
               />
@@ -1211,7 +1214,7 @@ export default function Settings({ token, userRole }) {
                   border: '1px solid #ccc',
                   borderRadius: 6,
                   fontSize: 12,
-                  fontFamily: 'monospace'
+                  fontFamily: 'monospace',
                 }}
               />
               <button
@@ -1221,7 +1224,7 @@ export default function Settings({ token, userRole }) {
                   background: BLUE,
                   color: 'white',
                   border: 'none',
-                  opacity: newSecret.key.trim() ? 1 : 0.5
+                  opacity: newSecret.key.trim() ? 1 : 0.5,
                 })}
               >
                 Add
@@ -1252,7 +1255,7 @@ export default function Settings({ token, userRole }) {
               color: BLUE,
               cursor: 'pointer',
               fontSize: 13,
-              fontWeight: 600
+              fontWeight: 600,
             }}
           >
             + Add Secret
@@ -1269,7 +1272,7 @@ export default function Settings({ token, userRole }) {
               border: '1px solid #ddd',
               borderRadius: 8,
               cursor: 'pointer',
-              fontSize: 12
+              fontSize: 12,
             }}
           >
             ↺ Reload
@@ -1323,7 +1326,7 @@ export default function Settings({ token, userRole }) {
               borderRadius: 8,
               cursor: 'pointer',
               fontWeight: 'bold',
-              fontSize: 14
+              fontSize: 14,
             }}
           >
             {emailLogLoading ? 'Loading...' : '📬 Load Email Log'}
@@ -1341,7 +1344,7 @@ export default function Settings({ token, userRole }) {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: 20
+            marginBottom: 20,
           }}
         >
           <h3 style={{ margin: 0, color: BLUE }}>Email Activity</h3>
@@ -1354,7 +1357,7 @@ export default function Settings({ token, userRole }) {
               padding: '6px 14px',
               borderRadius: 6,
               cursor: 'pointer',
-              fontSize: 12
+              fontSize: 12,
             }}
           >
             {emailLogLoading ? 'Refreshing...' : '🔄 Refresh'}
@@ -1367,7 +1370,7 @@ export default function Settings({ token, userRole }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(5, 1fr)',
             gap: 12,
-            marginBottom: 24
+            marginBottom: 24,
           }}
         >
           {[
@@ -1375,7 +1378,7 @@ export default function Settings({ token, userRole }) {
             { label: 'This Month', value: stats.thisMonth },
             { label: 'This Year', value: stats.thisYear },
             { label: 'All Time', value: stats.total },
-            { label: 'Open Rate', value: `${openRate}%` }
+            { label: 'Open Rate', value: `${openRate}%` },
           ].map((c) => (
             <div
               key={c.label}
@@ -1383,7 +1386,7 @@ export default function Settings({ token, userRole }) {
                 background: '#F3F6FC',
                 borderRadius: 8,
                 padding: '14px 16px',
-                textAlign: 'center'
+                textAlign: 'center',
               }}
             >
               <div style={{ fontSize: 24, fontWeight: 'bold', color: BLUE }}>{c.value}</div>
@@ -1405,7 +1408,7 @@ export default function Settings({ token, userRole }) {
                     borderRadius: 20,
                     padding: '4px 12px',
                     fontSize: 12,
-                    color: BLUE
+                    color: BLUE,
                   }}
                 >
                   {t.email_type} <strong>{t.count}</strong>
@@ -1432,7 +1435,7 @@ export default function Settings({ token, userRole }) {
                       background: BLUE,
                       borderRadius: '2px 2px 0 0',
                       height: h,
-                      minWidth: 4
+                      minWidth: 4,
                     }}
                   />
                 );
@@ -1506,7 +1509,7 @@ export default function Settings({ token, userRole }) {
                           color: BLUE,
                           borderRadius: 10,
                           padding: '2px 8px',
-                          fontSize: 11
+                          fontSize: 11,
                         }}
                       >
                         {e.email_type}
@@ -1535,7 +1538,7 @@ export default function Settings({ token, userRole }) {
                             borderRadius: 6,
                             padding: '3px 10px',
                             fontSize: 11,
-                            cursor: 'pointer'
+                            cursor: 'pointer',
                           }}
                         >
                           👁 View
@@ -1583,7 +1586,7 @@ export default function Settings({ token, userRole }) {
               borderRadius: 8,
               cursor: 'pointer',
               fontWeight: 'bold',
-              fontSize: 13
+              fontSize: 13,
             }}
           >
             {statusLoading ? '⏳ Checking...' : '🔍 Run Status Check'}
@@ -1597,7 +1600,7 @@ export default function Settings({ token, userRole }) {
                 border: '1px solid #ffcccc',
                 borderRadius: 8,
                 color: '#c00',
-                fontSize: 13
+                fontSize: 13,
               }}
             >
               {statusError}
@@ -1623,7 +1626,7 @@ export default function Settings({ token, userRole }) {
             borderRadius: 8,
             marginBottom: 20,
             background: allOk ? '#f0fdf4' : '#fff8f0',
-            border: `1px solid ${allOk ? '#bbf7d0' : ORANGE}`
+            border: `1px solid ${allOk ? '#bbf7d0' : ORANGE}`,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -1641,7 +1644,7 @@ export default function Settings({ token, userRole }) {
                   color: 'white',
                   borderRadius: 12,
                   padding: '2px 10px',
-                  letterSpacing: 0.5
+                  letterSpacing: 0.5,
                 }}
               >
                 v{statusData.version}
@@ -1663,7 +1666,7 @@ export default function Settings({ token, userRole }) {
                 borderRadius: 6,
                 cursor: 'pointer',
                 fontSize: 11,
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {statusLoading ? '...' : '↺ Recheck'}
@@ -1683,7 +1686,7 @@ export default function Settings({ token, userRole }) {
                 padding: '14px 16px',
                 borderRadius: 8,
                 background: svc.ok ? '#f0fdf4' : '#fef2f2',
-                border: `1px solid ${svc.ok ? '#bbf7d0' : '#fecaca'}`
+                border: `1px solid ${svc.ok ? '#bbf7d0' : '#fecaca'}`,
               }}
             >
               <span style={{ fontSize: 20, lineHeight: 1 }}>{svc.ok ? '🟢' : '🔴'}</span>
@@ -1693,7 +1696,7 @@ export default function Settings({ token, userRole }) {
                     fontSize: 13,
                     fontWeight: 'bold',
                     color: svc.ok ? GREEN_C : RED_C,
-                    marginBottom: 3
+                    marginBottom: 3,
                   }}
                 >
                   {svc.label}
@@ -1714,7 +1717,7 @@ export default function Settings({ token, userRole }) {
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                gap: 12
+                gap: 12,
               }}
             >
               {Object.entries(statusData.tokenUsage).map(([svc, data]) => {
@@ -1728,7 +1731,7 @@ export default function Settings({ token, userRole }) {
                 const monthTotal = (data.month?.in || 0) + (data.month?.out || 0);
                 const allTimeTotal = (data.allTime || []).reduce(
                   (s, r) => s + (r.in || 0) + (r.out || 0),
-                  0
+                  0,
                 );
                 const fmt = (n) =>
                   n >= 1000000
@@ -1743,7 +1746,7 @@ export default function Settings({ token, userRole }) {
                       padding: '14px 16px',
                       borderRadius: 8,
                       background: '#f8faff',
-                      border: '1px solid #dce8ff'
+                      border: '1px solid #dce8ff',
                     }}
                   >
                     <div
@@ -1784,7 +1787,7 @@ export default function Settings({ token, userRole }) {
                             paddingTop: 6,
                             display: 'flex',
                             flexDirection: 'column',
-                            gap: 3
+                            gap: 3,
                           }}
                         >
                           {data.allTime.map((r, i) => (
@@ -1794,7 +1797,7 @@ export default function Settings({ token, userRole }) {
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 fontSize: 11,
-                                color: '#666'
+                                color: '#666',
                               }}
                             >
                               <span>{r.model || 'unknown'}</span>
@@ -1828,7 +1831,7 @@ export default function Settings({ token, userRole }) {
                   fontWeight: 'bold',
                   background: statusData.alertsSummary.last24hCount > 0 ? '#fef2f2' : '#f0fdf4',
                   color: statusData.alertsSummary.last24hCount > 0 ? RED_C : GREEN_C,
-                  border: `1px solid ${statusData.alertsSummary.last24hCount > 0 ? '#fecaca' : '#bbf7d0'}`
+                  border: `1px solid ${statusData.alertsSummary.last24hCount > 0 ? '#fecaca' : '#bbf7d0'}`,
                 }}
               >
                 {statusData.alertsSummary.last24hCount} alert
@@ -1843,7 +1846,7 @@ export default function Settings({ token, userRole }) {
                   border: '1px solid #bbf7d0',
                   borderRadius: 8,
                   fontSize: 13,
-                  color: GREEN_C
+                  color: GREEN_C,
                 }}
               >
                 ✅ No system alerts fired in the last 24 hours
@@ -1857,7 +1860,7 @@ export default function Settings({ token, userRole }) {
                       padding: '12px 14px',
                       borderRadius: 8,
                       background: alert.severity === 'critical' ? '#fef2f2' : '#fff8f0',
-                      border: `1px solid ${alert.severity === 'critical' ? '#fecaca' : '#f9ddb3'}`
+                      border: `1px solid ${alert.severity === 'critical' ? '#fecaca' : '#f9ddb3'}`,
                     }}
                   >
                     <div
@@ -1865,14 +1868,14 @@ export default function Settings({ token, userRole }) {
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        marginBottom: 4
+                        marginBottom: 4,
                       }}
                     >
                       <span
                         style={{
                           fontSize: 11,
                           fontWeight: 'bold',
-                          color: alert.severity === 'critical' ? RED_C : ORANGE
+                          color: alert.severity === 'critical' ? RED_C : ORANGE,
                         }}
                       >
                         {alert.severity === 'critical' ? '🔴' : '🟡'} {alert.source.toUpperCase()} —{' '}
@@ -1892,7 +1895,7 @@ export default function Settings({ token, userRole }) {
                         fontSize: 11,
                         color: '#666',
                         fontFamily: 'monospace',
-                        wordBreak: 'break-word'
+                        wordBreak: 'break-word',
                       }}
                     >
                       {alert.message}
@@ -1920,7 +1923,7 @@ export default function Settings({ token, userRole }) {
                 border: '1px solid #bbf7d0',
                 borderRadius: 8,
                 fontSize: 13,
-                color: GREEN_C
+                color: GREEN_C,
               }}
             >
               ✅ No errors recorded since last restart
@@ -1935,7 +1938,7 @@ export default function Settings({ token, userRole }) {
                     background: '#fef2f2',
                     border: '1px solid #fecaca',
                     borderRadius: 8,
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
                   }}
                 >
                   <div
@@ -1964,7 +1967,7 @@ export default function Settings({ token, userRole }) {
             background: '#F3F6FC',
             borderRadius: 10,
             padding: '18px 20px',
-            border: '1px solid #dce3f3'
+            border: '1px solid #dce3f3',
           }}
         >
           <div style={{ fontSize: 14, fontWeight: 'bold', color: BLUE, marginBottom: 14 }}>
@@ -1978,7 +1981,7 @@ export default function Settings({ token, userRole }) {
                   flexWrap: 'wrap',
                   gap: 12,
                   marginBottom: 14,
-                  alignItems: 'flex-end'
+                  alignItems: 'flex-end',
                 }}
               >
                 <div>
@@ -1992,7 +1995,7 @@ export default function Settings({ token, userRole }) {
                       padding: '7px 12px',
                       border: '1px solid #ccc',
                       borderRadius: 6,
-                      fontSize: 13
+                      fontSize: 13,
                     }}
                   >
                     {[1, 2, 4, 6, 8, 12, 24, 48, 72, 168].map((h) => (
@@ -2010,8 +2013,8 @@ export default function Settings({ token, userRole }) {
                         headers,
                         body: JSON.stringify({
                           intervalHours: backupInfo.intervalHours,
-                          customPath: backupInfo.customPath
-                        })
+                          customPath: backupInfo.customPath,
+                        }),
                       });
                       setBackupMsg('✅ Schedule saved');
                       setTimeout(() => setBackupMsg(null), 2500);
@@ -2024,7 +2027,7 @@ export default function Settings({ token, userRole }) {
                       borderRadius: 6,
                       cursor: 'pointer',
                       fontWeight: 'bold',
-                      fontSize: 13
+                      fontSize: 13,
                     }}
                   >
                     Save
@@ -2039,10 +2042,10 @@ export default function Settings({ token, userRole }) {
                         const d = await r.json();
                         if (d.ok) {
                           setBackupMsg(
-                            `✅ Saved: ${d.file} (${d.dbSize}) — ${d.totalBackups} backups on disk`
+                            `✅ Saved: ${d.file} (${d.dbSize}) — ${d.totalBackups} backups on disk`,
                           );
                           const r2 = await fetch('/api/status/backup', {
-                            headers: { 'x-auth-token': token }
+                            headers: { 'x-auth-token': token },
                           });
                           const d2 = await r2.json();
                           if (!d2.error) setBackupInfo(d2);
@@ -2061,7 +2064,7 @@ export default function Settings({ token, userRole }) {
                       borderRadius: 6,
                       cursor: 'pointer',
                       fontWeight: 'bold',
-                      fontSize: 13
+                      fontSize: 13,
                     }}
                   >
                     {backupRunning ? '⏳ Backing up…' : '▶ Back Up Now'}
@@ -2087,7 +2090,7 @@ export default function Settings({ token, userRole }) {
                     borderRadius: 6,
                     fontSize: 13,
                     boxSizing: 'border-box',
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
                   }}
                 />
               </div>
@@ -2103,7 +2106,7 @@ export default function Settings({ token, userRole }) {
                   fontSize: 12,
                   color: '#555',
                   marginBottom: 10,
-                  marginTop: 12
+                  marginTop: 12,
                 }}
               >
                 <span>
@@ -2117,7 +2120,7 @@ export default function Settings({ token, userRole }) {
                       month: 'short',
                       day: 'numeric',
                       hour: '2-digit',
-                      minute: '2-digit'
+                      minute: '2-digit',
                     })}
                   </span>
                 )}
@@ -2129,7 +2132,7 @@ export default function Settings({ token, userRole }) {
                     overflowY: 'auto',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 4
+                    gap: 4,
                   }}
                 >
                   {backupInfo.backups.map((b, i) => (
@@ -2142,7 +2145,7 @@ export default function Settings({ token, userRole }) {
                         padding: '4px 8px',
                         background: 'white',
                         borderRadius: 4,
-                        border: '1px solid #e5e7eb'
+                        border: '1px solid #e5e7eb',
                       }}
                     >
                       {b.file} — {b.size}
@@ -2163,7 +2166,7 @@ export default function Settings({ token, userRole }) {
             background: '#F3F6FC',
             borderRadius: 10,
             padding: '18px 20px',
-            border: '1px solid #dce3f3'
+            border: '1px solid #dce3f3',
           }}
         >
           <div style={{ fontSize: 14, fontWeight: 'bold', color: BLUE, marginBottom: 14 }}>
@@ -2182,7 +2185,7 @@ export default function Settings({ token, userRole }) {
                     padding: '7px 12px',
                     border: '1px solid #ccc',
                     borderRadius: 6,
-                    fontSize: 13
+                    fontSize: 13,
                   }}
                 >
                   {[1, 2, 4, 6, 8, 12, 24, 48, 72, 168].map((h) => (
@@ -2205,7 +2208,7 @@ export default function Settings({ token, userRole }) {
                     padding: '7px 12px',
                     border: '1px solid #ccc',
                     borderRadius: 6,
-                    fontSize: 13
+                    fontSize: 13,
                   }}
                 >
                   <option value={-1}>— use interval only —</option>
@@ -2231,7 +2234,7 @@ export default function Settings({ token, userRole }) {
                       await fetch('/api/status/schedule', {
                         method: 'POST',
                         headers,
-                        body: JSON.stringify(reportSchedule)
+                        body: JSON.stringify(reportSchedule),
                       });
                       setScheduleSaved(true);
                       setTimeout(() => setScheduleSaved(false), 2500);
@@ -2247,7 +2250,7 @@ export default function Settings({ token, userRole }) {
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontWeight: 'bold',
-                    fontSize: 13
+                    fontSize: 13,
                   }}
                 >
                   {scheduleSaved ? '✅ Saved' : scheduleSaving ? '...' : 'Save Schedule'}
@@ -2265,7 +2268,7 @@ export default function Settings({ token, userRole }) {
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontWeight: 'bold',
-                    fontSize: 13
+                    fontSize: 13,
                   }}
                 >
                   ▶ Send Now
@@ -2289,7 +2292,7 @@ export default function Settings({ token, userRole }) {
           alignItems: 'center',
           marginBottom: 24,
           flexWrap: 'wrap',
-          gap: 10
+          gap: 10,
         }}
       >
         <h1 style={{ fontSize: 22, fontWeight: 'bold', color: BLUE, margin: 0 }}>⚙️ Settings</h1>
@@ -2306,7 +2309,7 @@ export default function Settings({ token, userRole }) {
               cursor: 'pointer',
               fontWeight: 'bold',
               textDecoration: 'none',
-              fontSize: 14
+              fontSize: 14,
             }}
           >
             ⬇ Blank Contract
@@ -2321,7 +2324,7 @@ export default function Settings({ token, userRole }) {
                 padding: '10px 24px',
                 borderRadius: 8,
                 cursor: 'pointer',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               {saved ? '✅ Saved!' : 'Save Changes'}
@@ -2340,7 +2343,7 @@ export default function Settings({ token, userRole }) {
           overflowX: 'auto',
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
-          msOverflowStyle: 'none'
+          msOverflowStyle: 'none',
         }}
       >
         {TABS.map((tab) => (
@@ -2358,7 +2361,7 @@ export default function Settings({ token, userRole }) {
               fontWeight: activeTab === tab ? 'bold' : 'normal',
               color: activeTab === tab ? BLUE : '#888',
               borderBottom: activeTab === tab ? `2px solid ${BLUE}` : '2px solid transparent',
-              marginBottom: -2
+              marginBottom: -2,
             }}
           >
             {tab}
@@ -2371,7 +2374,7 @@ export default function Settings({ token, userRole }) {
           background: 'white',
           borderRadius: 10,
           padding: 24,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
         }}
       >
         {activeTab === 'Markup' && renderMarkup()}
@@ -2395,7 +2398,7 @@ export default function Settings({ token, userRole }) {
             zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
           }}
           onClick={() => setEmailPreview(null)}
         >
@@ -2408,7 +2411,7 @@ export default function Settings({ token, userRole }) {
               height: '80vh',
               display: 'flex',
               flexDirection: 'column',
-              overflow: 'hidden'
+              overflow: 'hidden',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -2418,7 +2421,7 @@ export default function Settings({ token, userRole }) {
                 borderBottom: '1px solid #eee',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
               }}
             >
               <div>
@@ -2437,7 +2440,7 @@ export default function Settings({ token, userRole }) {
                   borderRadius: 6,
                   padding: '6px 14px',
                   cursor: 'pointer',
-                  fontSize: 13
+                  fontSize: 13,
                 }}
               >
                 ✕ Close

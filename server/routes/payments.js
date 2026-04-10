@@ -42,7 +42,7 @@ function currentTime() {
       hour: '2-digit',
       minute: '2-digit',
       hour12: false,
-      timeZone: 'America/New_York'
+      timeZone: 'America/New_York',
     })
     .slice(0, 5);
 }
@@ -142,7 +142,7 @@ router.get('/contact/:contactId', requireAuth, (req, res) => {
       (customer_phone IS NOT NULL AND customer_phone = ?) OR
       (customer_name IS NOT NULL AND customer_name = ?)
     )
-  `
+  `,
     )
     .all(contact.email || '', contact.phone || '', contact.name || '');
 
@@ -152,7 +152,7 @@ router.get('/contact/:contactId', requireAuth, (req, res) => {
       received: [],
       made: [],
       summary: { total_received: 0, total_paid_out: 0, balance: 0 },
-      jobs: []
+      jobs: [],
     });
   }
 
@@ -164,7 +164,7 @@ router.get('/contact/:contactId', requireAuth, (req, res) => {
     FROM payments_received r
     LEFT JOIN jobs j ON j.id = r.job_id
     WHERE r.job_id IN (${ph}) ORDER BY r.date_received DESC
-  `
+  `,
     )
     .all(...jobIds);
   const made = db
@@ -174,7 +174,7 @@ router.get('/contact/:contactId', requireAuth, (req, res) => {
     FROM payments_made m
     LEFT JOIN jobs j ON j.id = m.job_id
     WHERE m.job_id IN (${ph}) ORDER BY m.date_paid DESC
-  `
+  `,
     )
     .all(...jobIds);
 
@@ -185,7 +185,7 @@ router.get('/contact/:contactId', requireAuth, (req, res) => {
     received,
     made,
     summary: { total_received: recTotal, total_paid_out: madeTotal, balance: recTotal - madeTotal },
-    jobs
+    jobs,
   });
 });
 
@@ -207,7 +207,7 @@ router.post(
       credit_debit,
       notes,
       is_pass_through_reimbursement,
-      invoice_id
+      invoice_id,
     } = req.body;
     const parsedAmount = validateAmount(amount);
     if (parsedAmount === null)
@@ -229,7 +229,7 @@ router.post(
         `
     INSERT INTO payments_received (job_id, customer_name, check_number, amount, date_received, time_received, payment_type, credit_debit, recorded_by, notes, payment_class, is_pass_through_reimbursement, invoice_id)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `
+  `,
       )
       .run(
         job_id,
@@ -244,7 +244,7 @@ router.post(
         notes || null,
         pClass,
         isPTR,
-        invoice_id || null
+        invoice_id || null,
       );
 
     const payment = db
@@ -254,7 +254,7 @@ router.post(
       job_id,
       'payment_received',
       `Check received: $${amount} (${payment_type || 'deposit'}, ${credit_debit || 'credit'}) recorded by ${recorder}`,
-      recorder
+      recorder,
     );
 
     const contact = job.contact_id
@@ -265,19 +265,19 @@ router.post(
       job_id,
       event_type: isPTR ? 'PASS_THROUGH_REIMBURSED' : 'PAYMENT_RECEIVED',
       description: `${isPTR ? 'Pass-through reimbursement' : 'Payment'} received: $${parsedAmount.toLocaleString()} (${pType})${check_number ? ' check #' + check_number : ''}`,
-      recorded_by: recorder
+      recorded_by: recorder,
     });
 
     // When final payment is recorded, void all open signing sessions — job is complete
     if (pType === 'final') {
       db.prepare(
-        "UPDATE signing_sessions SET status = 'void' WHERE job_id = ? AND status != 'signed'"
+        "UPDATE signing_sessions SET status = 'void' WHERE job_id = ? AND status != 'signed'",
       ).run(job_id);
       logAudit(
         job_id,
         'signing_sessions_voided',
         'Signing links voided — final payment recorded',
-        recorder
+        recorder,
       );
     }
 
@@ -296,14 +296,14 @@ router.post(
         const paidWhen = new Date().toLocaleString('en-US', {
           dateStyle: 'long',
           timeStyle: 'short',
-          timeZone: 'America/New_York'
+          timeZone: 'America/New_York',
         });
         const pTypeLabel =
           {
             deposit: 'Deposit',
             progress: 'Progress Payment',
             final: 'Final Payment',
-            other: 'Payment'
+            other: 'Payment',
           }[pType] || 'Payment';
         const safeName = (fullJob.customer_name || job_id)
           .replace(/\s+/g, '-')
@@ -313,7 +313,7 @@ router.post(
         try {
           mergedPdfPath = await mergePDFs(
             [fullJob.proposal_pdf_path, fullJob.contract_pdf_path],
-            `pb-payment-${job_id}.pdf`
+            `pb-payment-${job_id}.pdf`,
           );
         } catch (mergeErr) {
           console.warn('[PaymentEmail] PDF merge failed, using contract only:', mergeErr.message);
@@ -335,7 +335,7 @@ router.post(
           } catch (saveErr) {
             console.warn(
               '[SignedContracts] Failed to save payment-confirmed file:',
-              saveErr.message
+              saveErr.message,
             );
           }
         }
@@ -378,14 +378,14 @@ router.post(
         </div>`,
           text: `Hi ${fullJob.customer_name || 'there'},\n\nWe received your ${pTypeLabel} of ${paidAmount} on ${paidWhen}.\n\nYour project at ${fullJob.project_address} is confirmed and scheduled. We will follow up with your start date shortly.\n\nA copy of your signed contract is attached.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
           emailType: 'general',
-          jobId: job_id
+          jobId: job_id,
         });
         console.log(`[Payment] Deposit confirmation sent to ${fullJob.customer_email}`);
       } catch (e) {
         console.warn('[Payment] Confirmation email failed:', e.message);
       }
     });
-  }
+  },
 );
 
 router.post(
@@ -407,7 +407,7 @@ router.post(
       notes,
       payment_class,
       dept_code,
-      paid_by
+      paid_by,
     } = req.body;
     const parsedAmount = validateAmount(amount);
     if (parsedAmount === null)
@@ -448,7 +448,7 @@ router.post(
         `
     INSERT INTO payments_made (job_id, payee_name, check_number, amount, date_paid, time_paid, category, credit_debit, recorded_by, notes, payment_class, dept_code, is_pass_through, paid_by)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `
+  `,
       )
       .run(
         job_id,
@@ -464,7 +464,7 @@ router.post(
         pClass,
         deptCodeVal,
         isPassThrough,
-        paidBy
+        paidBy,
       );
 
     const payment = db
@@ -475,7 +475,7 @@ router.post(
       job_id,
       'payment_made',
       `${payee_name}: $${amount} (${cat}, ${paidByLabel}) recorded by ${recorder}`,
-      recorder
+      recorder,
     );
 
     const contact = job.contact_id
@@ -491,11 +491,11 @@ router.post(
       event_type: isPassThrough ? 'PASS_THROUGH_PAID' : 'PAYMENT_MADE',
       description: activityDesc,
       document_ref: deptCodeVal || null,
-      recorded_by: recorder
+      recorded_by: recorder,
     });
 
     res.json({ payment, summary: jobSummary(db, job_id) });
-  }
+  },
 );
 
 router.patch('/received/:id', requireAuth, validateNumber('amount', { min: 0.01 }), (req, res) => {
@@ -511,7 +511,7 @@ router.patch('/received/:id', requireAuth, validateNumber('amount', { min: 0.01 
     time_received,
     payment_type,
     credit_debit,
-    notes
+    notes,
   } = req.body;
 
   let parsedAmt = row.amount;
@@ -539,7 +539,7 @@ router.patch('/received/:id', requireAuth, validateNumber('amount', { min: 0.01 
       customer_name = ?, check_number = ?, amount = ?, date_received = ?, time_received = ?,
       payment_type = ?, credit_debit = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `
+  `,
   ).run(
     customer_name ?? row.customer_name,
     check_number ?? row.check_number,
@@ -549,7 +549,7 @@ router.patch('/received/:id', requireAuth, validateNumber('amount', { min: 0.01 
     pType,
     crDr,
     notes ?? row.notes,
-    row.id
+    row.id,
   );
 
   const updated = db.prepare('SELECT * FROM payments_received WHERE id = ?').get(row.id);
@@ -570,7 +570,7 @@ router.patch('/made/:id', requireAuth, validateNumber('amount', { min: 0.01 }), 
     category,
     credit_debit,
     notes,
-    paid_by
+    paid_by,
   } = req.body;
 
   let parsedAmt = row.amount;
@@ -604,7 +604,7 @@ router.patch('/made/:id', requireAuth, validateNumber('amount', { min: 0.01 }), 
       payee_name = ?, check_number = ?, amount = ?, date_paid = ?, time_paid = ?,
       category = ?, credit_debit = ?, notes = ?, paid_by = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `
+  `,
   ).run(
     payee_name ?? row.payee_name,
     check_number ?? row.check_number,
@@ -615,7 +615,7 @@ router.patch('/made/:id', requireAuth, validateNumber('amount', { min: 0.01 }), 
     crDr,
     notes ?? row.notes,
     paidBy,
-    row.id
+    row.id,
   );
 
   const updated = db.prepare('SELECT * FROM payments_made WHERE id = ?').get(row.id);
@@ -631,7 +631,7 @@ router.delete('/received/:id', requireAuth, (req, res) => {
     row.job_id,
     'payment_received_deleted',
     `Check record deleted: $${row.amount}`,
-    req.session?.name || 'admin'
+    req.session?.name || 'admin',
   );
   res.json({ success: true, summary: jobSummary(db, row.job_id) });
 });
@@ -645,7 +645,7 @@ router.delete('/made/:id', requireAuth, (req, res) => {
     row.job_id,
     'payment_made_deleted',
     `Outgoing check deleted: $${row.amount} to ${row.payee_name}`,
-    req.session?.name || 'admin'
+    req.session?.name || 'admin',
   );
   res.json({ success: true, summary: jobSummary(db, row.job_id) });
 });

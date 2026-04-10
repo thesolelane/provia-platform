@@ -100,7 +100,9 @@ router.get('/report', requireAuth, (req, res) => {
 
   const dFilter = from ? `AND po.created_at >= '${from}'` : '';
 
-  const totals = db.prepare(`
+  const totals = db
+    .prepare(
+      `
     SELECT
       COUNT(*) AS count,
       SUM(CASE WHEN po.status NOT IN ('closed') THEN po.amount ELSE 0 END) AS total_spend,
@@ -109,18 +111,26 @@ router.get('/report', requireAuth, (req, res) => {
       SUM(CASE WHEN po.status = 'closed'   THEN po.amount ELSE 0 END) AS closed
     FROM purchase_orders po
     WHERE 1=1 ${dFilter}
-  `).get();
+  `,
+    )
+    .get();
 
-  const byCategory = db.prepare(`
+  const byCategory = db
+    .prepare(
+      `
     SELECT po.category, COUNT(*) AS count, SUM(po.amount) AS total
     FROM purchase_orders po
     WHERE po.status != 'closed' ${dFilter}
     GROUP BY po.category
     ORDER BY total DESC
-  `).all();
+  `,
+    )
+    .all();
 
   // Open PO spend by job (draft + issued = "open")
-  const openByJob = db.prepare(`
+  const openByJob = db
+    .prepare(
+      `
     SELECT po.job_id, j.pb_number, j.customer_name, j.project_address,
            COUNT(*) AS po_count,
            SUM(po.amount) AS po_total
@@ -130,24 +140,34 @@ router.get('/report', requireAuth, (req, res) => {
     GROUP BY po.job_id
     ORDER BY po_total DESC
     LIMIT 20
-  `).all();
+  `,
+    )
+    .all();
 
-  const byStatus = db.prepare(`
+  const byStatus = db
+    .prepare(
+      `
     SELECT po.status, COUNT(*) AS count, SUM(po.amount) AS total
     FROM purchase_orders po
     WHERE 1=1 ${dFilter}
     GROUP BY po.status
     ORDER BY total DESC
-  `).all();
+  `,
+    )
+    .all();
 
-  const recent = db.prepare(`
+  const recent = db
+    .prepare(
+      `
     SELECT po.*, j.pb_number, j.customer_name, j.project_address
     FROM purchase_orders po
     LEFT JOIN jobs j ON j.id = po.job_id
     WHERE 1=1 ${dFilter}
     ORDER BY po.created_at DESC
     LIMIT 50
-  `).all();
+  `,
+    )
+    .all();
 
   res.json({ totals, byCategory, openByJob, byStatus, recent });
 });
@@ -156,43 +176,56 @@ router.get('/report', requireAuth, (req, res) => {
 router.post('/', requireAuth, (req, res) => {
   const db = getDb();
   const {
-    job_id, contact_id, vendor_id, vendor_name, description,
-    category, amount, status, notes, created_by
+    job_id,
+    contact_id,
+    vendor_id,
+    vendor_name,
+    description,
+    category,
+    amount,
+    status,
+    notes,
+    created_by,
   } = req.body;
 
   if (!job_id || !job_id.trim()) return res.status(400).json({ error: 'job_id is required' });
-  if (!description || !description.trim()) return res.status(400).json({ error: 'description is required' });
+  if (!description || !description.trim())
+    return res.status(400).json({ error: 'description is required' });
 
   const initialStatus = status || 'draft';
   const poNumber = generatePONumber(db);
   const now = new Date().toISOString();
 
   // Set lifecycle timestamps for initial status
-  const issued_at  = initialStatus === 'issued'   ? now : null;
+  const issued_at = initialStatus === 'issued' ? now : null;
   const received_at = initialStatus === 'received' ? now : null;
-  const closed_at  = initialStatus === 'closed'   ? now : null;
+  const closed_at = initialStatus === 'closed' ? now : null;
 
-  const result = db.prepare(`
+  const result = db
+    .prepare(
+      `
     INSERT INTO purchase_orders
       (po_number, job_id, contact_id, vendor_id, vendor_name, description,
        category, amount, status, issued_at, received_at, closed_at, created_by, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    poNumber,
-    job_id.trim(),
-    contact_id || null,
-    vendor_id || null,
-    vendor_name || null,
-    description.trim(),
-    category || 'materials',
-    Number(amount) || 0,
-    initialStatus,
-    issued_at,
-    received_at,
-    closed_at,
-    created_by || null,
-    notes || null
-  );
+  `,
+    )
+    .run(
+      poNumber,
+      job_id.trim(),
+      contact_id || null,
+      vendor_id || null,
+      vendor_name || null,
+      description.trim(),
+      category || 'materials',
+      Number(amount) || 0,
+      initialStatus,
+      issued_at,
+      received_at,
+      closed_at,
+      created_by || null,
+      notes || null,
+    );
 
   const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(result.lastInsertRowid);
   res.json({ success: true, purchase_order: po });
@@ -204,15 +237,14 @@ router.patch('/:id', requireAuth, (req, res) => {
   const existing = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'Purchase order not found' });
 
-  const {
-    vendor_id, vendor_name, description, category, amount,
-    status, notes, contact_id
-  } = req.body;
+  const { vendor_id, vendor_name, description, category, amount, status, notes, contact_id } =
+    req.body;
 
   const newStatus = status || existing.status;
   const tsPatches = lifecyclePatch(existing, newStatus);
 
-  db.prepare(`
+  db.prepare(
+    `
     UPDATE purchase_orders SET
       contact_id  = ?,
       vendor_id   = ?,
@@ -227,19 +259,20 @@ router.patch('/:id', requireAuth, (req, res) => {
       notes       = ?,
       updated_at  = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(
-    contact_id !== undefined ? (contact_id || null) : existing.contact_id,
-    vendor_id  !== undefined ? (vendor_id  || null) : existing.vendor_id,
-    vendor_name !== undefined ? (vendor_name || null) : existing.vendor_name,
-    description !== undefined ? (description || null) : existing.description,
+  `,
+  ).run(
+    contact_id !== undefined ? contact_id || null : existing.contact_id,
+    vendor_id !== undefined ? vendor_id || null : existing.vendor_id,
+    vendor_name !== undefined ? vendor_name || null : existing.vendor_name,
+    description !== undefined ? description || null : existing.description,
     category || existing.category,
-    amount  !== undefined ? (Number(amount) || 0) : existing.amount,
+    amount !== undefined ? Number(amount) || 0 : existing.amount,
     newStatus,
-    tsPatches.issued_at   || null,
+    tsPatches.issued_at || null,
     tsPatches.received_at || null,
-    tsPatches.closed_at   || null,
-    notes !== undefined ? (notes || null) : existing.notes,
-    req.params.id
+    tsPatches.closed_at || null,
+    notes !== undefined ? notes || null : existing.notes,
+    req.params.id,
   );
 
   const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);

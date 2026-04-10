@@ -9,65 +9,89 @@ const SOURCE_LABELS = {
   manual: 'Manual Entry',
   job: 'From Job',
   email: 'Email',
-  whatsapp: 'WhatsApp'
+  whatsapp: 'WhatsApp',
 };
 
 const TYPE_COLORS = {
   residential: { bg: '#e8f5e9', color: '#2e7d32' },
   commercial: { bg: '#e3f2fd', color: '#1565c0' },
-  unknown: { bg: '#f5f5f5', color: '#757575' }
+  unknown: { bg: '#f5f5f5', color: '#757575' },
 };
 
 const PAST_STATUSES = new Set(['complete', 'completed', 'rejected', 'closed', 'archived']);
 
 const STAGE_GROUPS = [
-  { key: 'early', label: 'Received / Estimating', statuses: new Set(['received', 'estimating', 'clarification']) },
-  { key: 'proposal', label: 'Proposal Sent', statuses: new Set(['proposal_ready', 'proposal_sent', 'proposal_approved']) },
-  { key: 'contract', label: 'Contract', statuses: new Set(['contract_ready', 'contract_sent', 'contract_signed']) },
+  {
+    key: 'early',
+    label: 'Received / Estimating',
+    statuses: new Set(['received', 'estimating', 'clarification']),
+  },
+  {
+    key: 'proposal',
+    label: 'Proposal Sent',
+    statuses: new Set(['proposal_ready', 'proposal_sent', 'proposal_approved']),
+  },
+  {
+    key: 'contract',
+    label: 'Contract',
+    statuses: new Set(['contract_ready', 'contract_sent', 'contract_signed']),
+  },
   { key: 'progress', label: 'In Progress', statuses: new Set(['in_progress']) },
 ];
 
 const STATUS_META = {
-  received:          { label: 'Received',           bg: '#f0f0f0', color: '#555' },
-  estimating:        { label: 'Estimating',          bg: '#fff8e1', color: '#f59e0b' },
-  clarification:     { label: 'Needs Clarification', bg: '#fff3e0', color: '#e65100' },
-  proposal_ready:    { label: 'Proposal Ready',      bg: '#e3f2fd', color: '#1565c0' },
-  proposal_sent:     { label: 'Proposal Sent',       bg: '#ede7f6', color: '#6a1b9a' },
-  proposal_approved: { label: 'Proposal Approved',   bg: '#e8f5e9', color: '#2e7d32' },
-  contract_ready:    { label: 'Contract Ready',      bg: '#e0f2f1', color: '#00695c' },
-  contract_sent:     { label: 'Contract Sent',       bg: '#e0f7fa', color: '#006064' },
-  contract_signed:   { label: 'Contract Signed ✓',  bg: '#e8eaf6', color: '#1B3A6B' },
-  in_progress:       { label: 'In Progress',         bg: '#f1f8e9', color: '#33691e' },
-  complete:          { label: 'Completed',            bg: '#f5f5f5', color: '#333' },
-  completed:         { label: 'Completed',            bg: '#f5f5f5', color: '#333' },
-  rejected:          { label: 'Rejected',             bg: '#ffebee', color: '#c62828' },
-  closed:            { label: 'Closed',               bg: '#fff3e0', color: '#e65100' },
+  received: { label: 'Received', bg: '#f0f0f0', color: '#555' },
+  estimating: { label: 'Estimating', bg: '#fff8e1', color: '#f59e0b' },
+  clarification: { label: 'Needs Clarification', bg: '#fff3e0', color: '#e65100' },
+  proposal_ready: { label: 'Proposal Ready', bg: '#e3f2fd', color: '#1565c0' },
+  proposal_sent: { label: 'Proposal Sent', bg: '#ede7f6', color: '#6a1b9a' },
+  proposal_approved: { label: 'Proposal Approved', bg: '#e8f5e9', color: '#2e7d32' },
+  contract_ready: { label: 'Contract Ready', bg: '#e0f2f1', color: '#00695c' },
+  contract_sent: { label: 'Contract Sent', bg: '#e0f7fa', color: '#006064' },
+  contract_signed: { label: 'Contract Signed ✓', bg: '#e8eaf6', color: '#1B3A6B' },
+  in_progress: { label: 'In Progress', bg: '#f1f8e9', color: '#33691e' },
+  complete: { label: 'Completed', bg: '#f5f5f5', color: '#333' },
+  completed: { label: 'Completed', bg: '#f5f5f5', color: '#333' },
+  rejected: { label: 'Rejected', bg: '#ffebee', color: '#c62828' },
+  closed: { label: 'Closed', bg: '#fff3e0', color: '#e65100' },
 };
 
 const STATUS_ORDER = [
-  'received', 'estimating', 'clarification',
-  'proposal_ready', 'proposal_sent', 'proposal_approved',
-  'contract_ready', 'contract_sent', 'contract_signed',
-  'in_progress', 'complete', 'completed'
+  'received',
+  'estimating',
+  'clarification',
+  'proposal_ready',
+  'proposal_sent',
+  'proposal_approved',
+  'contract_ready',
+  'contract_sent',
+  'contract_signed',
+  'in_progress',
+  'complete',
+  'completed',
 ];
 
 function fmt(n) {
   if (!n && n !== 0) return '—';
-  return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  return (
+    '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+  );
 }
 
 function StatusBadge({ status }) {
   const m = STATUS_META[status] || { label: status, bg: '#f0f0f0', color: '#555' };
   return (
-    <span style={{
-      background: m.bg,
-      color: m.color,
-      fontSize: 10,
-      fontWeight: 700,
-      padding: '2px 8px',
-      borderRadius: 10,
-      whiteSpace: 'nowrap'
-    }}>
+    <span
+      style={{
+        background: m.bg,
+        color: m.color,
+        fontSize: 10,
+        fontWeight: 700,
+        padding: '2px 8px',
+        borderRadius: 10,
+        whiteSpace: 'nowrap',
+      }}
+    >
       {m.label}
     </span>
   );
@@ -79,10 +103,10 @@ function OpenContractsPanel({ jobs }) {
   const isPast = (j) => j.archived === 1 || PAST_STATUSES.has(j.status);
 
   const activeJobs = jobs.filter((j) => !isPast(j));
-  const pastJobs   = jobs.filter((j) => isPast(j));
+  const pastJobs = jobs.filter((j) => isPast(j));
 
   const totalContracted = activeJobs.reduce((s, j) => s + (j.total_value || 0), 0);
-  const totalReceived   = activeJobs.reduce((s, j) => s + (j.total_received || 0), 0);
+  const totalReceived = activeJobs.reduce((s, j) => s + (j.total_received || 0), 0);
   const totalOutstanding = activeJobs.reduce((s, j) => s + (j.outstanding || 0), 0);
 
   const cardStyle = {
@@ -91,11 +115,21 @@ function OpenContractsPanel({ jobs }) {
     padding: '10px 12px',
     marginBottom: 8,
     background: '#fff',
-    fontSize: 12
+    fontSize: 12,
   };
 
-  const PO_STATUS_COLOR = { draft: '#888', issued: '#b45309', received: '#3B82F6', closed: '#2e7d32' };
-  const PO_STATUS_LABEL = { draft: 'Draft', issued: 'Issued', received: 'Received', closed: 'Closed' };
+  const PO_STATUS_COLOR = {
+    draft: '#888',
+    issued: '#b45309',
+    received: '#3B82F6',
+    closed: '#2e7d32',
+  };
+  const PO_STATUS_LABEL = {
+    draft: 'Draft',
+    issued: 'Issued',
+    received: 'Received',
+    closed: 'Closed',
+  };
 
   function JobRow({ j }) {
     const [poExpanded, setPoExpanded] = useState(false);
@@ -108,7 +142,7 @@ function OpenContractsPanel({ jobs }) {
         try {
           const token = localStorage.getItem('auth_token') || '';
           const res = await fetch(`/api/purchase-orders?job_id=${j.id}&status=open`, {
-            headers: { 'x-auth-token': token }
+            headers: { 'x-auth-token': token },
           });
           const data = await res.json();
           setJobPOs(data.purchase_orders || []);
@@ -118,30 +152,80 @@ function OpenContractsPanel({ jobs }) {
           setLoadingPOs(false);
         }
       }
-      setPoExpanded(v => !v);
+      setPoExpanded((v) => !v);
     };
 
     return (
       <div style={cardStyle}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            gap: 8,
+          }}
+        >
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                flexWrap: 'wrap',
+                marginBottom: 4,
+              }}
+            >
               {j.pb_number && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#1B3A6B', background: '#e8eeff', padding: '1px 6px', borderRadius: 4 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: '#1B3A6B',
+                    background: '#e8eeff',
+                    padding: '1px 6px',
+                    borderRadius: 4,
+                  }}
+                >
                   {j.pb_number}
                 </span>
               )}
               {!j.pb_number && j.quote_number && (
-                <span style={{ fontSize: 10, fontWeight: 700, color: '#555', background: '#f0f0f0', padding: '1px 6px', borderRadius: 4 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: '#555',
+                    background: '#f0f0f0',
+                    padding: '1px 6px',
+                    borderRadius: 4,
+                  }}
+                >
                   #{j.quote_number}
                 </span>
               )}
               <StatusBadge status={j.status} />
             </div>
-            <div style={{ color: '#333', fontWeight: 500, marginBottom: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div
+              style={{
+                color: '#333',
+                fontWeight: 500,
+                marginBottom: 6,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {j.project_address || '(no address)'}
             </div>
-            <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', color: '#555', alignItems: 'center' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: 16,
+                flexWrap: 'wrap',
+                color: '#555',
+                alignItems: 'center',
+              }}
+            >
               <span>
                 <span style={{ color: '#888', fontSize: 10 }}>CONTRACTED </span>
                 <strong>{fmt(j.total_value)}</strong>
@@ -170,7 +254,7 @@ function OpenContractsPanel({ jobs }) {
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 4
+                    gap: 4,
                   }}
                 >
                   📦 {j.po_count} Open PO{j.po_count !== 1 ? 's' : ''} · {fmt(j.po_open)}
@@ -190,7 +274,7 @@ function OpenContractsPanel({ jobs }) {
               padding: '5px 10px',
               borderRadius: 6,
               whiteSpace: 'nowrap',
-              flexShrink: 0
+              flexShrink: 0,
             }}
           >
             Open Job →
@@ -200,24 +284,70 @@ function OpenContractsPanel({ jobs }) {
         {poExpanded && (
           <div style={{ marginTop: 10, borderTop: '1px solid #ede9fe', paddingTop: 10 }}>
             {loadingPOs ? (
-              <div style={{ color: '#888', fontSize: 11, padding: '4px 0' }}>Loading purchase orders…</div>
+              <div style={{ color: '#888', fontSize: 11, padding: '4px 0' }}>
+                Loading purchase orders…
+              </div>
             ) : jobPOs && jobPOs.length === 0 ? (
-              <div style={{ color: '#aaa', fontSize: 11, fontStyle: 'italic' }}>No open purchase orders for this job.</div>
+              <div style={{ color: '#aaa', fontSize: 11, fontStyle: 'italic' }}>
+                No open purchase orders for this job.
+              </div>
             ) : (
               <div>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#7C3AED', marginBottom: 6, letterSpacing: '0.05em' }}>OPEN PURCHASE ORDERS</div>
-                {(jobPOs || []).map(po => (
-                  <div key={po.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', background: '#faf8ff', border: '1px solid #ede9fe', borderRadius: 5, marginBottom: 4, gap: 8 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: '#7C3AED',
+                    marginBottom: 6,
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  OPEN PURCHASE ORDERS
+                </div>
+                {(jobPOs || []).map((po) => (
+                  <div
+                    key={po.id}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '5px 8px',
+                      background: '#faf8ff',
+                      border: '1px solid #ede9fe',
+                      borderRadius: 5,
+                      marginBottom: 4,
+                      gap: 8,
+                    }}
+                  >
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', marginRight: 6 }}>{po.po_number}</span>
+                      <span
+                        style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', marginRight: 6 }}
+                      >
+                        {po.po_number}
+                      </span>
                       <span style={{ fontSize: 11, color: '#555' }}>{po.description}</span>
-                      {po.vendor_name && <span style={{ fontSize: 10, color: '#999', marginLeft: 6 }}>· {po.vendor_name}</span>}
+                      {po.vendor_name && (
+                        <span style={{ fontSize: 10, color: '#999', marginLeft: 6 }}>
+                          · {po.vendor_name}
+                        </span>
+                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: PO_STATUS_COLOR[po.status] || '#888', background: '#f0f0f0', padding: '1px 6px', borderRadius: 3 }}>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: PO_STATUS_COLOR[po.status] || '#888',
+                          background: '#f0f0f0',
+                          padding: '1px 6px',
+                          borderRadius: 3,
+                        }}
+                      >
                         {PO_STATUS_LABEL[po.status] || po.status}
                       </span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#7C3AED' }}>{fmt(po.amount)}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#7C3AED' }}>
+                        {fmt(po.amount)}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -247,27 +377,47 @@ function OpenContractsPanel({ jobs }) {
       </h3>
 
       {activeJobs.length > 0 && (
-        <div style={{
-          display: 'flex',
-          gap: 12,
-          background: '#f8faff',
-          border: '1px solid #dde8ff',
-          borderRadius: 8,
-          padding: '10px 14px',
-          marginBottom: 12,
-          flexWrap: 'wrap'
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 12,
+            background: '#f8faff',
+            border: '1px solid #dde8ff',
+            borderRadius: 8,
+            padding: '10px 14px',
+            marginBottom: 12,
+            flexWrap: 'wrap',
+          }}
+        >
           <div style={{ flex: 1, minWidth: 100 }}>
-            <div style={{ fontSize: 10, color: '#888', fontWeight: 700, marginBottom: 2 }}>TOTAL CONTRACTED</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>{fmt(totalContracted)}</div>
+            <div style={{ fontSize: 10, color: '#888', fontWeight: 700, marginBottom: 2 }}>
+              TOTAL CONTRACTED
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>
+              {fmt(totalContracted)}
+            </div>
           </div>
           <div style={{ flex: 1, minWidth: 100 }}>
-            <div style={{ fontSize: 10, color: '#888', fontWeight: 700, marginBottom: 2 }}>TOTAL RECEIVED</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#2e7d32' }}>{fmt(totalReceived)}</div>
+            <div style={{ fontSize: 10, color: '#888', fontWeight: 700, marginBottom: 2 }}>
+              TOTAL RECEIVED
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#2e7d32' }}>
+              {fmt(totalReceived)}
+            </div>
           </div>
           <div style={{ flex: 1, minWidth: 100 }}>
-            <div style={{ fontSize: 10, color: '#888', fontWeight: 700, marginBottom: 2 }}>OUTSTANDING</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: totalOutstanding > 0 ? '#c62828' : '#2e7d32' }}>{fmt(totalOutstanding)}</div>
+            <div style={{ fontSize: 10, color: '#888', fontWeight: 700, marginBottom: 2 }}>
+              OUTSTANDING
+            </div>
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 700,
+                color: totalOutstanding > 0 ? '#c62828' : '#2e7d32',
+              }}
+            >
+              {fmt(totalOutstanding)}
+            </div>
           </div>
         </div>
       )}
@@ -281,27 +431,33 @@ function OpenContractsPanel({ jobs }) {
         if (groupJobs.length === 0) return null;
         return (
           <div key={group.key} style={{ marginBottom: 12 }}>
-            <div style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: '#888',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-              marginBottom: 6,
-              paddingBottom: 3,
-              borderBottom: '1px solid #e8edf5'
-            }}>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#888',
+                letterSpacing: '0.05em',
+                textTransform: 'uppercase',
+                marginBottom: 6,
+                paddingBottom: 3,
+                borderBottom: '1px solid #e8edf5',
+              }}
+            >
               {group.label}
             </div>
-            {groupJobs.map((j) => <JobRow key={j.id} j={j} />)}
+            {groupJobs.map((j) => (
+              <JobRow key={j.id} j={j} />
+            ))}
           </div>
         );
       })}
 
       {/* Ungrouped active jobs (unrecognised statuses) */}
-      {activeJobs.filter((j) => !STAGE_GROUPS.some((g) => g.statuses.has(j.status))).map((j) => (
-        <JobRow key={j.id} j={j} />
-      ))}
+      {activeJobs
+        .filter((j) => !STAGE_GROUPS.some((g) => g.statuses.has(j.status)))
+        .map((j) => (
+          <JobRow key={j.id} j={j} />
+        ))}
 
       {pastJobs.length > 0 && (
         <div style={{ marginTop: 12 }}>
@@ -317,14 +473,16 @@ function OpenContractsPanel({ jobs }) {
               padding: '4px 0',
               display: 'flex',
               alignItems: 'center',
-              gap: 4
+              gap: 4,
             }}
           >
             {pastExpanded ? '▾' : '▸'} Past Jobs ({pastJobs.length})
           </button>
           {pastExpanded && (
             <div style={{ marginTop: 8 }}>
-              {pastJobs.map((j) => <JobRow key={j.id} j={j} />)}
+              {pastJobs.map((j) => (
+                <JobRow key={j.id} j={j} />
+              ))}
             </div>
           )}
         </div>
@@ -352,7 +510,7 @@ export default function Contacts({ token }) {
     state: 'MA',
     zip: '',
     customer_type: 'residential',
-    notes: ''
+    notes: '',
   });
   const [paymentSummary, setPaymentSummary] = useState(null);
   const [contactPayments, setContactPayments] = useState({ received: [], made: [] });
@@ -387,11 +545,11 @@ export default function Contacts({ token }) {
       state: c.state || 'MA',
       zip: c.zip || '',
       customer_type: c.customer_type || 'residential',
-      notes: c.notes || ''
+      notes: c.notes || '',
     });
     const [contactRes, payRes] = await Promise.all([
       fetch(`/api/contacts/${c.id}`, { headers }),
-      fetch(`/api/payments/contact/${c.id}`, { headers })
+      fetch(`/api/payments/contact/${c.id}`, { headers }),
     ]);
     const data = await contactRes.json();
     setSelectedJobs(data.jobs || []);
@@ -443,7 +601,7 @@ export default function Contacts({ token }) {
     const res = await fetch(url, {
       method,
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify(form)
+      body: JSON.stringify(form),
     });
     if (res.ok) {
       setSelected(null);
@@ -480,7 +638,7 @@ export default function Contacts({ token }) {
       state: 'MA',
       zip: '',
       customer_type: 'residential',
-      notes: ''
+      notes: '',
     });
 
   if (loading && contacts.length === 0)
@@ -494,7 +652,7 @@ export default function Contacts({ token }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 24
+          marginBottom: 24,
         }}
       >
         <div>
@@ -519,7 +677,7 @@ export default function Contacts({ token }) {
             padding: '10px 20px',
             borderRadius: 8,
             cursor: 'pointer',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
           }}
         >
           + Add Contact
@@ -538,7 +696,7 @@ export default function Contacts({ token }) {
             border: '1px solid #ddd',
             borderRadius: 8,
             fontSize: 13,
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
           }}
         />
       </div>
@@ -549,7 +707,7 @@ export default function Contacts({ token }) {
           background: 'white',
           borderRadius: 10,
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-          overflow: 'hidden'
+          overflow: 'hidden',
         }}
       >
         {contacts.length === 0 ? (
@@ -573,7 +731,7 @@ export default function Contacts({ token }) {
                   'City / Address',
                   'Type',
                   'Source',
-                  ''
+                  '',
                 ].map((h) => (
                   <th
                     key={h}
@@ -582,7 +740,7 @@ export default function Contacts({ token }) {
                       color: 'white',
                       textAlign: 'left',
                       fontSize: 11,
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
                     }}
                   >
                     {h}
@@ -599,7 +757,7 @@ export default function Contacts({ token }) {
                     style={{
                       borderBottom: '1px solid #f0f0f0',
                       background: i % 2 === 0 ? 'white' : '#fafafa',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
                     }}
                     onClick={() => openContact(c)}
                   >
@@ -610,7 +768,7 @@ export default function Contacts({ token }) {
                         color: '#1B3A6B',
                         fontWeight: '600',
                         fontFamily: 'monospace',
-                        whiteSpace: 'nowrap'
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {c.customer_number || <span style={{ color: '#bbb' }}>—</span>}
@@ -638,7 +796,7 @@ export default function Contacts({ token }) {
                           borderRadius: 20,
                           fontSize: 11,
                           fontWeight: 'bold',
-                          textTransform: 'capitalize'
+                          textTransform: 'capitalize',
                         }}
                       >
                         {c.customer_type || 'unknown'}
@@ -670,7 +828,7 @@ export default function Contacts({ token }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div
@@ -681,7 +839,7 @@ export default function Contacts({ token }) {
               width: 700,
               maxWidth: '95vw',
               maxHeight: '90vh',
-              overflow: 'auto'
+              overflow: 'auto',
             }}
           >
             <div
@@ -689,7 +847,7 @@ export default function Contacts({ token }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 20
+                marginBottom: 20,
               }}
             >
               <h2 style={{ color: '#1B3A6B', margin: 0, fontSize: 18 }}>
@@ -711,7 +869,7 @@ export default function Contacts({ token }) {
                       borderRadius: 6,
                       cursor: 'pointer',
                       fontSize: 12,
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
                     }}
                   >
                     Edit
@@ -727,7 +885,7 @@ export default function Contacts({ token }) {
                       padding: '6px 14px',
                       borderRadius: 6,
                       cursor: 'pointer',
-                      fontSize: 12
+                      fontSize: 12,
                     }}
                   >
                     Delete
@@ -744,7 +902,7 @@ export default function Contacts({ token }) {
                     border: 'none',
                     fontSize: 22,
                     cursor: 'pointer',
-                    color: '#888'
+                    color: '#888',
                   }}
                 >
                   ×
@@ -759,13 +917,13 @@ export default function Contacts({ token }) {
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
                     gap: 10,
-                    marginBottom: 12
+                    marginBottom: 12,
                   }}
                 >
                   {[
                     { label: 'Full Name', key: 'name', placeholder: 'John Smith' },
                     { label: 'Phone', key: 'phone', placeholder: '+1 555 000 0000' },
-                    { label: 'Email', key: 'email', placeholder: 'john@email.com' }
+                    { label: 'Email', key: 'email', placeholder: 'john@email.com' },
                   ].map((f) => (
                     <div key={f.key}>
                       <label
@@ -783,7 +941,7 @@ export default function Contacts({ token }) {
                           border: '1px solid #ddd',
                           borderRadius: 6,
                           fontSize: 12,
-                          boxSizing: 'border-box'
+                          boxSizing: 'border-box',
                         }}
                       />
                     </div>
@@ -797,7 +955,7 @@ export default function Contacts({ token }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      marginBottom: 8
+                      marginBottom: 8,
                     }}
                   >
                     <div
@@ -806,7 +964,7 @@ export default function Contacts({ token }) {
                         fontWeight: 600,
                         color: '#1B3A6B',
                         textTransform: 'uppercase',
-                        letterSpacing: 1
+                        letterSpacing: 1,
                       }}
                     >
                       Owner Mailing Address
@@ -818,7 +976,7 @@ export default function Contacts({ token }) {
                         gap: 6,
                         fontSize: 11,
                         color: '#555',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
                       }}
                     >
                       <input
@@ -842,11 +1000,11 @@ export default function Contacts({ token }) {
                         label: 'Street Address',
                         key: 'address',
                         placeholder: '123 Main St',
-                        span: 2
+                        span: 2,
                       },
                       { label: 'City', key: 'city', placeholder: 'Fitchburg' },
                       { label: 'State', key: 'state', placeholder: 'MA' },
-                      { label: 'ZIP', key: 'zip', placeholder: '01420' }
+                      { label: 'ZIP', key: 'zip', placeholder: '01420' },
                     ].map((f) => (
                       <div key={f.key} style={f.span ? { gridColumn: `span ${f.span}` } : {}}>
                         <label
@@ -864,7 +1022,7 @@ export default function Contacts({ token }) {
                             border: '1px solid #ddd',
                             borderRadius: 6,
                             fontSize: 12,
-                            boxSizing: 'border-box'
+                            boxSizing: 'border-box',
                           }}
                         />
                       </div>
@@ -877,7 +1035,7 @@ export default function Contacts({ token }) {
                     display: 'grid',
                     gridTemplateColumns: '1fr 1fr',
                     gap: 10,
-                    marginBottom: 12
+                    marginBottom: 12,
                   }}
                 >
                   <div>
@@ -895,7 +1053,7 @@ export default function Contacts({ token }) {
                         border: '1px solid #ddd',
                         borderRadius: 6,
                         fontSize: 12,
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
                       }}
                     >
                       <option value="residential">Residential</option>
@@ -918,7 +1076,7 @@ export default function Contacts({ token }) {
                       borderRadius: 6,
                       fontSize: 12,
                       boxSizing: 'border-box',
-                      resize: 'vertical'
+                      resize: 'vertical',
                     }}
                   />
                 </div>
@@ -937,7 +1095,7 @@ export default function Contacts({ token }) {
                       borderRadius: 6,
                       cursor: 'pointer',
                       background: 'white',
-                      fontSize: 13
+                      fontSize: 13,
                     }}
                   >
                     Cancel
@@ -953,7 +1111,7 @@ export default function Contacts({ token }) {
                       borderRadius: 6,
                       cursor: 'pointer',
                       fontWeight: 'bold',
-                      fontSize: 13
+                      fontSize: 13,
                     }}
                   >
                     Save Contact
@@ -975,7 +1133,7 @@ export default function Contacts({ token }) {
                         paddingBottom: 10,
                         borderBottom: '1px solid #e0e8ff',
                         flexWrap: 'wrap',
-                        alignItems: 'center'
+                        alignItems: 'center',
                       }}
                     >
                       {selected?.pb_customer_number && (
@@ -988,7 +1146,7 @@ export default function Contacts({ token }) {
                             background: '#e0e8ff',
                             padding: '3px 10px',
                             borderRadius: 8,
-                            letterSpacing: 1
+                            letterSpacing: 1,
                           }}
                         >
                           {selected.pb_customer_number}
@@ -1002,7 +1160,7 @@ export default function Contacts({ token }) {
                             color: '#888',
                             background: '#f0f0f0',
                             padding: '2px 8px',
-                            borderRadius: 6
+                            borderRadius: 6,
                           }}
                         >
                           {selected.customer_number}
@@ -1018,7 +1176,7 @@ export default function Contacts({ token }) {
                       value:
                         [selected?.address, selected?.city, selected?.state, selected?.zip]
                           .filter(Boolean)
-                          .join(', ') || '(same as project)'
+                          .join(', ') || '(same as project)',
                     },
                     { label: 'Type', value: selected?.customer_type },
                     { label: 'Source', value: SOURCE_LABELS[selected?.source] || selected?.source },
@@ -1026,8 +1184,8 @@ export default function Contacts({ token }) {
                       label: 'Added',
                       value: selected?.created_at
                         ? new Date(selected.created_at).toLocaleDateString()
-                        : null
-                    }
+                        : null,
+                    },
                   ].map((row) =>
                     row.value ? (
                       <div key={row.label} style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
@@ -1038,13 +1196,13 @@ export default function Contacts({ token }) {
                           style={{
                             fontSize: 13,
                             fontWeight: '500',
-                            textTransform: row.label === 'Type' ? 'capitalize' : 'none'
+                            textTransform: row.label === 'Type' ? 'capitalize' : 'none',
                           }}
                         >
                           {row.value}
                         </span>
                       </div>
-                    ) : null
+                    ) : null,
                   )}
                   {selected?.notes && (
                     <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #eee' }}>
@@ -1078,7 +1236,7 @@ export default function Contacts({ token }) {
                               gap: 10,
                               background: '#f8f9ff',
                               borderRadius: 7,
-                              padding: '8px 12px'
+                              padding: '8px 12px',
                             }}
                           >
                             <span style={{ fontSize: 18 }}>{icon}</span>
@@ -1090,7 +1248,7 @@ export default function Contacts({ token }) {
                                   color: '#1B3A6B',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
-                                  whiteSpace: 'nowrap'
+                                  whiteSpace: 'nowrap',
                                 }}
                               >
                                 {doc.original_name || doc.filename}
@@ -1111,7 +1269,7 @@ export default function Contacts({ token }) {
                                 textDecoration: 'none',
                                 background: '#e8eeff',
                                 padding: '4px 10px',
-                                borderRadius: 5
+                                borderRadius: 5,
                               }}
                             >
                               View
@@ -1125,7 +1283,7 @@ export default function Contacts({ token }) {
                                 border: 'none',
                                 padding: '4px 8px',
                                 borderRadius: 5,
-                                cursor: 'pointer'
+                                cursor: 'pointer',
                               }}
                             >
                               ×
@@ -1152,7 +1310,7 @@ export default function Contacts({ token }) {
                         display: 'grid',
                         gridTemplateColumns: 'repeat(3, 1fr)',
                         gap: 8,
-                        marginBottom: 16
+                        marginBottom: 16,
                       }}
                     >
                       <div
@@ -1160,14 +1318,14 @@ export default function Contacts({ token }) {
                           borderRadius: 6,
                           padding: '10px 12px',
                           background: '#2E7D3211',
-                          border: '1px solid #2E7D3233'
+                          border: '1px solid #2E7D3233',
                         }}
                       >
                         <div style={{ fontSize: 10, color: '#888' }}>Received</div>
                         <div style={{ fontSize: 16, fontWeight: 'bold', color: '#2E7D32' }}>
                           $
                           {paymentSummary.total_received.toLocaleString('en-US', {
-                            minimumFractionDigits: 2
+                            minimumFractionDigits: 2,
                           })}
                         </div>
                       </div>
@@ -1176,14 +1334,14 @@ export default function Contacts({ token }) {
                           borderRadius: 6,
                           padding: '10px 12px',
                           background: '#C6282811',
-                          border: '1px solid #C6282833'
+                          border: '1px solid #C6282833',
                         }}
                       >
                         <div style={{ fontSize: 10, color: '#888' }}>Paid Out</div>
                         <div style={{ fontSize: 16, fontWeight: 'bold', color: '#C62828' }}>
                           $
                           {paymentSummary.total_paid_out.toLocaleString('en-US', {
-                            minimumFractionDigits: 2
+                            minimumFractionDigits: 2,
                           })}
                         </div>
                       </div>
@@ -1192,7 +1350,7 @@ export default function Contacts({ token }) {
                           borderRadius: 6,
                           padding: '10px 12px',
                           background: paymentSummary.balance >= 0 ? '#1B3A6B11' : '#C6282811',
-                          border: `1px solid ${paymentSummary.balance >= 0 ? '#1B3A6B33' : '#C6282833'}`
+                          border: `1px solid ${paymentSummary.balance >= 0 ? '#1B3A6B33' : '#C6282833'}`,
                         }}
                       >
                         <div style={{ fontSize: 10, color: '#888' }}>Balance</div>
@@ -1200,12 +1358,12 @@ export default function Contacts({ token }) {
                           style={{
                             fontSize: 16,
                             fontWeight: 'bold',
-                            color: paymentSummary.balance >= 0 ? '#1B3A6B' : '#C62828'
+                            color: paymentSummary.balance >= 0 ? '#1B3A6B' : '#C62828',
                           }}
                         >
                           $
                           {paymentSummary.balance.toLocaleString('en-US', {
-                            minimumFractionDigits: 2
+                            minimumFractionDigits: 2,
                           })}
                         </div>
                       </div>
@@ -1225,7 +1383,7 @@ export default function Contacts({ token }) {
                               fontSize: 12,
                               fontWeight: 'bold',
                               color: '#2E7D32',
-                              marginBottom: 6
+                              marginBottom: 6,
                             }}
                           >
                             Checks Received ({contactPayments.received.length})
@@ -1243,7 +1401,7 @@ export default function Contacts({ token }) {
                                   'Type',
                                   'Cr/Dr',
                                   'Amount',
-                                  'By'
+                                  'By',
                                 ].map((h) => (
                                   <th
                                     key={h}
@@ -1252,7 +1410,7 @@ export default function Contacts({ token }) {
                                       textAlign: 'left',
                                       fontSize: 10,
                                       color: '#888',
-                                      fontWeight: 'bold'
+                                      fontWeight: 'bold',
                                     }}
                                   >
                                     {h}
@@ -1267,7 +1425,7 @@ export default function Contacts({ token }) {
                                     {p.date_received
                                       ? new Date(p.date_received + 'T12:00:00').toLocaleDateString(
                                           'en-US',
-                                          { month: 'short', day: 'numeric' }
+                                          { month: 'short', day: 'numeric' },
                                         )
                                       : '—'}
                                   </td>
@@ -1288,7 +1446,7 @@ export default function Contacts({ token }) {
                                         borderRadius: 8,
                                         background: '#3B82F622',
                                         color: '#3B82F6',
-                                        fontWeight: 'bold'
+                                        fontWeight: 'bold',
                                       }}
                                     >
                                       {p.payment_type}
@@ -1303,7 +1461,7 @@ export default function Contacts({ token }) {
                                         background:
                                           p.credit_debit === 'credit' ? '#2E7D3222' : '#C6282822',
                                         color: p.credit_debit === 'credit' ? '#2E7D32' : '#C62828',
-                                        fontWeight: 'bold'
+                                        fontWeight: 'bold',
                                       }}
                                     >
                                       {p.credit_debit === 'credit' ? 'CR' : 'DR'}
@@ -1313,12 +1471,12 @@ export default function Contacts({ token }) {
                                     style={{
                                       padding: '6px 8px',
                                       fontWeight: 'bold',
-                                      color: p.credit_debit === 'debit' ? '#C62828' : '#2E7D32'
+                                      color: p.credit_debit === 'debit' ? '#C62828' : '#2E7D32',
                                     }}
                                   >
                                     $
                                     {Number(p.amount).toLocaleString('en-US', {
-                                      minimumFractionDigits: 2
+                                      minimumFractionDigits: 2,
                                     })}
                                   </td>
                                   <td style={{ padding: '6px 8px', color: '#888', fontSize: 10 }}>
@@ -1337,7 +1495,7 @@ export default function Contacts({ token }) {
                               fontSize: 12,
                               fontWeight: 'bold',
                               color: '#C62828',
-                              marginBottom: 6
+                              marginBottom: 6,
                             }}
                           >
                             Checks Paid Out ({contactPayments.made.length})
@@ -1356,7 +1514,7 @@ export default function Contacts({ token }) {
                                   'Cat.',
                                   'Cr/Dr',
                                   'Amount',
-                                  'By'
+                                  'By',
                                 ].map((h) => (
                                   <th
                                     key={h}
@@ -1365,7 +1523,7 @@ export default function Contacts({ token }) {
                                       textAlign: 'left',
                                       fontSize: 10,
                                       color: '#888',
-                                      fontWeight: 'bold'
+                                      fontWeight: 'bold',
                                     }}
                                   >
                                     {h}
@@ -1380,7 +1538,7 @@ export default function Contacts({ token }) {
                                     {p.date_paid
                                       ? new Date(p.date_paid + 'T12:00:00').toLocaleDateString(
                                           'en-US',
-                                          { month: 'short', day: 'numeric' }
+                                          { month: 'short', day: 'numeric' },
                                         )
                                       : '—'}
                                   </td>
@@ -1402,7 +1560,7 @@ export default function Contacts({ token }) {
                                         borderRadius: 8,
                                         background: '#7C3AED22',
                                         color: '#7C3AED',
-                                        fontWeight: 'bold'
+                                        fontWeight: 'bold',
                                       }}
                                     >
                                       {p.category}
@@ -1417,7 +1575,7 @@ export default function Contacts({ token }) {
                                         background:
                                           p.credit_debit === 'credit' ? '#2E7D3222' : '#C6282822',
                                         color: p.credit_debit === 'credit' ? '#2E7D32' : '#C62828',
-                                        fontWeight: 'bold'
+                                        fontWeight: 'bold',
                                       }}
                                     >
                                       {p.credit_debit === 'credit' ? 'CR' : 'DR'}
@@ -1427,12 +1585,12 @@ export default function Contacts({ token }) {
                                     style={{
                                       padding: '6px 8px',
                                       fontWeight: 'bold',
-                                      color: p.credit_debit === 'credit' ? '#2E7D32' : '#C62828'
+                                      color: p.credit_debit === 'credit' ? '#2E7D32' : '#C62828',
                                     }}
                                   >
                                     $
                                     {Number(p.amount).toLocaleString('en-US', {
-                                      minimumFractionDigits: 2
+                                      minimumFractionDigits: 2,
                                     })}
                                   </td>
                                   <td style={{ padding: '6px 8px', color: '#888', fontSize: 10 }}>

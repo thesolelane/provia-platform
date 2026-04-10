@@ -80,7 +80,7 @@ async function processHearthEstimate(event) {
       customer_phone, project_address, project_city,
       raw_estimate_data, total_value, status, submitted_by
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'received', ?)
-  `
+  `,
   ).run(
     jobId,
     hearthId,
@@ -91,7 +91,7 @@ async function processHearthEstimate(event) {
     projectCity,
     JSON.stringify(estimateData),
     totalValue,
-    'hearth_api'
+    'hearth_api',
   );
 
   logAudit(jobId, 'estimate_received', `Hearth estimate ${hearthId} received`, 'hearth_api');
@@ -126,7 +126,7 @@ async function processHearthEstimate(event) {
     // Save raw proposal data so we can reprocess later with answers
     db.prepare('UPDATE jobs SET proposal_data = ? WHERE id = ?').run(
       JSON.stringify(proposalData),
-      jobId
+      jobId,
     );
 
     const questionCount = proposalData.clarificationsNeeded.length;
@@ -141,7 +141,7 @@ async function processHearthEstimate(event) {
       jobId,
       'clarifications_pending',
       `${questionCount} questions saved, awaiting start`,
-      'bot'
+      'bot',
     );
   } else {
     // Ready to generate — proposal looks complete
@@ -152,7 +152,7 @@ async function processHearthEstimate(event) {
       projectAddress,
       db,
       jacksonName,
-      language
+      language,
     );
   }
 }
@@ -164,19 +164,19 @@ async function handleProposalReady(
   projectAddress,
   db,
   jacksonName,
-  language
+  language,
 ) {
   const { generatePDF } = require('../services/pdfService');
   const isPortuguese = language === 'pt-BR';
 
   db.prepare(
-    'UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?'
+    'UPDATE jobs SET proposal_data = ?, total_value = ?, deposit_amount = ?, status = ? WHERE id = ?',
   ).run(
     JSON.stringify(proposalData),
     proposalData.totalValue,
     proposalData.depositAmount,
     'proposal_ready',
-    jobId
+    jobId,
   );
 
   const pdfPath = await generatePDF(proposalData, 'proposal', jobId);
@@ -225,7 +225,7 @@ async function handleProposalReady(
     jobId,
     'proposal_generated',
     `Proposal sent for review. Total: $${proposalData.totalValue}`,
-    'bot'
+    'bot',
   );
 }
 
@@ -238,7 +238,7 @@ function formatHearthData(data) {
     `Address: ${data.project_address || data.address || ''}`,
     `Date: ${data.created_at || data.date || new Date().toISOString()}`,
     ``,
-    `LINE ITEMS:`
+    `LINE ITEMS:`,
   ];
 
   const items = data.line_items || data.items || data.services || [];

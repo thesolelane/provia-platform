@@ -15,7 +15,7 @@ router.get('/trade-select/:token', (req, res) => {
 
   const job = db
     .prepare(
-      `SELECT id, status, metadata FROM jobs WHERE JSON_EXTRACT(metadata, '$.tradeSelectToken') = ? LIMIT 1`
+      `SELECT id, status, metadata FROM jobs WHERE JSON_EXTRACT(metadata, '$.tradeSelectToken') = ? LIMIT 1`,
     )
     .get(token);
 
@@ -152,12 +152,12 @@ function buildPage({ done, token, departments }) {
             <input type="checkbox" name="subs" value="${sub.id}">
             <span>${sub.name}</span>
           </label>
-        `
+        `,
           )
           .join('')}
       </div>
     </div>
-  `
+  `,
     )
     .join('');
 

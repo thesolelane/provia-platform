@@ -31,7 +31,7 @@ async function fetchMediaForMessage(client, messageSid) {
 
     return {
       MediaUrl0: mediaUrl,
-      MediaContentType0: first.contentType || 'application/octet-stream'
+      MediaContentType0: first.contentType || 'application/octet-stream',
     };
   } catch (err) {
     console.error('Error fetching media:', err.message);
@@ -59,7 +59,7 @@ function startPolling(handleIncoming, intervalMs = 5000) {
       const messages = await client.messages.list({
         to: toNumber,
         dateSentAfter: lastPollTime,
-        limit: 10
+        limit: 10,
       });
 
       const inbound = messages.filter((m) => m.direction === 'inbound');
@@ -67,7 +67,7 @@ function startPolling(handleIncoming, intervalMs = 5000) {
       for (const msg of inbound) {
         if (!claimMessage(msg.sid)) continue;
         console.log(
-          `📥 Polled message: ${msg.from} -> "${msg.body?.substring(0, 50)}" numMedia=${msg.numMedia}`
+          `📥 Polled message: ${msg.from} -> "${msg.body?.substring(0, 50)}" numMedia=${msg.numMedia}`,
         );
 
         const fakeBody = {
@@ -75,7 +75,7 @@ function startPolling(handleIncoming, intervalMs = 5000) {
           Body: msg.body || '',
           To: msg.to,
           MessageSid: msg.sid,
-          NumMedia: msg.numMedia || 0
+          NumMedia: msg.numMedia || 0,
         };
 
         if (Number(msg.numMedia) > 0) {

@@ -18,7 +18,7 @@ const EVENT_CONFIG = {
   PASS_THROUGH_REIMBURSED: { label: 'Pass-Through Reimbursed', color: TEAL },
   CHANGE_ORDER_CREATED: { label: 'Change Order', color: '#7C3AED' },
   JOB_COMPLETED: { label: 'Job Completed', color: GREEN },
-  NOTE: { label: 'Note', color: '#888' }
+  NOTE: { label: 'Note', color: '#888' },
 };
 
 function fmtTs(ts) {
@@ -62,7 +62,7 @@ function ActivityFeed({ token }) {
     padding: '4px 8px',
     border: '1px solid #ddd',
     borderRadius: 6,
-    color: '#555'
+    color: '#555',
   };
 
   return (
@@ -72,7 +72,7 @@ function ActivityFeed({ token }) {
         borderRadius: 12,
         padding: 24,
         boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-        marginTop: 24
+        marginTop: 24,
       }}
     >
       <div style={{ marginBottom: 16 }}>
@@ -130,7 +130,7 @@ function ActivityFeed({ token }) {
                 color: RED,
                 border: '1px solid #fecaca',
                 borderRadius: 6,
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               Clear
@@ -154,7 +154,7 @@ function ActivityFeed({ token }) {
             flexDirection: 'column',
             gap: 6,
             maxHeight: 400,
-            overflow: 'auto'
+            overflow: 'auto',
           }}
         >
           {entries.map((e) => {
@@ -168,7 +168,7 @@ function ActivityFeed({ token }) {
                   padding: '8px 12px',
                   background: cfg.color + '0d',
                   borderRadius: 7,
-                  border: `1px solid ${cfg.color}22`
+                  border: `1px solid ${cfg.color}22`,
                 }}
               >
                 <div style={{ flexShrink: 0, paddingTop: 2 }}>
@@ -181,7 +181,7 @@ function ActivityFeed({ token }) {
                       padding: '2px 6px',
                       borderRadius: 8,
                       display: 'inline-block',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {cfg.label}
@@ -218,7 +218,7 @@ const LOSS_COLORS = {
   lost_price: '#E53935',
   lost_timing: '#FB8C00',
   lost_competitor: '#8E24AA',
-  ghosted: '#78909C'
+  ghosted: '#78909C',
 };
 
 export default function Analytics({ token }) {
@@ -254,7 +254,7 @@ export default function Analytics({ token }) {
     { value: '30', label: '30 days' },
     { value: '90', label: '90 days' },
     { value: '365', label: '1 year' },
-    { value: 'all', label: 'All time' }
+    { value: 'all', label: 'All time' },
   ];
 
   const formatMonth = (m) => {
@@ -271,7 +271,7 @@ export default function Analytics({ token }) {
       'Sep',
       'Oct',
       'Nov',
-      'Dec'
+      'Dec',
     ];
     return `${months[parseInt(mo) - 1]} ${y}`;
   };
@@ -283,7 +283,7 @@ export default function Analytics({ token }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 28
+          marginBottom: 28,
         }}
       >
         <div>
@@ -305,7 +305,7 @@ export default function Analytics({ token }) {
                 cursor: 'pointer',
                 background: range === r.value ? BLUE : 'white',
                 color: range === r.value ? 'white' : '#555',
-                border: range === r.value ? 'none' : '1px solid #ddd'
+                border: range === r.value ? 'none' : '1px solid #ddd',
               }}
             >
               {r.label}
@@ -320,7 +320,7 @@ export default function Analytics({ token }) {
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
             gap: 16,
-            marginBottom: 20
+            marginBottom: 20,
           }}
         >
           <StatCard
@@ -359,7 +359,7 @@ export default function Analytics({ token }) {
           display: 'grid',
           gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 16,
-          marginBottom: 28
+          marginBottom: 28,
         }}
       >
         <StatCard
@@ -409,7 +409,7 @@ export default function Analytics({ token }) {
             background: 'white',
             borderRadius: 12,
             padding: 24,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
           }}
         >
           <h3 style={{ fontSize: 15, fontWeight: 'bold', color: BLUE, margin: '0 0 16px 0' }}>
@@ -433,7 +433,7 @@ export default function Analytics({ token }) {
                         fontSize: 11,
                         color: '#555',
                         textAlign: 'right',
-                        flexShrink: 0
+                        flexShrink: 0,
                       }}
                     >
                       {stage.label}
@@ -445,7 +445,7 @@ export default function Analytics({ token }) {
                         background: '#f0f0f0',
                         borderRadius: 4,
                         overflow: 'hidden',
-                        position: 'relative'
+                        position: 'relative',
                       }}
                     >
                       <div
@@ -454,7 +454,7 @@ export default function Analytics({ token }) {
                           height: '100%',
                           background: `linear-gradient(90deg, ${BLUE}, #3B82F6)`,
                           borderRadius: 4,
-                          transition: 'width 0.3s'
+                          transition: 'width 0.3s',
                         }}
                       />
                       {stage.count > 0 && (
@@ -465,7 +465,7 @@ export default function Analytics({ token }) {
                             top: 3,
                             fontSize: 11,
                             fontWeight: 'bold',
-                            color: stage.count / maxPipeline > 0.3 ? 'white' : '#333'
+                            color: stage.count / maxPipeline > 0.3 ? 'white' : '#333',
                           }}
                         >
                           {stage.count}
@@ -489,7 +489,7 @@ export default function Analytics({ token }) {
             background: 'white',
             borderRadius: 12,
             padding: 24,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+            boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
           }}
         >
           <h3 style={{ fontSize: 15, fontWeight: 'bold', color: BLUE, margin: '0 0 16px 0' }}>
@@ -506,7 +506,7 @@ export default function Analytics({ token }) {
                       width: 80,
                       fontSize: 13,
                       fontWeight: 600,
-                      color: LOSS_COLORS[loss.reason] || '#555'
+                      color: LOSS_COLORS[loss.reason] || '#555',
                     }}
                   >
                     {loss.label}
@@ -518,7 +518,7 @@ export default function Analytics({ token }) {
                       background: '#f5f5f5',
                       borderRadius: 6,
                       overflow: 'hidden',
-                      position: 'relative'
+                      position: 'relative',
                     }}
                   >
                     <div
@@ -528,7 +528,7 @@ export default function Analytics({ token }) {
                         background: LOSS_COLORS[loss.reason] || '#888',
                         borderRadius: 6,
                         opacity: 0.8,
-                        transition: 'width 0.3s'
+                        transition: 'width 0.3s',
                       }}
                     />
                     <span
@@ -538,7 +538,7 @@ export default function Analytics({ token }) {
                         top: 6,
                         fontSize: 12,
                         fontWeight: 'bold',
-                        color: 'white'
+                        color: 'white',
                       }}
                     >
                       {loss.count}
@@ -556,7 +556,7 @@ export default function Analytics({ token }) {
           background: 'white',
           borderRadius: 12,
           padding: 24,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
         }}
       >
         <h3 style={{ fontSize: 15, fontWeight: 'bold', color: BLUE, margin: '0 0 16px 0' }}>
@@ -577,7 +577,7 @@ export default function Analytics({ token }) {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'flex-end',
-                  height: '100%'
+                  height: '100%',
                 }}
               >
                 <div style={{ fontSize: 10, fontWeight: 'bold', color: BLUE, marginBottom: 4 }}>
@@ -590,7 +590,7 @@ export default function Analytics({ token }) {
                     borderRadius: '4px 4px 0 0',
                     background: `linear-gradient(180deg, ${GREEN}, #43A047)`,
                     height: `${Math.max((m.value / maxRevenue) * 160, 8)}px`,
-                    transition: 'height 0.3s'
+                    transition: 'height 0.3s',
                   }}
                 />
                 <div style={{ fontSize: 9, color: '#888', marginTop: 6, textAlign: 'center' }}>
@@ -614,7 +614,7 @@ function StatCard({ icon, label, value, sub, color }) {
         background: 'white',
         borderRadius: 10,
         padding: 20,
-        boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+        boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
       }}
     >
       <div style={{ fontSize: 24, marginBottom: 8 }}>{icon}</div>

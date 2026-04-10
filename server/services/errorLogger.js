@@ -28,7 +28,7 @@ function classifyError(message, stack) {
         severity: 'critical',
         source: 'claude',
         suggestedCause:
-          'Claude credits may be exhausted — check Anthropic billing at console.anthropic.com.'
+          'Claude credits may be exhausted — check Anthropic billing at console.anthropic.com.',
       };
     }
     if (/rate.?limit|too many requests/.test(text) || /\b429\b/.test(text)) {
@@ -37,7 +37,7 @@ function classifyError(message, stack) {
         severity: 'warning',
         source: 'claude',
         suggestedCause:
-          'Anthropic rate limit hit — requests are being throttled. Consider adding retry delays.'
+          'Anthropic rate limit hit — requests are being throttled. Consider adding retry delays.',
       };
     }
     if (/overloaded|service unavailable/.test(text) || /\b529\b/.test(text)) {
@@ -45,14 +45,14 @@ function classifyError(message, stack) {
         type: 'system',
         severity: 'warning',
         source: 'claude',
-        suggestedCause: 'Anthropic API is overloaded — temporary outage, will likely self-resolve.'
+        suggestedCause: 'Anthropic API is overloaded — temporary outage, will likely self-resolve.',
       };
     }
     return {
       type: 'system',
       severity: 'warning',
       source: 'claude',
-      suggestedCause: 'Claude API error — check Anthropic status page and API key validity.'
+      suggestedCause: 'Claude API error — check Anthropic status page and API key validity.',
     };
   }
 
@@ -67,7 +67,7 @@ function classifyError(message, stack) {
         severity: 'critical',
         source: 'pdf',
         suggestedCause:
-          'Chromium binary not found — PDF generation is broken. Reinstall or check Nix configuration.'
+          'Chromium binary not found — PDF generation is broken. Reinstall or check Nix configuration.',
       };
     }
     return {
@@ -75,7 +75,7 @@ function classifyError(message, stack) {
       severity: 'warning',
       source: 'pdf',
       suggestedCause:
-        'PDF/browser error — Chromium may have crashed or timed out. Check available memory.'
+        'PDF/browser error — Chromium may have crashed or timed out. Check available memory.',
     };
   }
 
@@ -87,7 +87,7 @@ function classifyError(message, stack) {
         severity: 'critical',
         source: 'database',
         suggestedCause:
-          'SQLite database appears corrupted — immediate attention required. Take a backup.'
+          'SQLite database appears corrupted — immediate attention required. Take a backup.',
       };
     }
     if (/locked|sqlite_busy|sqlite_locked/.test(text)) {
@@ -96,14 +96,14 @@ function classifyError(message, stack) {
         severity: 'warning',
         source: 'database',
         suggestedCause:
-          'Database is locked — too many concurrent writes. Check for long-running queries.'
+          'Database is locked — too many concurrent writes. Check for long-running queries.',
       };
     }
     return {
       type: 'system',
       severity: 'warning',
       source: 'database',
-      suggestedCause: 'Database error — check SQLite file integrity and disk space.'
+      suggestedCause: 'Database error — check SQLite file integrity and disk space.',
     };
   }
 
@@ -114,14 +114,14 @@ function classifyError(message, stack) {
         type: 'system',
         severity: 'critical',
         source: 'email',
-        suggestedCause: 'Email API key rejected — check RESEND_API_KEY is correct and active.'
+        suggestedCause: 'Email API key rejected — check RESEND_API_KEY is correct and active.',
       };
     }
     return {
       type: 'system',
       severity: 'warning',
       source: 'email',
-      suggestedCause: 'Email delivery failed — check Resend dashboard for bounce/block details.'
+      suggestedCause: 'Email delivery failed — check Resend dashboard for bounce/block details.',
     };
   }
 
@@ -132,7 +132,7 @@ function classifyError(message, stack) {
       severity: 'critical',
       source: 'server',
       suggestedCause:
-        'Server port is already in use — another process may be running. Restart the server.'
+        'Server port is already in use — another process may be running. Restart the server.',
     };
   }
   if (/econnrefused|econnreset|etimedout|enotfound/.test(text)) {
@@ -140,7 +140,7 @@ function classifyError(message, stack) {
       type: 'system',
       severity: 'warning',
       source: 'server',
-      suggestedCause: 'Network connection failed — an external service may be down or unreachable.'
+      suggestedCause: 'Network connection failed — an external service may be down or unreachable.',
     };
   }
 
@@ -151,7 +151,7 @@ function classifyError(message, stack) {
       severity: 'critical',
       source: 'server',
       suggestedCause:
-        'Unhandled error crashed an async operation — check server logs for full stack trace.'
+        'Unhandled error crashed an async operation — check server logs for full stack trace.',
     };
   }
 
@@ -161,7 +161,7 @@ function classifyError(message, stack) {
       type: 'system',
       severity: 'warning',
       source: 'server',
-      suggestedCause: 'Server returned a 5xx error — check server logs for the root cause.'
+      suggestedCause: 'Server returned a 5xx error — check server logs for the root cause.',
     };
   }
 
@@ -177,7 +177,7 @@ function classifyError(message, stack) {
     /login (failed|required)/,
     /\bunauthorized\b/,
     /\bforbidden\b/,
-    /\baccess denied\b/
+    /\baccess denied\b/,
   ];
   for (const p of userPatterns) {
     if (p.test(text)) {
@@ -185,7 +185,7 @@ function classifyError(message, stack) {
         type: 'user',
         severity: 'warning',
         source: 'auth',
-        suggestedCause: 'User-level error (auth/validation) — no action needed.'
+        suggestedCause: 'User-level error (auth/validation) — no action needed.',
       };
     }
   }
@@ -195,7 +195,7 @@ function classifyError(message, stack) {
     type: 'system',
     severity: 'warning',
     source: 'server',
-    suggestedCause: 'Unexpected server error — review logs for details.'
+    suggestedCause: 'Unexpected server error — review logs for details.',
   };
 }
 
@@ -238,8 +238,8 @@ async function createGithubIssue(title, body, labels) {
           Accept: 'application/vnd.github+json',
           'User-Agent': 'PreferredBuilders-AlertBot/1.0',
           'X-GitHub-Api-Version': '2022-11-28',
-          'Content-Length': Buffer.byteLength(payload)
-        }
+          'Content-Length': Buffer.byteLength(payload),
+        },
       },
       (res) => {
         let data = '';
@@ -256,12 +256,12 @@ async function createGithubIssue(title, body, labels) {
             }
           } else {
             console.warn(
-              `[GitHub] Issue creation returned HTTP ${res.statusCode}: ${data.slice(0, 200)}`
+              `[GitHub] Issue creation returned HTTP ${res.statusCode}: ${data.slice(0, 200)}`,
             );
           }
           resolve();
         });
-      }
+      },
     );
     req.on('error', (e) => {
       console.warn('[GitHub] Issue creation failed:', e.message);
@@ -342,7 +342,7 @@ async function sendSystemAlert({ classification, rawMessage, jobId, timestamp })
     source,
     severity,
     suggestedCause,
-    message: String(rawMessage).slice(0, 200)
+    message: String(rawMessage).slice(0, 200),
   });
   if (alertLog.length > MAX_ALERTS) alertLog.shift();
 }
@@ -354,7 +354,7 @@ function captureError(message, source, { jobId } = {}) {
   errors.push({
     ts,
     source: source || 'server',
-    message: String(message).slice(0, 500)
+    message: String(message).slice(0, 500),
   });
   if (errors.length > MAX_ERRORS) errors.shift();
 
@@ -366,7 +366,7 @@ function captureError(message, source, { jobId } = {}) {
       markAlerted(hash);
       // Fire-and-forget (don't block callers)
       sendSystemAlert({ classification, rawMessage: message, jobId, timestamp: ts }).catch(
-        () => {}
+        () => {},
       );
     }
   }
@@ -385,7 +385,7 @@ function getAlertsSummary() {
   const last24h = alertLog.filter((a) => new Date(a.ts).getTime() >= cutoff);
   return {
     last24hCount: last24h.length,
-    last24h: last24h.slice(-20).reverse()
+    last24h: last24h.slice(-20).reverse(),
   };
 }
 

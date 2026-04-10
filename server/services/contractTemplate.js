@@ -32,7 +32,7 @@ const sigBlock = (title, lines) => `
       <div class="sig-line"></div>
       <div class="sig-label">${l.label}</div>
       ${l.printed ? `<div class="sig-printed">${l.printed}</div>` : ''}
-    `
+    `,
       )
       .join('')}
   </div>`;
@@ -210,7 +210,7 @@ function buildPaymentTable(data) {
       <td>${f(m.invoiceRef)}</td>
       <td>${f(m.share)}</td>
       <td>${f(m.amount)}</td>
-    </tr>`
+    </tr>`,
     )
     .join('');
 
@@ -301,7 +301,7 @@ function buildTradeTable(data) {
       <td>${f(t.phase)}</td>
       <td>${f(t.description)}</td>
       <td style="text-align:right">${f(t.value)}</td>
-    </tr>`
+    </tr>`,
     )
     .join('');
 
@@ -345,161 +345,161 @@ function buildAllowanceTables(data) {
         item: 'LVP / Engineered Hardwood',
         loc: 'All living areas',
         allowance: '$6.50/sq ft',
-        spec: 'Shaw, Armstrong or equiv — supply only'
+        spec: 'Shaw, Armstrong or equiv — supply only',
       },
       {
         key: 'flooring_tile',
         item: 'Bath Floor Tile',
         loc: 'All bathrooms',
         allowance: '$4.50/sq ft',
-        spec: '12×12 ceramic or porcelain, supply only'
+        spec: '12×12 ceramic or porcelain, supply only',
       },
       {
         key: 'flooring_carpet',
         item: 'Carpet',
         loc: 'Bedrooms (if selected)',
         allowance: '$3.50/sq ft',
-        spec: 'Contractor grade, supply only'
-      }
+        spec: 'Contractor grade, supply only',
+      },
     ]),
     section('KITCHEN', [
       {
         key: 'kitchen_cabinets',
         item: 'Cabinets — Base & Upper',
         allowance: '$12,000',
-        spec: 'Stock/semi-stock — Kraftmaid, Yorktowne or equiv'
+        spec: 'Stock/semi-stock — Kraftmaid, Yorktowne or equiv',
       },
       {
         key: 'kitchen_counter',
         item: 'Countertop — Quartz',
         allowance: '$4,250',
-        spec: '3cm slab — Cambria, MSI or equiv, up to 30 LF'
+        spec: '3cm slab — Cambria, MSI or equiv, up to 30 LF',
       },
       {
         key: 'kitchen_faucet',
         item: 'Kitchen Faucet',
         allowance: '$250 each',
-        spec: 'Moen, Delta or Kohler — pull-down single handle'
+        spec: 'Moen, Delta or Kohler — pull-down single handle',
       },
       {
         key: 'kitchen_sink',
         item: 'Kitchen Sink',
         allowance: '$350 each',
-        spec: 'Stainless undermount 60/40 double bowl'
+        spec: 'Stainless undermount 60/40 double bowl',
       },
       {
         key: 'kitchen_disposal',
         item: 'Garbage Disposal',
         allowance: '$150 each',
-        spec: 'InSinkErator 1/2 HP contractor grade'
-      }
+        spec: 'InSinkErator 1/2 HP contractor grade',
+      },
     ]),
     section('BATHROOMS', [
       {
         key: 'bath_vanity_full',
         item: 'Vanity (full bath)',
         allowance: '$650 each',
-        spec: '48"–60" stock — Kraftmaid, RSI or equiv'
+        spec: '48"–60" stock — Kraftmaid, RSI or equiv',
       },
       {
         key: 'bath_vanity_half',
         item: 'Vanity (half bath)',
         allowance: '$350 each',
-        spec: '24"–30" stock'
+        spec: '24"–30" stock',
       },
       {
         key: 'bath_vanity_top',
         item: 'Vanity Top / Sink',
         allowance: '$350 each',
-        spec: 'Cultured marble integrated'
+        spec: 'Cultured marble integrated',
       },
       {
         key: 'bath_faucet',
         item: 'Bath Faucet',
         allowance: '$180 each',
-        spec: 'Moen Adler or Delta Foundations'
+        spec: 'Moen Adler or Delta Foundations',
       },
       {
         key: 'bath_toilet',
         item: 'Toilet',
         allowance: '$280 each',
-        spec: 'Kohler Cimarron or Am Std — elongated 1.28 GPF'
+        spec: 'Kohler Cimarron or Am Std — elongated 1.28 GPF',
       },
       {
         key: 'bath_tub',
         item: 'Bathtub',
         allowance: '$850 each',
-        spec: 'Alcove 60" — American Standard or Kohler'
+        spec: 'Alcove 60" — American Standard or Kohler',
       },
       {
         key: 'bath_shower_valve',
         item: 'Shower Valve & Trim',
         allowance: '$350 each',
-        spec: 'Moen Posi-Temp or Delta Monitor'
+        spec: 'Moen Posi-Temp or Delta Monitor',
       },
       {
         key: 'bath_shower_door',
         item: 'Shower Door',
         allowance: '$250 each',
-        spec: 'Frameless bypass or curtain rod'
+        spec: 'Frameless bypass or curtain rod',
       },
       {
         key: 'bath_accessories',
         item: 'Bath Accessories',
         allowance: '$150/set',
-        spec: 'TP holder, towel bar, robe hook — matching set'
+        spec: 'TP holder, towel bar, robe hook — matching set',
       },
       {
         key: 'bath_exhaust_fan',
         item: 'Exhaust Fan',
         allowance: '$85 each',
-        spec: 'Broan or Panasonic — 80 CFM min (Stretch Code)'
-      }
+        spec: 'Broan or Panasonic — 80 CFM min (Stretch Code)',
+      },
     ]),
     section('DOORS & HARDWARE', [
       {
         key: 'doors_interior',
         item: 'Interior Door',
         allowance: '$180 each',
-        spec: 'Hollow/solid core — 6-panel primed — Masonite or equiv'
+        spec: 'Hollow/solid core — 6-panel primed — Masonite or equiv',
       },
       {
         key: 'doors_passage',
         item: 'Passage Set',
         allowance: '$45 each',
-        spec: 'Kwikset or Schlage — satin nickel'
+        spec: 'Kwikset or Schlage — satin nickel',
       },
       {
         key: 'doors_privacy',
         item: 'Privacy Set (bath/bed)',
         allowance: '$55 each',
-        spec: 'Kwikset or Schlage lockset'
+        spec: 'Kwikset or Schlage lockset',
       },
       {
         key: 'doors_bifold',
         item: 'Bifold Door',
         allowance: '$175 each',
-        spec: '6-panel primed white'
+        spec: '6-panel primed white',
       },
       {
         key: 'doors_base_molding',
         item: 'Base Molding',
         allowance: '$1.85/LF',
-        spec: '3-1/4" colonial or craftsman primed MDF'
+        spec: '3-1/4" colonial or craftsman primed MDF',
       },
       {
         key: 'doors_casing',
         item: 'Door/Window Casing',
         allowance: '$1.65/LF',
-        spec: '2-1/4" colonial primed MDF'
+        spec: '2-1/4" colonial primed MDF',
       },
       {
         key: 'doors_window_stool',
         item: 'Window Stool & Apron',
         allowance: '$85 each',
-        spec: 'Primed MDF'
-      }
-    ])
+        spec: 'Primed MDF',
+      },
+    ]),
   ].join('');
 }
 
@@ -546,7 +546,7 @@ function calculateMilestoneDistribution(job, totalContractPrice, depositAmount, 
     final_milestone_amount: fmt(finalAmt),
     final_invoice_number: qn
       ? `INV-${qn}-${String(finalInvoiceIdx).padStart(3, '0')}`
-      : `Invoice No. ${finalInvoiceIdx}`
+      : `Invoice No. ${finalInvoiceIdx}`,
   };
 }
 
@@ -563,7 +563,7 @@ function adaptToContractSchema(data) {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    timeZone: 'America/New_York'
+    timeZone: 'America/New_York',
   });
 
   // Project type — prefer explicit field, fall back to trade-name inference
@@ -617,14 +617,14 @@ function adaptToContractSchema(data) {
         jobRaw.trades?.hvac !== undefined
           ? jobRaw.trades.hvac
           : /hvac|heat|cool|mechanic/i.test(allTrades),
-      sprinkler: jobRaw.trades?.sprinkler || false
+      sprinkler: jobRaw.trades?.sprinkler || false,
     },
     adu: jobRaw.adu || {
       on_septic: false,
       separate_metering: false,
       site_plan_required: false,
-      new_sewer_connection: false
-    }
+      new_sewer_connection: false,
+    },
   };
 
   // Calculate milestone distribution from actual pricing
@@ -659,7 +659,7 @@ function adaptToContractSchema(data) {
     doors_bifold: rawAllow.doors_bifold || false,
     doors_base_molding: rawAllow.doors_base_molding || false,
     doors_casing: rawAllow.doors_casing || false,
-    doors_window_stool: rawAllow.doors_window_stool || false
+    doors_window_stool: rawAllow.doors_window_stool || false,
   };
 
   return {
@@ -672,28 +672,28 @@ function adaptToContractSchema(data) {
       total_contract_price: fmt(totalVal),
       deposit_amount: fmt(depositVal),
       deposit_pct: `${depositPct}%`,
-      csl_number: data.csl_number || 'CS-121662'
+      csl_number: data.csl_number || 'CS-121662',
     },
     owner: {
       full_name: customer.name || '',
       address_line1: ownerAddr1,
       city_state_zip: ownerCSZ,
       phone: customer.phone || '',
-      email: customer.email || ''
+      email: customer.email || '',
     },
     property: {
       address: project.address || '',
       city: project.city || '',
       jurisdiction: jurisdiction,
-      parcel_number: project.parcel_number || ''
+      parcel_number: project.parcel_number || '',
     },
     job,
     trades: lineItems.map((item) => ({
       phase: item.trade || '',
       description: item.description || (item.scopeIncluded || []).slice(0, 3).join('; ') || '',
-      value: item.finalPrice ? fmt(item.finalPrice) : item.totalCost ? fmt(item.totalCost) : ''
+      value: item.finalPrice ? fmt(item.finalPrice) : item.totalCost ? fmt(item.totalCost) : '',
     })),
-    allowances
+    allowances,
   };
 }
 
@@ -711,7 +711,7 @@ function blankContractSchema() {
       total_contract_price: '$__________',
       deposit_amount: '$__________',
       deposit_pct: '___%',
-      csl_number: 'CS-121662'
+      csl_number: 'CS-121662',
     },
     owner: { full_name: _, address_line1: _, city_state_zip: _, phone: _, email: _ },
     property: { address: _, city: _, jurisdiction: _, parcel_number: _ },
@@ -726,7 +726,7 @@ function blankContractSchema() {
       sub_deposits: null,
       special_order_deposits: null,
       trades: { electrical: true, plumbing: true, hvac: false, sprinkler: false },
-      adu: {}
+      adu: {},
     },
     trades: [{ phase: '', description: '', value: '' }],
     allowances: {
@@ -754,8 +754,8 @@ function blankContractSchema() {
       doors_bifold: false,
       doors_base_molding: true,
       doors_casing: true,
-      doors_window_stool: true
-    }
+      doors_window_stool: true,
+    },
   };
 }
 
@@ -915,7 +915,7 @@ ${clauseHTML(
       : job.permit_paid_by === 'customer_direct'
         ? 'the responsibility of Owner, who agrees to pay the applicable municipal building department directly. Owner shall provide Contractor with written confirmation of payment and a copy of the issued permit before Contractor commences permitted work. Permit fees shall not appear on any Contractor invoice.'
         : 'itemized on Invoice 1 as a Pre-Construction Advance per Article III, Clause 3.3. Contractor shall pay permit fees directly to the issuing authority and document actual costs. Any overage or underage from the estimated permit fee shall be reflected as a credit or additional charge on the next applicable invoice.'
-  }`
+  }`,
 )}
 ${clauseHTML('7.3', `Owner shall not contact the building department to modify, expand, or otherwise change any permit application without prior written consent of Contractor.`)}
 
@@ -1006,12 +1006,12 @@ ${clauseHTML('16.5', `<strong>Counterparts:</strong> This Agreement may be execu
   ${sigBlock('Owner / Client', [
     { label: 'Owner Signature' },
     { label: 'Printed Name' },
-    { label: 'Date' }
+    { label: 'Date' },
   ])}
   ${sigBlock('Contractor — Preferred Builders General Services Inc.', [
     { label: 'Authorized Signature', printed: 'Jackson Deaquino, Project Manager' },
     { label: 'MA HIC License No. HIC-197400' },
-    { label: 'Date' }
+    { label: 'Date' },
   ])}
 </div>
 
@@ -1122,12 +1122,12 @@ ${buildAllowanceTables(data)}
     { label: 'Owner Signature' },
     { label: 'Printed Name' },
     { label: 'Phone / Email' },
-    { label: 'Date' }
+    { label: 'Date' },
   ])}
   ${sigBlock('Contractor — Preferred Builders General Services Inc.', [
     { label: 'Authorized Signature', printed: 'Jackson Deaquino, Project Manager' },
     { label: 'MA HIC License No. HIC-197400' },
-    { label: 'Date' }
+    { label: 'Date' },
   ])}
 </div>
 

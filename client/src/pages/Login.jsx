@@ -14,7 +14,7 @@ export default function Login({ onLogin }) {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -35,7 +35,7 @@ export default function Login({ onLogin }) {
         background: '#1B3A6B',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
       }}
     >
       <div
@@ -44,7 +44,7 @@ export default function Login({ onLogin }) {
           borderRadius: 12,
           padding: 40,
           width: 340,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -67,7 +67,7 @@ export default function Login({ onLogin }) {
               borderRadius: 8,
               fontSize: 14,
               marginBottom: 12,
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
             }}
           />
           <input
@@ -82,7 +82,7 @@ export default function Login({ onLogin }) {
               borderRadius: 8,
               fontSize: 14,
               marginBottom: 12,
-              boxSizing: 'border-box'
+              boxSizing: 'border-box',
             }}
           />
           {error && <div style={{ color: '#C62828', fontSize: 12, marginBottom: 8 }}>{error}</div>}
@@ -98,7 +98,7 @@ export default function Login({ onLogin }) {
               borderRadius: 8,
               fontSize: 14,
               fontWeight: 'bold',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             {loading ? 'Logging in...' : 'Login'}

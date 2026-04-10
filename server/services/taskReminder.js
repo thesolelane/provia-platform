@@ -9,7 +9,7 @@ function getAdminEmails(db) {
   try {
     return db
       .prepare(
-        `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL AND active != 0`
+        `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL AND active != 0`,
       )
       .all()
       .map((u) => u.email)
@@ -17,7 +17,7 @@ function getAdminEmails(db) {
   } catch {
     return db
       .prepare(
-        `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL`
+        `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL`,
       )
       .all()
       .map((u) => u.email)
@@ -33,7 +33,7 @@ async function runReminderTick() {
       `SELECT * FROM tasks
        WHERE status NOT IN ('done','cancelled')
          AND remind_at IS NOT NULL
-         AND remind_at <= datetime('now')`
+         AND remind_at <= datetime('now')`,
     )
     .all();
 
@@ -58,7 +58,7 @@ async function runReminderTick() {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
 
     try {
@@ -96,11 +96,11 @@ async function runReminderTick() {
               </a>
             </p>
           </div>`,
-        emailType: 'task_reminder'
+        emailType: 'task_reminder',
       });
       console.log(`[TaskReminder] Reminder sent for task #${task.id}: "${task.title}"`);
       db.prepare(
-        `UPDATE tasks SET remind_at = datetime('now', '+' || ? || ' hours') WHERE id = ?`
+        `UPDATE tasks SET remind_at = datetime('now', '+' || ? || ' hours') WHERE id = ?`,
       ).run(intervalHours, task.id);
     } catch (err) {
       console.error(`[TaskReminder] Failed to send reminder for task #${task.id}:`, err.message);
@@ -115,7 +115,7 @@ function startTaskReminderScheduler() {
     () => {
       runReminderTick().catch((e) => console.error('[TaskReminder] Tick error:', e.message));
     },
-    60 * 60 * 1000
+    60 * 60 * 1000,
   );
 }
 

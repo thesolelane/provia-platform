@@ -11,7 +11,7 @@ const inputStyle = {
   fontSize: 13,
   boxSizing: 'border-box',
   fontFamily: 'inherit',
-  outline: 'none'
+  outline: 'none',
 };
 
 const labelStyle = {
@@ -21,7 +21,7 @@ const labelStyle = {
   marginBottom: 4,
   fontWeight: 600,
   textTransform: 'uppercase',
-  letterSpacing: '0.03em'
+  letterSpacing: '0.03em',
 };
 
 // ── Trade Selection step ───────────────────────────────────────────────────
@@ -31,7 +31,7 @@ function TradeSelectionStep({
   onBack,
   onNext,
   fetchingQuestions,
-  extractingFiles
+  extractingFiles,
 }) {
   const [openDepts, setOpenDepts] = useState({});
 
@@ -85,7 +85,7 @@ function TradeSelectionStep({
             borderRadius: 6,
             fontSize: 12,
             color: '#1B3A6B',
-            fontWeight: 600
+            fontWeight: 600,
           }}
         >
           {totalSelected} sub-department{totalSelected !== 1 ? 's' : ''} selected
@@ -99,7 +99,7 @@ function TradeSelectionStep({
           gap: 6,
           maxHeight: 360,
           overflowY: 'auto',
-          paddingRight: 2
+          paddingRight: 2,
         }}
       >
         {DEPARTMENTS.map((dept) => {
@@ -114,7 +114,7 @@ function TradeSelectionStep({
                 border: `1px solid ${partial ? '#1B3A6B' : '#e2e8f0'}`,
                 borderRadius: 8,
                 overflow: 'hidden',
-                background: partial ? '#f5f8ff' : 'white'
+                background: partial ? '#f5f8ff' : 'white',
               }}
             >
               {/* Department header row */}
@@ -124,7 +124,7 @@ function TradeSelectionStep({
                   alignItems: 'center',
                   padding: '10px 14px',
                   cursor: 'pointer',
-                  userSelect: 'none'
+                  userSelect: 'none',
                 }}
                 onClick={() => toggleDept(dept.id)}
               >
@@ -144,7 +144,7 @@ function TradeSelectionStep({
                     height: 15,
                     cursor: 'pointer',
                     flexShrink: 0,
-                    accentColor: '#1B3A6B'
+                    accentColor: '#1B3A6B',
                   }}
                 />
                 <span
@@ -153,7 +153,7 @@ function TradeSelectionStep({
                     fontWeight: 600,
                     fontSize: 13,
                     color: '#1e293b',
-                    marginLeft: 10
+                    marginLeft: 10,
                   }}
                 >
                   {dept.name}
@@ -169,7 +169,7 @@ function TradeSelectionStep({
                     color: '#94a3b8',
                     transform: isOpen ? 'rotate(90deg)' : 'none',
                     transition: 'transform 0.15s',
-                    display: 'inline-block'
+                    display: 'inline-block',
                   }}
                 >
                   ▶
@@ -188,7 +188,7 @@ function TradeSelectionStep({
                         gap: 10,
                         padding: '9px 14px 9px 30px',
                         cursor: 'pointer',
-                        borderBottom: '1px solid #f0f3f8'
+                        borderBottom: '1px solid #f0f3f8',
                       }}
                     >
                       <input
@@ -200,7 +200,7 @@ function TradeSelectionStep({
                           height: 14,
                           cursor: 'pointer',
                           accentColor: '#1B3A6B',
-                          flexShrink: 0
+                          flexShrink: 0,
                         }}
                       />
                       <span style={{ fontSize: 13, color: '#374151' }}>{sub.name}</span>
@@ -224,7 +224,7 @@ function TradeSelectionStep({
             background: 'white',
             cursor: fetchingQuestions || extractingFiles ? 'not-allowed' : 'pointer',
             fontSize: 13,
-            color: '#555'
+            color: '#555',
           }}
         >
           ← Back
@@ -243,7 +243,7 @@ function TradeSelectionStep({
             cursor: fetchingQuestions || extractingFiles ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: 8
+            gap: 8,
           }}
         >
           {extractingFiles ? (
@@ -252,7 +252,7 @@ function TradeSelectionStep({
                 style={{
                   display: 'inline-block',
                   animation: 'spin 1s linear infinite',
-                  fontSize: 14
+                  fontSize: 14,
                 }}
               >
                 ⟳
@@ -265,7 +265,7 @@ function TradeSelectionStep({
                 style={{
                   display: 'inline-block',
                   animation: 'spin 1s linear infinite',
-                  fontSize: 14
+                  fontSize: 14,
                 }}
               >
                 ⟳
@@ -299,7 +299,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
     setLocalAnswer(existingAnswer?.answer || '');
     setLocalDemoCost(existingAnswer?.demoCost || '');
     setWaitingForDemoCost(
-      existingAnswer?.answer === 'no' && currentQ?.questionType === 'demo_check'
+      existingAnswer?.answer === 'no' && currentQ?.questionType === 'demo_check',
     );
   }, [currentIdx]);
 
@@ -330,7 +330,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
       questionType: currentQ.questionType,
       trade: currentQ.trade,
       answer: 'skipped',
-      demoCost: null
+      demoCost: null,
     };
     const updated = [...answers.filter((a) => a.questionId !== currentQ.id), record];
     onAnswer(updated);
@@ -354,7 +354,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
       demoCost:
         localAnswer === 'no' && currentQ.questionType === 'demo_check'
           ? localDemoCost.replace(/[$,\s]/g, '')
-          : null
+          : null,
     };
     const updated = [...answers.filter((a) => a.questionId !== currentQ.id), record];
     onAnswer(updated);
@@ -388,7 +388,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: 6
+          marginBottom: 6,
         }}
       >
         <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#1B3A6B' }}>
@@ -411,7 +411,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
               width: 8,
               height: 8,
               borderRadius: '50%',
-              background: i < currentIdx ? '#059669' : i === currentIdx ? '#1B3A6B' : '#e5e7eb'
+              background: i < currentIdx ? '#059669' : i === currentIdx ? '#1B3A6B' : '#e5e7eb',
             }}
           />
         ))}
@@ -424,7 +424,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
           border: '1px solid #e2e8f0',
           borderRadius: 10,
           padding: 18,
-          marginBottom: 16
+          marginBottom: 16,
         }}
       >
         <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
@@ -450,7 +450,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
             {[
               { val: 'yes', label: 'Yes — already included', color: '#059669' },
               { val: 'no', label: 'No — needs to be added', color: '#C62828' },
-              { val: 'not_sure', label: 'Not sure', color: '#888' }
+              { val: 'not_sure', label: 'Not sure', color: '#888' },
             ].map((opt) => (
               <button
                 key={opt.val}
@@ -464,7 +464,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
                   background: localAnswer === opt.val ? opt.color + '18' : 'white',
                   color: localAnswer === opt.val ? opt.color : '#64748b',
                   fontWeight: localAnswer === opt.val ? 700 : 400,
-                  transition: 'all 0.15s'
+                  transition: 'all 0.15s',
                 }}
               >
                 {opt.label}
@@ -490,7 +490,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
               padding: 14,
               background: '#fff7ed',
               border: '1px solid #fed7aa',
-              borderRadius: 8
+              borderRadius: 8,
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 500, color: '#9a3412', marginBottom: 8 }}>
@@ -508,7 +508,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
                   padding: '8px 10px',
                   border: '1px solid #fed7aa',
                   borderRadius: 6,
-                  fontSize: 13
+                  fontSize: 13,
                 }}
               />
             </div>
@@ -529,7 +529,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
             background: 'white',
             cursor: 'pointer',
             fontSize: 13,
-            color: '#555'
+            color: '#555',
           }}
         >
           ← Back
@@ -545,7 +545,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
                 background: 'white',
                 fontSize: 12,
                 color: '#888',
-                cursor: 'pointer'
+                cursor: 'pointer',
               }}
             >
               Skip
@@ -562,7 +562,7 @@ function AIQuestionsStep({ questions, answers, onAnswer, onBack, onNext }) {
               fontWeight: 700,
               background: canAdvance() ? '#1B3A6B' : '#c5ccd8',
               color: 'white',
-              cursor: canAdvance() ? 'pointer' : 'not-allowed'
+              cursor: canAdvance() ? 'pointer' : 'not-allowed',
             }}
           >
             {isLast ? 'Review Estimate →' : 'Next →'}
@@ -583,10 +583,10 @@ function ReviewStep({
   answers,
   onBack,
   onSubmit,
-  busy
+  busy,
 }) {
   const demoAdditions = answers.filter(
-    (a) => a.questionType === 'demo_check' && a.answer === 'no' && a.demoCost
+    (a) => a.questionType === 'demo_check' && a.answer === 'no' && a.demoCost,
   );
   const projectAddress = [address.street, address.city, address.state, address.zip]
     .filter(Boolean)
@@ -600,12 +600,12 @@ function ReviewStep({
       rows: [
         { key: 'Name', value: contact.name },
         { key: 'Phone', value: contact.phone || '—' },
-        { key: 'Email', value: contact.email || '—' }
-      ]
+        { key: 'Email', value: contact.email || '—' },
+      ],
     },
     {
       label: 'Job Address',
-      rows: [{ key: '', value: projectAddress || '—' }]
+      rows: [{ key: '', value: projectAddress || '—' }],
     },
     {
       label: 'Scope of Work',
@@ -618,12 +618,12 @@ function ReviewStep({
                 value:
                   '$' +
                   Number(String(budgetTarget).replace(/,/g, '')).toLocaleString() +
-                  ' (±8% soft target)'
-              }
+                  ' (±8% soft target)',
+              },
             ]
-          : [])
-      ]
-    }
+          : []),
+      ],
+    },
   ];
 
   return (
@@ -640,7 +640,7 @@ function ReviewStep({
             borderRadius: 8,
             padding: '14px 16px',
             marginBottom: 12,
-            border: '1px solid #e8eaf0'
+            border: '1px solid #e8eaf0',
           }}
         >
           <div
@@ -650,7 +650,7 @@ function ReviewStep({
               color: '#1B3A6B',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              marginBottom: 8
+              marginBottom: 8,
             }}
           >
             {section.label}
@@ -662,7 +662,7 @@ function ReviewStep({
                 fontSize: 13,
                 color: '#333',
                 marginBottom: row.key ? 4 : 0,
-                whiteSpace: row.key ? 'normal' : 'pre-wrap'
+                whiteSpace: row.key ? 'normal' : 'pre-wrap',
               }}
             >
               {row.key ? (
@@ -685,7 +685,7 @@ function ReviewStep({
             borderRadius: 8,
             padding: '14px 16px',
             marginBottom: 12,
-            border: '1px solid #e8eaf0'
+            border: '1px solid #e8eaf0',
           }}
         >
           <div
@@ -695,7 +695,7 @@ function ReviewStep({
               color: '#1B3A6B',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              marginBottom: 8
+              marginBottom: 8,
             }}
           >
             Trades Selected
@@ -710,7 +710,7 @@ function ReviewStep({
                   borderRadius: 20,
                   padding: '3px 10px',
                   fontSize: 12,
-                  fontWeight: 600
+                  fontWeight: 600,
                 }}
               >
                 {name}
@@ -727,7 +727,7 @@ function ReviewStep({
             border: '1px solid #fed7aa',
             borderRadius: 8,
             padding: '14px 16px',
-            marginBottom: 12
+            marginBottom: 12,
           }}
         >
           <div
@@ -737,7 +737,7 @@ function ReviewStep({
               color: '#c2410c',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              marginBottom: 8
+              marginBottom: 8,
             }}
           >
             Demo Work Added from Q&A
@@ -750,7 +750,7 @@ function ReviewStep({
                 justifyContent: 'space-between',
                 fontSize: 13,
                 color: '#9a3412',
-                marginBottom: 4
+                marginBottom: 4,
               }}
             >
               <span>Demo — Remove {a.trade}</span>
@@ -767,7 +767,7 @@ function ReviewStep({
             borderRadius: 8,
             padding: '14px 16px',
             marginBottom: 12,
-            border: '1px solid #e8eaf0'
+            border: '1px solid #e8eaf0',
           }}
         >
           <div
@@ -777,7 +777,7 @@ function ReviewStep({
               color: '#1B3A6B',
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
-              marginBottom: 10
+              marginBottom: 10,
             }}
           >
             AI Q&A Answers
@@ -788,7 +788,7 @@ function ReviewStep({
               style={{
                 marginBottom: 10,
                 paddingBottom: 10,
-                borderBottom: i < answers.length - 1 ? '1px solid #e2e8f0' : 'none'
+                borderBottom: i < answers.length - 1 ? '1px solid #e2e8f0' : 'none',
               }}
             >
               <div style={{ fontSize: 12, color: '#64748b', marginBottom: 3 }}>{a.question}</div>
@@ -816,7 +816,7 @@ function ReviewStep({
             background: 'white',
             cursor: 'pointer',
             fontSize: 13,
-            color: '#555'
+            color: '#555',
           }}
         >
           ← Back
@@ -832,7 +832,7 @@ function ReviewStep({
             fontSize: 14,
             background: busy ? '#888' : '#1B3A6B',
             color: 'white',
-            cursor: busy ? 'not-allowed' : 'pointer'
+            cursor: busy ? 'not-allowed' : 'pointer',
           }}
         >
           {busy ? '⏳ Generating...' : '🤖 Generate Proposal'}
@@ -881,15 +881,15 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
   const [fetchingQuestions, setFetchingQuestions] = useState(false);
 
   const [contact, setContact] = useState({
-    name:  prefillLead?.caller_name  || '',
+    name: prefillLead?.caller_name || '',
     phone: prefillLead?.caller_phone || '',
-    email: prefillLead?.job_email    || '',
+    email: prefillLead?.job_email || '',
   });
   const [address, setAddress] = useState({
     street: prefillLead?.job_address || '',
-    city:   prefillLead?.job_city    || '',
-    state:  '',
-    zip:    '',
+    city: prefillLead?.job_city || '',
+    state: '',
+    zip: '',
   });
   const [scope, setScope] = useState(() => {
     const jobScope = prefillLead?.job_scope || '';
@@ -941,7 +941,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
     suggestTimeout.current = setTimeout(async () => {
       try {
         const res = await fetch(`/api/contacts?search=${encodeURIComponent(query)}&limit=6`, {
-          headers
+          headers,
         });
         const data = await res.json();
         setSuggestions(data.contacts || []);
@@ -958,7 +958,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
         street: c.address || prev.street,
         city: c.city || prev.city,
         state: c.state || prev.state,
-        zip: prev.zip
+        zip: prev.zip,
       }));
     }
     setSuggestions([]);
@@ -1008,7 +1008,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
         const extractRes = await fetch('/api/jobs/extract-from-files', {
           method: 'POST',
           headers,
-          body: fd
+          body: fd,
         });
         if (extractRes.ok) {
           const { extractedText, extractedAddress, tempId } = await extractRes.json();
@@ -1027,17 +1027,17 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                 street: extractedAddress.street || prev.street,
                 city: extractedAddress.city || prev.city,
                 state: extractedAddress.state || prev.state,
-                zip: extractedAddress.zip || prev.zip
+                zip: extractedAddress.zip || prev.zip,
               }));
               showToast(
                 `Address found in plans: ${extractedAddress.street}, ${extractedAddress.city}`,
-                'success'
+                'success',
               );
             }
           } else if (!address.street.trim() || !address.city.trim()) {
             showToast(
               'No address found in plans — please fill in the job address on step 2.',
-              'warning'
+              'warning',
             );
           }
         } else {
@@ -1064,8 +1064,8 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
           scopeText: scopeWithTrades,
           projectAddress,
           budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g, '')) : null,
-          selectedTrades: buildSelectedTradesPayload(selectedTrades)
-        })
+          selectedTrades: buildSelectedTradesPayload(selectedTrades),
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -1101,7 +1101,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
     if (!address.street.trim() || !address.city.trim()) {
       showToast(
         'Job address is required — please go back and fill in the street and city.',
-        'error'
+        'error',
       );
       setStep(1);
       return;
@@ -1124,8 +1124,8 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
           qaAnswers: wizardAnswers,
           budgetTarget: budgetTarget ? Number(budgetTarget.replace(/,/g, '')) : null,
           plansTempId: plansTempId || null,
-          selectedTrades: buildSelectedTradesPayload(selectedTrades)
-        })
+          selectedTrades: buildSelectedTradesPayload(selectedTrades),
+        }),
       });
       const data = await res.json();
       setBusy(false);
@@ -1166,7 +1166,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 1100
+        zIndex: 1100,
       }}
     >
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
@@ -1177,7 +1177,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
           width: 560,
           maxHeight: '92vh',
           overflow: 'auto',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.18)'
+          boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
         }}
       >
         {/* Header */}
@@ -1186,7 +1186,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
             padding: '24px 28px 0',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-start'
+            alignItems: 'flex-start',
           }}
         >
           <div>
@@ -1206,7 +1206,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
               cursor: 'pointer',
               color: '#aaa',
               lineHeight: 1,
-              marginTop: -2
+              marginTop: -2,
             }}
           >
             ×
@@ -1223,7 +1223,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                     height: 4,
                     borderRadius: 2,
                     background: i <= step ? '#1B3A6B' : '#e5e7eb',
-                    transition: 'background 0.2s'
+                    transition: 'background 0.2s',
                   }}
                 />
                 <div
@@ -1232,7 +1232,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                     color: i === step ? '#1B3A6B' : '#bbb',
                     marginTop: 4,
                     fontWeight: i === step ? 700 : 400,
-                    textAlign: 'center'
+                    textAlign: 'center',
                   }}
                 >
                   {label}
@@ -1302,7 +1302,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                           boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                           zIndex: 10,
                           maxHeight: 200,
-                          overflow: 'auto'
+                          overflow: 'auto',
                         }}
                       >
                         {suggestions.map((c) => (
@@ -1312,7 +1312,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                             style={{
                               padding: '10px 14px',
                               cursor: 'pointer',
-                              borderBottom: '1px solid #f0f0f0'
+                              borderBottom: '1px solid #f0f0f0',
                             }}
                             onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f8ff')}
                             onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
@@ -1363,7 +1363,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                       background: '#f8faff',
                       border: '1px solid #dde4f5',
                       borderRadius: 6,
-                      padding: '7px 10px'
+                      padding: '7px 10px',
                     }}
                   >
                     💡 You can skip this if you're uploading plans or blueprints in the next step —
@@ -1485,7 +1485,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                         e.currentTarget.style.borderColor = '#c5d0e8';
                         e.currentTarget.style.background = '#f8faff';
                         const dropped = Array.from(e.dataTransfer.files).filter(
-                          (f) => f.type.startsWith('image/') || f.type === 'application/pdf'
+                          (f) => f.type.startsWith('image/') || f.type === 'application/pdf',
                         );
                         setAttachedFiles((prev) => {
                           const names = new Set(prev.map((f) => f.name));
@@ -1499,7 +1499,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                         padding: '14px 16px',
                         cursor: 'pointer',
                         textAlign: 'center',
-                        transition: 'all 0.15s'
+                        transition: 'all 0.15s',
                       }}
                     >
                       <div style={{ fontSize: 22, marginBottom: 4 }}>📎</div>
@@ -1525,7 +1525,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                               padding: '4px 10px',
                               fontSize: 11,
                               color: '#1B3A6B',
-                              fontWeight: 600
+                              fontWeight: 600,
                             }}
                           >
                             <span>{f.type.startsWith('image/') ? '🖼️' : '📄'}</span>
@@ -1534,7 +1534,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                                 maxWidth: 140,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               {f.name}
@@ -1551,7 +1551,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                                 color: '#666',
                                 fontSize: 13,
                                 lineHeight: 1,
-                                padding: 0
+                                padding: 0,
                               }}
                             >
                               ×
@@ -1569,7 +1569,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                           color: '#1B3A6B',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: 6
+                          gap: 6,
                         }}
                       >
                         <span
@@ -1580,7 +1580,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                             border: '2px solid #1B3A6B',
                             borderTopColor: 'transparent',
                             borderRadius: '50%',
-                            animation: 'spin 0.7s linear infinite'
+                            animation: 'spin 0.7s linear infinite',
                           }}
                         />
                         Reading files…
@@ -1604,7 +1604,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                           transform: 'translateY(-50%)',
                           color: '#555',
                           fontSize: 13,
-                          fontWeight: 600
+                          fontWeight: 600,
                         }}
                       >
                         $
@@ -1632,7 +1632,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                 padding: '0 28px 24px',
                 display: 'flex',
                 justifyContent: 'space-between',
-                gap: 10
+                gap: 10,
               }}
             >
               <button
@@ -1644,7 +1644,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                   background: 'white',
                   cursor: 'pointer',
                   fontSize: 13,
-                  color: '#555'
+                  color: '#555',
                 }}
               >
                 {step === 0 ? 'Cancel' : '← Back'}
@@ -1662,7 +1662,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                     color: 'white',
                     fontWeight: 700,
                     fontSize: 13,
-                    cursor: !canNext() ? 'not-allowed' : 'pointer'
+                    cursor: !canNext() ? 'not-allowed' : 'pointer',
                   }}
                 >
                   Next →
@@ -1679,7 +1679,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
                     color: 'white',
                     fontWeight: 700,
                     fontSize: 13,
-                    cursor: canNext() ? 'pointer' : 'not-allowed'
+                    cursor: canNext() ? 'pointer' : 'not-allowed',
                   }}
                 >
                   Next →

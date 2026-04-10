@@ -17,7 +17,7 @@ const STATUS_COLORS = {
   contract_sent: '#047857',
   contract_signed: '#1B3A6B',
   complete: '#111827',
-  error: '#C62828'
+  error: '#C62828',
 };
 
 const STATUS_LABELS = {
@@ -31,7 +31,7 @@ const STATUS_LABELS = {
   contract_ready: 'Contract Ready',
   contract_sent: 'Contract Sent',
   contract_signed: 'Contract Signed ✓',
-  complete: 'Complete'
+  complete: 'Complete',
 };
 
 const OUTCOME_BADGES = {
@@ -40,7 +40,7 @@ const OUTCOME_BADGES = {
   lost_competitor: { label: 'Lost – Competitor', bg: '#F3E5F5', color: '#6A1B9A' },
   ghosted: { label: 'Ghosted', bg: '#ECEFF1', color: '#546E7A' },
   mistake: { label: 'Mistake / Duplicate', bg: '#EFEBE9', color: '#795548' },
-  completed: { label: 'Completed', bg: '#E8F5E9', color: '#2E7D32' }
+  completed: { label: 'Completed', bg: '#E8F5E9', color: '#2E7D32' },
 };
 
 function outcomeBadge(reason) {
@@ -62,7 +62,7 @@ export default function Dashboard({ token }) {
     customerEmail: '',
     customerPhone: '',
     projectAddress: '',
-    estimateText: ''
+    estimateText: '',
   });
   const [uploadFiles, setUploadFiles] = useState([]);
   const [dragOver, setDragOver] = useState(false);
@@ -75,23 +75,29 @@ export default function Dashboard({ token }) {
 
   function searchContacts(q) {
     clearTimeout(suggestTimer.current);
-    if (!q || q.length < 2) { setContactSuggestions([]); setShowSuggestions(false); return; }
+    if (!q || q.length < 2) {
+      setContactSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
     suggestTimer.current = setTimeout(async () => {
       try {
         const r = await fetch(`/api/contacts?search=${encodeURIComponent(q)}&limit=6`, { headers });
         const data = await r.json();
         setContactSuggestions(data.contacts || []);
         setShowSuggestions((data.contacts || []).length > 0);
-      } catch { setContactSuggestions([]); }
+      } catch {
+        setContactSuggestions([]);
+      }
     }, 200);
   }
 
   function pickContact(c) {
     setManual((m) => ({
       ...m,
-      customerName:   c.name        || m.customerName,
-      customerPhone:  c.phone       || m.customerPhone,
-      customerEmail:  c.email       || m.customerEmail,
+      customerName: c.name || m.customerName,
+      customerPhone: c.phone || m.customerPhone,
+      customerEmail: c.email || m.customerEmail,
       projectAddress: c.address ? [c.address, c.city].filter(Boolean).join(', ') : m.projectAddress,
     }));
     setShowSuggestions(false);
@@ -101,7 +107,7 @@ export default function Dashboard({ token }) {
   const loadDashboard = () =>
     Promise.all([
       fetch('/api/jobs', { headers }).then((r) => r.json()),
-      fetch('/api/jobs/stats/summary', { headers }).then((r) => r.json())
+      fetch('/api/jobs/stats/summary', { headers }).then((r) => r.json()),
     ])
       .then(([jobsData, statsData]) => {
         setJobs(jobsData.jobs || []);
@@ -170,7 +176,7 @@ export default function Dashboard({ token }) {
     const res = await fetch(`/api/jobs/${jobId}`, {
       method: 'DELETE',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ closed_reason: 'completed' })
+      body: JSON.stringify({ closed_reason: 'completed' }),
     });
     if (res.ok) {
       setJobs(jobs.filter((j) => j.id !== jobId));
@@ -190,8 +196,8 @@ export default function Dashboard({ token }) {
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         closed_reason: archiveReason || null,
-        closed_note: archiveNote || null
-      })
+        closed_note: archiveNote || null,
+      }),
     });
     setArchiveBusy(false);
     if (res.ok) {
@@ -228,7 +234,7 @@ export default function Dashboard({ token }) {
       customerEmail: '',
       customerPhone: '',
       projectAddress: '',
-      estimateText: ''
+      estimateText: '',
     });
     setShowManual(true);
   };
@@ -238,7 +244,7 @@ export default function Dashboard({ token }) {
     const res = await fetch('/api/jobs/manual', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify(manual)
+      body: JSON.stringify(manual),
     });
     const data = await res.json();
     setSubmitBusy(false);
@@ -253,15 +259,15 @@ export default function Dashboard({ token }) {
 
   const addFiles = (fileList) => {
     const newFiles = Array.from(fileList);
-    setUploadFiles(prev => {
-      const existing = new Set(prev.map(f => f.name + f.size));
-      const toAdd = newFiles.filter(f => !existing.has(f.name + f.size));
+    setUploadFiles((prev) => {
+      const existing = new Set(prev.map((f) => f.name + f.size));
+      const toAdd = newFiles.filter((f) => !existing.has(f.name + f.size));
       return [...prev, ...toAdd];
     });
   };
 
   const removeFile = (index) => {
-    setUploadFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const submitUpload = async () => {
@@ -281,7 +287,11 @@ export default function Dashboard({ token }) {
       setSubmitBusy(false);
       if (res.ok) {
         setShowManual(false);
-        showToast(uploadFiles.length > 1 ? `${uploadFiles.length} files uploaded — processing now` : 'File uploaded — processing now');
+        showToast(
+          uploadFiles.length > 1
+            ? `${uploadFiles.length} files uploaded — processing now`
+            : 'File uploaded — processing now',
+        );
         window.location.reload();
       } else {
         showToast(data.error || 'Error processing file(s)', 'error');
@@ -304,7 +314,7 @@ export default function Dashboard({ token }) {
           alignItems: 'center',
           marginBottom: 28,
           flexWrap: 'wrap',
-          gap: 12
+          gap: 12,
         }}
       >
         <div>
@@ -326,7 +336,7 @@ export default function Dashboard({ token }) {
                 padding: '10px 20px',
                 borderRadius: 8,
                 cursor: 'pointer',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
               }}
             >
               + New S.O.W. Proposal
@@ -346,7 +356,7 @@ export default function Dashboard({ token }) {
                 borderRadius: 8,
                 cursor: 'pointer',
                 fontWeight: 600,
-                fontSize: 13
+                fontSize: 13,
               }}
             >
               New Job
@@ -367,13 +377,13 @@ export default function Dashboard({ token }) {
             {
               label: 'Pipeline Value',
               value: `$${(stats.totalValue || 0).toLocaleString()}`,
-              icon: '💰'
+              icon: '💰',
             },
             {
               label: 'Won Revenue (YTD)',
               value: `$${(stats.thisMonth?.value || 0).toLocaleString()}`,
-              icon: '📈'
-            }
+              icon: '📈',
+            },
           ].map((card) => (
             <div
               key={card.label}
@@ -381,7 +391,7 @@ export default function Dashboard({ token }) {
                 background: 'white',
                 borderRadius: 10,
                 padding: 20,
-                boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
               }}
             >
               <div style={{ fontSize: 24, marginBottom: 8 }}>{card.icon}</div>
@@ -403,7 +413,7 @@ export default function Dashboard({ token }) {
                 padding: 32,
                 textAlign: 'center',
                 color: '#888',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
               }}
             >
               No jobs yet. Waiting for estimates from Hearth...
@@ -416,7 +426,7 @@ export default function Dashboard({ token }) {
                 background: 'white',
                 borderRadius: 10,
                 boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-                padding: '14px 16px'
+                padding: '14px 16px',
               }}
             >
               {/* Top row: PB# + status badge */}
@@ -425,7 +435,7 @@ export default function Dashboard({ token }) {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'flex-start',
-                  marginBottom: 6
+                  marginBottom: 6,
                 }}
               >
                 <div>
@@ -434,7 +444,7 @@ export default function Dashboard({ token }) {
                       fontSize: 11,
                       fontWeight: 700,
                       color: '#1B3A6B',
-                      fontFamily: 'monospace'
+                      fontFamily: 'monospace',
                     }}
                   >
                     {job.pb_number || '—'}
@@ -454,7 +464,7 @@ export default function Dashboard({ token }) {
                     fontSize: 10,
                     fontWeight: 'bold',
                     whiteSpace: 'nowrap',
-                    marginLeft: 8
+                    marginLeft: 8,
                   }}
                 >
                   {STATUS_LABELS[job.status] || job.status}
@@ -478,7 +488,7 @@ export default function Dashboard({ token }) {
                   alignItems: 'center',
                   borderTop: '1px solid #f0f0f0',
                   paddingTop: 10,
-                  marginTop: 4
+                  marginTop: 4,
                 }}
               >
                 <div>
@@ -498,7 +508,7 @@ export default function Dashboard({ token }) {
                       color: '#bbb',
                       cursor: 'pointer',
                       fontSize: 11,
-                      padding: '4px 6px'
+                      padding: '4px 6px',
                     }}
                   >
                     Archive
@@ -512,7 +522,7 @@ export default function Dashboard({ token }) {
                       fontWeight: 'bold',
                       textDecoration: 'none',
                       padding: '6px 14px',
-                      borderRadius: 6
+                      borderRadius: 6,
                     }}
                   >
                     View →
@@ -528,7 +538,7 @@ export default function Dashboard({ token }) {
             background: 'white',
             borderRadius: 10,
             boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-            overflowX: 'auto'
+            overflowX: 'auto',
           }}
         >
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
@@ -542,7 +552,7 @@ export default function Dashboard({ token }) {
                       color: 'white',
                       textAlign: 'left',
                       fontSize: 12,
-                      fontWeight: 'bold'
+                      fontWeight: 'bold',
                     }}
                   >
                     {h}
@@ -563,7 +573,7 @@ export default function Dashboard({ token }) {
                   key={job.id}
                   style={{
                     borderBottom: '1px solid #f0f0f0',
-                    background: i % 2 === 0 ? 'white' : '#fafafa'
+                    background: i % 2 === 0 ? 'white' : '#fafafa',
                   }}
                 >
                   <td style={{ padding: '12px 16px' }}>
@@ -572,7 +582,7 @@ export default function Dashboard({ token }) {
                         fontSize: 12,
                         fontWeight: 700,
                         color: '#1B3A6B',
-                        fontFamily: 'monospace'
+                        fontFamily: 'monospace',
                       }}
                     >
                       {job.pb_number || '—'}
@@ -594,7 +604,7 @@ export default function Dashboard({ token }) {
                       padding: '12px 16px',
                       fontSize: 13,
                       fontWeight: '500',
-                      color: '#1B3A6B'
+                      color: '#1B3A6B',
                     }}
                   >
                     {job.total_value ? `$${job.total_value.toLocaleString()}` : '—'}
@@ -607,7 +617,7 @@ export default function Dashboard({ token }) {
                         padding: '3px 10px',
                         borderRadius: 20,
                         fontSize: 11,
-                        fontWeight: 'bold'
+                        fontWeight: 'bold',
                       }}
                     >
                       {STATUS_LABELS[job.status] || job.status}
@@ -624,7 +634,7 @@ export default function Dashboard({ token }) {
                           color: '#1B3A6B',
                           fontSize: 12,
                           fontWeight: 'bold',
-                          textDecoration: 'none'
+                          textDecoration: 'none',
                         }}
                       >
                         View →
@@ -638,7 +648,7 @@ export default function Dashboard({ token }) {
                           cursor: 'pointer',
                           fontSize: 11,
                           padding: '2px 6px',
-                          borderRadius: 4
+                          borderRadius: 4,
                         }}
                         title="Archive job"
                       >
@@ -662,7 +672,7 @@ export default function Dashboard({ token }) {
             color: '#888',
             cursor: 'pointer',
             fontSize: 12,
-            textDecoration: 'underline'
+            textDecoration: 'underline',
           }}
         >
           View Archived Jobs
@@ -679,7 +689,7 @@ export default function Dashboard({ token }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div
@@ -690,7 +700,7 @@ export default function Dashboard({ token }) {
               width: 600,
               maxWidth: '95vw',
               maxHeight: '85vh',
-              overflow: 'auto'
+              overflow: 'auto',
             }}
           >
             <div
@@ -698,7 +708,7 @@ export default function Dashboard({ token }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 20
+                marginBottom: 20,
               }}
             >
               <h2 style={{ color: '#1B3A6B', margin: 0 }}>Archived Jobs</h2>
@@ -709,7 +719,7 @@ export default function Dashboard({ token }) {
                   border: 'none',
                   fontSize: 20,
                   cursor: 'pointer',
-                  color: '#888'
+                  color: '#888',
                 }}
               >
                 ×
@@ -743,7 +753,8 @@ export default function Dashboard({ token }) {
                   {archivedJobs.map((job) => {
                     const daysLeft = Math.max(
                       0,
-                      90 - Math.floor((Date.now() - new Date(job.archived_at).getTime()) / 86400000)
+                      90 -
+                        Math.floor((Date.now() - new Date(job.archived_at).getTime()) / 86400000),
                     );
                     const badge = outcomeBadge(job.closed_reason);
                     return (
@@ -760,7 +771,7 @@ export default function Dashboard({ token }) {
                                 fontSize: 10,
                                 fontWeight: 'bold',
                                 background: badge.bg,
-                                color: badge.color
+                                color: badge.color,
                               }}
                             >
                               {badge.label}
@@ -776,7 +787,7 @@ export default function Dashboard({ token }) {
                           style={{
                             padding: '8px 12px',
                             fontSize: 11,
-                            color: daysLeft < 14 ? '#C62828' : '#888'
+                            color: daysLeft < 14 ? '#C62828' : '#888',
                           }}
                         >
                           {daysLeft} days
@@ -791,7 +802,7 @@ export default function Dashboard({ token }) {
                               padding: '4px 12px',
                               borderRadius: 4,
                               cursor: 'pointer',
-                              fontSize: 11
+                              fontSize: 11,
                             }}
                           >
                             Restore
@@ -817,7 +828,7 @@ export default function Dashboard({ token }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1100
+            zIndex: 1100,
           }}
         >
           <div
@@ -828,7 +839,7 @@ export default function Dashboard({ token }) {
               width: 440,
               maxWidth: '95vw',
               maxHeight: '85vh',
-              overflow: 'auto'
+              overflow: 'auto',
             }}
           >
             <div
@@ -836,7 +847,7 @@ export default function Dashboard({ token }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 16
+                marginBottom: 16,
               }}
             >
               <h3 style={{ color: '#1B3A6B', margin: 0, fontSize: 18 }}>Archive Job</h3>
@@ -847,7 +858,7 @@ export default function Dashboard({ token }) {
                   border: 'none',
                   fontSize: 20,
                   cursor: 'pointer',
-                  color: '#888'
+                  color: '#888',
                 }}
               >
                 ×
@@ -865,21 +876,21 @@ export default function Dashboard({ token }) {
                   label: 'Lost – Price',
                   icon: '💰',
                   color: '#C62828',
-                  bg: '#FFEBEE'
+                  bg: '#FFEBEE',
                 },
                 {
                   value: 'lost_timing',
                   label: 'Lost – Timing',
                   icon: '⏰',
                   color: '#E65100',
-                  bg: '#FFF3E0'
+                  bg: '#FFF3E0',
                 },
                 {
                   value: 'lost_competitor',
                   label: 'Lost – Competitor',
                   icon: '🏢',
                   color: '#6A1B9A',
-                  bg: '#F3E5F5'
+                  bg: '#F3E5F5',
                 },
                 { value: 'ghosted', label: 'Ghosted', icon: '👻', color: '#546E7A', bg: '#ECEFF1' },
                 {
@@ -887,8 +898,8 @@ export default function Dashboard({ token }) {
                   label: 'Mistake / Duplicate',
                   icon: '🗑️',
                   color: '#795548',
-                  bg: '#EFEBE9'
-                }
+                  bg: '#EFEBE9',
+                },
               ].map((opt) => (
                 <button
                   key={opt.value}
@@ -906,7 +917,7 @@ export default function Dashboard({ token }) {
                     color: archiveReason === opt.value ? opt.color : '#555',
                     border:
                       archiveReason === opt.value ? `2px solid ${opt.color}` : '2px solid #eee',
-                    transition: 'all 0.15s'
+                    transition: 'all 0.15s',
                   }}
                 >
                   <span style={{ fontSize: 18 }}>{opt.icon}</span>
@@ -933,7 +944,7 @@ export default function Dashboard({ token }) {
                   fontSize: 12,
                   boxSizing: 'border-box',
                   resize: 'vertical',
-                  fontFamily: 'inherit'
+                  fontFamily: 'inherit',
                 }}
               />
             </div>
@@ -951,7 +962,7 @@ export default function Dashboard({ token }) {
                   fontSize: 13,
                   border: 'none',
                   background: archiveBusy ? '#888' : '#1B3A6B',
-                  color: 'white'
+                  color: 'white',
                 }}
               >
                 {archiveBusy ? 'Archiving...' : 'Archive Job'}
@@ -966,7 +977,7 @@ export default function Dashboard({ token }) {
                   fontSize: 13,
                   background: '#f0f0f0',
                   color: '#555',
-                  border: 'none'
+                  border: 'none',
                 }}
               >
                 Cancel
@@ -1000,7 +1011,7 @@ export default function Dashboard({ token }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000
+            zIndex: 1000,
           }}
         >
           <div
@@ -1011,7 +1022,7 @@ export default function Dashboard({ token }) {
               width: 580,
               maxWidth: '95vw',
               maxHeight: '90vh',
-              overflow: 'auto'
+              overflow: 'auto',
             }}
           >
             <div
@@ -1019,7 +1030,7 @@ export default function Dashboard({ token }) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: 6
+                marginBottom: 6,
               }}
             >
               <h2 style={{ color: '#1B3A6B', margin: 0, fontSize: 20 }}>New Job</h2>
@@ -1030,7 +1041,7 @@ export default function Dashboard({ token }) {
                   border: 'none',
                   fontSize: 22,
                   cursor: 'pointer',
-                  color: '#888'
+                  color: '#888',
                 }}
               >
                 ×
@@ -1056,7 +1067,9 @@ export default function Dashboard({ token }) {
                     searchContacts(e.target.value);
                   }}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                  onFocus={() => { if (contactSuggestions.length) setShowSuggestions(true); }}
+                  onFocus={() => {
+                    if (contactSuggestions.length) setShowSuggestions(true);
+                  }}
                   placeholder="John Smith"
                   autoComplete="off"
                   style={{
@@ -1065,23 +1078,25 @@ export default function Dashboard({ token }) {
                     border: '1px solid #ddd',
                     borderRadius: 6,
                     fontSize: 12,
-                    boxSizing: 'border-box'
+                    boxSizing: 'border-box',
                   }}
                 />
                 {showSuggestions && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    background: 'white',
-                    border: '1px solid #C8D4E4',
-                    borderRadius: 6,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-                    zIndex: 200,
-                    maxHeight: 220,
-                    overflowY: 'auto',
-                  }}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      background: 'white',
+                      border: '1px solid #C8D4E4',
+                      borderRadius: 6,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                      zIndex: 200,
+                      maxHeight: 220,
+                      overflowY: 'auto',
+                    }}
+                  >
                     {contactSuggestions.map((c) => (
                       <div
                         key={c.id}
@@ -1092,11 +1107,12 @@ export default function Dashboard({ token }) {
                           borderBottom: '1px solid #f0f0f0',
                           fontSize: 12,
                         }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = '#f0f6ff'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f0f6ff')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
                       >
                         <div style={{ fontWeight: 'bold', color: '#1B3A6B' }}>
-                          {c.pb_customer_number ? `PB#${c.pb_customer_number} · ` : ''}{c.name}
+                          {c.pb_customer_number ? `PB#${c.pb_customer_number} · ` : ''}
+                          {c.name}
                         </div>
                         <div style={{ color: '#888', fontSize: 11, marginTop: 1 }}>
                           {[c.phone, c.email, c.address].filter(Boolean).join(' · ')}
@@ -1111,7 +1127,11 @@ export default function Dashboard({ token }) {
               {[
                 { label: 'Customer Phone', key: 'customerPhone', placeholder: '+1 555 000 0000' },
                 { label: 'Customer Email', key: 'customerEmail', placeholder: 'john@email.com' },
-                { label: 'Project Address', key: 'projectAddress', placeholder: '123 Main St, City, FL' }
+                {
+                  label: 'Project Address',
+                  key: 'projectAddress',
+                  placeholder: '123 Main St, City, FL',
+                },
               ].map((f) => (
                 <div key={f.key}>
                   <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 3 }}>
@@ -1127,7 +1147,7 @@ export default function Dashboard({ token }) {
                       border: '1px solid #ddd',
                       borderRadius: 6,
                       fontSize: 12,
-                      boxSizing: 'border-box'
+                      boxSizing: 'border-box',
                     }}
                   />
                 </div>
@@ -1137,7 +1157,7 @@ export default function Dashboard({ token }) {
             <div style={{ display: 'flex', borderBottom: '2px solid #f0f0f0', marginBottom: 16 }}>
               {[
                 { id: 'text', label: '✏️ Paste Text' },
-                { id: 'file', label: '📎 Upload File' }
+                { id: 'file', label: '📎 Upload File' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1152,7 +1172,7 @@ export default function Dashboard({ token }) {
                     color: submitTab === tab.id ? '#1B3A6B' : '#888',
                     borderBottom:
                       submitTab === tab.id ? '2px solid #1B3A6B' : '2px solid transparent',
-                    marginBottom: -2
+                    marginBottom: -2,
                   }}
                 >
                   {tab.label}
@@ -1177,7 +1197,7 @@ export default function Dashboard({ token }) {
                     fontSize: 12,
                     boxSizing: 'border-box',
                     resize: 'vertical',
-                    fontFamily: 'inherit'
+                    fontFamily: 'inherit',
                   }}
                   placeholder={`e.g. New 2-story build — 3-bay garage 1st floor, living space 2nd floor\nMetal roof, board & batten siding, mini splits x3\nPermit included. Start date flexible.\nBudget: $350,000`}
                 />
@@ -1194,7 +1214,7 @@ export default function Dashboard({ token }) {
                     borderRadius: 6,
                     cursor: submitBusy ? 'not-allowed' : 'pointer',
                     fontWeight: 'bold',
-                    fontSize: 14
+                    fontSize: 14,
                   }}
                 >
                   {submitBusy ? '⏳ Processing with AI...' : '🤖 Generate Proposal'}
@@ -1222,14 +1242,17 @@ export default function Dashboard({ token }) {
                     textAlign: 'center',
                     background: dragOver ? '#f0f4ff' : '#fafafa',
                     cursor: 'pointer',
-                    marginBottom: 12
+                    marginBottom: 12,
                   }}
                   onClick={() => document.getElementById('estimate-file-input').click()}
                 >
                   {uploadFiles.length > 0 ? (
                     <div>
-                      <div style={{ fontSize: 13, color: '#555', marginBottom: 10, fontWeight: 600 }}>
-                        {uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} selected — click or drop to add more
+                      <div
+                        style={{ fontSize: 13, color: '#555', marginBottom: 10, fontWeight: 600 }}
+                      >
+                        {uploadFiles.length} file{uploadFiles.length > 1 ? 's' : ''} selected —
+                        click or drop to add more
                       </div>
                       {uploadFiles.map((file, idx) => (
                         <div
@@ -1243,23 +1266,57 @@ export default function Dashboard({ token }) {
                             border: '1px solid #e5e7eb',
                             borderRadius: 6,
                             padding: '7px 10px',
-                            marginBottom: 6
+                            marginBottom: 6,
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden' }}>
-                            <span style={{ fontSize: 18 }}>{file.type.includes('pdf') ? '📄' : '🖼️'}</span>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            <span style={{ fontSize: 18 }}>
+                              {file.type.includes('pdf') ? '📄' : '🖼️'}
+                            </span>
                             <div style={{ overflow: 'hidden' }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: '#1B3A6B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  color: '#1B3A6B',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  maxWidth: 260,
+                                }}
+                              >
                                 {file.name}
                               </div>
-                              <div style={{ fontSize: 11, color: '#aaa' }}>{(file.size / 1024).toFixed(1)} KB</div>
+                              <div style={{ fontSize: 11, color: '#aaa' }}>
+                                {(file.size / 1024).toFixed(1)} KB
+                              </div>
                             </div>
                           </div>
                           <button
-                            onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
-                            style={{ background: 'none', border: 'none', color: '#C62828', cursor: 'pointer', fontSize: 16, padding: '0 4px', flexShrink: 0 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFile(idx);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#C62828',
+                              cursor: 'pointer',
+                              fontSize: 16,
+                              padding: '0 4px',
+                              flexShrink: 0,
+                            }}
                             title="Remove file"
-                          >✕</button>
+                          >
+                            ✕
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -1304,10 +1361,12 @@ export default function Dashboard({ token }) {
                     borderRadius: 6,
                     cursor: submitBusy || !uploadFiles.length ? 'not-allowed' : 'pointer',
                     fontWeight: 'bold',
-                    fontSize: 14
+                    fontSize: 14,
                   }}
                 >
-                  {submitBusy ? `⏳ Uploading ${uploadFiles.length > 1 ? 'files' : 'file'}...` : `🤖 Upload & Generate Proposal${uploadFiles.length > 1 ? ` (${uploadFiles.length} files)` : ''}`}
+                  {submitBusy
+                    ? `⏳ Uploading ${uploadFiles.length > 1 ? 'files' : 'file'}...`
+                    : `🤖 Upload & Generate Proposal${uploadFiles.length > 1 ? ` (${uploadFiles.length} files)` : ''}`}
                 </button>
               </div>
             )}

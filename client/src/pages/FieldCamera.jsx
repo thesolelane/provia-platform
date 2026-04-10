@@ -25,7 +25,7 @@ const STAGE_LABELS = {
   quote_sent: 'Proposal Sent',
   follow_up_1: 'Follow-up 1',
   follow_up_2: 'Follow-up 2',
-  signed: 'Signed'
+  signed: 'Signed',
 };
 
 // ── Auth-gated image ──────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ function AuthImage({ src, token, alt, style, onClick }) {
           alignItems: 'center',
           justifyContent: 'center',
           color: '#aaa',
-          fontSize: 11
+          fontSize: 11,
         }}
       >
         Loading…
@@ -75,7 +75,7 @@ function groupPhotos(photos) {
           weekday: 'short',
           year: 'numeric',
           month: 'short',
-          day: 'numeric'
+          day: 'numeric',
         })
       : 'Unknown date';
     if (!byLocation[locKey]) byLocation[locKey] = {};
@@ -116,7 +116,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
     fontFamily: 'inherit',
     background: 'white',
     marginTop: 10,
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
   };
   const chipActive = {
     padding: '10px 16px',
@@ -126,7 +126,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
     fontSize: 13,
     border: '2px solid',
     flex: 1,
-    textAlign: 'center'
+    textAlign: 'center',
   };
 
   return (
@@ -138,7 +138,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
         zIndex: 3000,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
       }}
       onClick={onClose}
     >
@@ -149,7 +149,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
           padding: 24,
           width: '100%',
           maxWidth: 420,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -167,7 +167,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
               ...chipActive,
               background: !mode ? BLUE : '#f1f5f9',
               color: !mode ? 'white' : '#64748b',
-              borderColor: !mode ? BLUE : '#cbd5e1'
+              borderColor: !mode ? BLUE : '#cbd5e1',
             }}
           >
             📥 Inbox
@@ -178,7 +178,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
               ...chipActive,
               background: mode === 'job' ? ORANGE : '#f1f5f9',
               color: mode === 'job' ? 'white' : '#64748b',
-              borderColor: mode === 'job' ? ORANGE : '#cbd5e1'
+              borderColor: mode === 'job' ? ORANGE : '#cbd5e1',
             }}
           >
             🏠 Job
@@ -189,7 +189,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
               ...chipActive,
               background: mode === 'lead' ? GREEN : '#f1f5f9',
               color: mode === 'lead' ? 'white' : '#64748b',
-              borderColor: mode === 'lead' ? GREEN : '#cbd5e1'
+              borderColor: mode === 'lead' ? GREEN : '#cbd5e1',
             }}
           >
             📞 Lead
@@ -236,7 +236,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
               background: '#f8fafc',
               padding: '10px 12px',
               borderRadius: 8,
-              border: '1px solid #e2e8f0'
+              border: '1px solid #e2e8f0',
             }}
           >
             Photo goes to the inbox — you can assign it to a job or lead later.
@@ -253,7 +253,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
               borderRadius: 6,
               padding: '8px 16px',
               cursor: 'pointer',
-              fontSize: 13
+              fontSize: 13,
             }}
           >
             Cancel
@@ -268,7 +268,7 @@ function LinkModal({ jobs, leads, onSelect, onClose }) {
               padding: '8px 18px',
               cursor: 'pointer',
               fontWeight: 700,
-              fontSize: 13
+              fontSize: 13,
             }}
           >
             📷 Open Camera
@@ -372,7 +372,7 @@ export default function FieldCamera({ token }) {
       const res = await fetch('/api/field-photos', {
         method: 'POST',
         headers: { 'x-auth-token': token },
-        body: formData
+        body: formData,
       });
       if (res.ok) {
         const label = link.lead_id
@@ -432,7 +432,7 @@ export default function FieldCamera({ token }) {
       const res = await fetch(`/api/field-photos/${photoId}/assign`, {
         method: 'PATCH',
         headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         showToast(assignMode === 'lead' ? 'Photo linked to lead' : 'Photo moved to job');
@@ -459,7 +459,7 @@ export default function FieldCamera({ token }) {
         const res = await fetch(`/api/field-photos/${photo.id}/assign`, {
           method: 'PATCH',
           headers: { ...headers, 'Content-Type': 'application/json' },
-          body: JSON.stringify(resolved)
+          body: JSON.stringify(resolved),
         });
         if (res.ok) count++;
       } catch {
@@ -492,7 +492,7 @@ export default function FieldCamera({ token }) {
     locating: '📍 Getting GPS location…',
     geocoding: '🗺️ Looking up address…',
     done: '✅ Location captured',
-    unavailable: '⚠️ GPS unavailable — photo saved without location'
+    unavailable: '⚠️ GPS unavailable — photo saved without location',
   }[gpsStatus];
 
   const activeLeads = leads.filter((l) => !l.archived && l.stage !== 'rejected');
@@ -504,12 +504,12 @@ export default function FieldCamera({ token }) {
           const addr = [l.job_address, l.job_city].filter(Boolean).join(', ');
           return {
             value: String(l.id),
-            label: `${l.caller_name}${addr ? ' · ' + addr : ''} (${STAGE_LABELS[l.stage] || l.stage})`
+            label: `${l.caller_name}${addr ? ' · ' + addr : ''} (${STAGE_LABELS[l.stage] || l.stage})`,
           };
         })
       : jobs.map((j) => ({
           value: j.id,
-          label: `${j.customer_name}${j.project_address ? ' · ' + j.project_address : ''}`
+          label: `${j.customer_name}${j.project_address ? ' · ' + j.project_address : ''}`,
         }));
 
   return (
@@ -550,7 +550,7 @@ export default function FieldCamera({ token }) {
             cursor: uploading ? 'not-allowed' : 'pointer',
             fontSize: 15,
             fontWeight: 'bold',
-            opacity: uploading ? 0.6 : 1
+            opacity: uploading ? 0.6 : 1,
           }}
         >
           📷 Take Photo
@@ -567,7 +567,7 @@ export default function FieldCamera({ token }) {
             cursor: uploading ? 'not-allowed' : 'pointer',
             fontSize: 15,
             fontWeight: 'bold',
-            opacity: uploading ? 0.6 : 1
+            opacity: uploading ? 0.6 : 1,
           }}
         >
           📁 Upload from Library
@@ -583,7 +583,7 @@ export default function FieldCamera({ token }) {
             marginBottom: 14,
             fontSize: 13,
             color: BLUE,
-            border: `1px solid ${BLUE}`
+            border: `1px solid ${BLUE}`,
           }}
         >
           ⏳ Uploading photo…
@@ -603,7 +603,7 @@ export default function FieldCamera({ token }) {
             borderRadius: 8,
             fontSize: 13,
             color: GREEN,
-            border: '1px solid #c8e6c9'
+            border: '1px solid #c8e6c9',
           }}
         >
           📞 {photos.filter((p) => p.lead_id).length} photo(s) linked to leads — visible on each
@@ -618,7 +618,7 @@ export default function FieldCamera({ token }) {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 8,
-          marginBottom: 12
+          marginBottom: 12,
         }}
       >
         <h3 style={{ color: BLUE, margin: 0, fontSize: 15 }}>
@@ -645,7 +645,7 @@ export default function FieldCamera({ token }) {
                   border: '1px solid',
                   background: assignMode === m ? BLUE : '#f1f5f9',
                   color: assignMode === m ? 'white' : '#64748b',
-                  borderColor: assignMode === m ? BLUE : '#cbd5e1'
+                  borderColor: assignMode === m ? BLUE : '#cbd5e1',
                 }}
               >
                 {m === 'job' ? '🏠 Job' : '📞 Lead'}
@@ -681,7 +681,7 @@ export default function FieldCamera({ token }) {
               borderRadius: 10,
               overflow: 'hidden',
               background: 'white',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.06)'
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
             }}
           >
             <div
@@ -694,7 +694,7 @@ export default function FieldCamera({ token }) {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                gap: 10
+                gap: 10,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -706,7 +706,7 @@ export default function FieldCamera({ token }) {
                     color: '#888',
                     background: '#eee',
                     borderRadius: 10,
-                    padding: '1px 8px'
+                    padding: '1px 8px',
                   }}
                 >
                   {allPhotosInLoc.length} photo{allPhotosInLoc.length !== 1 ? 's' : ''}
@@ -726,7 +726,7 @@ export default function FieldCamera({ token }) {
                       fontSize: 12,
                       padding: '4px 8px',
                       borderRadius: 6,
-                      border: '1px solid #ccc'
+                      border: '1px solid #ccc',
                     }}
                   >
                     <option value="">— Move all to {assignMode} —</option>
@@ -750,7 +750,7 @@ export default function FieldCamera({ token }) {
                       padding: '4px 8px',
                       borderRadius: 6,
                       border: '1px solid #ccc',
-                      minWidth: 220
+                      minWidth: 220,
                     }}
                   >
                     <option value="">— Move all to job or lead —</option>
@@ -789,7 +789,7 @@ export default function FieldCamera({ token }) {
                     borderRadius: 6,
                     cursor: 'pointer',
                     fontSize: 12,
-                    fontWeight: 'bold'
+                    fontWeight: 'bold',
                   }}
                 >
                   Move All
@@ -807,7 +807,7 @@ export default function FieldCamera({ token }) {
                       color: '#888',
                       fontWeight: 'bold',
                       marginBottom: 8,
-                      marginTop: 4
+                      marginTop: 4,
                     }}
                   >
                     {dateKey}
@@ -816,7 +816,7 @@ export default function FieldCamera({ token }) {
                     style={{
                       display: 'grid',
                       gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                      gap: 10
+                      gap: 10,
                     }}
                   >
                     {datePhotos.map((photo) => (
@@ -826,7 +826,7 @@ export default function FieldCamera({ token }) {
                           borderRadius: 8,
                           overflow: 'hidden',
                           border: '1px solid #eee',
-                          background: '#fafafa'
+                          background: '#fafafa',
                         }}
                       >
                         <AuthImage
@@ -838,7 +838,7 @@ export default function FieldCamera({ token }) {
                             height: 140,
                             objectFit: 'cover',
                             display: 'block',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
                           }}
                           onClick={() => {
                             fetch(`/api/field-photos/file/${photo.filename}`, { headers })
@@ -857,7 +857,7 @@ export default function FieldCamera({ token }) {
                               ? new Date(photo.taken_at).toLocaleTimeString('en-US', {
                                   hour: 'numeric',
                                   minute: '2-digit',
-                                  hour12: true
+                                  hour12: true,
                                 })
                               : 'No time'}
                           </div>
@@ -870,7 +870,7 @@ export default function FieldCamera({ token }) {
                                 fontSize: 10,
                                 color: BLUE,
                                 display: 'block',
-                                marginBottom: 4
+                                marginBottom: 4,
                               }}
                             >
                               📍 View on map
@@ -896,7 +896,7 @@ export default function FieldCamera({ token }) {
                                           border: '1px solid',
                                           background: assignMode === m ? BLUE : '#f1f5f9',
                                           color: assignMode === m ? 'white' : '#64748b',
-                                          borderColor: assignMode === m ? BLUE : '#cbd5e1'
+                                          borderColor: assignMode === m ? BLUE : '#cbd5e1',
                                         }}
                                       >
                                         {m === 'job' ? 'Job' : 'Lead'}
@@ -908,7 +908,7 @@ export default function FieldCamera({ token }) {
                                     onChange={(e) =>
                                       setSelectedTarget((prev) => ({
                                         ...prev,
-                                        [photo.id]: e.target.value
+                                        [photo.id]: e.target.value,
                                       }))
                                     }
                                     style={{
@@ -916,7 +916,7 @@ export default function FieldCamera({ token }) {
                                       padding: '3px 6px',
                                       borderRadius: 4,
                                       border: '1px solid #ccc',
-                                      width: '100%'
+                                      width: '100%',
                                     }}
                                   >
                                     <option value="">— Select {assignMode} —</option>
@@ -940,7 +940,7 @@ export default function FieldCamera({ token }) {
                                     padding: '3px 6px',
                                     borderRadius: 4,
                                     border: '1px solid #ccc',
-                                    width: '100%'
+                                    width: '100%',
                                   }}
                                 >
                                   <option value="">— Assign to job or lead —</option>
@@ -983,7 +983,7 @@ export default function FieldCamera({ token }) {
                                     borderRadius: 4,
                                     cursor: 'pointer',
                                     fontSize: 11,
-                                    fontWeight: 'bold'
+                                    fontWeight: 'bold',
                                   }}
                                 >
                                   Link
@@ -998,7 +998,7 @@ export default function FieldCamera({ token }) {
                                     border: 'none',
                                     borderRadius: 4,
                                     cursor: 'pointer',
-                                    fontSize: 11
+                                    fontSize: 11,
                                   }}
                                 >
                                   Cancel
@@ -1018,7 +1018,7 @@ export default function FieldCamera({ token }) {
                                   borderRadius: 4,
                                   cursor: 'pointer',
                                   fontSize: 10,
-                                  fontWeight: 'bold'
+                                  fontWeight: 'bold',
                                 }}
                               >
                                 Assign
@@ -1032,7 +1032,7 @@ export default function FieldCamera({ token }) {
                                   borderRadius: 4,
                                   cursor: 'pointer',
                                   fontSize: 11,
-                                  color: '#aaa'
+                                  color: '#aaa',
                                 }}
                               >
                                 🗑
@@ -1058,7 +1058,7 @@ export default function FieldCamera({ token }) {
             borderRadius: 8,
             fontSize: 13,
             color: '#888',
-            border: '1px solid #eee'
+            border: '1px solid #eee',
           }}
         >
           {photos.filter((p) => p.job_id).length} photo(s) assigned to jobs — view them in the job's

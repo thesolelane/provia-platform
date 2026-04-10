@@ -25,7 +25,7 @@ function getBackupDir() {
   try {
     const { getDb } = require('../db/database');
     const custom = stripQuotes(
-      getDb().prepare("SELECT value FROM settings WHERE key = 'backup.customPath'").get()?.value
+      getDb().prepare("SELECT value FROM settings WHERE key = 'backup.customPath'").get()?.value,
     );
     return custom && custom.length > 0 ? custom : DEFAULT_BACKUP_DIR;
   } catch {
@@ -56,7 +56,7 @@ function timestamp() {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      hour12: false
+      hour12: false,
     })
     .replace(/[\/:, ]/g, '-')
     .replace(/--/g, '-');
@@ -141,14 +141,14 @@ async function runBackup() {
       INSERT INTO settings (key, value, category, label)
       VALUES ('backup.lastRanAt', ?, 'backup', 'Last Backup Timestamp')
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-    `
+    `,
     ).run(nowIso);
     db.prepare(
       `
       INSERT INTO settings (key, value, category, label)
       VALUES ('backup.lastFile', ?, 'backup', 'Last Backup Filename')
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
-    `
+    `,
     ).run(destFile);
   } catch {
     /* ignore */
@@ -160,7 +160,7 @@ async function runBackup() {
     file: destFile,
     dbSize: formatBytes(dbSizeBytes),
     totalBackups: remaining.length,
-    backups: remaining.map((b) => ({ file: b.file, size: formatBytes(b.size), date: b.mtime }))
+    backups: remaining.map((b) => ({ file: b.file, size: formatBytes(b.size), date: b.mtime })),
   };
 
   console.log(`${label} ✅ Complete — ${remaining.length} backups on disk`);
@@ -188,7 +188,7 @@ async function notifyFailure(label, errorMessage) {
             <p style="font-size:13px;color:#555;margin-top:12px">Please check the server and manually back up <code>data/pb_system.db</code> as soon as possible.</p>
           </div>
         </div>`,
-      emailType: 'system_alert'
+      emailType: 'system_alert',
     });
   } catch {
     /* ignore */
@@ -206,7 +206,7 @@ async function runBackupWithStatus(sendStatusEmails = true) {
     // Email 1: pre-backup system check
     await sendStatusReport({
       label: 'Pre-Backup System Check',
-      alwaysSend: true
+      alwaysSend: true,
     });
   }
 
@@ -221,7 +221,7 @@ async function runBackupWithStatus(sendStatusEmails = true) {
     await sendStatusReport({
       label: 'Post-Backup Report',
       alwaysSend: true,
-      extra: `<strong>Backup Result:</strong> ${backupDetail}`
+      extra: `<strong>Backup Result:</strong> ${backupDetail}`,
     });
   }
 
@@ -268,5 +268,5 @@ module.exports = {
   rescheduleBackups,
   runBackup,
   listBackups,
-  formatBytes
+  formatBytes,
 };

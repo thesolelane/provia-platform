@@ -15,7 +15,7 @@ router.post('/', requireAuth, requireFields(['identifier', 'type']), (req, res) 
   const { identifier, type, name, role, language = 'en' } = req.body;
   try {
     db.prepare(
-      'INSERT INTO approved_senders (identifier, type, name, role, language) VALUES (?, ?, ?, ?, ?)'
+      'INSERT INTO approved_senders (identifier, type, name, role, language) VALUES (?, ?, ?, ?, ?)',
     ).run(identifier, type, name, role, language);
     res.json({ success: true });
   } catch (_e) {
@@ -27,7 +27,7 @@ router.put('/:id', requireAuth, (req, res) => {
   const db = getDb();
   const { name, role, language, active } = req.body;
   db.prepare(
-    'UPDATE approved_senders SET name = COALESCE(?, name), role = COALESCE(?, role), language = COALESCE(?, language), active = COALESCE(?, active) WHERE id = ?'
+    'UPDATE approved_senders SET name = COALESCE(?, name), role = COALESCE(?, role), language = COALESCE(?, language), active = COALESCE(?, active) WHERE id = ?',
   ).run(name, role, language, active, req.params.id);
   res.json({ success: true });
 });
