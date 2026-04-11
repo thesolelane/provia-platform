@@ -745,6 +745,9 @@ async function initDatabase() {
   // ── Migration: wizard draft autosave (cross-device resume) ───────────────────
   addColIfMissing('leads', 'wizard_draft', 'TEXT');
 
+  // ── Migration: staff DM support — recipient column on staff_messages ──────────
+  addColIfMissing('staff_messages', 'recipient', 'TEXT');
+
   // ── Staff messages table (in-app team chat) ──────────────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS staff_messages (
