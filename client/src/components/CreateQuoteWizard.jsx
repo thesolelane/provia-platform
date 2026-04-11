@@ -1023,6 +1023,37 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
     }).catch(() => {});
   };
 
+  // ── Autosave: silently save 15s after any key field changes ─────────────
+  const [lastAutoSave, setLastAutoSave] = useState(null);
+  const autoSaveTimer = useRef(null);
+
+  useEffect(() => {
+    if (!prefillLead?.id || pendingDraft) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      const draft = {
+        savedAt: new Date().toISOString(),
+        step,
+        contact,
+        address,
+        scope,
+        jobType,
+        budgetTarget,
+        selectedTrades: [...selectedTrades],
+        wizardQuestions,
+        wizardAnswers,
+        aiStepInserted,
+      };
+      await fetch(`/api/leads/${prefillLead.id}/wizard-draft`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ draft }),
+      }).catch(() => {});
+      setLastAutoSave(new Date());
+    }, 15000);
+    return () => clearTimeout(autoSaveTimer.current);
+  }, [scope, contact, address, jobType, budgetTarget, selectedTrades, wizardAnswers, step]);
+
   // Step layout: Trades step is always step 3.
   // AI Questions step is inserted at step 4 if questions are returned.
   const STEPS = aiStepInserted
@@ -1814,22 +1845,33 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
               </button>
 
               {prefillLead?.id && (
-                <button
-                  onClick={saveDraft}
-                  disabled={draftSaving}
-                  style={{
-                    padding: '10px 16px',
-                    border: '1px solid #93c5fd',
-                    borderRadius: 6,
-                    background: draftSaving ? '#f0f4ff' : '#eff6ff',
-                    color: '#1e40af',
-                    cursor: draftSaving ? 'default' : 'pointer',
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
                 >
-                  {draftSaving ? 'Saving…' : '💾 Save Draft'}
-                </button>
+                  <button
+                    onClick={saveDraft}
+                    disabled={draftSaving}
+                    style={{
+                      padding: '10px 16px',
+                      border: '1px solid #93c5fd',
+                      borderRadius: 6,
+                      background: draftSaving ? '#f0f4ff' : '#eff6ff',
+                      color: '#1e40af',
+                      cursor: draftSaving ? 'default' : 'pointer',
+                      fontSize: 12,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {draftSaving ? 'Saving…' : '💾 Save Draft'}
+                  </button>
+                  {lastAutoSave && (
+                    <span style={{ fontSize: 10, color: '#94a3b8' }}>
+                      Auto-saved{' '}
+                      {Math.max(1, Math.round((Date.now() - lastAutoSave.getTime()) / 60000))} min
+                      ago
+                    </span>
+                  )}
+                </div>
               )}
 
               {step === 2 ? (
