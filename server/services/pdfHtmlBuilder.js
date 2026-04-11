@@ -332,8 +332,20 @@ function buildPermitChecklistHTML(data) {
   </table>`;
 }
 
+const SEPARATE_FEE_RE = /permit|remit|engineer/i;
+
 function buildCostSummaryHTML(lineItems, pricing, data, fmt) {
-  let rows = lineItems
+  // Always re-derive isSeparatelyBilled from the actual line items so the
+  // deduction is correct even when stored pricing values are stale.
+  const taggedItems = lineItems.map((item) => ({
+    ...item,
+    isSeparatelyBilled:
+      item.isSeparatelyBilled ||
+      SEPARATE_FEE_RE.test(item.trade || '') ||
+      SEPARATE_FEE_RE.test(item.description || ''),
+  }));
+
+  let rows = taggedItems
     .map(
       (item) => `
     <tr>
@@ -344,11 +356,15 @@ function buildCostSummaryHTML(lineItems, pricing, data, fmt) {
     .join('');
 
   const totalContractValue = pricing.totalContractPrice || data.totalValue || 0;
-  const separatelyBilledTotal = pricing.separatelyBilledTotal || 0;
-  const depositBase =
-    pricing.depositBase ?? Math.max(0, totalContractValue - separatelyBilledTotal);
   const depositPct = pricing.depositPercent || 33;
-  const depositAmount = pricing.depositAmount || data.depositAmount || 0;
+
+  // Recalculate from tagged items; fall back to stored pricing if no items matched.
+  const separatelyBilledTotal =
+    taggedItems.reduce((s, i) => s + (i.isSeparatelyBilled ? i.finalPrice || 0 : 0), 0) ||
+    pricing.separatelyBilledTotal ||
+    0;
+  const depositBase = Math.max(0, totalContractValue - separatelyBilledTotal);
+  const depositAmount = Math.round(depositBase * (depositPct / 100));
 
   rows += `
     <tr class="total">
@@ -370,15 +386,27 @@ function buildCostSummaryHTML(lineItems, pricing, data, fmt) {
 
   rows += `
     <tr class="deposit">
-      <td>DEPOSIT REQUIRED (${depositPct}%${separatelyBilledTotal > 0 ? ' of balance' : ''})</td>
+      <td>DEPOSIT REQUIRED (${depositPct}% of balance)</td>
       <td style="text-align:right;">${fmt(depositAmount)}</td>
     </tr>`;
+
+  const disclosure =
+    separatelyBilledTotal > 0
+      ? `<p style="margin-top:10px;font-size:10px;color:#666;font-style:italic;line-height:1.5;">
+          * Engineering and permit fees listed above are passed through at actual cost with no markup and are
+          <strong>not included in the deposit calculation</strong>. These fees are payable directly to the
+          applicable municipality or licensed engineer by the owner via a <strong>separate check</strong> at
+          the time the permit application is submitted. Preferred Builders General Services Inc. (HIC-197400)
+          will coordinate the submission on the owner's behalf.
+        </p>`
+      : '';
 
   return `
   <table>
     <tr><th>Trade / Phase</th><th style="text-align:right;">Price</th></tr>
     ${rows}
-  </table>`;
+  </table>
+  ${disclosure}`;
 }
 
 function buildResponsibilitiesHTML() {
