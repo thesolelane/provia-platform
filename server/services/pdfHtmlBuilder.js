@@ -167,16 +167,6 @@ function buildProposalHTML(data) {
     <div class="item value-cell">${isStretchCode ? '⚠️ Yes — additional requirements apply' : 'No'}</div>
   </div>
 
-  ${
-    data.flaggedItems?.length
-      ? `
-  <div class="flag-box">
-    ⚠️ <strong>Items Flagged for Review:</strong><br>
-    ${data.flaggedItems.map((f) => `• ${f}`).join('<br>')}
-  </div>`
-      : ''
-  }
-
   <!-- SCOPE OF WORK -->
   <div class="section-header">SCOPE OF WORK</div>
   ${buildScopeHTML(lineItems)}

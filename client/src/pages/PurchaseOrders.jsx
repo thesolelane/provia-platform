@@ -136,7 +136,11 @@ function POForm({ jobs, onSave, onCancel, saving }) {
           <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
             Job *
           </label>
-          <select value={form.job_id} onChange={(e) => set('job_id', e.target.value)} style={inputStyle}>
+          <select
+            value={form.job_id}
+            onChange={(e) => set('job_id', e.target.value)}
+            style={inputStyle}
+          >
             <option value="">Select a job...</option>
             {jobs.map((j) => (
               <option key={j.id} value={j.id}>
@@ -160,7 +164,11 @@ function POForm({ jobs, onSave, onCancel, saving }) {
           <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
             Category
           </label>
-          <select value={form.category} onChange={(e) => set('category', e.target.value)} style={inputStyle}>
+          <select
+            value={form.category}
+            onChange={(e) => set('category', e.target.value)}
+            style={inputStyle}
+          >
             {PO_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {c.charAt(0).toUpperCase() + c.slice(1)}
@@ -186,7 +194,11 @@ function POForm({ jobs, onSave, onCancel, saving }) {
           <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
             Initial Status
           </label>
-          <select value={form.status} onChange={(e) => set('status', e.target.value)} style={inputStyle}>
+          <select
+            value={form.status}
+            onChange={(e) => set('status', e.target.value)}
+            style={inputStyle}
+          >
             {PO_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {STATUS_LABELS[s]}
@@ -504,12 +516,7 @@ export default function PurchaseOrders({ token }) {
       </div>
 
       {showForm && (
-        <POForm
-          jobs={jobs}
-          onSave={createPO}
-          onCancel={() => setShowForm(false)}
-          saving={saving}
-        />
+        <POForm jobs={jobs} onSave={createPO} onCancel={() => setShowForm(false)} saving={saving} />
       )}
 
       <div
