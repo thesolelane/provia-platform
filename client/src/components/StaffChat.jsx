@@ -4,7 +4,7 @@ const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
 const DARK_BUBBLE = '#1B3A6B';
 const LIGHT_BUBBLE = '#e8ecf4';
-const DESKTOP_MIN_WIDTH = 1024;
+const DESKTOP_MIN_WIDTH = 768;
 
 function useIsDesktop() {
   const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= DESKTOP_MIN_WIDTH);
