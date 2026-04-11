@@ -9,6 +9,7 @@ const MAIN_NAV = [
   { path: '/leads', icon: '📞', label: 'Leads' },
   { path: '/tasks', icon: '✅', label: 'Tasks' },
   { path: '/payments', icon: '💰', label: 'Payments' },
+  { path: '/purchase-orders', icon: '📦', label: 'Purchase Orders' },
   { path: '/field-camera', icon: '📷', label: 'Field Camera' },
   { path: '/chat', icon: '🤖', label: 'Ask the Bot' },
   { path: '/contacts', icon: '👥', label: 'Contacts' },
