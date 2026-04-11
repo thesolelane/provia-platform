@@ -226,6 +226,7 @@ app.use('/api/agents', require('./routes/agents'));
 app.use('/api/leads', require('./routes/leads'));
 app.use('/api/lead-check', require('./routes/leadCheck'));
 app.use('/api/purchase-orders', require('./routes/purchaseOrders'));
+app.use('/api/staff-chat', require('./routes/staffChat'));
 
 // ── SIGNING (public pages at /sign/* + api at /api/signing/*) ─
 app.use(require('./routes/signing'));

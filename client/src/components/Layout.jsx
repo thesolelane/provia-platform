@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import StaffChat from './StaffChat';
 
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -65,7 +66,7 @@ function SidebarNavItem({ item, active, collapsed }) {
   );
 }
 
-export default function Layout({ children, token: _token, onLogout, userName, userRole }) {
+export default function Layout({ children, token, onLogout, userName, userRole }) {
   const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
@@ -346,6 +347,9 @@ export default function Layout({ children, token: _token, onLogout, userName, us
           More
         </button>
       </nav>
+
+      {/* ── Staff team chat widget — desktop only ── */}
+      <StaffChat token={token} />
 
       {/* ── Mobile "More" slide-up sheet ── */}
       {sheetOpen && (
