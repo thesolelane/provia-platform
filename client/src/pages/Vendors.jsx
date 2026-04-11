@@ -1,11 +1,18 @@
 // client/src/pages/Vendors.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 
+const BLUE = '#1B3A6B';
 const TYPE_COLORS = {
   subcontractor: { bg: '#e8f5e9', color: '#2e7d32' },
   vendor: { bg: '#e3f2fd', color: '#1565c0' },
+};
+
+const DOC_LABELS = {
+  workers_comp: "Workers' Comp",
+  general_liability: 'General Liability',
+  other: 'Other',
 };
 
 const BLANK_FORM = {
@@ -13,6 +20,7 @@ const BLANK_FORM = {
   type: 'subcontractor',
   trade: '',
   phone: '',
+  email: '',
   website: '',
   address: '',
   city: '',
@@ -33,6 +41,12 @@ export default function Vendors({ token }) {
   const [form, setForm] = useState(BLANK_FORM);
   const [saving, setSaving] = useState(false);
 
+  // Documents state
+  const [docs, setDocs] = useState([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [uploadingType, setUploadingType] = useState(null);
+  const fileRefs = { workers_comp: useRef(), general_liability: useRef(), other: useRef() };
+
   const headers = { 'x-auth-token': token };
 
   const load = async (q = '', tf = typeFilter) => {
@@ -51,6 +65,13 @@ export default function Vendors({ token }) {
     load('', 'all');
   }, []);
 
+  const loadDocs = async (vendorId) => {
+    setDocsLoading(true);
+    const res = await fetch(`/api/vendors/${vendorId}/documents`, { headers });
+    if (res.ok) setDocs(await res.json());
+    setDocsLoading(false);
+  };
+
   const handleSearch = (e) => {
     const q = e.target.value;
     setSearch(q);
@@ -66,6 +87,7 @@ export default function Vendors({ token }) {
   const openAdd = () => {
     setEditing(null);
     setForm(BLANK_FORM);
+    setDocs([]);
     setShowModal(true);
   };
 
@@ -76,6 +98,7 @@ export default function Vendors({ token }) {
       type: v.type || 'subcontractor',
       trade: v.trade || '',
       phone: v.phone || '',
+      email: v.email || '',
       website: v.website || '',
       address: v.address || '',
       city: v.city || '',
@@ -84,12 +107,15 @@ export default function Vendors({ token }) {
       license_number: v.license_number || '',
       notes: v.notes || '',
     });
+    setDocs([]);
     setShowModal(true);
+    loadDocs(v.id);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditing(null);
+    setDocs([]);
   };
 
   const validateForm = () => {
@@ -97,6 +123,8 @@ export default function Vendors({ token }) {
     if (form.zip && !/^\d{5}(-\d{4})?$/.test(form.zip.trim())) return 'ZIP code must be 5 digits.';
     if (form.phone && !/^[\d\s\(\)\-\+\.]{7,20}$/.test(form.phone.trim()))
       return 'Phone number format is invalid.';
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()))
+      return 'Email address format is invalid.';
     return null;
   };
 
@@ -131,9 +159,42 @@ export default function Vendors({ token }) {
     if (res.ok) {
       load(search, typeFilter);
       showToast('Entry deleted.', 'success');
+    } else showToast('Delete failed', 'error');
+  };
+
+  const uploadDoc = async (docType) => {
+    const fileRef = fileRefs[docType];
+    const file = fileRef.current?.files?.[0];
+    if (!file || !editing) return;
+    setUploadingType(docType);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('doc_type', docType);
+    const res = await fetch(`/api/vendors/${editing.id}/documents`, {
+      method: 'POST',
+      headers,
+      body: fd,
+    });
+    setUploadingType(null);
+    fileRef.current.value = '';
+    if (res.ok) {
+      loadDocs(editing.id);
+      showToast('Document uploaded.', 'success');
     } else {
-      showToast('Delete failed', 'error');
+      showToast('Upload failed.', 'error');
     }
+  };
+
+  const deleteDoc = async (doc) => {
+    if (!(await showConfirm(`Remove "${doc.original_name}"?`))) return;
+    const res = await fetch(`/api/vendors/${editing.id}/documents/${doc.id}`, {
+      method: 'DELETE',
+      headers,
+    });
+    if (res.ok) {
+      loadDocs(editing.id);
+      showToast('Document removed.', 'success');
+    } else showToast('Delete failed.', 'error');
   };
 
   const field = (key) => ({
@@ -151,6 +212,13 @@ export default function Vendors({ token }) {
   };
   const labelStyle = { fontSize: 11, color: '#555', display: 'block', marginBottom: 3 };
 
+  const docsByType = (type) => docs.filter((d) => d.doc_type === type);
+
+  const fmtDate = (ts) => {
+    if (!ts) return '';
+    return new Date(ts + (ts.includes('T') ? '' : 'Z')).toLocaleDateString();
+  };
+
   return (
     <div style={{ padding: 32 }}>
       {/* Header */}
@@ -163,7 +231,7 @@ export default function Vendors({ token }) {
         }}
       >
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 'bold', color: '#1B3A6B', margin: 0 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 'bold', color: BLUE, margin: 0 }}>
             Subs &amp; Vendors
           </h1>
           <p style={{ color: '#888', fontSize: 13, marginTop: 4 }}>
@@ -173,7 +241,7 @@ export default function Vendors({ token }) {
         <button
           onClick={openAdd}
           style={{
-            background: '#1B3A6B',
+            background: BLUE,
             color: 'white',
             border: 'none',
             padding: '10px 20px',
@@ -191,7 +259,7 @@ export default function Vendors({ token }) {
         <input
           value={search}
           onChange={handleSearch}
-          placeholder="Search by name, trade, phone, city, or license..."
+          placeholder="Search by name, trade, phone, email, city, or license..."
           style={{
             flex: 1,
             minWidth: 220,
@@ -218,7 +286,7 @@ export default function Vendors({ token }) {
                 cursor: 'pointer',
                 fontSize: 12,
                 fontWeight: 'bold',
-                background: typeFilter === val ? '#1B3A6B' : '#f0f0f0',
+                background: typeFilter === val ? BLUE : '#f0f0f0',
                 color: typeFilter === val ? 'white' : '#555',
               }}
             >
@@ -255,23 +323,32 @@ export default function Vendors({ token }) {
               style={{ width: '100%', borderCollapse: 'collapse' }}
             >
               <thead>
-                <tr style={{ background: '#1B3A6B' }}>
-                  {['Company', 'Type', 'Trade', 'Phone', 'Website', 'Address', 'License', ''].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        style={{
-                          padding: '11px 14px',
-                          color: 'white',
-                          textAlign: 'left',
-                          fontSize: 11,
-                          fontWeight: 'bold',
-                        }}
-                      >
-                        {h}
-                      </th>
-                    ),
-                  )}
+                <tr style={{ background: BLUE }}>
+                  {[
+                    'Company',
+                    'Type',
+                    'Trade',
+                    'Phone',
+                    'Email',
+                    'Website',
+                    'Address',
+                    'License',
+                    'Docs',
+                    '',
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        padding: '11px 14px',
+                        color: 'white',
+                        textAlign: 'left',
+                        fontSize: 11,
+                        fontWeight: 'bold',
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -290,7 +367,7 @@ export default function Vendors({ token }) {
                           padding: '11px 14px',
                           fontWeight: '600',
                           fontSize: 13,
-                          color: '#1B3A6B',
+                          color: BLUE,
                         }}
                       >
                         {v.company_name}
@@ -317,9 +394,21 @@ export default function Vendors({ token }) {
                         {v.phone ? (
                           <a
                             href={`tel:${v.phone}`}
-                            style={{ color: '#1B3A6B', textDecoration: 'none' }}
+                            style={{ color: BLUE, textDecoration: 'none' }}
                           >
                             {v.phone}
+                          </a>
+                        ) : (
+                          <span style={{ color: '#bbb' }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: '11px 14px', fontSize: 12, color: '#555' }}>
+                        {v.email ? (
+                          <a
+                            href={`mailto:${v.email}`}
+                            style={{ color: BLUE, textDecoration: 'none' }}
+                          >
+                            {v.email}
                           </a>
                         ) : (
                           <span style={{ color: '#bbb' }}>—</span>
@@ -331,7 +420,7 @@ export default function Vendors({ token }) {
                             href={v.website.startsWith('http') ? v.website : `https://${v.website}`}
                             target="_blank"
                             rel="noreferrer"
-                            style={{ color: '#1B3A6B' }}
+                            style={{ color: BLUE }}
                           >
                             {v.website.replace(/^https?:\/\//, '')}
                           </a>
@@ -356,6 +445,22 @@ export default function Vendors({ token }) {
                           <span style={{ color: '#bbb', fontFamily: 'inherit' }}>—</span>
                         )}
                       </td>
+                      <td style={{ padding: '11px 14px', fontSize: 11 }}>
+                        <button
+                          onClick={() => openEdit(v)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: BLUE,
+                            cursor: 'pointer',
+                            fontSize: 11,
+                            padding: 0,
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          View
+                        </button>
+                      </td>
                       <td style={{ padding: '11px 14px', whiteSpace: 'nowrap' }}>
                         <button
                           onClick={() => openEdit(v)}
@@ -363,7 +468,7 @@ export default function Vendors({ token }) {
                             marginRight: 6,
                             background: '#f0f4ff',
                             border: 'none',
-                            color: '#1B3A6B',
+                            color: BLUE,
                             padding: '5px 12px',
                             borderRadius: 6,
                             cursor: 'pointer',
@@ -415,7 +520,7 @@ export default function Vendors({ token }) {
                       }}
                     >
                       <div>
-                        <div style={{ fontWeight: '700', fontSize: 14, color: '#1B3A6B' }}>
+                        <div style={{ fontWeight: '700', fontSize: 14, color: BLUE }}>
                           {v.company_name}
                         </div>
                         {v.trade && (
@@ -450,8 +555,16 @@ export default function Vendors({ token }) {
                       {v.phone && (
                         <span>
                           📞{' '}
-                          <a href={`tel:${v.phone}`} style={{ color: '#1B3A6B' }}>
+                          <a href={`tel:${v.phone}`} style={{ color: BLUE }}>
                             {v.phone}
+                          </a>
+                        </span>
+                      )}
+                      {v.email && (
+                        <span>
+                          ✉️{' '}
+                          <a href={`mailto:${v.email}`} style={{ color: BLUE }}>
+                            {v.email}
                           </a>
                         </span>
                       )}
@@ -471,7 +584,7 @@ export default function Vendors({ token }) {
                             href={v.website.startsWith('http') ? v.website : `https://${v.website}`}
                             target="_blank"
                             rel="noreferrer"
-                            style={{ color: '#1B3A6B' }}
+                            style={{ color: BLUE }}
                           >
                             {v.website.replace(/^https?:\/\//, '')}
                           </a>
@@ -485,7 +598,7 @@ export default function Vendors({ token }) {
                           flex: 1,
                           background: '#f0f4ff',
                           border: 'none',
-                          color: '#1B3A6B',
+                          color: BLUE,
                           padding: '7px 0',
                           borderRadius: 6,
                           cursor: 'pointer',
@@ -536,9 +649,9 @@ export default function Vendors({ token }) {
               background: 'white',
               borderRadius: 12,
               padding: 32,
-              width: 680,
+              width: 720,
               maxWidth: '95vw',
-              maxHeight: '90vh',
+              maxHeight: '92vh',
               overflow: 'auto',
             }}
           >
@@ -550,7 +663,7 @@ export default function Vendors({ token }) {
                 marginBottom: 20,
               }}
             >
-              <h2 style={{ color: '#1B3A6B', margin: 0, fontSize: 18 }}>
+              <h2 style={{ color: BLUE, margin: 0, fontSize: 18 }}>
                 {editing ? 'Edit Entry' : 'Add Sub / Vendor'}
               </h2>
               <button
@@ -567,6 +680,7 @@ export default function Vendors({ token }) {
               </button>
             </div>
 
+            {/* Contact info grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div style={{ gridColumn: 'span 2' }}>
                 <label style={labelStyle}>Company Name *</label>
@@ -600,6 +714,16 @@ export default function Vendors({ token }) {
               </div>
 
               <div>
+                <label style={labelStyle}>Email</label>
+                <input
+                  {...field('email')}
+                  type="email"
+                  placeholder="contact@company.com"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ gridColumn: 'span 2' }}>
                 <label style={labelStyle}>Website</label>
                 <input {...field('website')} placeholder="www.example.com" style={inputStyle} />
               </div>
@@ -640,7 +764,149 @@ export default function Vendors({ token }) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            {/* Insurance Documents — only shown when editing an existing vendor */}
+            {editing && (
+              <div style={{ marginTop: 24, borderTop: '1px solid #eee', paddingTop: 20 }}>
+                <div style={{ fontSize: 14, fontWeight: 'bold', color: BLUE, marginBottom: 14 }}>
+                  📎 Insurance &amp; Compliance Documents
+                </div>
+
+                {docsLoading ? (
+                  <div style={{ color: '#888', fontSize: 13, marginBottom: 12 }}>
+                    Loading documents...
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                    {['workers_comp', 'general_liability', 'other'].map((dtype) => {
+                      const typeDocs = docsByType(dtype);
+                      const isUploading = uploadingType === dtype;
+                      return (
+                        <div
+                          key={dtype}
+                          style={{
+                            background: '#f8f9fc',
+                            borderRadius: 8,
+                            padding: '12px 14px',
+                            border: '1px solid #e4e8f0',
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 'bold',
+                              color: '#333',
+                              marginBottom: 8,
+                            }}
+                          >
+                            {DOC_LABELS[dtype]}
+                          </div>
+
+                          {typeDocs.length === 0 ? (
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: '#aaa',
+                                marginBottom: 8,
+                                fontStyle: 'italic',
+                              }}
+                            >
+                              No documents uploaded
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 5,
+                                marginBottom: 8,
+                              }}
+                            >
+                              {typeDocs.map((doc) => (
+                                <div
+                                  key={doc.id}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    background: 'white',
+                                    borderRadius: 6,
+                                    padding: '6px 10px',
+                                    border: '1px solid #e0e0e0',
+                                  }}
+                                >
+                                  <div>
+                                    <a
+                                      href={`/api/vendors/${editing.id}/documents/${doc.id}/file`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      style={{
+                                        fontSize: 12,
+                                        color: BLUE,
+                                        fontWeight: '600',
+                                        textDecoration: 'none',
+                                      }}
+                                    >
+                                      📄 {doc.original_name}
+                                    </a>
+                                    <span style={{ fontSize: 10, color: '#aaa', marginLeft: 8 }}>
+                                      Uploaded {fmtDate(doc.uploaded_at)}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => deleteDoc(doc)}
+                                    style={{
+                                      background: '#fff0f0',
+                                      border: 'none',
+                                      color: '#C62828',
+                                      padding: '3px 8px',
+                                      borderRadius: 4,
+                                      cursor: 'pointer',
+                                      fontSize: 11,
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                              ref={fileRefs[dtype]}
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                              style={{ fontSize: 11, flex: 1 }}
+                            />
+                            <button
+                              onClick={() => uploadDoc(dtype)}
+                              disabled={isUploading}
+                              style={{
+                                background: BLUE,
+                                color: 'white',
+                                border: 'none',
+                                padding: '6px 14px',
+                                borderRadius: 6,
+                                cursor: isUploading ? 'not-allowed' : 'pointer',
+                                fontSize: 11,
+                                fontWeight: 'bold',
+                                opacity: isUploading ? 0.6 : 1,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {isUploading ? 'Uploading...' : 'Upload'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
               <button
                 onClick={closeModal}
                 style={{
@@ -661,7 +927,7 @@ export default function Vendors({ token }) {
                 style={{
                   flex: 2,
                   padding: 10,
-                  background: '#1B3A6B',
+                  background: BLUE,
                   color: 'white',
                   border: 'none',
                   borderRadius: 6,

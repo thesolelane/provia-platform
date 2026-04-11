@@ -748,6 +748,22 @@ async function initDatabase() {
   // ── Migration: staff DM support — recipient column on staff_messages ──────────
   addColIfMissing('staff_messages', 'recipient', 'TEXT');
 
+  // ── Migration: vendor/sub email field ─────────────────────────────────────────
+  addColIfMissing('vendors', 'email', 'TEXT');
+
+  // ── Vendor documents table (workers comp, GL insurance, etc.) ─────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vendor_documents (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      vendor_id     INTEGER NOT NULL,
+      doc_type      TEXT NOT NULL DEFAULT 'other',
+      original_name TEXT NOT NULL,
+      stored_name   TEXT NOT NULL,
+      uploaded_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_vendor_docs_vendor ON vendor_documents(vendor_id)`);
+
   // ── Staff messages table (in-app team chat) ──────────────────────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS staff_messages (
