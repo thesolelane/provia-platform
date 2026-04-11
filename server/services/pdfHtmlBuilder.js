@@ -337,20 +337,41 @@ function buildCostSummaryHTML(lineItems, pricing, data, fmt) {
     .map(
       (item) => `
     <tr>
-      <td>${item.trade}</td>
+      <td>${item.trade}${item.isSeparatelyBilled ? ' <em style="font-size:10px;color:#888;">(billed directly)</em>' : ''}</td>
       <td style="text-align:right;">${fmt(item.finalPrice)}</td>
     </tr>`,
     )
     .join('');
 
+  const totalContractValue = pricing.totalContractPrice || data.totalValue || 0;
+  const separatelyBilledTotal = pricing.separatelyBilledTotal || 0;
+  const depositBase =
+    pricing.depositBase ?? Math.max(0, totalContractValue - separatelyBilledTotal);
+  const depositPct = pricing.depositPercent || 33;
+  const depositAmount = pricing.depositAmount || data.depositAmount || 0;
+
   rows += `
     <tr class="total">
       <td>TOTAL CONTRACT VALUE</td>
-      <td style="text-align:right;">${fmt(pricing.totalContractPrice || data.totalValue)}</td>
+      <td style="text-align:right;">${fmt(totalContractValue)}</td>
+    </tr>`;
+
+  if (separatelyBilledTotal > 0) {
+    rows += `
+    <tr style="color:#555;font-style:italic;font-size:12px;">
+      <td>Less: Engineering &amp; Permit Fees (paid directly by owner)</td>
+      <td style="text-align:right;">−${fmt(separatelyBilledTotal)}</td>
     </tr>
+    <tr style="border-top:1px solid #ccc;">
+      <td style="font-weight:600;">BALANCE SUBJECT TO DEPOSIT</td>
+      <td style="text-align:right;font-weight:600;">${fmt(depositBase)}</td>
+    </tr>`;
+  }
+
+  rows += `
     <tr class="deposit">
-      <td>DEPOSIT REQUIRED (${pricing.depositPercent || 33}%)</td>
-      <td style="text-align:right;">${fmt(pricing.depositAmount || data.depositAmount)}</td>
+      <td>DEPOSIT REQUIRED (${depositPct}%${separatelyBilledTotal > 0 ? ' of balance' : ''})</td>
+      <td style="text-align:right;">${fmt(depositAmount)}</td>
     </tr>`;
 
   return `

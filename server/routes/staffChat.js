@@ -5,7 +5,11 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
-const { addChannelClient, removeChannelClient, notifyChannelClients } = require('../services/sseManager');
+const {
+  addChannelClient,
+  removeChannelClient,
+  notifyChannelClients,
+} = require('../services/sseManager');
 
 const CHAT_CHANNEL = 'staff-chat';
 

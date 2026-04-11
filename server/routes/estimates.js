@@ -773,7 +773,19 @@ router.patch(
     }
 
     const total = updatedItems.reduce((s, i) => s + (i.finalPrice || 0), 0);
-    const depositAmount = Math.round(total * deposit);
+
+    // Tag permit/engineering items and calculate deposit on remaining balance
+    const SEPARATE_FEE_RE = /permit|remit|engineer/i;
+    for (const item of updatedItems) {
+      item.isSeparatelyBilled =
+        SEPARATE_FEE_RE.test(item.trade || '') || SEPARATE_FEE_RE.test(item.description || '');
+    }
+    const separatelyBilledTotal = updatedItems.reduce(
+      (s, i) => s + (i.isSeparatelyBilled ? i.finalPrice || 0 : 0),
+      0,
+    );
+    const depositBase = Math.max(0, total - separatelyBilledTotal);
+    const depositAmount = Math.round(depositBase * deposit);
 
     const editor = req.session?.name || req.session?.email || 'admin';
     const prevTotal = proposalData.totalValue || 0;
@@ -784,6 +796,8 @@ router.patch(
       totalContractPrice: total,
       depositPercent: Math.round(deposit * 100),
       depositAmount,
+      separatelyBilledTotal,
+      depositBase,
       appliedRates: { subOandP, gcOandP, contingency },
       dumpsterExcluded: dumpsterExplicitlyExcluded || false,
     };

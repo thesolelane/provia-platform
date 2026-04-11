@@ -638,7 +638,18 @@ function applyPricing(data, rates, settings) {
     totalContractPrice += Math.round(dumpsterCost * markupMultiplier);
   }
 
-  const depositAmount = Math.round(totalContractPrice * rates.deposit);
+  // Tag items whose fees are paid directly by the customer (not part of deposit base)
+  const SEPARATE_FEE_RE = /permit|remit|engineer/i;
+  for (const item of items) {
+    item.isSeparatelyBilled =
+      SEPARATE_FEE_RE.test(item.trade || '') || SEPARATE_FEE_RE.test(item.description || '');
+  }
+  const separatelyBilledTotal = items.reduce(
+    (s, i) => s + (i.isSeparatelyBilled ? i.finalPrice || 0 : 0),
+    0,
+  );
+  const depositBase = Math.max(0, totalContractPrice - separatelyBilledTotal);
+  const depositAmount = Math.round(depositBase * rates.deposit);
   const sqft = Number(data.project?.sqft) || 0;
   const isReno = String(data.project?.type || '')
     .toLowerCase()
@@ -661,6 +672,8 @@ function applyPricing(data, rates, settings) {
     totalContractPrice,
     depositPercent: Math.round(rates.deposit * 100),
     depositAmount,
+    separatelyBilledTotal,
+    depositBase,
     pricePerSqft,
     sqftTargetLow: sqftLow,
     sqftTargetHigh: sqftHigh,
