@@ -100,9 +100,7 @@ router.post('/dm', requireAuth, (req, res) => {
   try {
     const db = getDb();
     const result = db
-      .prepare(
-        `INSERT INTO staff_messages (sender_name, recipient, message) VALUES (?, ?, ?)`,
-      )
+      .prepare(`INSERT INTO staff_messages (sender_name, recipient, message) VALUES (?, ?, ?)`)
       .run(senderName, recipient, message.trim());
     const newMsg = db
       .prepare(
