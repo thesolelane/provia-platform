@@ -742,6 +742,9 @@ async function initDatabase() {
   addColIfMissing('jobs', 'active_editor', 'TEXT');
   addColIfMissing('jobs', 'active_editor_at', 'DATETIME');
 
+  // ── Migration: wizard draft autosave (cross-device resume) ───────────────────
+  addColIfMissing('leads', 'wizard_draft', 'TEXT');
+
   // ── Department definitions table (editable via Settings UI) ──────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS departments (

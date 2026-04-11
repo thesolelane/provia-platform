@@ -960,6 +960,69 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
       .catch(() => {});
   }, [token]);
 
+  // ── Draft save / restore ─────────────────────────────────────────────────
+  const [pendingDraft, setPendingDraft] = useState(null);
+  const [draftSaving, setDraftSaving] = useState(false);
+
+  useEffect(() => {
+    if (!prefillLead?.id) return;
+    fetch(`/api/leads/${prefillLead.id}/wizard-draft`, { headers })
+      .then((r) => r.json())
+      .then(({ draft }) => {
+        if (draft && draft.savedAt) setPendingDraft(draft);
+      })
+      .catch(() => {});
+  }, [prefillLead?.id]);
+
+  const saveDraft = async () => {
+    if (!prefillLead?.id) return;
+    setDraftSaving(true);
+    const draft = {
+      savedAt: new Date().toISOString(),
+      step,
+      contact,
+      address,
+      scope,
+      jobType,
+      budgetTarget,
+      selectedTrades: [...selectedTrades],
+      wizardQuestions,
+      wizardAnswers,
+      aiStepInserted,
+    };
+    await fetch(`/api/leads/${prefillLead.id}/wizard-draft`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ draft }),
+    }).catch(() => {});
+    setDraftSaving(false);
+    showToast('Draft saved — resume from any device', 'success');
+  };
+
+  const restoreDraft = (draft) => {
+    if (draft.contact) setContact(draft.contact);
+    if (draft.address) setAddress(draft.address);
+    if (draft.scope !== undefined) setScope(draft.scope);
+    if (draft.jobType) setJobType(draft.jobType);
+    if (draft.budgetTarget) setBudgetTarget(draft.budgetTarget);
+    if (draft.selectedTrades) setSelectedTrades(new Set(draft.selectedTrades));
+    if (draft.wizardQuestions) setWizardQuestions(draft.wizardQuestions);
+    if (draft.wizardAnswers) setWizardAnswers(draft.wizardAnswers);
+    if (draft.aiStepInserted) setAiStepInserted(draft.aiStepInserted);
+    if (typeof draft.step === 'number') setStep(draft.step);
+    setPendingDraft(null);
+    showToast('Draft restored — pick up where you left off');
+  };
+
+  const clearDraft = () => {
+    if (!prefillLead?.id) return;
+    fetch(`/api/leads/${prefillLead.id}/wizard-draft`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ draft: null }),
+    }).catch(() => {});
+  };
+
   // Step layout: Trades step is always step 3.
   // AI Questions step is inserted at step 4 if questions are returned.
   const STEPS = aiStepInserted
@@ -1168,6 +1231,7 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
       setBusy(false);
       if (res.ok) {
         showToast('Proposal submitted — processing now');
+        clearDraft();
         onSubmitted(data.jobId);
         onClose();
         navigate(`/jobs/${data.jobId}`);
@@ -1249,6 +1313,66 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
             ×
           </button>
         </div>
+
+        {/* Draft restore banner */}
+        {pendingDraft && (
+          <div
+            style={{
+              margin: '12px 28px 0',
+              background: '#eff6ff',
+              border: '1px solid #93c5fd',
+              borderRadius: 8,
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              fontSize: 13,
+            }}
+          >
+            <span style={{ color: '#1e40af' }}>
+              💾 You have a saved draft from{' '}
+              {new Date(pendingDraft.savedAt).toLocaleString([], {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+              . Resume where you left off?
+            </span>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={() => restoreDraft(pendingDraft)}
+                style={{
+                  background: '#1B3A6B',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 6,
+                  padding: '5px 12px',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                Resume
+              </button>
+              <button
+                onClick={() => setPendingDraft(null)}
+                style={{
+                  background: 'white',
+                  color: '#555',
+                  border: '1px solid #ddd',
+                  borderRadius: 6,
+                  padding: '5px 10px',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                }}
+              >
+                Start Fresh
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Progress bar */}
         <div style={{ padding: '16px 28px 0' }}>
@@ -1688,6 +1812,25 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
               >
                 {step === 0 ? 'Cancel' : '← Back'}
               </button>
+
+              {prefillLead?.id && (
+                <button
+                  onClick={saveDraft}
+                  disabled={draftSaving}
+                  style={{
+                    padding: '10px 16px',
+                    border: '1px solid #93c5fd',
+                    borderRadius: 6,
+                    background: draftSaving ? '#f0f4ff' : '#eff6ff',
+                    color: '#1e40af',
+                    cursor: draftSaving ? 'default' : 'pointer',
+                    fontSize: 12,
+                    fontWeight: 600,
+                  }}
+                >
+                  {draftSaving ? 'Saving…' : '💾 Save Draft'}
+                </button>
+              )}
 
               {step === 2 ? (
                 <button

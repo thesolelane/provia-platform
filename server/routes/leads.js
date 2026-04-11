@@ -500,6 +500,34 @@ router.delete('/:id', requireAuth, (req, res) => {
   }
 });
 
+// ── GET  /api/leads/:id/wizard-draft — load saved wizard draft ───────────────
+router.get('/:id/wizard-draft', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const row = db.prepare('SELECT wizard_draft FROM leads WHERE id = ?').get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'Lead not found' });
+    const draft = row.wizard_draft ? JSON.parse(row.wizard_draft) : null;
+    res.json({ draft });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/leads/:id/wizard-draft — save wizard draft ─────────────────────
+router.post('/:id/wizard-draft', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const draft = req.body.draft || null;
+    db.prepare('UPDATE leads SET wizard_draft = ? WHERE id = ?').run(
+      draft ? JSON.stringify(draft) : null,
+      req.params.id,
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /api/leads/:id/enrich — manually trigger property enrichment ──────────
 router.post('/:id/enrich', requireAuth, (req, res) => {
   try {
