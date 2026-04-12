@@ -177,7 +177,11 @@ router.post('/', requireAuth, requireFields(['title']), async (req, res) => {
 
   if (enabled && task.due_at) {
     try {
-      const gcalLink = await gcal.createCalendarEvent(task, calendarId);
+      const customerEmailRow = task.job_id
+        ? db.prepare('SELECT customer_email FROM jobs WHERE id = ?').get(task.job_id)
+        : null;
+      const extraEmails = customerEmailRow?.customer_email ? [customerEmailRow.customer_email] : [];
+      const gcalLink = await gcal.createCalendarEvent(task, calendarId, extraEmails);
       if (gcalLink) calURL = gcalLink;
     } catch (e) {
       console.warn('[GCal] Could not auto-create event:', e.message);

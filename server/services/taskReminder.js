@@ -3,43 +3,38 @@
 // Background scheduler that sends reminder emails for open tasks.
 // - Lead-pipeline tasks (has lead_id or task_type='lead') always get reminders.
 // - Manual tasks only fire if the user explicitly picked an interval other than 168h.
-// - Reminders go to the assigned_to user; fall back to all admins.
+// - Reminders always go to the owner and Jackson; assigned user is also included.
 
 const { getDb } = require('../db/database');
 const { sendEmail } = require('./emailService');
+const { team } = require('../../config/parameters');
 
-function getAdminEmails(db) {
-  try {
-    return db
-      .prepare(
-        `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL AND active != 0`,
-      )
-      .all()
-      .map((u) => u.email)
-      .filter(Boolean);
-  } catch {
-    return db
-      .prepare(
-        `SELECT email FROM users WHERE role IN ('admin','system_admin') AND email IS NOT NULL`,
-      )
-      .all()
-      .map((u) => u.email)
-      .filter(Boolean);
-  }
-}
+function resolveRecipients(db, task) {
+  const seen = new Set();
+  const recipients = [];
 
-function resolveRecipients(db, task, adminEmails) {
+  const add = (email) => {
+    if (email && !seen.has(email)) {
+      seen.add(email);
+      recipients.push(email);
+    }
+  };
+
+  add(process.env.OWNER_EMAIL || team.owner.email);
+  add(team.jackson.email);
+
   if (task.assigned_to) {
     try {
       const user = db
         .prepare(`SELECT email FROM users WHERE name = ? AND active = 1`)
         .get(task.assigned_to);
-      if (user?.email) return [user.email];
+      add(user?.email);
     } catch {
       // fall through
     }
   }
-  return adminEmails;
+
+  return recipients;
 }
 
 async function runReminderTick() {
@@ -55,8 +50,6 @@ async function runReminderTick() {
     .all();
 
   if (!dueTasks.length) return;
-
-  const adminEmails = getAdminEmails(db);
 
   const appUrl =
     process.env.APP_URL ||
@@ -85,8 +78,7 @@ async function runReminderTick() {
       minute: '2-digit',
     });
 
-    // Send to assigned person first; fall back to all admins
-    const recipients = resolveRecipients(db, task, adminEmails);
+    const recipients = resolveRecipients(db, task);
     if (!recipients.length) {
       console.log(`[TaskReminder] No recipients for task #${task.id} — skipping`);
       continue;
