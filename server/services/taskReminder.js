@@ -1,6 +1,9 @@
 'use strict';
 // server/services/taskReminder.js
 // Background scheduler that sends reminder emails for open tasks.
+// - Lead-pipeline tasks (has lead_id or task_type='lead') always get reminders.
+// - Manual tasks only fire if the user explicitly picked an interval other than 168h.
+// - Reminders go to the assigned_to user; fall back to all admins.
 
 const { getDb } = require('../db/database');
 const { sendEmail } = require('./emailService');
@@ -25,6 +28,20 @@ function getAdminEmails(db) {
   }
 }
 
+function resolveRecipients(db, task, adminEmails) {
+  if (task.assigned_to) {
+    try {
+      const user = db
+        .prepare(`SELECT email FROM users WHERE name = ? AND active = 1`)
+        .get(task.assigned_to);
+      if (user?.email) return [user.email];
+    } catch {
+      // fall through
+    }
+  }
+  return adminEmails;
+}
+
 async function runReminderTick() {
   const db = getDb();
 
@@ -41,17 +58,24 @@ async function runReminderTick() {
 
   const adminEmails = getAdminEmails(db);
 
-  if (!adminEmails.length) {
-    console.log('[TaskReminder] No admin emails found — skipping');
-    return;
-  }
-
   const appUrl =
     process.env.APP_URL ||
     (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '');
   const tasksLink = appUrl ? `${appUrl}/tasks` : '/tasks';
 
   for (const task of dueTasks) {
+    // Skip reminders for plain manual tasks that only have the system backfill default (168h).
+    // A task gets a real reminder only if:
+    //   a) it came from the lead pipeline (has lead_id or task_type = 'lead'), or
+    //   b) the user manually picked a specific reminder interval (not the 168h default)
+    const isLeadTask = task.task_type === 'lead' || task.lead_id != null;
+    const hasExplicitReminder = task.remind_interval_hours !== 168;
+    if (!isLeadTask && !hasExplicitReminder) {
+      // Clear so it doesn't keep matching on every tick
+      db.prepare(`UPDATE tasks SET remind_at = NULL WHERE id = ?`).run(task.id);
+      continue;
+    }
+
     const intervalHours = Math.max(1, Math.min(task.remind_interval_hours || 168, 8760));
     const nextRemindAt = new Date(Date.now() + intervalHours * 60 * 60 * 1000);
     const nextRemindStr = nextRemindAt.toLocaleString('en-US', {
@@ -61,9 +85,20 @@ async function runReminderTick() {
       minute: '2-digit',
     });
 
+    // Send to assigned person first; fall back to all admins
+    const recipients = resolveRecipients(db, task, adminEmails);
+    if (!recipients.length) {
+      console.log(`[TaskReminder] No recipients for task #${task.id} — skipping`);
+      continue;
+    }
+
+    const assignedLine = task.assigned_to
+      ? `<tr style="background:#f9f9f9"><td style="padding:8px;color:#555">Assigned To</td><td style="padding:8px;font-weight:bold">${task.assigned_to}</td></tr>`
+      : '';
+
     try {
       await sendEmail({
-        to: adminEmails,
+        to: recipients,
         subject: `\uD83D\uDD14 Reminder: ${task.title}`,
         html: `
           <div style="font-family:sans-serif;max-width:600px">
@@ -85,6 +120,7 @@ async function runReminderTick() {
                 <td style="padding:8px;color:#555">Status</td>
                 <td style="padding:8px">${task.status}</td>
               </tr>
+              ${assignedLine}
               <tr style="background:#f9f9f9">
                 <td style="padding:8px;color:#555">Next reminder</td>
                 <td style="padding:8px">${nextRemindStr}</td>
@@ -98,12 +134,14 @@ async function runReminderTick() {
           </div>`,
         emailType: 'task_reminder',
       });
-      console.log(`[TaskReminder] Reminder sent for task #${task.id}: "${task.title}"`);
+      console.log(
+        `[TaskReminder] Sent for task #${task.id} "${task.title}" → ${recipients.join(', ')}`,
+      );
       db.prepare(
         `UPDATE tasks SET remind_at = datetime('now', '+' || ? || ' hours') WHERE id = ?`,
       ).run(intervalHours, task.id);
     } catch (err) {
-      console.error(`[TaskReminder] Failed to send reminder for task #${task.id}:`, err.message);
+      console.error(`[TaskReminder] Failed for task #${task.id}:`, err.message);
     }
   }
 }

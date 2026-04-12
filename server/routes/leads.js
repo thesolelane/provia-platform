@@ -192,8 +192,8 @@ function autoTask(db, lead, nextStage, performer) {
       .prepare(
         `
       INSERT INTO tasks
-        (title, description, status, priority, contact_id, lead_id, due_at, remind_at, remind_interval_hours, calendar_url, created_at, updated_at)
-      VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        (title, description, status, priority, contact_id, lead_id, due_at, remind_at, remind_interval_hours, calendar_url, task_type, created_at, updated_at)
+      VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, 'lead', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `,
       )
       .run(

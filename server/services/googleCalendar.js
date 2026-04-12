@@ -91,15 +91,41 @@ async function getCalendarClient() {
 }
 
 // ── Attendees ─────────────────────────────────────────────────────────────────
-// Always include the company owner email so Jackson gets a calendar invite.
+// Always include OWNER_EMAIL + BOT_EMAIL (Jackson + bot account) plus any extras.
 
 function buildAttendees(extraEmails = []) {
   const attendees = [];
+  const seen = new Set();
+
+  const addEmail = (email, status = 'needsAction') => {
+    if (!email || seen.has(email)) return;
+    seen.add(email);
+    attendees.push({ email, responseStatus: status });
+  };
+
+  // Owner always gets accepted (primary calendar holder)
   const ownerEmail = process.env.OWNER_EMAIL;
-  if (ownerEmail) attendees.push({ email: ownerEmail, responseStatus: 'accepted' });
-  for (const email of extraEmails) {
-    if (email && email !== ownerEmail) attendees.push({ email, responseStatus: 'needsAction' });
+  if (ownerEmail) addEmail(ownerEmail, 'accepted');
+
+  // Bot/staff email (second account)
+  const botEmail = process.env.BOT_EMAIL;
+  if (botEmail) addEmail(botEmail, 'needsAction');
+
+  // Also pull all active staff from the DB so no one gets missed
+  try {
+    const { getDb } = require('./db/database');
+    const db = getDb();
+    const staffEmails = db
+      .prepare(`SELECT email FROM users WHERE active = 1 AND email IS NOT NULL`)
+      .all()
+      .map((u) => u.email);
+    for (const email of staffEmails) addEmail(email, 'needsAction');
+  } catch {
+    // DB not ready yet — skip staff lookup
   }
+
+  for (const email of extraEmails) addEmail(email, 'needsAction');
+
   return attendees;
 }
 

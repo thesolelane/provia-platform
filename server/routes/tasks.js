@@ -130,19 +130,30 @@ router.get('/calendars', requireAuth, async (req, res) => {
 // ── POST /api/tasks ───────────────────────────────────────────────────────────
 router.post('/', requireAuth, requireFields(['title']), async (req, res) => {
   const db = getDb();
-  const { title, description, due_at, job_id, contact_id, priority } = req.body;
+  const {
+    title,
+    description,
+    due_at,
+    job_id,
+    contact_id,
+    priority,
+    assigned_to,
+    remind_at,
+    remind_interval_hours,
+  } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
 
-  const defaultRemindAt = new Date(Date.now() + 168 * 60 * 60 * 1000)
-    .toISOString()
-    .replace('T', ' ')
-    .slice(0, 19);
+  // Manual tasks: only set remind_at if the caller explicitly provides one.
+  // Lead pipeline tasks pass remind_at from their own logic (taskDefs in leads.js).
+  const explicitRemindAt = remind_at || null;
+  const explicitInterval = remind_interval_hours ? parseInt(remind_interval_hours, 10) : null;
 
   const info = db
     .prepare(
       `
-    INSERT INTO tasks (title, description, due_at, job_id, contact_id, priority, calendar_url, remind_at, remind_interval_hours)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, 168)
+    INSERT INTO tasks (title, description, due_at, job_id, contact_id, priority, calendar_url,
+      remind_at, remind_interval_hours, assigned_to, task_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'manual')
   `,
     )
     .run(
@@ -153,7 +164,9 @@ router.post('/', requireAuth, requireFields(['title']), async (req, res) => {
       contact_id || null,
       priority || 'normal',
       null,
-      defaultRemindAt,
+      explicitRemindAt,
+      explicitInterval,
+      assigned_to || null,
     );
 
   const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(info.lastInsertRowid);
@@ -191,21 +204,30 @@ router.patch(
     const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id);
     if (!task) return res.status(404).json({ error: 'Task not found' });
 
-    const { title, description, due_at, status, priority, remind_at, remind_interval_hours } =
-      req.body;
+    const {
+      title,
+      description,
+      due_at,
+      status,
+      priority,
+      remind_at,
+      remind_interval_hours,
+      assigned_to,
+    } = req.body;
     const newTitle = title !== undefined ? title.trim() : task.title;
     const newDescription = description !== undefined ? description.trim() : task.description;
     const newDueAt = due_at !== undefined ? due_at : task.due_at;
     const newStatus = status !== undefined ? status : task.status;
     const newPriority = priority !== undefined ? priority : task.priority;
     const newRemindAt = remind_at !== undefined ? remind_at : task.remind_at;
+    const newAssignedTo = assigned_to !== undefined ? assigned_to || null : task.assigned_to;
     const VALID_INTERVALS = [2, 3, 24, 48, 72, 168, 336];
     const parsedInterval =
       remind_interval_hours !== undefined ? parseInt(remind_interval_hours, 10) : null;
     const newRemindIntervalHours =
       parsedInterval !== null && VALID_INTERVALS.includes(parsedInterval)
         ? parsedInterval
-        : task.remind_interval_hours || 168;
+        : task.remind_interval_hours || null;
 
     const updated = { ...task, title: newTitle, description: newDescription, due_at: newDueAt };
     const calURL = makeCalendarURL(updated);
@@ -213,7 +235,7 @@ router.patch(
     db.prepare(
       `
     UPDATE tasks SET title=?, description=?, due_at=?, status=?, priority=?, calendar_url=?,
-      remind_at=?, remind_interval_hours=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
+      remind_at=?, remind_interval_hours=?, assigned_to=?, updated_at=CURRENT_TIMESTAMP WHERE id=?
   `,
     ).run(
       newTitle,
@@ -224,6 +246,7 @@ router.patch(
       calURL,
       newRemindAt,
       newRemindIntervalHours,
+      newAssignedTo,
       task.id,
     );
 

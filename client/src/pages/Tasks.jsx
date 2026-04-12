@@ -597,9 +597,18 @@ export default function Tasks({ token }) {
   const [range, setRange] = useState('all');
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', due_at: '', priority: 'normal' });
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    due_at: '',
+    priority: 'normal',
+    assigned_to: '',
+    remind_at: '',
+    remind_interval_hours: '',
+  });
   const [saving, setSaving] = useState(false);
   const [snoozing, setSnoozing] = useState({});
+  const [staffUsers, setStaffUsers] = useState([]);
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
@@ -621,13 +630,48 @@ export default function Tasks({ token }) {
     load();
   }, [filter, range]);
 
+  useEffect(() => {
+    fetch('/api/staff-chat/users', { headers: { 'x-auth-token': token } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((names) => setStaffUsers(names || []))
+      .catch(() => {});
+  }, [token]);
+
+  const BLANK_FORM = {
+    title: '',
+    description: '',
+    due_at: '',
+    priority: 'normal',
+    assigned_to: '',
+    remind_at: '',
+    remind_interval_hours: '',
+  };
+
   const createTask = async () => {
     if (!form.title.trim()) return showToast('Title is required', 'error');
     setSaving(true);
-    const res = await fetch('/api/tasks', { method: 'POST', headers, body: JSON.stringify(form) });
+    // Build payload — only send remind fields if user chose them
+    const payload = {
+      title: form.title,
+      description: form.description,
+      due_at: form.due_at || null,
+      priority: form.priority,
+      assigned_to: form.assigned_to || null,
+    };
+    if (form.remind_at) {
+      payload.remind_at = form.remind_at;
+      payload.remind_interval_hours = form.remind_interval_hours
+        ? parseInt(form.remind_interval_hours, 10)
+        : 24;
+    }
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
     const data = await res.json();
     if (res.ok) {
-      setForm({ title: '', description: '', due_at: '', priority: 'normal' });
+      setForm(BLANK_FORM);
       setShowForm(false);
       load();
       showToast('Task created!');
@@ -813,7 +857,7 @@ export default function Tasks({ token }) {
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
-                  Due Date & Time
+                  Due Date &amp; Time
                 </label>
                 <input
                   type="datetime-local"
@@ -848,6 +892,76 @@ export default function Tasks({ token }) {
                   <option value="low">🟢 Low</option>
                 </select>
               </div>
+            </div>
+            {/* Assign To + Reminder row */}
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
+                  Assign To
+                </label>
+                <select
+                  value={form.assigned_to}
+                  onChange={(e) => setForm((p) => ({ ...p, assigned_to: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1.5px solid #C8D4E4',
+                    borderRadius: 6,
+                    fontSize: 13,
+                  }}
+                >
+                  <option value="">— Anyone —</option>
+                  {staffUsers.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ flex: 1, minWidth: 160 }}>
+                <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
+                  Send Reminder At (optional)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={form.remind_at}
+                  onChange={(e) => setForm((p) => ({ ...p, remind_at: e.target.value }))}
+                  style={{
+                    width: '100%',
+                    padding: '8px 12px',
+                    border: '1.5px solid #C8D4E4',
+                    borderRadius: 6,
+                    fontSize: 13,
+                  }}
+                />
+              </div>
+              {form.remind_at && (
+                <div style={{ minWidth: 130 }}>
+                  <label style={{ fontSize: 11, color: '#888', display: 'block', marginBottom: 4 }}>
+                    Repeat Every
+                  </label>
+                  <select
+                    value={form.remind_interval_hours}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, remind_interval_hours: e.target.value }))
+                    }
+                    style={{
+                      padding: '8px 12px',
+                      border: '1.5px solid #C8D4E4',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      height: 37,
+                    }}
+                  >
+                    <option value="">No repeat</option>
+                    <option value="2">2 hours</option>
+                    <option value="24">1 day</option>
+                    <option value="48">2 days</option>
+                    <option value="72">3 days</option>
+                    <option value="168">1 week</option>
+                  </select>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button
@@ -1054,6 +1168,11 @@ export default function Tasks({ token }) {
                           <span style={{ fontSize: 10, color: PRIORITY_COLORS[task.priority] }}>
                             {PRIORITY_LABELS[task.priority]}
                           </span>
+                          {task.assigned_to && (
+                            <span style={{ fontSize: 11, color: '#666' }}>
+                              👤 {task.assigned_to}
+                            </span>
+                          )}
                         </div>
 
                         {/* Reminder row — visible on all non-done tasks */}

@@ -751,6 +751,11 @@ async function initDatabase() {
   // ── Migration: vendor/sub email field ─────────────────────────────────────────
   addColIfMissing('vendors', 'email', 'TEXT');
 
+  // ── Migration: task assigned_to (name of responsible staff member) ────────────
+  addColIfMissing('tasks', 'assigned_to', 'TEXT');
+  // ── Migration: task_type to distinguish lead-pipeline tasks from manual ones ──
+  addColIfMissing('tasks', 'task_type', "TEXT DEFAULT 'manual'");
+
   // ── Vendor documents table (workers comp, GL insurance, etc.) ─────────────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS vendor_documents (
