@@ -264,7 +264,15 @@ router.patch(
           project_city    = COALESCE(NULLIF(?, ''), project_city),
           updated_at = CURRENT_TIMESTAMP
         WHERE contact_id = ? AND id != ?`,
-          ).run(name || '', email || '', phone || '', address || '', city || '', job.contact_id, job.id);
+          ).run(
+            name || '',
+            email || '',
+            phone || '',
+            address || '',
+            city || '',
+            job.contact_id,
+            job.id,
+          );
         }
       })();
     } catch (err) {

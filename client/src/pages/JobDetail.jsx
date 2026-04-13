@@ -80,7 +80,13 @@ export default function JobDetail({ token, userName }) {
   const [savingPt, setSavingPt] = useState(false);
 
   const [editingCustomer, setEditingCustomer] = useState(false);
-  const [customerForm, setCustomerForm] = useState({ name: '', email: '', phone: '', address: '', city: '' });
+  const [customerForm, setCustomerForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+  });
   const [savingCustomer, setSavingCustomer] = useState(false);
 
   const userRole = localStorage.getItem('pb_user_role') || '';
@@ -166,7 +172,12 @@ export default function JobDetail({ token, userName }) {
       }
       setEditingCustomer(false);
       load();
-      showToast(updateContact ? 'Customer info saved and contact profile updated.' : 'Customer info saved for this job.', 'success');
+      showToast(
+        updateContact
+          ? 'Customer info saved and contact profile updated.'
+          : 'Customer info saved for this job.',
+        'success',
+      );
     } catch {
       showToast('Network error — please try again.', 'error');
     } finally {
@@ -180,9 +191,14 @@ export default function JobDetail({ token, userName }) {
       return;
     }
     if (customerForm.email) {
-      const emailOk = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(customerForm.email.trim());
+      const emailOk = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(
+        customerForm.email.trim(),
+      );
       if (!emailOk) {
-        showToast('Email address does not look right — check the format (e.g. name@gmail.com).', 'error');
+        showToast(
+          'Email address does not look right — check the format (e.g. name@gmail.com).',
+          'error',
+        );
         return;
       }
     }
@@ -192,11 +208,12 @@ export default function JobDetail({ token, userName }) {
         (customerForm.name && customerForm.name !== (contact?.name || job.customer_name)) ||
         (customerForm.email && customerForm.email !== (contact?.email || job.customer_email)) ||
         (customerForm.phone && customerForm.phone !== (contact?.phone || job.customer_phone)) ||
-        (customerForm.address && customerForm.address !== (contact?.address || job.project_address)) ||
+        (customerForm.address &&
+          customerForm.address !== (contact?.address || job.project_address)) ||
         (customerForm.city && customerForm.city !== (contact?.city || job.project_city));
       if (differs) {
         const confirmed = await showConfirm(
-          'Would you also like to update this customer\'s contact profile with these new details?',
+          "Would you also like to update this customer's contact profile with these new details?",
         );
         await saveCustomerInfo(confirmed);
         return;

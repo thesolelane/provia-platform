@@ -127,27 +127,26 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                 `Lead #${leadId}: follow-up task #${taskId} auto-created on intake`,
                 'marblism-poller',
               );
-              console.log(
-                `[Email Poller] Follow-up task #${taskId} created for lead #${leadId}`,
-              );
+              console.log(`[Email Poller] Follow-up task #${taskId} created for lead #${leadId}`);
 
               // Push to Google Calendar (fallback to "add event" link if API unavailable)
               try {
                 const gcal = require('./googleCalendar');
                 const calId =
-                  db
-                    .prepare("SELECT value FROM settings WHERE key = 'gcal.calendarId'")
-                    .get()?.value || 'primary';
+                  db.prepare("SELECT value FROM settings WHERE key = 'gcal.calendarId'").get()
+                    ?.value || 'primary';
                 const calEnabled =
-                  db
-                    .prepare("SELECT value FROM settings WHERE key = 'gcal.enabled'")
-                    .get()?.value !== 'false';
+                  db.prepare("SELECT value FROM settings WHERE key = 'gcal.enabled'").get()
+                    ?.value !== 'false';
 
                 // Build a fallback "add event" URL (same pattern as /api/tasks)
                 let calURL = null;
                 try {
                   const dueIso = new Date(dueAt).toISOString();
-                  const start = dueIso.replace(/[-:]/g, '').replace(/\.\d{3}Z?$/, '').slice(0, 15);
+                  const start = dueIso
+                    .replace(/[-:]/g, '')
+                    .replace(/\.\d{3}Z?$/, '')
+                    .slice(0, 15);
                   const endDt = new Date(new Date(dueAt).getTime() + 3600000);
                   const end = endDt
                     .toISOString()

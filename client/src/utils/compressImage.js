@@ -30,7 +30,9 @@ export async function compressImage(file) {
           if (!blob || blob.size >= file.size) {
             resolve(file);
           } else {
-            resolve(new File([blob], file.name, { type: 'image/jpeg', lastModified: file.lastModified }));
+            resolve(
+              new File([blob], file.name, { type: 'image/jpeg', lastModified: file.lastModified }),
+            );
           }
         },
         'image/jpeg',

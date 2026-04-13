@@ -2,6 +2,7 @@
 // Estimate AI: system prompt, pricing math, tool loop, and processEstimate.
 
 const Anthropic = require('@anthropic-ai/sdk');
+const { claudeWithRetry } = require('../utils/claudeRetry');
 const { getDb } = require('../db/database');
 const jobMemory = require('./jobMemory');
 const perplexity = require('./perplexityService');
@@ -367,14 +368,18 @@ async function runWithTools(systemPrompt, userMessage, maxToolCalls = 5, jobId =
   let totalOutput = 0;
 
   while (true) {
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 8000,
-      temperature: 0.1,
-      system: systemPrompt,
-      messages,
-      tools,
-    });
+    const response = await claudeWithRetry(
+      client,
+      {
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 8000,
+        temperature: 0.1,
+        system: systemPrompt,
+        messages,
+        tools,
+      },
+      'estimate',
+    );
 
     totalInput += response.usage?.input_tokens || 0;
     totalOutput += response.usage?.output_tokens || 0;

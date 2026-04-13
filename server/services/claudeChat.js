@@ -7,6 +7,7 @@ const { loadSettings, loadKnowledgeBase, buildSystemPrompt } = require('./claude
 const perplexity = require('./perplexityService');
 const { lookupPropertyByAddress } = require('./massGisService');
 const { checkLeadRecord } = require('./leadCheckService');
+const { claudeWithRetry } = require('../utils/claudeRetry');
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -18,18 +19,22 @@ async function handleClarification(jobId, userMessage, conversationHistory, lang
 
   const messages = [...conversationHistory, { role: 'user', content: userMessage }];
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 2000,
-    temperature: 0.1,
-    system:
-      systemPrompt +
-      `\n\nYou are in a clarification conversation about job ${jobId}. 
+  const response = await claudeWithRetry(
+    client,
+    {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      temperature: 0.1,
+      system:
+        systemPrompt +
+        `\n\nYou are in a clarification conversation about job ${jobId}. 
     If the user's answers complete all missing information, respond with JSON: {"type":"ready","message":"..."} 
     If more questions remain, respond with JSON: {"type":"question","message":"...","questionsRemaining":N}
     If responding to Jackson in Portuguese, use {"type":"question","message":"...em português...","questionsRemaining":N}`,
-    messages,
-  });
+      messages,
+    },
+    'clarification',
+  );
 
   logTokenUsage({
     service: 'claude',
@@ -340,21 +345,25 @@ IMPORTANT STYLE RULES:
   let createdTask = null;
 
   for (let turn = 0; turn < 5; turn++) {
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
-      temperature: 0,
-      system: systemPrompt,
-      tools: db
-        ? [
-            ...ADMIN_TOOLS,
-            LOOKUP_PROPERTY_TOOL,
-            CHECK_LEAD_RECORD_TOOL,
-            ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : []),
-          ]
-        : [],
-      messages: msgsToSend,
-    });
+    const response = await claudeWithRetry(
+      client,
+      {
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        temperature: 0,
+        system: systemPrompt,
+        tools: db
+          ? [
+              ...ADMIN_TOOLS,
+              LOOKUP_PROPERTY_TOOL,
+              CHECK_LEAD_RECORD_TOOL,
+              ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : []),
+            ]
+          : [],
+        messages: msgsToSend,
+      },
+      'adminChat',
+    );
 
     logTokenUsage({
       service: 'claude',
@@ -415,11 +424,13 @@ async function generateWizardQuestions(
     selectedTrades.length > 0
       ? `\n\nEXPLICITLY SELECTED TRADES (user-confirmed):\n${selectedTrades.map((t) => `- ${t.name} (${t.deptName}): ${t.meaning}`).join('\n')}\nThese trades are confirmed in scope — focus demo_check and trade_clarification questions on these trades specifically. Do NOT ask about trades not in this list unless the scope text itself mentions them.`
       : '';
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 2000,
-    temperature: 0,
-    system: `You are a construction estimating assistant helping a Massachusetts GC build accurate quotes. Your job is to read a scope of work and ask ONLY the most important clarifying questions — focusing especially on install-implies-demo trade pairings and ambiguous trade scopes.
+  const response = await claudeWithRetry(
+    client,
+    {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      temperature: 0,
+      system: `You are a construction estimating assistant helping a Massachusetts GC build accurate quotes. Your job is to read a scope of work and ask ONLY the most important clarifying questions — focusing especially on install-implies-demo trade pairings and ambiguous trade scopes.
 
 INSTALL-IMPLIES-DEMO RULE: When the scope mentions installing, replacing, or upgrading something (cabinets, flooring, fixtures, doors, windows, drywall, roofing, tiles, vanities, toilets, bathtubs, etc.), always check whether removal/demolition of the existing item is already in the scope. If the scope is ambiguous or silent on demo for that item, ask about it as a "demo_check" question.
 
@@ -429,10 +440,10 @@ TRADE SCOPE AMBIGUITY RULES — these questions are critical for accurate pricin
 - PLUMBING: When plumbing work goes beyond clearly specified fixture swaps, ask: Does this include repiping supply or drain lines, OR is it limited to fixture replacement and hookup only?
 
 Return ONLY valid JSON — no commentary, no markdown.`,
-    messages: [
-      {
-        role: 'user',
-        content: `Read this scope of work and return a JSON array of clarifying questions. Return an empty array [] if the scope is completely clear and no questions are needed.
+      messages: [
+        {
+          role: 'user',
+          content: `Read this scope of work and return a JSON array of clarifying questions. Return an empty array [] if the scope is completely clear and no questions are needed.
 
 Project Address: ${projectAddress || 'not specified'}${budgetContext}${tradesContext}
 
@@ -468,9 +479,11 @@ RULES:
 6. Trade clarification questions for electrical/HVAC/plumbing MUST be asked when those trades appear with vague extent — even if the scope seems complete otherwise.
 7. If the scope is clear and complete with no ambiguous trades, return an empty array [].
 8. Return ONLY the JSON array. Nothing else.`,
-      },
-    ],
-  });
+        },
+      ],
+    },
+    'wizard',
+  );
 
   logTokenUsage({
     service: 'claude',
