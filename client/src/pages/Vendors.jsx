@@ -405,7 +405,9 @@ export default function Vendors({ token }) {
                       <td style={{ padding: '11px 14px', fontSize: 12, color: '#555' }}>
                         {v.email ? (
                           <a
-                            href={`mailto:${v.email}`}
+                            href={`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(v.email)}`}
+                            target="_blank"
+                            rel="noreferrer"
                             style={{ color: BLUE, textDecoration: 'none' }}
                           >
                             {v.email}
@@ -563,7 +565,12 @@ export default function Vendors({ token }) {
                       {v.email && (
                         <span>
                           ✉️{' '}
-                          <a href={`mailto:${v.email}`} style={{ color: BLUE }}>
+                          <a
+                            href={`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(v.email)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: BLUE }}
+                          >
                             {v.email}
                           </a>
                         </span>
