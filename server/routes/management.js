@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { requireFields } = require('../middleware/validate');
+const { requireFields, validateEmail } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 const { sendEmail } = require('../services/emailService');
 const { logAudit } = require('../services/auditService');
@@ -157,7 +157,7 @@ router.get('/:id', requireAuth, (req, res) => {
   if (job.contact_id) {
     const contact = db
       .prepare(
-        'SELECT id, name, email, phone, customer_number, pb_customer_number FROM contacts WHERE id = ?',
+        'SELECT id, name, email, phone, address, city, customer_number, pb_customer_number FROM contacts WHERE id = ?',
       )
       .get(job.contact_id);
     if (contact) job.contact = contact;
@@ -214,41 +214,68 @@ router.patch('/:id/notes', requireAuth, requireFields(['notes']), (req, res) => 
   res.json({ success: true });
 });
 
-// PATCH /:id/customer — update customer name/email/phone directly on an existing job
+// PATCH /:id/customer — update customer name/email/phone/address on an existing job.
+// If updateContact=true and the job has a linked contact, syncs those fields to the contact record too.
+// If updateContact=false, only the job record is updated (local override).
 router.patch(
   '/:id/customer',
   requireAuth,
   requireRole('admin', 'pm', 'system_admin'),
+  validateEmail('email'),
   (req, res) => {
     const db = getDb();
-    const { name, email, phone } = req.body;
+    const { name, email, phone, address, city, updateContact } = req.body;
     const job = db.prepare('SELECT id, contact_id FROM jobs WHERE id = ?').get(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
-    db.prepare(
+    const updateJobStmt = db.prepare(
       `UPDATE jobs SET
-    customer_name  = COALESCE(NULLIF(?, ''), customer_name),
-    customer_email = COALESCE(NULLIF(?, ''), customer_email),
-    customer_phone = COALESCE(NULLIF(?, ''), customer_phone),
+    customer_name   = COALESCE(NULLIF(?, ''), customer_name),
+    customer_email  = COALESCE(NULLIF(?, ''), customer_email),
+    customer_phone  = COALESCE(NULLIF(?, ''), customer_phone),
+    project_address = COALESCE(NULLIF(?, ''), project_address),
+    project_city    = COALESCE(NULLIF(?, ''), project_city),
     updated_at = CURRENT_TIMESTAMP
   WHERE id = ?`,
-    ).run(name || '', email || '', phone || '', job.id);
+    );
 
-    if (job.contact_id) {
-      db.prepare(
-        `UPDATE contacts SET
-      name  = COALESCE(NULLIF(?, ''), name),
-      email = COALESCE(NULLIF(?, ''), email),
-      phone = COALESCE(NULLIF(?, ''), phone),
-      updated_at = CURRENT_TIMESTAMP
-    WHERE id = ?`,
-      ).run(name || '', email || '', phone || '', job.contact_id);
+    try {
+      db.transaction(() => {
+        updateJobStmt.run(name || '', email || '', phone || '', address || '', city || '', job.id);
+
+        if (job.contact_id && updateContact) {
+          db.prepare(
+            `UPDATE contacts SET
+          name    = COALESCE(NULLIF(?, ''), name),
+          email   = COALESCE(NULLIF(?, ''), email),
+          phone   = COALESCE(NULLIF(?, ''), phone),
+          address = COALESCE(NULLIF(?, ''), address),
+          city    = COALESCE(NULLIF(?, ''), city),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+          ).run(name || '', email || '', phone || '', address || '', city || '', job.contact_id);
+
+          db.prepare(
+            `UPDATE jobs SET
+          customer_name   = COALESCE(NULLIF(?, ''), customer_name),
+          customer_email  = COALESCE(NULLIF(?, ''), customer_email),
+          customer_phone  = COALESCE(NULLIF(?, ''), customer_phone),
+          project_address = COALESCE(NULLIF(?, ''), project_address),
+          project_city    = COALESCE(NULLIF(?, ''), project_city),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE contact_id = ? AND id != ?`,
+          ).run(name || '', email || '', phone || '', address || '', city || '', job.contact_id, job.id);
+        }
+      })();
+    } catch (err) {
+      console.error('[jobs/customer PATCH] transaction failed:', err.message);
+      return res.status(500).json({ error: 'Failed to save customer info' });
     }
 
     logAudit(
       job.id,
       'customer_info_updated',
-      `Customer info updated by admin`,
+      `Customer info updated${job.contact_id && updateContact ? ' (contact profile + sibling jobs synced)' : ''}`,
       req.session?.name || 'admin',
     );
     res.json({ success: true });

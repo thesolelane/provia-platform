@@ -79,6 +79,13 @@ export default function JobDetail({ token, userName }) {
   });
   const [savingPt, setSavingPt] = useState(false);
 
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const [customerForm, setCustomerForm] = useState({ name: '', email: '', phone: '', address: '', city: '' });
+  const [savingCustomer, setSavingCustomer] = useState(false);
+
+  const userRole = localStorage.getItem('pb_user_role') || '';
+  const canEditCustomer = ['admin', 'pm', 'system_admin'].includes(userRole);
+
   const [pos, setPOs] = useState([]);
   const [poLoading, setPOLoading] = useState(false);
   const [newPO, setNewPO] = useState({
@@ -131,6 +138,72 @@ export default function JobDetail({ token, userName }) {
   useEffect(() => {
     load();
   }, [id]);
+
+  const openCustomerEdit = () => {
+    if (!job) return;
+    setCustomerForm({
+      name: job.customer_name || '',
+      email: job.customer_email || '',
+      phone: job.customer_phone || '',
+      address: job.project_address || '',
+      city: job.project_city || '',
+    });
+    setEditingCustomer(true);
+  };
+
+  const saveCustomerInfo = async (updateContact) => {
+    setSavingCustomer(true);
+    try {
+      const res = await fetch(`/api/jobs/${id}/customer`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ ...customerForm, updateContact }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        showToast(d.error || 'Failed to save customer info', 'error');
+        return;
+      }
+      setEditingCustomer(false);
+      load();
+      showToast(updateContact ? 'Customer info saved and contact profile updated.' : 'Customer info saved for this job.', 'success');
+    } catch {
+      showToast('Network error — please try again.', 'error');
+    } finally {
+      setSavingCustomer(false);
+    }
+  };
+
+  const handleCustomerSave = async () => {
+    if (!customerForm.name.trim()) {
+      showToast('Customer name is required.', 'error');
+      return;
+    }
+    if (customerForm.email) {
+      const emailOk = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/.test(customerForm.email.trim());
+      if (!emailOk) {
+        showToast('Email address does not look right — check the format (e.g. name@gmail.com).', 'error');
+        return;
+      }
+    }
+    if (job.contact_id) {
+      const contact = job.contact;
+      const differs =
+        (customerForm.name && customerForm.name !== (contact?.name || job.customer_name)) ||
+        (customerForm.email && customerForm.email !== (contact?.email || job.customer_email)) ||
+        (customerForm.phone && customerForm.phone !== (contact?.phone || job.customer_phone)) ||
+        (customerForm.address && customerForm.address !== (contact?.address || job.project_address)) ||
+        (customerForm.city && customerForm.city !== (contact?.city || job.project_city));
+      if (differs) {
+        const confirmed = await showConfirm(
+          'Would you also like to update this customer\'s contact profile with these new details?',
+        );
+        await saveCustomerInfo(confirmed);
+        return;
+      }
+    }
+    await saveCustomerInfo(false);
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -2959,6 +3032,104 @@ export default function JobDetail({ token, userName }) {
                   ))}
               </tbody>
             </table>
+
+            {/* ── EDIT CUSTOMER INFO ── */}
+            {canEditCustomer && !editingCustomer && (
+              <div style={{ marginTop: 12 }}>
+                <button
+                  onClick={openCustomerEdit}
+                  style={{
+                    fontSize: 12,
+                    padding: '5px 14px',
+                    background: 'transparent',
+                    border: '1px solid #c7d7f4',
+                    borderRadius: 6,
+                    color: BLUE,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  ✏️ Edit Customer Info
+                </button>
+              </div>
+            )}
+
+            {canEditCustomer && editingCustomer && (
+              <div
+                style={{
+                  marginTop: 16,
+                  background: '#f8faff',
+                  border: '1px solid #c7d7f4',
+                  borderRadius: 10,
+                  padding: 18,
+                }}
+              >
+                <div style={{ fontWeight: 700, color: BLUE, marginBottom: 14, fontSize: 14 }}>
+                  Edit Customer Info
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {[
+                    { label: 'Name', key: 'name', type: 'text' },
+                    { label: 'Email', key: 'email', type: 'email' },
+                    { label: 'Phone', key: 'phone', type: 'tel' },
+                    { label: 'Address', key: 'address', type: 'text' },
+                    { label: 'City', key: 'city', type: 'text' },
+                  ].map(({ label, key, type }) => (
+                    <div key={key}>
+                      <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{label}</div>
+                      <input
+                        type={type}
+                        value={customerForm[key]}
+                        onChange={(e) => setCustomerForm((f) => ({ ...f, [key]: e.target.value }))}
+                        style={{
+                          width: '100%',
+                          padding: '7px 10px',
+                          border: '1px solid #ddd',
+                          borderRadius: 6,
+                          fontSize: 13,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                  <button
+                    onClick={handleCustomerSave}
+                    disabled={savingCustomer}
+                    style={{
+                      padding: '7px 18px',
+                      background: BLUE,
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      cursor: savingCustomer ? 'not-allowed' : 'pointer',
+                      fontWeight: 600,
+                      opacity: savingCustomer ? 0.7 : 1,
+                    }}
+                  >
+                    {savingCustomer ? 'Saving…' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => setEditingCustomer(false)}
+                    disabled={savingCustomer}
+                    style={{
+                      padding: '7px 14px',
+                      background: 'transparent',
+                      border: '1px solid #ddd',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      color: '#666',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ── PROPERTY RECORD ── */}
             {(() => {
               let pd = null;

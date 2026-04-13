@@ -44,15 +44,19 @@ router.get('/:id', requireAuth, (req, res) => {
     .prepare(
       `
     SELECT id, customer_name, project_address, total_value, status, created_at,
-           pb_number, quote_number, contract_pdf_path, deposit_amount, archived, closed_reason
+           pb_number, quote_number, contract_pdf_path, deposit_amount, archived, closed_reason, contact_id
     FROM jobs WHERE (
-      (customer_email IS NOT NULL AND customer_email = ?) OR
-      (customer_phone IS NOT NULL AND customer_phone = ?) OR
-      (customer_name IS NOT NULL AND customer_name = ?)
+      contact_id = ? OR (
+        contact_id IS NULL AND (
+          (customer_email IS NOT NULL AND customer_email = ?) OR
+          (customer_phone IS NOT NULL AND customer_phone = ?) OR
+          (customer_name IS NOT NULL AND customer_name = ?)
+        )
+      )
     ) ORDER BY created_at DESC
   `,
     )
-    .all(contact.email || '', contact.phone || '', contact.name || '');
+    .all(req.params.id, contact.email || '', contact.phone || '', contact.name || '');
 
   const documents = db
     .prepare(
@@ -199,27 +203,57 @@ router.post('/', requireAuth, requireFields(['name']), validateEmail('email'), (
   res.json({ success: true, id: result.lastInsertRowid, contact });
 });
 
-// PATCH update contact
+// PATCH update contact — cascades name/email/phone/address changes to linked jobs
 router.patch('/:id', requireAuth, validateEmail('email'), (req, res) => {
   const db = getDb();
   const { name, email, phone, address, city, state, zip, customer_type, notes } = req.body;
-  db.prepare(
+
+  const updateContact = db.prepare(
     `UPDATE contacts SET
     name = ?, email = ?, phone = ?, address = ?, city = ?, state = ?, zip = ?,
     customer_type = ?, notes = ?, updated_at = CURRENT_TIMESTAMP
     WHERE id = ?`,
-  ).run(
-    name || null,
-    email || null,
-    phone || null,
-    address || null,
-    city || null,
-    state || null,
-    zip || null,
-    customer_type || 'residential',
-    notes || null,
-    req.params.id,
   );
+
+  const updateLinkedJobs = db.prepare(
+    `UPDATE jobs SET
+      customer_name  = COALESCE(NULLIF(?, ''), customer_name),
+      customer_email = COALESCE(NULLIF(?, ''), customer_email),
+      customer_phone = COALESCE(NULLIF(?, ''), customer_phone),
+      project_address = COALESCE(NULLIF(?, ''), project_address),
+      project_city    = COALESCE(NULLIF(?, ''), project_city),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE contact_id = ?`,
+  );
+
+  try {
+    db.transaction(() => {
+      updateContact.run(
+        name || null,
+        email || null,
+        phone || null,
+        address || null,
+        city || null,
+        state || null,
+        zip || null,
+        customer_type || 'residential',
+        notes || null,
+        req.params.id,
+      );
+      updateLinkedJobs.run(
+        name || '',
+        email || '',
+        phone || '',
+        address || '',
+        city || '',
+        req.params.id,
+      );
+    })();
+  } catch (err) {
+    console.error('[contacts PATCH] transaction failed:', err.message);
+    return res.status(500).json({ error: 'Failed to save contact' });
+  }
+
   res.json({ success: true });
 });
 
