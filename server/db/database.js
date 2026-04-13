@@ -417,6 +417,7 @@ async function initDatabase() {
   addColIfMissing('tasks', 'remind_at', 'DATETIME');
   addColIfMissing('tasks', 'remind_interval_hours', 'INTEGER DEFAULT 168');
   addColIfMissing('tasks', 'lead_id', 'INTEGER');
+  addColIfMissing('tasks', 'remind_count', 'INTEGER DEFAULT 0');
 
   // Backfill existing pending/in_progress tasks with remind_at = now + 7 days
   db.prepare(

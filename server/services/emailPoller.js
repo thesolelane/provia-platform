@@ -101,7 +101,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
             // Auto-create a follow-up reminder task linked to this lead
             try {
               const leadId = leadResult.lastInsertRowid;
-              const dueAt = new Date(Date.now() + 2 * 3600000)
+              const dueAt = new Date(Date.now() + 24 * 3600000)
                 .toISOString()
                 .replace('T', ' ')
                 .slice(0, 19);
@@ -115,7 +115,7 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
                   `INSERT INTO tasks
                     (title, description, status, priority, lead_id, due_at, remind_at,
                      remind_interval_hours, task_type, created_at, updated_at)
-                   VALUES (?, ?, 'pending', 'high', ?, ?, ?, 2, 'lead',
+                   VALUES (?, ?, 'pending', 'high', ?, ?, ?, 24, 'lead',
                            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
                 )
                 .run(taskTitle, taskDesc, leadId, dueAt, dueAt);

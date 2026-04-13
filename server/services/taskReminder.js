@@ -1,13 +1,30 @@
 'use strict';
 // server/services/taskReminder.js
 // Background scheduler that sends reminder emails for open tasks.
-// - Lead-pipeline tasks (has lead_id or task_type='lead') always get reminders.
-// - Manual tasks only fire if the user explicitly picked an interval other than 168h.
-// - Reminders always go to the owner and Jackson; assigned user is also included.
+//
+// Rules enforced on every tick:
+//   • Business hours gate — Mon–Sat 7:00–19:00 Eastern (UTC-5 conservative)
+//   • Minimum interval floor — 4 hours; any task set below 4h is treated as 4h
+//   • Max remind count — after 8 reminders the interval doubles (cap 168h);
+//     after 15 reminders the task's remind_at is cleared and email stops
+//   • Digest email — all due tasks for a recipient arrive in ONE email per tick
 
 const { getDb } = require('../db/database');
 const { sendEmail } = require('./emailService');
 const { team } = require('../../config/parameters');
+
+const MIN_INTERVAL_HOURS = 4;
+const DOUBLE_AFTER = 8;
+const STOP_AFTER = 15;
+const MAX_INTERVAL_HOURS = 168;
+
+function isBusinessHours() {
+  const etOffset = -5 * 60 * 60 * 1000;
+  const etNow = new Date(Date.now() + etOffset);
+  const dow = etNow.getUTCDay();
+  const hour = etNow.getUTCHours();
+  return dow >= 1 && dow <= 6 && hour >= 7 && hour < 19;
+}
 
 function resolveRecipients(db, task) {
   const seen = new Set();
@@ -37,7 +54,74 @@ function resolveRecipients(db, task) {
   return recipients;
 }
 
+function effectiveInterval(task) {
+  const raw = task.remind_interval_hours || 168;
+  let hours = Math.max(MIN_INTERVAL_HOURS, Math.min(raw, 8760));
+  const count = task.remind_count || 0;
+  if (count >= DOUBLE_AFTER) {
+    hours = Math.min(hours * 2, MAX_INTERVAL_HOURS);
+  }
+  return hours;
+}
+
+function formatDt(isoStr) {
+  if (!isoStr) return '—';
+  try {
+    return new Date(isoStr).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return isoStr;
+  }
+}
+
+function buildDigestHtml(tasks, tasksLink) {
+  const rows = tasks
+    .map(
+      (t) => `
+      <tr>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee;font-weight:600;color:#1B3A6B">${t.title}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee">${t.status}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee">${t.assigned_to || '—'}</td>
+        <td style="padding:8px 10px;border-bottom:1px solid #eee">${formatDt(t.due_at)}</td>
+      </tr>`,
+    )
+    .join('');
+
+  return `
+    <div style="font-family:sans-serif;max-width:640px">
+      <h2 style="color:#1B3A6B;margin-bottom:4px">🔔 Task Reminders — ${tasks.length} pending</h2>
+      <p style="color:#666;margin-top:0">The following tasks need your attention:</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead>
+          <tr style="background:#1B3A6B;color:white">
+            <th style="padding:8px 10px;text-align:left">Task</th>
+            <th style="padding:8px 10px;text-align:left">Status</th>
+            <th style="padding:8px 10px;text-align:left">Assigned</th>
+            <th style="padding:8px 10px;text-align:left">Due</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p>
+        <a href="${tasksLink}"
+           style="background:#1B3A6B;color:white;padding:10px 22px;border-radius:6px;
+                  text-decoration:none;display:inline-block;margin-top:16px;font-weight:600">
+          View All Tasks
+        </a>
+      </p>
+    </div>`;
+}
+
 async function runReminderTick() {
+  if (!isBusinessHours()) {
+    return;
+  }
+
   const db = getDb();
 
   const dueTasks = db
@@ -56,94 +140,89 @@ async function runReminderTick() {
     (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '');
   const tasksLink = appUrl ? `${appUrl}/tasks` : '/tasks';
 
+  const activeTasks = [];
+  const stopTasks = [];
+
   for (const task of dueTasks) {
-    // Skip reminders for plain manual tasks that only have the system backfill default (168h).
-    // A task gets a real reminder only if:
-    //   a) it came from the lead pipeline (has lead_id or task_type = 'lead'), or
-    //   b) the user manually picked a specific reminder interval (not the 168h default)
     const isLeadTask = task.task_type === 'lead' || task.lead_id != null;
     const hasExplicitReminder = task.remind_interval_hours !== 168;
     if (!isLeadTask && !hasExplicitReminder) {
-      // Clear so it doesn't keep matching on every tick
       db.prepare(`UPDATE tasks SET remind_at = NULL WHERE id = ?`).run(task.id);
       continue;
     }
 
-    const intervalHours = Math.max(1, Math.min(task.remind_interval_hours || 168, 8760));
-    const nextRemindAt = new Date(Date.now() + intervalHours * 60 * 60 * 1000);
-    const nextRemindStr = nextRemindAt.toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const count = task.remind_count || 0;
+    if (count >= STOP_AFTER) {
+      stopTasks.push(task);
+      continue;
+    }
 
+    activeTasks.push(task);
+  }
+
+  for (const task of stopTasks) {
+    db.prepare(`UPDATE tasks SET remind_at = NULL WHERE id = ?`).run(task.id);
+    console.log(`[TaskReminder] Task #${task.id} hit max remind count (${STOP_AFTER}) — stopped`);
+  }
+
+  if (!activeTasks.length) return;
+
+  const recipientMap = new Map();
+
+  for (const task of activeTasks) {
     const recipients = resolveRecipients(db, task);
     if (!recipients.length) {
       console.log(`[TaskReminder] No recipients for task #${task.id} — skipping`);
       continue;
     }
+    for (const email of recipients) {
+      if (!recipientMap.has(email)) recipientMap.set(email, []);
+      recipientMap.get(email).push(task);
+    }
+  }
 
-    const assignedLine = task.assigned_to
-      ? `<tr style="background:#f9f9f9"><td style="padding:8px;color:#555">Assigned To</td><td style="padding:8px;font-weight:bold">${task.assigned_to}</td></tr>`
-      : '';
+  const tasksSent = new Set();
+
+  for (const [email, tasks] of recipientMap) {
+    const subject =
+      tasks.length === 1
+        ? `🔔 Reminder: ${tasks[0].title}`
+        : `🔔 Task Reminders — ${tasks.length} tasks need attention`;
 
     try {
       await sendEmail({
-        to: recipients,
-        subject: `\uD83D\uDD14 Reminder: ${task.title}`,
-        html: `
-          <div style="font-family:sans-serif;max-width:600px">
-            <h2 style="color:#1B3A6B">\uD83D\uDD14 Task Reminder</h2>
-            <table style="width:100%;border-collapse:collapse">
-              <tr>
-                <td style="padding:8px;color:#555">Task</td>
-                <td style="padding:8px;font-weight:bold">${task.title}</td>
-              </tr>
-              ${
-                task.description
-                  ? `<tr style="background:#f9f9f9">
-                       <td style="padding:8px;color:#555">Description</td>
-                       <td style="padding:8px">${task.description.replace(/\n/g, '<br>')}</td>
-                     </tr>`
-                  : ''
-              }
-              <tr>
-                <td style="padding:8px;color:#555">Status</td>
-                <td style="padding:8px">${task.status}</td>
-              </tr>
-              ${assignedLine}
-              <tr style="background:#f9f9f9">
-                <td style="padding:8px;color:#555">Next reminder</td>
-                <td style="padding:8px">${nextRemindStr}</td>
-              </tr>
-            </table>
-            <p>
-              <a href="${tasksLink}" style="background:#1B3A6B;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:12px">
-                View Tasks
-              </a>
-            </p>
-          </div>`,
+        to: [email],
+        subject,
+        html: buildDigestHtml(tasks, tasksLink),
         emailType: 'task_reminder',
       });
       console.log(
-        `[TaskReminder] Sent for task #${task.id} "${task.title}" → ${recipients.join(', ')}`,
+        `[TaskReminder] Digest sent to ${email} — ${tasks.length} task(s): ${tasks.map((t) => `#${t.id}`).join(', ')}`,
       );
-      db.prepare(
-        `UPDATE tasks SET remind_at = datetime('now', '+' || ? || ' hours') WHERE id = ?`,
-      ).run(intervalHours, task.id);
+      for (const t of tasks) tasksSent.add(t.id);
     } catch (err) {
-      console.error(`[TaskReminder] Failed for task #${task.id}:`, err.message);
+      console.warn(`[TaskReminder] Failed to send digest to ${email}:`, err.message);
     }
+  }
+
+  for (const task of activeTasks) {
+    if (!tasksSent.has(task.id)) continue;
+    const intervalHours = effectiveInterval(task);
+    db.prepare(
+      `UPDATE tasks
+          SET remind_at    = datetime('now', '+' || ? || ' hours'),
+              remind_count = COALESCE(remind_count, 0) + 1
+        WHERE id = ?`,
+    ).run(intervalHours, task.id);
   }
 }
 
 function startTaskReminderScheduler() {
   console.log('[TaskReminder] Scheduler started — checking every 60 minutes');
-  runReminderTick().catch((e) => console.error('[TaskReminder] Initial tick error:', e.message));
+  runReminderTick().catch((e) => console.warn('[TaskReminder] Initial tick error:', e.message));
   setInterval(
     () => {
-      runReminderTick().catch((e) => console.error('[TaskReminder] Tick error:', e.message));
+      runReminderTick().catch((e) => console.warn('[TaskReminder] Tick error:', e.message));
     },
     60 * 60 * 1000,
   );

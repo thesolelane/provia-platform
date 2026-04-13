@@ -125,9 +125,9 @@ function autoTask(db, lead, nextStage, performer) {
       title: `📞 Callback: ${name} (${phone})`,
       description: `Follow up with ${name} — Marblism missed call.\nPhone: ${phone}`,
       priority: 'high',
-      remind_at: remindAt(24),
-      remind_interval_hours: 24,
-      due_at: remindAt(24),
+      remind_at: remindAt(48),
+      remind_interval_hours: 48,
+      due_at: remindAt(48),
     },
     appointment_booked: lead.appointment_at
       ? {
