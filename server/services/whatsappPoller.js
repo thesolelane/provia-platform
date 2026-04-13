@@ -34,7 +34,15 @@ async function fetchMediaForMessage(client, messageSid) {
       MediaContentType0: first.contentType || 'application/octet-stream',
     };
   } catch (err) {
-    console.error('Error fetching media:', err.message);
+    const transient = /ECONNRESET|ETIMEDOUT|ENOTFOUND|ECONNREFUSED/i.test(err.message);
+    if (transient) {
+      console.warn(
+        '[WhatsApp Poller] Transient error fetching media (will retry next cycle):',
+        err.message,
+      );
+    } else {
+      console.error('Error fetching media:', err.message);
+    }
     return {};
   }
 }
@@ -99,7 +107,15 @@ function startPolling(handleIncoming, intervalMs = 5000) {
         }
       }
     } catch (err) {
-      console.error('Poller error:', err.message);
+      // Transient network errors (ECONNRESET, ETIMEDOUT, ENOTFOUND) are normal
+      // when Twilio's API has a brief blip — log as warn so they don't trigger
+      // the system alert emailer (which only watches console.error).
+      const transient = /ECONNRESET|ETIMEDOUT|ENOTFOUND|ECONNREFUSED/i.test(err.message);
+      if (transient) {
+        console.warn('[WhatsApp Poller] Transient network error (will retry):', err.message);
+      } else {
+        console.error('Poller error:', err.message);
+      }
     }
   }, intervalMs);
 }
