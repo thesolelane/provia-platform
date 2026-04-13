@@ -88,6 +88,8 @@ function StaffChatWidget({ token }) {
   const openRef = useRef(open);
   const tabRef = useRef(tab);
   const dmThreadRef = useRef(dmThread);
+  const initialLoadRef = useRef(true);
+  const originalTitleRef = useRef(document.title);
 
   const senderName = localStorage.getItem('pb_user_name') || 'Staff';
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
@@ -139,6 +141,45 @@ function StaffChatWidget({ token }) {
     }
   }, [token, senderName]);
 
+  // ── Notification helpers ───────────────────────────────────────────────────
+  const playPing = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 440;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.4);
+    } catch (_) {}
+  }, []);
+
+  const showBrowserNotification = useCallback(
+    (title, body, onClickOpen) => {
+      if (typeof Notification === 'undefined') return;
+      const send = () => {
+        const n = new Notification(title, { body: body.slice(0, 80) });
+        n.onclick = () => {
+          window.focus();
+          onClickOpen();
+          n.close();
+        };
+      };
+      if (Notification.permission === 'granted') {
+        send();
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then((perm) => {
+          if (perm === 'granted') send();
+        });
+      }
+    },
+    [],
+  );
+
   // ── SSE listener ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!token) return;
@@ -147,7 +188,19 @@ function StaffChatWidget({ token }) {
     es.addEventListener('staff-chat', (e) => {
       const msg = JSON.parse(e.data);
       setGroupMessages((prev) => (prev.some((m) => m.id === msg.id) ? prev : [...prev, msg]));
-      if (!openRef.current || tabRef.current !== 'group') setGroupUnread((n) => n + 1);
+      if (!openRef.current || tabRef.current !== 'group') {
+        if (!initialLoadRef.current) {
+          playPing();
+          if (document.hidden) {
+            showBrowserNotification(
+              `${msg.sender_name} — Preferred Builders`,
+              msg.message,
+              () => setOpen(true),
+            );
+          }
+        }
+        setGroupUnread((n) => n + 1);
+      }
     });
 
     es.addEventListener('staff-dm', (e) => {
@@ -159,12 +212,29 @@ function StaffChatWidget({ token }) {
         return { ...prev, [other]: [...thread, msg] };
       });
       const isActive = openRef.current && tabRef.current === 'dm' && dmThreadRef.current === other;
-      if (!isActive) setDmUnread((prev) => ({ ...prev, [other]: (prev[other] || 0) + 1 }));
+      if (!isActive) {
+        if (!initialLoadRef.current) {
+          playPing();
+          if (document.hidden) {
+            showBrowserNotification(
+              `${msg.sender_name} — Preferred Builders`,
+              msg.message,
+              () => setOpen(true),
+            );
+          }
+        }
+        setDmUnread((prev) => ({ ...prev, [other]: (prev[other] || 0) + 1 }));
+      }
     });
 
     es.onerror = () => {};
-    return () => es.close();
-  }, [token, senderName]);
+    // Mark initial load complete after SSE is connected
+    const initTimer = setTimeout(() => { initialLoadRef.current = false; }, 1000);
+    return () => {
+      clearTimeout(initTimer);
+      es.close();
+    };
+  }, [token, senderName, playPing, showBrowserNotification]);
 
   // ── On open ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -187,6 +257,21 @@ function StaffChatWidget({ token }) {
       scrollToBottom();
     }
   }, [open, tab, dmThread, dmMessages]);
+
+  // ── Update/restore title based on unread counts and chat visibility ────────
+  useEffect(() => {
+    if (open) {
+      document.title = originalTitleRef.current;
+      return;
+    }
+    const totalDm = Object.values(dmUnread).reduce((a, b) => a + b, 0);
+    const total = groupUnread + totalDm;
+    if (total > 0) {
+      document.title = `(${total}) ${originalTitleRef.current}`;
+    } else {
+      document.title = originalTitleRef.current;
+    }
+  }, [open, groupUnread, dmUnread]);
 
   useEffect(() => {
     if (tab === 'dm' && !dmThread) fetchUsers();

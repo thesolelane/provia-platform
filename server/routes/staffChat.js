@@ -10,6 +10,7 @@ const {
   removeChannelClient,
   notifyChannelClients,
 } = require('../services/sseManager');
+const { sendEmail } = require('../services/emailService');
 
 const GROUP_CHANNEL = 'staff-chat';
 const dmChannel = (name) => `staff-dm-${name}`;
@@ -111,6 +112,30 @@ router.post('/dm', requireAuth, (req, res) => {
     notifyChannelClients(dmChannel(senderName), 'staff-dm', newMsg);
     notifyChannelClients(dmChannel(recipient), 'staff-dm', newMsg);
     res.json(newMsg);
+
+    // Send email notification to recipient (fire-and-forget)
+    try {
+      const recipientRow = db
+        .prepare(`SELECT email FROM users WHERE name = ? AND active = 1`)
+        .get(recipient);
+      if (recipientRow?.email) {
+        const appUrl =
+          process.env.APP_URL ||
+          (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : '');
+        const escHtml = (str) =>
+          str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const preview = escHtml(message.trim().slice(0, 80));
+        sendEmail({
+          to: recipientRow.email,
+          subject: `\u{1F4AC} New message from ${senderName} \u2014 Preferred Builders`,
+          html: `<p>Hi ${escHtml(recipient)},</p>
+<p>You have a new message from <strong>${escHtml(senderName)}</strong> in Preferred Builders:</p>
+<blockquote style="border-left:3px solid #1B3A6B;padding:8px 16px;color:#333;">${preview}</blockquote>
+${appUrl ? `<p><a href="${appUrl}">Open Preferred Builders</a> to reply.</p>` : ''}`,
+          emailType: 'staff_dm_notification',
+        }).catch(() => {});
+      }
+    } catch (_) {}
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
