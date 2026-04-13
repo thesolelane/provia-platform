@@ -31,6 +31,17 @@ router.post('/', requireAuth, (req, res) => {
     if (file.mimetype && !ALLOWED_MIMES.includes(file.mimetype))
       return res.status(400).json({ error: 'Invalid image type' });
 
+    const lead_id_check = req.body.lead_id ? parseInt(req.body.lead_id, 10) : null;
+    if (lead_id_check) {
+      const db = getDb();
+      const count = db
+        .prepare('SELECT COUNT(*) as n FROM field_photos WHERE lead_id = ?')
+        .get(lead_id_check);
+      if (count && count.n >= 15) {
+        return res.status(400).json({ error: 'Photo limit reached — maximum 15 photos per lead.' });
+      }
+    }
+
     const lat = req.body.lat ? parseFloat(req.body.lat) : null;
     const lon = req.body.lon ? parseFloat(req.body.lon) : null;
     const accuracy = req.body.accuracy ? parseFloat(req.body.accuracy) : null;

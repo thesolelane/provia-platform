@@ -686,9 +686,10 @@ export default function Leads({ token }) {
   );
 }
 
-// ── Lead photo thumbnail (auth-gated, with GPS map link) ──────────────────────
-function LeadPhotoThumb({ photo, token }) {
+// ── Lead photo thumbnail (auth-gated, with GPS map link + delete X) ───────────
+function LeadPhotoThumb({ photo, token, onDelete }) {
   const [blobUrl, setBlobUrl] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   useEffect(() => {
     let revoked = false;
     let objUrl = null;
@@ -709,6 +710,21 @@ function LeadPhotoThumb({ photo, token }) {
   const mapUrl =
     photo.lat && photo.lon ? `https://maps.google.com/?q=${photo.lat},${photo.lon}` : null;
 
+  const handleDelete = async (e) => {
+    e.stopPropagation();
+    if (!window.confirm('Delete this photo?')) return;
+    setDeleting(true);
+    try {
+      await fetch(`/api/field-photos/${photo.id}`, {
+        method: 'DELETE',
+        headers: { 'x-auth-token': token },
+      });
+      if (onDelete) onDelete(photo.id);
+    } catch {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div style={{ position: 'relative', width: 72, flexShrink: 0 }}>
       {blobUrl ? (
@@ -723,6 +739,7 @@ function LeadPhotoThumb({ photo, token }) {
             border: '1px solid #dde3ed',
             display: 'block',
             cursor: 'pointer',
+            opacity: deleting ? 0.4 : 1,
           }}
           onClick={() => {
             const w = window.open();
@@ -746,6 +763,33 @@ function LeadPhotoThumb({ photo, token }) {
           …
         </div>
       )}
+      {/* Delete X button */}
+      <button
+        onClick={handleDelete}
+        disabled={deleting}
+        title="Delete photo"
+        style={{
+          position: 'absolute',
+          top: 2,
+          right: 2,
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          background: 'rgba(0,0,0,0.6)',
+          color: 'white',
+          border: 'none',
+          cursor: 'pointer',
+          fontSize: 11,
+          lineHeight: '18px',
+          textAlign: 'center',
+          padding: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        ✕
+      </button>
       {mapUrl && (
         <a
           href={mapUrl}
@@ -1259,8 +1303,25 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               {photoExpand && (
                 <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {leadPhotos.map((ph) => (
-                    <LeadPhotoThumb key={ph.id} photo={ph} token={token} />
+                    <LeadPhotoThumb
+                      key={ph.id}
+                      photo={ph}
+                      token={token}
+                      onDelete={(id) => setLeadPhotos((prev) => prev.filter((p) => p.id !== id))}
+                    />
                   ))}
+                  {leadPhotos.length >= 15 && (
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: '#b45309',
+                        alignSelf: 'center',
+                        paddingLeft: 4,
+                      }}
+                    >
+                      ⚠️ 15-photo limit reached
+                    </div>
+                  )}
                 </div>
               )}
             </div>

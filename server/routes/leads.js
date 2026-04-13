@@ -1,11 +1,15 @@
 'use strict';
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
 const { logAudit } = require('../services/auditService');
 const { findOrCreateContact, generatePbCustomerNumber } = require('../services/jobHelpers');
 const { enrichPropertyBackground } = require('../services/propertyEnrichment');
+
+const FIELD_PHOTOS_DIR = path.resolve(__dirname, '../../uploads/field_photos');
 
 const VALID_STAGES = [
   'incoming',
@@ -469,6 +473,35 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
     const updated = db.prepare('SELECT * FROM leads WHERE id = ?').get(leadId);
     res.json({ lead: updated });
+
+    // ── Migrate lead photos to job when job_id is newly assigned ─────────────
+    if (job_id && job_id !== lead.job_id) {
+      try {
+        const photos = db.prepare('SELECT * FROM field_photos WHERE lead_id = ?').all(leadId);
+        if (photos.length > 0) {
+          const jobDir = path.resolve(__dirname, '../../uploads/jobs', job_id);
+          if (!fs.existsSync(jobDir)) fs.mkdirSync(jobDir, { recursive: true });
+          const copyStmt = db.prepare(
+            `INSERT OR IGNORE INTO job_photos (job_id, filename, original_name, caption) VALUES (?, ?, ?, '')`,
+          );
+          const updateStmt = db.prepare('UPDATE field_photos SET job_id = ? WHERE id = ?');
+          for (const ph of photos) {
+            const src = path.join(FIELD_PHOTOS_DIR, ph.filename);
+            const dest = path.join(jobDir, ph.filename);
+            if (fs.existsSync(src) && !fs.existsSync(dest)) {
+              fs.copyFileSync(src, dest);
+            }
+            copyStmt.run(job_id, ph.filename, ph.original_name || ph.filename);
+            updateStmt.run(job_id, ph.id);
+          }
+          console.log(
+            `[Leads] Migrated ${photos.length} photo(s) from lead #${leadId} to job ${job_id}`,
+          );
+        }
+      } catch (photoErr) {
+        console.error('[Leads] photo migration error:', photoErr.message);
+      }
+    }
 
     // Re-run property enrichment if job_address was changed
     if (job_address !== undefined && updated.job_address) {
