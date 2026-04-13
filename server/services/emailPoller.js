@@ -98,6 +98,100 @@ async function pollOnce(processEstimateFn, generatePDFFn) {
               message: `New Marblism missed-call lead — ${callerName}`,
             });
 
+            // Auto-create a follow-up reminder task linked to this lead
+            try {
+              const leadId = leadResult.lastInsertRowid;
+              const dueAt = new Date(Date.now() + 2 * 3600000)
+                .toISOString()
+                .replace('T', ' ')
+                .slice(0, 19);
+              const taskTitle = `📞 Follow up: ${callerName} (${callerPhone})`;
+              const taskDesc =
+                `Auto-created from Marblism missed-call lead #${leadId}.\n` +
+                `Caller: ${callerName}\nPhone: ${callerPhone}\n\nSummary:\n${callSummary}`;
+
+              const taskRow = db
+                .prepare(
+                  `INSERT INTO tasks
+                    (title, description, status, priority, lead_id, due_at, remind_at,
+                     remind_interval_hours, task_type, created_at, updated_at)
+                   VALUES (?, ?, 'pending', 'high', ?, ?, ?, 2, 'lead',
+                           CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                )
+                .run(taskTitle, taskDesc, leadId, dueAt, dueAt);
+
+              const taskId = taskRow.lastInsertRowid;
+              logAudit(
+                null,
+                'lead_auto_task',
+                `Lead #${leadId}: follow-up task #${taskId} auto-created on intake`,
+                'marblism-poller',
+              );
+              console.log(
+                `[Email Poller] Follow-up task #${taskId} created for lead #${leadId}`,
+              );
+
+              // Push to Google Calendar (fallback to "add event" link if API unavailable)
+              try {
+                const gcal = require('./googleCalendar');
+                const calId =
+                  db
+                    .prepare("SELECT value FROM settings WHERE key = 'gcal.calendarId'")
+                    .get()?.value || 'primary';
+                const calEnabled =
+                  db
+                    .prepare("SELECT value FROM settings WHERE key = 'gcal.enabled'")
+                    .get()?.value !== 'false';
+
+                // Build a fallback "add event" URL (same pattern as /api/tasks)
+                let calURL = null;
+                try {
+                  const dueIso = new Date(dueAt).toISOString();
+                  const start = dueIso.replace(/[-:]/g, '').replace(/\.\d{3}Z?$/, '').slice(0, 15);
+                  const endDt = new Date(new Date(dueAt).getTime() + 3600000);
+                  const end = endDt
+                    .toISOString()
+                    .replace(/[-:]/g, '')
+                    .replace(/\.\d{3}Z?$/, '')
+                    .slice(0, 15);
+                  calURL =
+                    `https://calendar.google.com/calendar/render?action=TEMPLATE` +
+                    `&text=${encodeURIComponent(taskTitle)}` +
+                    `&dates=${start}/${end}` +
+                    `&details=${encodeURIComponent(taskDesc)}`;
+                } catch {
+                  // fallback URL optional — leave null
+                }
+
+                if (calEnabled) {
+                  const gcalLink = await gcal.createCalendarEvent(
+                    { title: taskTitle, description: taskDesc, due_at: dueAt },
+                    calId,
+                  );
+                  if (gcalLink) {
+                    calURL = gcalLink;
+                    console.log(
+                      `[Email Poller] Google Calendar event created for task #${taskId}: ${gcalLink}`,
+                    );
+                  }
+                }
+
+                if (calURL) {
+                  db.prepare('UPDATE tasks SET calendar_url = ? WHERE id = ?').run(calURL, taskId);
+                }
+              } catch (gcalErr) {
+                console.warn(
+                  '[Email Poller] Could not create Google Calendar event for follow-up task:',
+                  gcalErr.message,
+                );
+              }
+            } catch (taskErr) {
+              console.error(
+                '[Email Poller] Failed to create follow-up task for Marblism lead:',
+                taskErr.message,
+              );
+            }
+
             // Send immediate creation email to all admin/system_admin users
             try {
               let adminUsers;
