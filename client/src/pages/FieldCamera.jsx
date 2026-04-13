@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { showToast } from '../utils/toast';
 import { reverseGeocode, getGpsPosition } from '../utils/reverseGeocode';
+import { compressImage } from '../utils/compressImage';
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 1024);
@@ -337,9 +338,8 @@ export default function FieldCamera({ token }) {
   }, []);
 
   // ── Upload with optional pre-linked job/lead ──────────────────────────────
-  const handleUpload = async (file, link = {}) => {
+  const uploadFile = async (file, link = {}) => {
     if (!file) return;
-    setUploading(true);
     setGpsStatus('locating');
 
     let lat = null,
@@ -358,8 +358,9 @@ export default function FieldCamera({ token }) {
       setGpsStatus('unavailable');
     }
 
+    const compressed = await compressImage(file);
     const formData = new FormData();
-    formData.append('photo', file);
+    formData.append('photo', compressed);
     formData.append('taken_at', new Date().toISOString());
     if (lat !== null) formData.append('lat', lat);
     if (lon !== null) formData.append('lon', lon);
@@ -389,16 +390,29 @@ export default function FieldCamera({ token }) {
     } catch {
       showToast('Upload failed', 'error');
     }
+  };
 
+  const handleUpload = async (file, link = {}) => {
+    if (!file) return;
+    setUploading(true);
+    await uploadFile(file, link);
     setUploading(false);
     setGpsStatus('idle');
     setPendingLink({ job_id: null, lead_id: null });
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) handleUpload(file, pendingLink);
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files || []);
     e.target.value = '';
+    if (files.length === 0) return;
+    const link = pendingLink;
+    setUploading(true);
+    for (const file of files) {
+      await uploadFile(file, link);
+    }
+    setUploading(false);
+    setGpsStatus('idle');
+    setPendingLink({ job_id: null, lead_id: null });
   };
 
   // Called from LinkModal when user confirms their choice
@@ -533,6 +547,7 @@ export default function FieldCamera({ token }) {
         ref={fileRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handleFileChange}
         style={{ display: 'none' }}
       />

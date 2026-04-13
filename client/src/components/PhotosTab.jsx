@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { showToast } from '../utils/toast';
+import { compressImage } from '../utils/compressImage';
 import {
   queuePhoto,
   getPendingCount,
@@ -117,12 +118,12 @@ export default function PhotosTab({ jobId, token }) {
     }
   };
 
-  const handleUpload = async (file) => {
+  const uploadFile = async (file) => {
     if (!file) return;
-    setUploading(true);
 
+    const compressed = await compressImage(file);
     const formData = new FormData();
-    formData.append('photo', file);
+    formData.append('photo', compressed);
 
     try {
       const res = await fetch(`/api/jobs/${jobId}/photos`, {
@@ -147,13 +148,24 @@ export default function PhotosTab({ jobId, token }) {
       refreshPendingCount();
       showToast('No connection — photo queued for upload', 'info');
     }
+  };
+
+  const handleUpload = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    await uploadFile(file);
     setUploading(false);
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) handleUpload(file);
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files || []);
     e.target.value = '';
+    if (files.length === 0) return;
+    setUploading(true);
+    for (const file of files) {
+      await uploadFile(file);
+    }
+    setUploading(false);
   };
 
   const handleDelete = async (photoId) => {
@@ -220,6 +232,7 @@ export default function PhotosTab({ jobId, token }) {
             ref={fileRef}
             type="file"
             accept="image/*"
+            multiple
             onChange={handleFileChange}
             style={{ display: 'none' }}
           />
