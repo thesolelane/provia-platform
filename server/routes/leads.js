@@ -10,6 +10,8 @@ const { findOrCreateContact, generatePbCustomerNumber } = require('../services/j
 const { enrichPropertyBackground } = require('../services/propertyEnrichment');
 
 const FIELD_PHOTOS_DIR = path.resolve(__dirname, '../../uploads/field_photos');
+const LEAD_DOCS_DIR = path.resolve(__dirname, '../../uploads/lead_docs');
+const CONTACT_DOCS_DIR = path.resolve(__dirname, '../../uploads/contact_docs');
 
 const VALID_STAGES = [
   'incoming',
@@ -412,6 +414,52 @@ router.patch('/:id', requireAuth, async (req, res) => {
             `Lead #${leadId}: contact #${ref.id} (${ref.pb_customer_number || 'n/a'}) created — ${lead.caller_name}`,
             performer,
           );
+
+          // Graduate lead documents → contact_documents
+          try {
+            const leadDocs = db
+              .prepare('SELECT * FROM lead_documents WHERE lead_id = ?')
+              .all(leadId);
+            if (leadDocs.length > 0) {
+              const contactDocDir = path.join(CONTACT_DOCS_DIR, String(ref.id));
+              if (!fs.existsSync(contactDocDir)) fs.mkdirSync(contactDocDir, { recursive: true });
+              const alreadyLinked = db
+                .prepare(
+                  `SELECT filename FROM contact_documents WHERE contact_id = ? AND source = 'lead_graduation'`,
+                )
+                .all(ref.id)
+                .map((r) => r.filename);
+              const insertDoc = db.prepare(
+                `INSERT INTO contact_documents
+                   (contact_id, filename, original_name, mime_type, file_path, source, created_at)
+                 VALUES (?, ?, ?, ?, ?, 'lead_graduation', CURRENT_TIMESTAMP)`,
+              );
+              let copied = 0;
+              for (const doc of leadDocs) {
+                if (alreadyLinked.includes(doc.filename)) continue;
+                const src = path.join(LEAD_DOCS_DIR, String(leadId), doc.filename);
+                const dest = path.join(contactDocDir, doc.filename);
+                if (fs.existsSync(src) && !fs.existsSync(dest)) {
+                  fs.copyFileSync(src, dest);
+                }
+                insertDoc.run(
+                  ref.id,
+                  doc.filename,
+                  doc.original_name || doc.filename,
+                  doc.mime_type || null,
+                  dest,
+                );
+                copied++;
+              }
+              if (copied > 0) {
+                console.log(
+                  `[Leads] Graduated ${copied} document(s) from lead #${leadId} to contact #${ref.id}`,
+                );
+              }
+            }
+          } catch (docErr) {
+            console.error('[Leads] document graduation error:', docErr.message);
+          }
         } catch (e) {
           console.error('[Leads] contact creation error:', e.message);
         }
@@ -555,6 +603,105 @@ router.post('/:id/wizard-draft', requireAuth, (req, res) => {
       draft ? JSON.stringify(draft) : null,
       req.params.id,
     );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Lead Documents ─────────────────────────────────────────────────────────────
+
+// GET /api/leads/:id/documents
+router.get('/:id/documents', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const docs = db
+      .prepare(
+        `SELECT id, filename, original_name, mime_type, file_size, uploaded_by, created_at
+           FROM lead_documents WHERE lead_id = ? ORDER BY created_at DESC`,
+      )
+      .all(req.params.id);
+    res.json({ documents: docs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/leads/:id/documents — upload a file (PDF, Word, images, etc.)
+router.post('/:id/documents', requireAuth, async (req, res) => {
+  try {
+    const db = getDb();
+    const lead = db.prepare('SELECT id FROM leads WHERE id = ?').get(req.params.id);
+    if (!lead) return res.status(404).json({ error: 'Lead not found' });
+
+    if (!req.files?.file) return res.status(400).json({ error: 'No file uploaded' });
+    const file = Array.isArray(req.files.file) ? req.files.file[0] : req.files.file;
+
+    const allowedMime = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'text/plain',
+    ];
+    if (!allowedMime.includes(file.mimetype)) {
+      return res.status(400).json({ error: 'File type not allowed' });
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File too large (max 20 MB)' });
+    }
+
+    const leadDir = path.join(LEAD_DOCS_DIR, String(req.params.id));
+    if (!fs.existsSync(leadDir)) fs.mkdirSync(leadDir, { recursive: true });
+
+    const ext = path.extname(file.name) || '';
+    const safeBase = Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    const filename = safeBase + ext;
+    const dest = path.join(leadDir, filename);
+    await file.mv(dest);
+
+    const row = db
+      .prepare(
+        `INSERT INTO lead_documents (lead_id, filename, original_name, mime_type, file_size, uploaded_by)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        req.params.id,
+        filename,
+        file.name,
+        file.mimetype,
+        file.size,
+        req.user?.name || 'staff',
+      );
+
+    const doc = db
+      .prepare('SELECT * FROM lead_documents WHERE id = ?')
+      .get(row.lastInsertRowid);
+    logAudit(null, 'lead_doc_upload', `Lead #${req.params.id}: uploaded "${file.name}"`, req.user?.name);
+    res.json({ document: doc });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/leads/:id/documents/:docId
+router.delete('/:id/documents/:docId', requireAuth, (req, res) => {
+  try {
+    const db = getDb();
+    const doc = db
+      .prepare('SELECT * FROM lead_documents WHERE id = ? AND lead_id = ?')
+      .get(req.params.docId, req.params.id);
+    if (!doc) return res.status(404).json({ error: 'Document not found' });
+
+    const filePath = path.join(LEAD_DOCS_DIR, String(req.params.id), doc.filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    db.prepare('DELETE FROM lead_documents WHERE id = ?').run(doc.id);
+    logAudit(null, 'lead_doc_delete', `Lead #${req.params.id}: deleted "${doc.original_name}"`, req.user?.name);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

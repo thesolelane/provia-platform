@@ -78,6 +78,7 @@ app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 }, useTempFiles: true 
 // PDFs (proposals, contracts) — requires staff login OR a valid signing session token
 const OUTPUTS_DIR = path.resolve(__dirname, '../outputs');
 const CONTACT_DOCS_DIR = path.resolve(__dirname, '../uploads/contact_docs');
+const LEAD_DOCS_DIR = path.resolve(__dirname, '../uploads/lead_docs');
 
 app.get('/outputs/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
@@ -125,6 +126,16 @@ app.get('/contact-docs/:contactId/:filename', requireAuth, (req, res) => {
   const filename = path.basename(req.params.filename);
   const filePath = path.join(CONTACT_DOCS_DIR, contactId, filename);
   if (!filePath.startsWith(CONTACT_DOCS_DIR) || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  res.sendFile(filePath);
+});
+
+app.get('/lead-docs/:leadId/:filename', requireAuth, (req, res) => {
+  const leadId = path.basename(req.params.leadId);
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(LEAD_DOCS_DIR, leadId, filename);
+  if (!filePath.startsWith(LEAD_DOCS_DIR) || !fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
   res.sendFile(filePath);

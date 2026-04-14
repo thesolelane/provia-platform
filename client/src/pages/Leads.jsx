@@ -1,5 +1,5 @@
 // client/src/pages/Leads.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 import CreateQuoteWizard from '../components/CreateQuoteWizard';
@@ -823,6 +823,10 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
   const [photoExpand, setPhotoExpand] = useState(false);
   const [propExpand, setPropExpand] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const [leadDocs, setLeadDocs] = useState([]);
+  const [docExpand, setDocExpand] = useState(false);
+  const [docUploading, setDocUploading] = useState(false);
+  const docInputRef = useRef(null);
 
   const runEnrichment = async () => {
     setEnriching(true);
@@ -852,6 +856,59 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
       .then((d) => setLeadPhotos(d.photos || []))
       .catch(() => {});
   }, [lead.id, token]);
+
+  // Load documents for this lead
+  useEffect(() => {
+    if (!token) return;
+    fetch(`/api/leads/${lead.id}/documents`, { headers: { 'x-auth-token': token } })
+      .then((r) => (r.ok ? r.json() : { documents: [] }))
+      .then((d) => setLeadDocs(d.documents || []))
+      .catch(() => {});
+  }, [lead.id, token]);
+
+  const uploadDoc = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDocUploading(true);
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/documents`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token },
+        body: form,
+      });
+      const data = await res.json();
+      if (!res.ok) { showToast(data.error || 'Upload failed', 'error'); return; }
+      setLeadDocs((prev) => [data.document, ...prev]);
+      setDocExpand(true);
+      showToast('File uploaded');
+    } catch {
+      showToast('Upload failed', 'error');
+    } finally {
+      setDocUploading(false);
+      if (docInputRef.current) docInputRef.current.value = '';
+    }
+  };
+
+  const deleteDoc = async (docId) => {
+    if (!window.confirm('Delete this file?')) return;
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/documents/${docId}`, {
+        method: 'DELETE',
+        headers: { 'x-auth-token': token },
+      });
+      if (res.ok) setLeadDocs((prev) => prev.filter((d) => d.id !== docId));
+      else showToast('Delete failed', 'error');
+    } catch {
+      showToast('Delete failed', 'error');
+    }
+  };
+
+  const openDoc = (doc) => {
+    const url = `/lead-docs/${lead.id}/${doc.filename}?token=${encodeURIComponent(token)}`;
+    window.open(url, '_blank');
+  };
 
   const stg = STAGE_MAP[lead.stage] || STAGE_MAP['incoming'];
   const nextStage = NEXT_STAGE[lead.stage];
@@ -1281,6 +1338,108 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               </div>
             );
           })()}
+
+          {/* Documents section */}
+          <div style={{ marginTop: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {leadDocs.length > 0 && (
+                <button
+                  onClick={() => setDocExpand((v) => !v)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    color: BLUE,
+                    fontWeight: 600,
+                  }}
+                >
+                  📎 {leadDocs.length} file{leadDocs.length !== 1 ? 's' : ''}{' '}
+                  {docExpand ? '▾' : '▸'}
+                </button>
+              )}
+              <input
+                ref={docInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.gif,.webp"
+                style={{ display: 'none' }}
+                onChange={uploadDoc}
+              />
+              <button
+                onClick={() => docInputRef.current?.click()}
+                disabled={docUploading}
+                style={{
+                  background: 'none',
+                  border: '1px solid #c9d3e0',
+                  borderRadius: 5,
+                  padding: '2px 8px',
+                  fontSize: 11,
+                  color: '#555',
+                  cursor: docUploading ? 'default' : 'pointer',
+                  opacity: docUploading ? 0.6 : 1,
+                }}
+              >
+                {docUploading ? 'Uploading…' : '+ Attach file'}
+              </button>
+            </div>
+            {docExpand && leadDocs.length > 0 && (
+              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {leadDocs.map((doc) => (
+                  <div
+                    key={doc.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: '#f4f6fb',
+                      borderRadius: 5,
+                      padding: '4px 8px',
+                      fontSize: 12,
+                    }}
+                  >
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {doc.mime_type === 'application/pdf' ? '📄' : doc.mime_type?.startsWith('image/') ? '🖼' : '📎'}{' '}
+                      {doc.original_name || doc.filename}
+                    </span>
+                    <span style={{ color: '#aaa', flexShrink: 0, fontSize: 11 }}>
+                      {doc.file_size ? `${Math.round(doc.file_size / 1024)} KB` : ''}
+                    </span>
+                    <button
+                      onClick={() => openDoc(doc)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        padding: '0 2px',
+                        color: BLUE,
+                        flexShrink: 0,
+                      }}
+                      title="Open"
+                    >
+                      ↗
+                    </button>
+                    <button
+                      onClick={() => deleteDoc(doc.id)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        padding: '0 2px',
+                        color: '#e44',
+                        flexShrink: 0,
+                      }}
+                      title="Delete"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Photo strip */}
           {leadPhotos.length > 0 && (
