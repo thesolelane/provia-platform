@@ -168,6 +168,7 @@ async function runReminderTick() {
   if (!activeTasks.length) return;
 
   const recipientMap = new Map();
+  const taskRecipients = new Map();
 
   for (const task of activeTasks) {
     const recipients = resolveRecipients(db, task);
@@ -175,13 +176,14 @@ async function runReminderTick() {
       console.log(`[TaskReminder] No recipients for task #${task.id} — skipping`);
       continue;
     }
+    taskRecipients.set(task.id, new Set(recipients));
     for (const email of recipients) {
       if (!recipientMap.has(email)) recipientMap.set(email, []);
       recipientMap.get(email).push(task);
     }
   }
 
-  const tasksSent = new Set();
+  const successfulEmails = new Set();
 
   for (const [email, tasks] of recipientMap) {
     const subject =
@@ -199,14 +201,17 @@ async function runReminderTick() {
       console.log(
         `[TaskReminder] Digest sent to ${email} — ${tasks.length} task(s): ${tasks.map((t) => `#${t.id}`).join(', ')}`,
       );
-      for (const t of tasks) tasksSent.add(t.id);
+      successfulEmails.add(email);
     } catch (err) {
       console.warn(`[TaskReminder] Failed to send digest to ${email}:`, err.message);
     }
   }
 
   for (const task of activeTasks) {
-    if (!tasksSent.has(task.id)) continue;
+    const intended = taskRecipients.get(task.id);
+    if (!intended) continue;
+    const allDelivered = [...intended].every((e) => successfulEmails.has(e));
+    if (!allDelivered) continue;
     const intervalHours = effectiveInterval(task);
     db.prepare(
       `UPDATE tasks
