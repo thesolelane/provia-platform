@@ -6,7 +6,9 @@ function setIO(io) {
 
 function notifyJobUpdate(jobId, eventType, data = {}) {
   if (!ioInstance) return;
-  ioInstance.emit(`job:${jobId}`, { eventType, data, timestamp: new Date().toISOString() });
+  const room = String(jobId);
+  const payload = { eventType, data, timestamp: new Date().toISOString() };
+  ioInstance.to(room).emit(`job:${room}`, payload);
 }
 
 module.exports = { setIO, notifyJobUpdate };

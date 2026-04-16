@@ -20,6 +20,7 @@ for (const key of Object.keys(process.env)) {
 
 require('./services/errorLogger'); // must load early to capture all errors
 require('./services/crashLogger'); // must load early to register signal handlers
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
 const fileUpload = require('express-fileupload');
@@ -29,9 +30,23 @@ const { initDatabase } = require('./db/database');
 const { requireAuth } = require('./middleware/auth');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
+const { Server: SocketIOServer } = require('socket.io');
+const { setIO } = require('./services/realtimeService');
 
 const app = express();
+const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 3001;
+
+// ── SOCKET.IO — real-time push ─────────────────────────────────
+const io = new SocketIOServer(httpServer, {
+  cors: { origin: '*' },
+  path: '/socket.io',
+});
+setIO(io);
+io.on('connection', (socket) => {
+  socket.on('join-job', (jobId) => { if (jobId) socket.join(String(jobId)); });
+  socket.on('leave-job', (jobId) => { if (jobId) socket.leave(String(jobId)); });
+});
 
 // ── SECURITY MIDDLEWARE ───────────────────────────────────────
 app.disable('x-powered-by'); // hide framework fingerprint
@@ -243,6 +258,7 @@ app.use('/api/staff-chat', require('./routes/staffChat'));
 app.use(require('./routes/signing'));
 // ── SIGNING ADMIN (send-proposal, send-contract, status) ──────
 app.use(require('./routes/signingAdmin'));
+app.use('/api/manual-signature', require('./routes/manualSignature'));
 
 // ── CUSTOMER PORTAL (public page at /portal/:token + api at /api/portal/*) ─
 app.use(require('./routes/customerPortal'));
@@ -281,8 +297,8 @@ function listenWithRetry(port, maxRetries = 5, delayMs = 2000) {
     let attempts = 0;
 
     function attempt() {
-      const server = app.listen(port, () => resolve(server));
-      server.on('error', (err) => {
+      httpServer.listen(port, () => resolve(httpServer));
+      httpServer.on('error', (err) => {
         if (err.code === 'EADDRINUSE' && attempts < maxRetries) {
           attempts++;
           console.log(
@@ -314,10 +330,13 @@ async function start() {
     `);
 
     // Also listen on port 3001 for Replit webview (external port 80 → local 3001)
+    // Socket.io is attached to this server too so real-time works through the proxy.
     if (String(PORT) !== '3001') {
-      app
+      const secondary = http.createServer(app);
+      io.attach(secondary);
+      secondary
         .listen(3001, () => {
-          console.log('📡 Also listening on port 3001 (Replit webview proxy)');
+          console.log('📡 Also listening on port 3001 (Replit webview proxy, Socket.io attached)');
         })
         .on('error', (e) => {
           if (e.code !== 'EADDRINUSE') console.warn('Port 3001 listen error:', e.message);
