@@ -1,6 +1,6 @@
 # Preferred Builders AI System — To-Do & Roadmap
 
-*Last updated: March 2026*
+*Last updated: April 2026*
 
 ---
 
@@ -8,7 +8,7 @@
 
 | Item | Current | Status |
 |------|---------|--------|
-| Total code | ~19,000 lines | Normal for this feature set |
+| Total code | ~25,000 lines | Normal for this feature set |
 | Browser bundle | 123 KB gzipped | Small — no concern |
 | Database | 196 KB | Tiny — handles 50,000+ jobs easily |
 | Job detail page (JobDetail.jsx) | ~1,450 lines | Getting large — watch this |
@@ -31,11 +31,6 @@ These don't change anything the user sees. Do them when bugs become hard to find
 
 These can be built with data already in the system.
 
-- [ ] **SMS/email follow-up reminders**
-  - When a "Reach Out" task is due, auto-send customer a reminder via Twilio/Mailgun
-  - Job ID and contact ID are already stored on every Reach Out task — hook is ready
-  - Trigger: task `due_at` passes, status still `pending`, priority `high`
-
 - [ ] **Duplicate estimate detection**
   - Flag when two jobs are created for the same address or customer within 30 days
   - Prevents accidental double-quoting
@@ -43,10 +38,6 @@ These can be built with data already in the system.
 - [ ] **Proportionality sanity check**
   - If one trade line item is more than 40% of the total estimate, flag it
   - Catches typos where someone enters $150,000 instead of $15,000
-
-- [ ] **Backup script**
-  - One-click backup of `/data`, `/uploads`, `/outputs`, `/knowledge-base` to a ZIP
-  - Currently must be done manually via terminal
 
 - [ ] **RFQ (Request for Quote) generator**
   - From a line item in an estimate, generate a formatted RFQ to send to a sub
@@ -57,11 +48,6 @@ These can be built with data already in the system.
 ## Features — Need Data to Accumulate First
 
 Build these after you have 15–20 closed jobs with outcomes recorded.
-
-- [ ] **Win/Loss analytics — meaningful patterns**
-  - Win rate, loss reason breakdown, and revenue by month are built (Task #17)
-  - Becomes useful around 15–20 closed jobs; currently shows sparse data
-  - Action: close jobs and mark outcomes (Won / Lost-Price / etc.) consistently
 
 - [ ] **Proposal velocity benchmarks**
   - Average days intake → proposal sent, proposal sent → contract signed
@@ -116,7 +102,22 @@ These require tracking data that doesn't exist yet. Revisit in 6–12 months.
 | #14 | Fix Revise Estimate workflow |
 | #15 | Proposal Assessment tab + pipeline context + Reach Out task trigger |
 | #16 | Job audit profit margin breakdown |
-| #17 | Win/Loss tracking & pipeline analytics |
+| #17 | Win/Loss tracking & pipeline analytics (built; meaningful at 15–20 closed jobs) |
+| #18 | Leads pipeline — full CRM pipeline with stages and value tracking |
+| #19 | Staff chat — real-time internal messaging widget |
+| #20 | Field camera — field worker photo upload with GPS metadata |
+| #21 | Purchase Orders — create and track POs linked to jobs |
+| #22 | Contacts CRM — standalone contacts separate from jobs/leads |
+| #23 | Vendor & subcontractor directory |
+| #24 | Task system — assignable tasks with due dates and priorities |
+| #25 | Invoice generation — PDF invoices from job data |
+| #26 | Property enrichment — auto-fill address details on new jobs |
+| #27 | Google Calendar integration — sync tasks and appointments |
+| #28 | PDF signing — digital signatures on proposals and contracts |
+| #29 | Lead documents — attach files to leads |
+| #30 | Backup script — one-click ZIP of all data folders |
+| #31 | SMS/email reminders — automated Reach Out reminders via Twilio/Mailgun |
+| #54 | Wire logo-bolinha.png into Login and sidebar; update docs to v1.5.0 |
 
 ---
 

@@ -1,31 +1,82 @@
 # PREFERRED BUILDERS AI SYSTEM
-## Complete Setup & Deployment Guide
+## Complete Setup & Deployment Guide — v1.5.0
 
 ---
 
 ## WHAT THIS SYSTEM DOES
 
-1. Jackson finalizes an estimate in Hearth (or Wave)
-2. Bot receives it automatically via webhook
-3. Claude AI reads the estimate and generates a Proposal PDF
-4. Jackson and the owner review via WhatsApp + email
-5. Jackson replies APPROVE (or APROVAR in Portuguese)
-6. Bot generates the full Contract with MA legal terms
-7. Contract emailed to the team, then sent to the customer
+A full-stack AI-powered field operations and contract management system for Preferred Builders General Services Inc. Key capabilities:
 
-**Two documents are always generated:**
-- **Document 1:** Proposal & Scope of Work
-- **Document 2:** Contract with Legal Terms (after approval)
+- **Job & Lead Pipeline** — Intake leads, convert to jobs, track through full lifecycle
+- **AI Proposal & Contract Generation** — Claude AI reads estimates and generates Proposal + Contract PDFs
+- **Digital Signatures** — Send proposals and contracts for e-signature via secure customer portal
+- **Payments Tracking** — Log deposits and payments per job
+- **Purchase Orders** — Create and track POs linked to jobs
+- **Field Camera** — Field workers upload photos with GPS metadata
+- **Staff Portal** — Field worker view (address + photo only, no financials)
+- **Contacts CRM** — Standalone contact management
+- **Vendor & Sub Directory** — Manage subcontractors and vendors
+- **Task System** — Assignable tasks with due dates and priorities
+- **Invoice Generation** — PDF invoices from job data
+- **Staff Chat** — Real-time internal messaging widget
+- **Material Take-Off** — Line-item material calculations
+- **Win/Loss Analytics** — Pipeline value, win rates, revenue by month
+- **Google Calendar Integration** — Sync tasks and appointments
+- **Knowledge Base** — AI reads uploaded documents when generating proposals
+- **WhatsApp Commands** — APPROVE / REVISE / STATUS via WhatsApp bot
+
+---
+
+## ENVIRONMENTS
+
+### Development / Windows Machine (PM2)
+
+Run on your Windows machine (192.168.1.210) or local dev server:
+
+```bash
+# Install dependencies (first time only)
+npm install
+cd client && npm install && npm run build && cd ..
+
+# Start with PM2 (keeps running after terminal closes)
+pm2 start ecosystem.config.js
+pm2 save
+
+# Useful PM2 commands
+pm2 status              # See running processes
+pm2 logs pb-server      # Tail logs
+pm2 restart pb-server   # Restart after code changes
+pm2 stop pb-server      # Stop the server
+```
+
+Logs on Windows machine: `logs/error.log` and `logs/out.log` in the project root.
+
+Access locally at: `http://192.168.1.210:3000` (or whatever PORT is set in `.env`)
+
+### Production (Docker + PM2 + Caddy)
+
+Production runs via Docker with Caddy as the reverse proxy:
+
+```bash
+# Build and start
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f
+
+# Restart after changes
+docker-compose restart
+```
+
+Logs inside Docker: `docker-compose logs -f pb-server`
+
+Caddy handles HTTPS automatically. No manual cert setup needed.
 
 ---
 
 ## QUICK START (Replit)
 
-### Step 1 — Upload this project
-- Go to replit.com → Create Repl → Node.js
-- Drag and drop this entire project folder
-
-### Step 2 — Set your environment variables
+### Step 1 — Set your environment variables
 In Replit, go to **Secrets** (lock icon) and add:
 
 ```
@@ -46,111 +97,31 @@ OWNER_EMAIL             = owner@preferredbuildersusa.com
 APP_URL                 = https://your-replit-url.repl.co
 ```
 
-### Step 3 — Install and run
+### Step 2 — Install and run
 ```bash
 npm install
 cd client && npm install && npm run build && cd ..
 npm start
 ```
 
-### Step 4 — Configure webhooks
-Set these URLs in your service dashboards:
-
-| Service | Webhook URL |
-|---------|------------|
-| Hearth  | https://YOUR-URL/webhook/hearth |
-| Mailgun (inbound) | https://YOUR-URL/webhook/email |
-| Twilio WhatsApp | https://YOUR-URL/webhook/whatsapp |
-
 ---
 
-## MOVING TO YOUR OWN SERVER
+## FILE STRUCTURE — YOUR PERSISTENT DATA
 
-This is a fully self-contained Docker application. The React frontend is built
-inside the Docker image automatically — no pre-built files are needed on the host.
+These folders are YOUR data. Back them up regularly:
 
-### What you need on the new server:
-```bash
-# Install Docker and Docker Compose
-curl -fsSL https://get.docker.com | sh
-sudo apt install docker-compose
+```
+data/           ← SQLite database (all jobs, settings, conversations)
+uploads/        ← Uploaded past invoices and documents
+outputs/        ← Generated proposal and contract PDFs
+knowledge-base/ ← Your knowledge documents (editable text files)
+client/public/images/logo-bolinha.png  ← Company logo (used in UI + PDFs)
 ```
 
-### Fresh install on a new server:
+**Backup command:**
 ```bash
-# 1. Copy the entire project folder to the new server
-scp -r ./pb-system user@new-server:/home/user/
-
-# 2. SSH into the new server
-ssh user@new-server
-cd pb-system
-
-# 3. Run the setup wizard (creates .env with your API keys)
-bash scripts/setup.sh
-
-# 4. Start everything
-docker-compose up -d
+tar -czf pb-backup-$(date +%Y%m%d).tar.gz data uploads outputs knowledge-base .env
 ```
-
-The `docker build` step compiles the React frontend, installs all dependencies,
-and bundles the knowledge-base files into the image. Nginx serves the frontend
-and proxies API requests to the app container.
-
-### Migrating data from an existing server:
-```bash
-# On old server — create a backup
-bash scripts/backup.sh
-
-# Copy backup to new server
-scp pb-backup-*.tar.gz user@new-server:/home/user/pb-system/
-
-# On new server — restore data
-cd pb-system
-tar -xzf pb-backup-*.tar.gz
-
-# Start the system
-docker-compose up -d
-```
-
-### Recommended VPS providers:
-| Provider | Monthly Cost | Notes |
-|----------|-------------|-------|
-| DigitalOcean | $24/mo | Easy UI, good support |
-| Linode (Akamai) | $18/mo | Great performance |
-| Vultr | $20/mo | Fast setup |
-
----
-
-## ADMIN PANEL GUIDE
-
-Access at: https://YOUR-URL (login with ADMIN_PASSWORD)
-
-### Dashboard
-- See all jobs and their status
-- View pipeline value
-- Enter estimates manually if needed
-
-### Ask the Bot
-- Ask pricing questions, MA code questions, scope guidance
-- Jackson can ask in Portuguese — bot replies in Portuguese
-- Quick prompt buttons for common questions
-
-### Settings
-- **Markup tab:** Adjust OH&P percentages
-- **Labor Rates:** Update trade labor rates
-- **Allowances:** Update Exhibit A pricing
-- **Integrations:** Switch between Hearth and Wave (one click)
-- **Bot Behavior:** Turn auto-features on/off
-
-### Knowledge Base
-- Upload past invoices/contracts for the bot to learn from
-- Add MA code updates, scope templates, pricing references
-- Bot reads ALL active documents when generating proposals
-
-### Jackson's Guide
-- Mobile-friendly bilingual checklist (EN + PT-BR)
-- Bookmark this on Jackson's phone: https://YOUR-URL/guide
-- No login required — shareable link
 
 ---
 
@@ -180,24 +151,6 @@ Past jobs are never affected. Jackson continues his normal workflow.
 
 ---
 
-## FILE STRUCTURE — YOUR PERSISTENT DATA
-
-These 4 folders are YOUR data. Back them up regularly:
-
-```
-data/           ← SQLite database (all jobs, settings, conversations)
-uploads/        ← Uploaded past invoices and documents
-outputs/        ← Generated proposal and contract PDFs
-knowledge-base/ ← Your knowledge documents (editable text files)
-```
-
-**Backup command:**
-```bash
-tar -czf pb-backup-$(date +%Y%m%d).tar.gz data uploads outputs knowledge-base .env
-```
-
----
-
 ## SUPPORT CONTACTS
 
 - Anthropic API: https://console.anthropic.com
@@ -213,6 +166,10 @@ tar -czf pb-backup-$(date +%Y%m%d).tar.gz data uploads outputs knowledge-base .e
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | March 2026 | Initial build — full system |
+| 1.2.0 | March 2026 | Leads pipeline, staff chat, field camera, purchase orders |
+| 1.3.0 | March 2026 | Contacts CRM, vendor directory, task system, invoices |
+| 1.4.0 | April 2026 | Google Calendar, PDF signing, lead documents, customer portal |
+| 1.5.0 | April 2026 | logo-bolinha.png wired into UI; PM2 dev section added; docs updated |
 
 ---
 

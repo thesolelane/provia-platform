@@ -131,7 +131,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <img
-                    src="/images/PB logo Round.png"
+                    src="/images/logo-bolinha.png"
                     alt="PB"
                     style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: '50%', flexShrink: 0 }}
                   />

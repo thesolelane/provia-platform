@@ -49,7 +49,7 @@ export default function Login({ onLogin }) {
       >
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <img
-            src="/images/PB logo Round.png"
+            src="/images/logo-bolinha.png"
             alt="Preferred Builders"
             style={{ width: 90, height: 90, objectFit: 'contain', marginBottom: 10 }}
           />
