@@ -159,6 +159,7 @@ function portalPageHTML({ job, sessions }) {
     <p style="font-size:13px;color:#666;margin-bottom:14px">Need to add, remove, or modify something in your project scope? Submit a change request and our team will follow up with an updated proposal.</p>
     <input type="text" id="coName" placeholder="Your name">
     <textarea id="coDesc" rows="5" placeholder="Describe the change you'd like to make…"></textarea>
+    <input type="text" id="coCost" placeholder="Estimated cost (optional, e.g. 500)" style="margin-top:10px">
     <div style="margin-top:10px">
       <button class="btn btn-orange" onclick="submitChangeOrder()">📋 Submit Change Request</button>
     </div>
@@ -219,6 +220,7 @@ function portalPageHTML({ job, sessions }) {
   window.submitChangeOrder = async function() {
     const name = (document.getElementById('coName').value || '').trim();
     const desc = (document.getElementById('coDesc').value || '').trim();
+    const estimatedCost = parseFloat(document.getElementById('coCost').value) || 0;
     const coErr = document.getElementById('coError');
     const coSuc = document.getElementById('coSuccess');
     coErr.style.display = 'none';
@@ -227,12 +229,13 @@ function portalPageHTML({ job, sessions }) {
       const res = await fetch('/api/portal/' + token + '/change-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description: desc })
+        body: JSON.stringify({ name, description: desc, estimatedCost })
       });
       if (res.ok) {
         coSuc.style.display = 'block';
         document.getElementById('coDesc').value = '';
         document.getElementById('coName').value = '';
+        document.getElementById('coCost').value = '';
       } else {
         coErr.textContent = 'Submission failed. Please try again.';
         coErr.style.display = 'block';
@@ -324,20 +327,24 @@ router.post('/api/portal/:token/change-order', async (req, res) => {
   const job = db.prepare('SELECT * FROM jobs WHERE portal_token = ?').get(req.params.token);
   if (!job) return res.status(404).json({ error: 'Not found' });
 
-  const { name, description } = req.body;
-  if (!description || !String(description).trim()) {
+  const { name, description, estimatedCost = 0 } = req.body;
+  if (!description || String(description).trim() === '') {
     return res.status(400).json({ error: 'Description is required' });
   }
 
   const submitterName = (name || job.customer_name || 'Customer').trim();
   const desc = String(description).trim();
+  const cost = Number(estimatedCost) || 0;
 
-  logAudit(job.id, 'customer_change_order', `Change order submitted via portal by ${submitterName}: ${desc.slice(0, 200)}`, 'customer');
+  logAudit(job.id, 'customer_change_order',
+    `Change order submitted via portal by ${submitterName}: ${desc.slice(0, 200)} | Est. Cost: $${cost}`,
+    'customer');
 
   notifyClients('job_updated', {
     jobId: job.id,
     event: 'customer_change_order',
     message: `📝 ${submitterName} submitted a change request`,
+    estimatedCost: cost,
   });
 
   setImmediate(async () => {
@@ -351,6 +358,7 @@ router.post('/api/portal/:token/change-order', async (req, res) => {
                  <p><strong>Project:</strong> ${escHtml(job.project_address || '—')}</p>
                  <div style="background:#fff8f0;border-left:4px solid #E07B2A;padding:12px 16px;margin:12px 0;border-radius:0 6px 6px 0">
                    <strong>Change Request:</strong><br>${escHtml(desc).replace(/\n/g, '<br>')}
+                   ${cost ? `<br><strong>Estimated Cost:</strong> $${cost}` : ''}
                  </div>
                  <p><a href="${process.env.APP_URL || ''}/jobs/${job.id}">View job →</a></p>`,
           emailType: 'system_alert',
@@ -362,7 +370,7 @@ router.post('/api/portal/:token/change-order', async (req, res) => {
     }
   });
 
-  res.json({ ok: true });
+  res.json({ ok: true, message: 'Change order submitted successfully' });
 });
 
 // ─── Admin: POST /api/portal/generate/:jobId ──────────────────────────────────
