@@ -243,6 +243,7 @@ app.use('/api/staff-chat', require('./routes/staffChat'));
 app.use(require('./routes/signing'));
 // ── SIGNING ADMIN (send-proposal, send-contract, status) ──────
 app.use(require('./routes/signingAdmin'));
+app.use('/api/manual-signature', require('./routes/manualSignature'));
 
 // ── WEBHOOKS (no auth — verified by signature) ────────────────
 app.use('/webhook/hearth', require('./routes/webhookHearth'));
