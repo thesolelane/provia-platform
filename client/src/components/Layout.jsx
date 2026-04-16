@@ -12,6 +12,7 @@ const MAIN_NAV = [
   { path: '/payments', icon: '💰', label: 'Payments' },
   { path: '/purchase-orders', icon: '📦', label: 'Purchase Orders' },
   { path: '/field-camera', icon: '📷', label: 'Field Camera' },
+  { path: '/staff-portal', icon: '👷', label: 'Staff Portal' },
   { path: '/chat', icon: '🤖', label: 'Ask the Bot' },
   { path: '/contacts', icon: '👥', label: 'Contacts' },
   { path: '/vendors', icon: '🏗️', label: 'Subs & Vendors' },

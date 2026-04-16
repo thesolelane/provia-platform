@@ -19,6 +19,7 @@ import FieldCamera from './pages/FieldCamera';
 import Reports from './pages/Reports';
 import Agents from './pages/Agents';
 import PurchaseOrders from './pages/PurchaseOrders';
+import StaffView from './components/StaffView';
 import Layout from './components/Layout';
 import Toast from './components/Toast';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -137,6 +138,7 @@ function App() {
           <Route path="/field-camera" element={<FieldCamera token={token} />} />
           <Route path="/guide" element={<FieldGuide />} />
           <Route path="/agents" element={<Agents token={token} userRole={userRole} />} />
+          <Route path="/staff-portal" element={<StaffView token={token} />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Layout>
