@@ -244,6 +244,9 @@ app.use(require('./routes/signing'));
 // ── SIGNING ADMIN (send-proposal, send-contract, status) ──────
 app.use(require('./routes/signingAdmin'));
 
+// ── CUSTOMER PORTAL (public page at /portal/:token + api at /api/portal/*) ─
+app.use(require('./routes/customerPortal'));
+
 // ── WEBHOOKS (no auth — verified by signature) ────────────────
 app.use('/webhook/hearth', require('./routes/webhookHearth'));
 app.use('/webhook/email', require('./routes/webhookEmail'));

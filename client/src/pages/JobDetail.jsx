@@ -94,6 +94,8 @@ export default function JobDetail({ token, userName }) {
 
   const [pos, setPOs] = useState([]);
   const [poLoading, setPOLoading] = useState(false);
+  const [portalUrl, setPortalUrl] = useState(null);
+  const [portalCopied, setPortalCopied] = useState(false);
   const [newPO, setNewPO] = useState({
     vendor_name: '',
     description: '',
@@ -400,6 +402,21 @@ export default function JobDetail({ token, userName }) {
       showToast(data.error || 'Failed to send', 'error');
     }
     setActionLoading(false);
+  };
+
+  const generatePortalLink = async () => {
+    const res = await fetch(`/api/portal/generate/${id}`, { method: 'POST', headers });
+    const data = await res.json();
+    if (res.ok) {
+      setPortalUrl(data.url);
+      navigator.clipboard.writeText(data.url).then(() => {
+        setPortalCopied(true);
+        setTimeout(() => setPortalCopied(false), 3000);
+      }).catch(() => {});
+      showToast('Customer portal link copied to clipboard!');
+    } else {
+      showToast(data.error || 'Failed to generate link', 'error');
+    }
   };
 
   const reprocessJob = async () => {
@@ -3368,7 +3385,26 @@ export default function JobDetail({ token, userName }) {
         {/* SIGNATURES tab */}
         {activeTab === 'signatures' && (
           <div>
-            <h3 style={{ color: BLUE, marginBottom: 20 }}>Signatures & Read Receipts</h3>
+            <h3 style={{ color: BLUE, marginBottom: 16 }}>Signatures & Read Receipts</h3>
+
+            {/* Customer Portal Link */}
+            <div style={{ background: '#f0f4ff', border: '1px solid #c7d7f5', borderRadius: 10, padding: '16px 18px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, color: BLUE, fontSize: 13, marginBottom: 6 }}>🏠 Customer Portal</div>
+              <div style={{ fontSize: 12, color: '#555', marginBottom: 12 }}>
+                Share a portal link with your customer — they can view their project status, sign documents, upload photos, and submit change requests.
+              </div>
+              <button
+                onClick={generatePortalLink}
+                style={{ background: BLUE, color: 'white', border: 'none', borderRadius: 7, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                {portalCopied ? '✅ Link Copied!' : '🔗 Generate & Copy Portal Link'}
+              </button>
+              {portalUrl && (
+                <div style={{ marginTop: 10, fontSize: 11, color: '#666', wordBreak: 'break-all', background: 'white', border: '1px solid #dde4f5', borderRadius: 6, padding: '8px 10px' }}>
+                  {portalUrl}
+                </div>
+              )}
+            </div>
 
             {sigSessions.length === 0 ? (
               <div style={{ color: '#888', textAlign: 'center', padding: 40 }}>

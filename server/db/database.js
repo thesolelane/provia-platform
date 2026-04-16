@@ -171,6 +171,12 @@ async function initDatabase() {
   addColIfMissing('jobs', 'version', 'INTEGER DEFAULT 1');
   addColIfMissing('jobs', 'parent_job_id', 'TEXT');
   addColIfMissing('jobs', 'estimate_source', "TEXT DEFAULT 'ai'");
+  addColIfMissing('jobs', 'portal_token', 'TEXT');
+
+  // Migrations: job_photos columns
+  addColIfMissing('job_photos', 'location_label', 'TEXT');
+  addColIfMissing('job_photos', 'taken_at', 'DATETIME');
+  addColIfMissing('job_photos', 'source', "TEXT DEFAULT 'staff'");
 
   // Migrations: contacts columns
   addColIfMissing('contacts', 'customer_number', 'TEXT');
