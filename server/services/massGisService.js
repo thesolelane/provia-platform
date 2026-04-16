@@ -13,6 +13,34 @@ const FIELDS =
   'USE_CODE,NUM_BEDRMS,NUM_BATHRMS,YEAR_BUILT,STYLE,HEAT_TYPE,STORIES,' +
   'CONDO_UNIT,PROP_ID,MAP_PAR_ID';
 
+/**
+ * Calculate approximate lot dimensions from an ArcGIS polygon geometry.
+ * Geometry must be in WGS84 (outSR=4326) — rings are [lng, lat] pairs.
+ * Returns { lotWidthFt, lotDepthFt, lotPerimeterFt } or null.
+ */
+function calcParcelDimensions(geometry) {
+  if (!geometry || !geometry.rings || !geometry.rings[0]) return null;
+  const ring = geometry.rings[0];
+  if (ring.length < 3) return null;
+
+  const lngs = ring.map((p) => p[0]);
+  const lats = ring.map((p) => p[1]);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const midLat = ((minLat + maxLat) / 2) * (Math.PI / 180);
+
+  // Earth radius in feet
+  const R = 20902231;
+  const dLat = (maxLat - minLat) * (Math.PI / 180);
+  const dLng = (maxLng - minLng) * (Math.PI / 180);
+
+  const depthFt  = Math.round(R * dLat);
+  const widthFt  = Math.round(R * Math.cos(midLat) * dLng);
+  const perimFt  = Math.round(2 * (widthFt + depthFt));
+
+  return { lotWidthFt: widthFt, lotDepthFt: depthFt, lotPerimeterFt: perimFt };
+}
+
 const USE_CODES = {
   0: 'Undeveloped Land',
   101: 'Single Family Residential',
@@ -71,9 +99,24 @@ function addressSimilarity(a, b) {
   return overlap / Math.max(tokensA.size, tokensB.size);
 }
 
-function normalize(attrs) {
+function normalize(attrs, geometry) {
   if (!attrs) return null;
   const useCode = attrs.USE_CODE != null ? String(attrs.USE_CODE) : null;
+
+  // Lot dimensions from polygon geometry
+  const parcelDims = calcParcelDimensions(geometry);
+
+  // Building footprint & perimeter estimate from area ÷ stories
+  let footprintSqFt = null;
+  let estBuildingPerimFt = null;
+  const bldgArea = attrs.BLDG_AREA || null;
+  const stories = attrs.STORIES || null;
+  if (bldgArea && stories && stories > 0) {
+    footprintSqFt = Math.round(bldgArea / stories);
+    // Approximate perimeter assuming rectangular footprint (square gives minimum perimeter)
+    estBuildingPerimFt = Math.round(4 * Math.sqrt(footprintSqFt));
+  }
+
   return {
     town: attrs.TOWN || null,
     siteAddress: attrs.SITE_ADDR || null,
@@ -87,7 +130,7 @@ function normalize(attrs) {
     totalAssessedValue: attrs.TOTAL_VAL || null,
     landArea: attrs.LAND_AREA || null,
     lotSize: attrs.LOT_SIZE || null,
-    buildingArea: attrs.BLDG_AREA || null,
+    buildingArea: bldgArea,
     fiscalYear: attrs.FY || null,
     useCode: useCode,
     useCodeLabel: useCode ? USE_CODES[useCode] || `Code ${useCode}` : null,
@@ -96,10 +139,19 @@ function normalize(attrs) {
     yearBuilt: attrs.YEAR_BUILT || null,
     style: attrs.STYLE || null,
     heatType: attrs.HEAT_TYPE || null,
-    stories: attrs.STORIES || null,
+    stories: stories,
     condoUnit: attrs.CONDO_UNIT || null,
     propId: attrs.PROP_ID || null,
     mapParId: attrs.MAP_PAR_ID || null,
+    // Assessor field card (exterior photo + hand-drawn sketch with actual dimensions)
+    assessorFieldCardUrl: getAssessorUrl(attrs.TOWN, attrs.PROP_ID, attrs.MAP_PAR_ID),
+    // Lot exterior dimensions (from parcel polygon bounding box)
+    lotWidthFt: parcelDims?.lotWidthFt || null,
+    lotDepthFt: parcelDims?.lotDepthFt || null,
+    lotPerimeterFt: parcelDims?.lotPerimeterFt || null,
+    // Building dimensions (estimated from floor area ÷ stories)
+    footprintSqFt: footprintSqFt,
+    estBuildingPerimFt: estBuildingPerimFt,
     source: 'MassGIS L3 Parcel',
     queriedAt: new Date().toISOString(),
   };
@@ -120,6 +172,8 @@ async function lookupProperty({ town, address, owner } = {}) {
   const params = new URLSearchParams({
     where: where.join(' AND '),
     outFields: FIELDS,
+    returnGeometry: 'true',
+    outSR: '4326',
     resultRecordCount: 10,
     orderByFields: 'TOWN,SITE_ADDR',
     f: 'json',
@@ -151,16 +205,17 @@ async function lookupProperty({ town, address, owner } = {}) {
   const features = data?.features || [];
   if (!features.length) return null;
 
-  if (features.length === 1) return normalize(features[0].attributes);
+  if (features.length === 1) return normalize(features[0].attributes, features[0].geometry);
 
   // Multiple results — pick best match by address similarity
   const scored = features.map((f) => ({
     attrs: f.attributes,
+    geometry: f.geometry,
     score: addressSimilarity(f.attributes.SITE_ADDR || '', address || ''),
   }));
   scored.sort((a, b) => b.score - a.score);
 
-  return normalize(scored[0].attrs);
+  return normalize(scored[0].attrs, scored[0].geometry);
 }
 
 /**
@@ -212,4 +267,37 @@ async function lookupPropertyByAddress(fullAddress) {
   return lookupProperty({ town: parsed.town, address: parsed.address });
 }
 
-module.exports = { lookupProperty, lookupPropertyByAddress, parseAddress };
+// ── Assessor field card URL generator ────────────────────────────────────────
+// Most Central/North-Central MA towns use Vision Government Solutions (vgsi.com).
+// Field cards include: exterior property photo, hand-drawn sketch with actual
+// room/exterior dimensions, construction details, and full assessment history.
+//
+// Some towns use Patriot Properties or other systems — those are listed here.
+// For unlisted towns we fall back to Vision GIS (the most common in MA).
+//
+// URL format:
+//   Vision:  https://gis.vgsi.com/<town>ma/parcel.aspx?pid=<PROP_ID>
+//   Patriot: https://<town>.patriotproperties.com/default.asp?town=<TOWN>&parcel=<MAP_PAR_ID>
+const PATRIOT_TOWNS = new Set([
+  'WORCESTER', 'SPRINGFIELD', 'LOWELL', 'CAMBRIDGE', 'NEWTON', 'SOMERVILLE',
+  'QUINCY', 'LYNN', 'FALL RIVER', 'NEW BEDFORD', 'WALTHAM', 'MEDFORD',
+]);
+
+function getAssessorUrl(town, propId, mapParId) {
+  if (!town) return null;
+  const townSlug = town.trim().toLowerCase().replace(/\s+/g, '');
+  const townUpper = town.trim().toUpperCase();
+
+  if (PATRIOT_TOWNS.has(townUpper) && mapParId) {
+    return `https://${townSlug}.patriotproperties.com/default.asp?town=${encodeURIComponent(townUpper)}&parcel=${encodeURIComponent(mapParId)}`;
+  }
+
+  if (propId) {
+    return `https://gis.vgsi.com/${townSlug}ma/parcel.aspx?pid=${encodeURIComponent(propId)}`;
+  }
+
+  // Fallback: Vision search page for the town
+  return `https://gis.vgsi.com/${townSlug}ma/search.aspx`;
+}
+
+module.exports = { lookupProperty, lookupPropertyByAddress, parseAddress, getAssessorUrl };

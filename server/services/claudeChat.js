@@ -90,8 +90,8 @@ Keep queries specific and under 15 words.`,
 const LOOKUP_PROPERTY_TOOL = {
   name: 'lookup_property',
   description: `Look up Massachusetts property assessor data from the MassGIS L3 parcel database.
-Returns: year built, building area, lot size, assessed value, use code, owner info.
-Use this when the user asks about a property's age, size, value, or when evaluating renovation scope, stretch code applicability, or pricing for a known MA address.`,
+Returns: year built, building area (sq ft), building footprint (sq ft), estimated building perimeter (ft), lot width (ft), lot depth (ft), lot perimeter (ft), assessed value, use code, owner info, bedrooms, bathrooms, style, heat type, stories, AND a direct link to the town assessor's field card (which contains the exterior property photo and a hand-drawn sketch with actual room and exterior dimensions).
+Use this when the user asks about a property's dimensions, size, exterior measurements, year built, assessed value, field card, property photo, building sketch, or when evaluating renovation scope, siding, roofing, painting, or stretch code applicability for a known MA address.`,
   input_schema: {
     type: 'object',
     properties: {
@@ -226,16 +226,22 @@ async function runAdminTool(toolName, toolInput, db) {
             if (gis && !gis.webSearchFallback) {
               const parts = [
                 gis.yearBuilt ? `Year Built: ${gis.yearBuilt}` : null,
-                gis.buildingArea ? `Building Area: ${gis.buildingArea} sq ft` : null,
+                gis.stories ? `Stories: ${gis.stories}` : null,
+                gis.style ? `Style: ${gis.style}` : null,
+                gis.buildingArea ? `Total Building Area: ${gis.buildingArea} sq ft` : null,
+                gis.footprintSqFt ? `Building Footprint: ~${gis.footprintSqFt} sq ft` : null,
+                gis.estBuildingPerimFt ? `Est. Building Perimeter: ~${gis.estBuildingPerimFt} ft` : null,
+                (gis.lotWidthFt && gis.lotDepthFt) ? `Lot Dimensions: ~${gis.lotWidthFt} ft wide × ${gis.lotDepthFt} ft deep` : null,
+                gis.lotPerimeterFt ? `Lot Perimeter: ~${gis.lotPerimeterFt} ft` : null,
                 gis.lotSize ? `Lot Size: ${gis.lotSize} sq ft` : null,
                 gis.totalAssessedValue ? `Assessed Value: $${Number(gis.totalAssessedValue).toLocaleString()}` : null,
                 gis.useCodeLabel ? `Use: ${gis.useCodeLabel}` : null,
                 gis.numBedrooms ? `Bedrooms: ${gis.numBedrooms}` : null,
                 gis.numBathrooms ? `Bathrooms: ${gis.numBathrooms}` : null,
+                gis.heatType ? `Heat: ${gis.heatType}` : null,
                 gis.owner1 ? `Record Owner: ${gis.owner1}${gis.owner2 ? ' / ' + gis.owner2 : ''}` : null,
                 gis.ownerAddress ? `Owner Mailing: ${gis.ownerAddress}` : null,
-                gis.style ? `Style: ${gis.style}` : null,
-                gis.heatType ? `Heat: ${gis.heatType}` : null,
+                gis.assessorFieldCardUrl ? `Assessor Field Card (photo + sketch + dims): ${gis.assessorFieldCardUrl}` : null,
               ].filter(Boolean);
               if (parts.length) propLines = '\nProperty Record (MassGIS):\n' + parts.join('\n');
             }
