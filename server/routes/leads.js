@@ -234,7 +234,7 @@ router.get('/', requireAuth, (req, res) => {
     const leads = db
       .prepare(
         `
-        SELECT l.*, j.pb_number AS job_pb_number
+        SELECT l.*, j.pb_number AS job_pb_number, j.status AS job_status
         FROM leads l
         LEFT JOIN jobs j ON l.job_id = j.id
         WHERE l.archived = ?

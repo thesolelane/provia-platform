@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { compressImage } from '../utils/compressImage';
 import { showToast } from '../utils/toast';
+import { getStatusStyle } from '../utils/statusUtils';
 
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -167,6 +168,14 @@ export default function StaffView({ token }) {
               <div style={{ fontSize: 13, color: '#666', marginTop: 3 }}>
                 {[selectedJob.address, selectedJob.city, selectedJob.state].filter(Boolean).join(', ')}
               </div>
+              {selectedJob.status && (() => {
+                const s = getStatusStyle(selectedJob.status);
+                return (
+                  <span style={{ display: 'inline-block', marginTop: 6, background: s.bg, color: s.color, fontSize: 10, fontWeight: 700, borderRadius: 12, padding: '3px 10px' }}>
+                    {s.label}
+                  </span>
+                );
+              })()}
             </div>
             <button
               onClick={() => { setSelectedJob(null); setResults([]); setSearch(''); }}

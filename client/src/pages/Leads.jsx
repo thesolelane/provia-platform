@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
 import CreateQuoteWizard from '../components/CreateQuoteWizard';
+import { getStatusStyle } from '../utils/statusUtils';
 
 const BLUE = '#1B3A6B';
 const ORANGE = '#E07B2A';
@@ -1498,7 +1499,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
 
       {/* Linked job badge */}
       {lead.job_id && (
-        <div style={{ marginBottom: 6 }}>
+        <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <a
             href={`/jobs/${lead.job_id}`}
             style={{
@@ -1517,6 +1518,18 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           >
             🔗 Linked Job: {lead.job_pb_number || `#${lead.job_id}`}
           </a>
+          {lead.job_status && (
+            <span style={{
+              background: getStatusStyle(lead.job_status).bg,
+              color: getStatusStyle(lead.job_status).color,
+              fontSize: 10,
+              fontWeight: 700,
+              borderRadius: 12,
+              padding: '3px 10px',
+            }}>
+              {getStatusStyle(lead.job_status).label}
+            </span>
+          )}
         </div>
       )}
 

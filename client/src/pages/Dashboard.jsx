@@ -4,35 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 
 import CreateQuoteWizard from '../components/CreateQuoteWizard';
-
-const STATUS_COLORS = {
-  received: '#888',
-  processing: '#E07B2A',
-  clarification: '#F59E0B',
-  proposal_ready: '#3B82F6',
-  proposal_sent: '#8B5CF6',
-  proposal_approved: '#059669',
-  customer_approved: '#10B981',
-  contract_ready: '#0D9488',
-  contract_sent: '#047857',
-  contract_signed: '#1B3A6B',
-  complete: '#111827',
-  error: '#C62828',
-};
-
-const STATUS_LABELS = {
-  received: 'Received',
-  processing: 'Processing',
-  clarification: 'Needs Info',
-  proposal_ready: 'Proposal Ready',
-  proposal_sent: 'Sent for Approval',
-  proposal_approved: 'Proposal Approved ✓',
-  customer_approved: 'Approved',
-  contract_ready: 'Contract Ready',
-  contract_sent: 'Contract Sent',
-  contract_signed: 'Contract Signed ✓',
-  complete: 'Complete',
-};
+import { getStatusStyle } from '../utils/statusUtils';
 
 const OUTCOME_BADGES = {
   lost_price: { label: 'Lost – Price', bg: '#FFEBEE', color: '#C62828' },
@@ -457,8 +429,8 @@ export default function Dashboard({ token }) {
                 </div>
                 <span
                   style={{
-                    background: STATUS_COLORS[job.status] + '22',
-                    color: STATUS_COLORS[job.status],
+                    background: getStatusStyle(job.status).bg,
+                    color: getStatusStyle(job.status).color,
                     padding: '3px 10px',
                     borderRadius: 20,
                     fontSize: 10,
@@ -467,7 +439,7 @@ export default function Dashboard({ token }) {
                     marginLeft: 8,
                   }}
                 >
-                  {STATUS_LABELS[job.status] || job.status}
+                  {getStatusStyle(job.status).label}
                 </span>
               </div>
               {/* Customer name */}
@@ -612,15 +584,15 @@ export default function Dashboard({ token }) {
                   <td style={{ padding: '12px 16px' }}>
                     <span
                       style={{
-                        background: STATUS_COLORS[job.status] + '22',
-                        color: STATUS_COLORS[job.status],
+                        background: getStatusStyle(job.status).bg,
+                        color: getStatusStyle(job.status).color,
                         padding: '3px 10px',
                         borderRadius: 20,
                         fontSize: 11,
                         fontWeight: 'bold',
                       }}
                     >
-                      {STATUS_LABELS[job.status] || job.status}
+                      {getStatusStyle(job.status).label}
                     </span>
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: 11, color: '#888' }}>
