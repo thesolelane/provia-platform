@@ -129,17 +129,27 @@ export default function Layout({ children, token, onLogout, userName, userRole }
           >
             {!collapsed && (
               <>
-                <div
-                  style={{
-                    fontWeight: 'bold',
-                    fontSize: 12,
-                    color: ORANGE,
-                    letterSpacing: '0.04em',
-                  }}
-                >
-                  PREFERRED BUILDERS
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <img
+                    src="/images/PB logo Round.png"
+                    alt="PB"
+                    style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: '50%', flexShrink: 0 }}
+                  />
+                  <div>
+                    <div
+                      style={{
+                        fontWeight: 'bold',
+                        fontSize: 11,
+                        color: ORANGE,
+                        letterSpacing: '0.04em',
+                        lineHeight: 1.2,
+                      }}
+                    >
+                      PREFERRED BUILDERS
+                    </div>
+                    <div style={{ fontSize: 9, opacity: 0.6, marginTop: 1 }}>AI Contract System</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 2 }}>AI Contract System</div>
               </>
             )}
             <button

@@ -48,7 +48,11 @@ export default function Login({ onLogin }) {
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ fontSize: 36, marginBottom: 8 }}>🏗️</div>
+          <img
+            src="/images/PB logo Round.png"
+            alt="Preferred Builders"
+            style={{ width: 90, height: 90, objectFit: 'contain', marginBottom: 10 }}
+          />
           <div style={{ fontWeight: 'bold', fontSize: 18, color: '#1B3A6B' }}>
             PREFERRED BUILDERS
           </div>
