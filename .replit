@@ -11,7 +11,7 @@ modules = ["nodejs-20", "python-3.11", "postgresql-16"]
 
 [nix]
 channel = "stable-23_11"
-packages = ["alsa-lib", "at-spi2-atk", "atk", "cairo", "chromium", "cups", "dbus", "expat", "glib", "gtk3", "libdrm", "libxkbcommon", "mesa", "nspr", "nss", "pango", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb"]
+packages = ["alsa-lib", "at-spi2-atk", "atk", "cairo", "chromium", "cups", "dbus", "expat", "glib", "gtk3", "libdrm", "libxkbcommon", "mesa", "nspr", "nss", "pango", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libxcb", "docker-compose_1"]
 
 [env]
 PORT = "3001"
