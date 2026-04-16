@@ -228,16 +228,22 @@ async function runReminderTick() {
 // ── Reach Out SMS outreach ────────────────────────────────────────────────────
 // For due "Reach Out" tasks: sends WhatsApp/SMS to the customer directly,
 // emails the owner, marks the task as reminded, fires real-time push.
+// Respects sms_opt_out flag. Works for both job tasks and lead-only tasks.
 async function runReachOutSMS() {
   if (!isBusinessHours()) return;
 
   const db = getDb();
   const dueTasks = db.prepare(`
-    SELECT t.*, j.customer_name, j.project_address, j.customer_phone
+    SELECT t.*,
+           COALESCE(j.customer_name, l.contact_name)   AS customer_name,
+           COALESCE(j.project_address, l.address)       AS project_address,
+           COALESCE(j.customer_phone, l.contact_phone)  AS customer_phone,
+           COALESCE(j.sms_opt_out, 0)                   AS sms_opt_out
     FROM tasks t
-    JOIN jobs j ON t.job_id = j.id
+    LEFT JOIN jobs j ON t.job_id = j.id
+    LEFT JOIN leads l ON t.lead_id = l.id
     WHERE t.status = 'pending'
-      AND (t.title LIKE '%Reach Out%' OR t.type LIKE '%Reach Out%')
+      AND (t.title LIKE '%Reach Out%' OR t.task_type LIKE '%reach_out%')
       AND datetime(t.due_at) <= datetime('now')
       AND (t.reminded_at IS NULL OR datetime(t.reminded_at) <= datetime('now', '-23 hours'))
   `).all();
@@ -247,9 +253,11 @@ async function runReachOutSMS() {
     const address = task.project_address || '';
     const phone = task.customer_phone;
 
-    if (phone) {
+    if (phone && !task.sms_opt_out) {
       const smsText = `Hi ${customerName}, just following up on your project${address ? ` at ${address}` : ''}. Any updates? Reply here or call us at 978-377-1784.`;
       await sendWhatsApp(phone, smsText).catch((e) => console.warn('[TaskReminder] WhatsApp failed:', e.message));
+    } else if (task.sms_opt_out) {
+      console.log(`[TaskReminder] Reach Out skipped — customer opted out (task #${task.id})`);
     }
 
     await sendEmail({
@@ -257,13 +265,47 @@ async function runReachOutSMS() {
       subject: `📌 Reach Out Reminder — ${customerName}`,
       html: `<p>Task <strong>"${task.title}"</strong> for <strong>${customerName}</strong> is due.</p>
              <p><strong>Address:</strong> ${address || '—'}</p>
-             <p><strong>Job ID:</strong> ${task.job_id}</p>`,
+             <p><strong>Job ID:</strong> ${task.job_id || '—'}</p>`,
       emailType: 'task_reminder',
     }).catch((e) => console.warn('[TaskReminder] Reach Out email failed:', e.message));
 
     db.prepare(`UPDATE tasks SET status = 'reminded', reminded_at = CURRENT_TIMESTAMP WHERE id = ?`).run(task.id);
-    notifyJobUpdate(task.job_id, 'task_reminder', { taskId: task.id, title: task.title });
-    console.log(`[TaskReminder] Reach Out SMS sent for task #${task.id} — ${customerName}`);
+    if (task.job_id) notifyJobUpdate(task.job_id, 'task_reminder', { taskId: task.id, title: task.title });
+    console.log(`[TaskReminder] Reach Out processed for task #${task.id} — ${customerName}`);
+  }
+}
+
+// ── Proposal / Contract follow-up SMS ────────────────────────────────────────
+// If a signing email was sent 3+ hours ago and the customer hasn't opened the
+// signing link yet, send a WhatsApp nudge. One follow-up per session only.
+async function runDocumentFollowUp() {
+  if (!isBusinessHours()) return;
+
+  const db = getDb();
+  const sessions = db.prepare(`
+    SELECT ss.*, j.customer_name, j.customer_phone, j.project_address, j.sms_opt_out
+    FROM signing_sessions ss
+    JOIN jobs j ON ss.job_id = j.id
+    WHERE ss.status = 'sent'
+      AND ss.email_sent_at IS NOT NULL
+      AND ss.opened_at IS NULL
+      AND ss.followup_sms_at IS NULL
+      AND datetime(ss.email_sent_at) <= datetime('now', '-3 hours')
+  `).all();
+
+  for (const session of sessions) {
+    const customerName = session.customer_name || 'Customer';
+    const phone = session.customer_phone;
+    const docLabel = session.doc_type === 'contract' ? 'Contract' : 'Proposal';
+
+    if (phone && !session.sms_opt_out) {
+      const msg = `Hi ${customerName}, did you get our ${docLabel} from Preferred Builders? It should be in your inbox — if you don't see it, check your junk/spam folder. Questions? Call us at 978-377-1784.`;
+      await sendWhatsApp(phone, msg).catch((e) => console.warn('[TaskReminder] Doc follow-up WhatsApp failed:', e.message));
+      console.log(`[TaskReminder] ${docLabel} follow-up SMS sent — ${customerName} (session #${session.id})`);
+    }
+
+    db.prepare(`UPDATE signing_sessions SET followup_sms_at = CURRENT_TIMESTAMP WHERE id = ?`).run(session.id);
+    if (session.job_id) notifyJobUpdate(session.job_id, 'document_followup_sent', { doc_type: session.doc_type });
   }
 }
 
@@ -271,10 +313,12 @@ function startTaskReminderScheduler() {
   console.log('[TaskReminder] Scheduler started — checking every 60 minutes');
   runReminderTick().catch((e) => console.warn('[TaskReminder] Initial tick error:', e.message));
   runReachOutSMS().catch((e) => console.warn('[TaskReminder] Reach Out initial tick error:', e.message));
+  runDocumentFollowUp().catch((e) => console.warn('[TaskReminder] Doc follow-up initial tick error:', e.message));
   setInterval(
     () => {
       runReminderTick().catch((e) => console.warn('[TaskReminder] Tick error:', e.message));
       runReachOutSMS().catch((e) => console.warn('[TaskReminder] Reach Out tick error:', e.message));
+      runDocumentFollowUp().catch((e) => console.warn('[TaskReminder] Doc follow-up tick error:', e.message));
     },
     60 * 60 * 1000,
   );

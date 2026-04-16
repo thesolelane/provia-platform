@@ -173,6 +173,7 @@ async function initDatabase() {
   addColIfMissing('jobs', 'estimate_source', "TEXT DEFAULT 'ai'");
   addColIfMissing('jobs', 'portal_token', 'TEXT');
   addColIfMissing('jobs', 'calendar_event_id', 'TEXT');
+  addColIfMissing('jobs', 'sms_opt_out', 'INTEGER DEFAULT 0');
 
   // Migrations: job_photos columns
   addColIfMissing('job_photos', 'location_label', 'TEXT');
@@ -409,6 +410,7 @@ async function initDatabase() {
 
   // Migrations: payments + session columns
   addColIfMissing('signing_sessions', 'decline_reason', 'TEXT');
+  addColIfMissing('signing_sessions', 'followup_sms_at', 'DATETIME');
   addColIfMissing('payments_received', 'time_received', 'TEXT');
   addColIfMissing('payments_received', 'credit_debit', "TEXT NOT NULL DEFAULT 'credit'");
   addColIfMissing('payments_received', 'recorded_by', 'TEXT');
