@@ -211,16 +211,38 @@ async function runAdminTool(toolName, toolInput, db) {
     const q = `%${toolInput.query}%`;
     const results = db
       .prepare(
-        `SELECT id, customer_name, customer_email, customer_phone, project_address, project_city, status, total_value, created_at
+        `SELECT id, customer_name, customer_email, customer_phone, project_address, project_city, status, total_value, created_at, property_data
        FROM jobs WHERE archived = 0 AND (customer_name LIKE ? OR project_address LIKE ?) ORDER BY created_at DESC LIMIT 5`,
       )
       .all(q, q);
     if (!results.length) return 'No jobs found matching that search.';
     return results
-      .map(
-        (j) =>
-          `**${j.customer_name}** — ${j.project_address}${j.project_city ? ', ' + j.project_city : ''}\nStatus: ${j.status?.replace(/_/g, ' ')}\nValue: ${j.total_value ? '$' + Number(j.total_value).toLocaleString() : '—'}\nEmail: ${j.customer_email || '—'} | Phone: ${j.customer_phone || '—'}`,
-      )
+      .map((j) => {
+        let propLines = '';
+        if (j.property_data) {
+          try {
+            const pd = JSON.parse(j.property_data);
+            const gis = pd.massGis;
+            if (gis && !gis.webSearchFallback) {
+              const parts = [
+                gis.yearBuilt ? `Year Built: ${gis.yearBuilt}` : null,
+                gis.buildingArea ? `Building Area: ${gis.buildingArea} sq ft` : null,
+                gis.lotSize ? `Lot Size: ${gis.lotSize} sq ft` : null,
+                gis.totalAssessedValue ? `Assessed Value: $${Number(gis.totalAssessedValue).toLocaleString()}` : null,
+                gis.useCodeLabel ? `Use: ${gis.useCodeLabel}` : null,
+                gis.numBedrooms ? `Bedrooms: ${gis.numBedrooms}` : null,
+                gis.numBathrooms ? `Bathrooms: ${gis.numBathrooms}` : null,
+                gis.owner1 ? `Record Owner: ${gis.owner1}${gis.owner2 ? ' / ' + gis.owner2 : ''}` : null,
+                gis.ownerAddress ? `Owner Mailing: ${gis.ownerAddress}` : null,
+                gis.style ? `Style: ${gis.style}` : null,
+                gis.heatType ? `Heat: ${gis.heatType}` : null,
+              ].filter(Boolean);
+              if (parts.length) propLines = '\nProperty Record (MassGIS):\n' + parts.join('\n');
+            }
+          } catch { /* ignore parse errors */ }
+        }
+        return `**${j.customer_name}** — ${j.project_address}${j.project_city ? ', ' + j.project_city : ''}\nStatus: ${j.status?.replace(/_/g, ' ')}\nValue: ${j.total_value ? '$' + Number(j.total_value).toLocaleString() : '—'}\nEmail: ${j.customer_email || '—'} | Phone: ${j.customer_phone || '—'}${propLines}`;
+      })
       .join('\n\n');
   }
 
