@@ -779,6 +779,7 @@ async function initDatabase() {
   addColIfMissing('tasks', 'assigned_to', 'TEXT');
   // ── Migration: task_type to distinguish lead-pipeline tasks from manual ones ──
   addColIfMissing('tasks', 'task_type', "TEXT DEFAULT 'manual'");
+  addColIfMissing('tasks', 'reminded_at', 'DATETIME');
 
   // ── Vendor documents table (workers comp, GL insurance, etc.) ─────────────────
   db.exec(`

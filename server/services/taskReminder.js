@@ -8,9 +8,12 @@
 //   • Max remind count — after 8 reminders the interval doubles (cap 168h);
 //     after 15 reminders the task's remind_at is cleared and email stops
 //   • Digest email — all due tasks for a recipient arrive in ONE email per tick
+//   • Reach Out tasks — also sends WhatsApp SMS to customer + real-time push
 
 const { getDb } = require('../db/database');
 const { sendEmail } = require('./emailService');
+const { sendWhatsApp } = require('./whatsappService');
+const { notifyJobUpdate } = require('./realtimeService');
 const { team } = require('../../config/parameters');
 
 const MIN_INTERVAL_HOURS = 4;
@@ -222,12 +225,56 @@ async function runReminderTick() {
   }
 }
 
+// ── Reach Out SMS outreach ────────────────────────────────────────────────────
+// For due "Reach Out" tasks: sends WhatsApp/SMS to the customer directly,
+// emails the owner, marks the task as reminded, fires real-time push.
+async function runReachOutSMS() {
+  if (!isBusinessHours()) return;
+
+  const db = getDb();
+  const dueTasks = db.prepare(`
+    SELECT t.*, j.customer_name, j.project_address, j.customer_phone
+    FROM tasks t
+    JOIN jobs j ON t.job_id = j.id
+    WHERE t.status = 'pending'
+      AND (t.title LIKE '%Reach Out%' OR t.type LIKE '%Reach Out%')
+      AND datetime(t.due_at) <= datetime('now')
+      AND (t.reminded_at IS NULL OR datetime(t.reminded_at) <= datetime('now', '-23 hours'))
+  `).all();
+
+  for (const task of dueTasks) {
+    const customerName = task.customer_name || 'Customer';
+    const address = task.project_address || '';
+    const phone = task.customer_phone;
+
+    if (phone) {
+      const smsText = `Hi ${customerName}, just following up on your project${address ? ` at ${address}` : ''}. Any updates? Reply here or call us at 978-377-1784.`;
+      await sendWhatsApp(phone, smsText).catch((e) => console.warn('[TaskReminder] WhatsApp failed:', e.message));
+    }
+
+    await sendEmail({
+      to: [process.env.OWNER_EMAIL || team.owner.email],
+      subject: `📌 Reach Out Reminder — ${customerName}`,
+      html: `<p>Task <strong>"${task.title}"</strong> for <strong>${customerName}</strong> is due.</p>
+             <p><strong>Address:</strong> ${address || '—'}</p>
+             <p><strong>Job ID:</strong> ${task.job_id}</p>`,
+      emailType: 'task_reminder',
+    }).catch((e) => console.warn('[TaskReminder] Reach Out email failed:', e.message));
+
+    db.prepare(`UPDATE tasks SET status = 'reminded', reminded_at = CURRENT_TIMESTAMP WHERE id = ?`).run(task.id);
+    notifyJobUpdate(task.job_id, 'task_reminder', { taskId: task.id, title: task.title });
+    console.log(`[TaskReminder] Reach Out SMS sent for task #${task.id} — ${customerName}`);
+  }
+}
+
 function startTaskReminderScheduler() {
   console.log('[TaskReminder] Scheduler started — checking every 60 minutes');
   runReminderTick().catch((e) => console.warn('[TaskReminder] Initial tick error:', e.message));
+  runReachOutSMS().catch((e) => console.warn('[TaskReminder] Reach Out initial tick error:', e.message));
   setInterval(
     () => {
       runReminderTick().catch((e) => console.warn('[TaskReminder] Tick error:', e.message));
+      runReachOutSMS().catch((e) => console.warn('[TaskReminder] Reach Out tick error:', e.message));
     },
     60 * 60 * 1000,
   );
