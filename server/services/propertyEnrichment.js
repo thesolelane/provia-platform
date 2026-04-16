@@ -1,8 +1,16 @@
 // server/services/propertyEnrichment.js
-// Non-blocking background enrichment: runs MassGIS + lead check for a job or lead
-// and stores the result in the property_data JSON column.
+// Non-blocking background enrichment: runs MassGIS + MRPC + lead check for a
+// job or lead and stores the result in the property_data JSON column.
+//
+// MRPC (Montachusett Regional Planning Commission) adds, for covered towns:
+//   - RECORD_CARD: direct URL to assessor field card with exterior photo and
+//     hand-drawn sketch showing actual room/exterior dimensions
+//   - Last sale date and price
+//   - Zoning district
+//   - Registry book/page for deed records
 
 const { lookupPropertyByAddress, parseAddress } = require('./massGisService');
+const { lookupMrpcByAddress } = require('./mrpcService');
 const { checkLeadRecord } = require('./leadCheckService');
 const perplexity = require('./perplexityService');
 
@@ -17,21 +25,17 @@ const perplexity = require('./perplexityService');
 async function enrichProperty(db, type, id, address) {
   if (!address) return;
 
-  // Best-effort: the app operates exclusively in Massachusetts.
-  // We don't gate on detecting "MA" in the address string because users often
-  // enter addresses without the state abbreviation (e.g. "123 Main St, Fitchburg").
-  // The MassGIS API will simply return no results if the address is outside MA
-  // (or misspelled), and the service handles that case gracefully.
-
   const table = type === 'lead' ? 'leads' : 'jobs';
 
   try {
     console.log(`[PropertyEnrichment] Starting enrichment for ${type} ${id} at "${address}"`);
 
     let massGisData = null;
-    let leadData = null;
+    let mrpcData    = null;
+    let leadData    = null;
 
-    // MassGIS lookup
+    // ── MassGIS L3 Parcel lookup (statewide: year built, areas, assessed value,
+    //    lot dimensions from polygon geometry, estimated building perimeter) ──
     try {
       massGisData = await lookupPropertyByAddress(address);
       if (!massGisData && perplexity.isConfigured()) {
@@ -50,7 +54,22 @@ async function enrichProperty(db, type, id, address) {
       console.warn(`[PropertyEnrichment] MassGIS error for ${type} ${id}:`, err.message);
     }
 
-    // Lead check lookup
+    // ── MRPC lookup (Montachusett towns: field card URL with sketch + last sale
+    //    + zoning; silently skips towns not in MRPC coverage) ──────────────────
+    try {
+      mrpcData = await lookupMrpcByAddress(address);
+      if (mrpcData) {
+        console.log(
+          `[PropertyEnrichment] MRPC found for ${type} ${id} — ` +
+          `record card: ${mrpcData.recordCardUrl || 'none'}, ` +
+          `last sale: ${mrpcData.lastSaleDate || '—'} $${mrpcData.lastSalePrice || '—'}`
+        );
+      }
+    } catch (err) {
+      console.warn(`[PropertyEnrichment] MRPC error for ${type} ${id}:`, err.message);
+    }
+
+    // ── Lead paint inspection check (CLPPP database) ─────────────────────────
     try {
       const parsed = parseAddress(address);
       if (parsed?.town && parsed?.streetName) {
@@ -65,8 +84,9 @@ async function enrichProperty(db, type, id, address) {
     }
 
     const propertyData = {
-      massGis: massGisData,
-      leadCheck: leadData,
+      massGis:    massGisData,
+      mrpc:       mrpcData,
+      leadCheck:  leadData,
       enrichedAt: new Date().toISOString(),
     };
 
@@ -78,6 +98,7 @@ async function enrichProperty(db, type, id, address) {
     console.log(
       `[PropertyEnrichment] Saved property_data for ${type} ${id} — ` +
         `MassGIS: ${massGisData ? 'found' : 'null'}, ` +
+        `MRPC: ${mrpcData ? 'found' : 'not covered'}, ` +
         `Lead: ${leadData ? (leadData.hasRecord ? 'found' : 'not found') : 'null'}`,
     );
   } catch (err) {

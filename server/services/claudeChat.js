@@ -222,29 +222,43 @@ async function runAdminTool(toolName, toolInput, db) {
         if (j.property_data) {
           try {
             const pd = JSON.parse(j.property_data);
-            const gis = pd.massGis;
-            if (gis && !gis.webSearchFallback) {
-              const parts = [
-                gis.yearBuilt ? `Year Built: ${gis.yearBuilt}` : null,
-                gis.stories ? `Stories: ${gis.stories}` : null,
-                gis.style ? `Style: ${gis.style}` : null,
-                gis.buildingArea ? `Total Building Area: ${gis.buildingArea} sq ft` : null,
-                gis.footprintSqFt ? `Building Footprint: ~${gis.footprintSqFt} sq ft` : null,
-                gis.estBuildingPerimFt ? `Est. Building Perimeter: ~${gis.estBuildingPerimFt} ft` : null,
-                (gis.lotWidthFt && gis.lotDepthFt) ? `Lot Dimensions: ~${gis.lotWidthFt} ft wide × ${gis.lotDepthFt} ft deep` : null,
-                gis.lotPerimeterFt ? `Lot Perimeter: ~${gis.lotPerimeterFt} ft` : null,
-                gis.lotSize ? `Lot Size: ${gis.lotSize} sq ft` : null,
-                gis.totalAssessedValue ? `Assessed Value: $${Number(gis.totalAssessedValue).toLocaleString()}` : null,
-                gis.useCodeLabel ? `Use: ${gis.useCodeLabel}` : null,
-                gis.numBedrooms ? `Bedrooms: ${gis.numBedrooms}` : null,
-                gis.numBathrooms ? `Bathrooms: ${gis.numBathrooms}` : null,
-                gis.heatType ? `Heat: ${gis.heatType}` : null,
-                gis.owner1 ? `Record Owner: ${gis.owner1}${gis.owner2 ? ' / ' + gis.owner2 : ''}` : null,
-                gis.ownerAddress ? `Owner Mailing: ${gis.ownerAddress}` : null,
-                gis.assessorFieldCardUrl ? `Assessor Field Card (photo + sketch + dims): ${gis.assessorFieldCardUrl}` : null,
-              ].filter(Boolean);
-              if (parts.length) propLines = '\nProperty Record (MassGIS):\n' + parts.join('\n');
-            }
+            const gis  = pd.massGis;
+            const mrpc = pd.mrpc;
+
+            // MRPC record card (direct link to field card with exterior photo +
+            // hand-drawn sketch with actual room/exterior dimensions).
+            // Preferred over the Vision GIS fallback URL.
+            const fieldCardUrl = mrpc?.recordCardUrl || gis?.assessorFieldCardUrl || null;
+
+            const parts = [
+              // Building basics
+              (gis?.yearBuilt || mrpc?.yearBuilt) ? `Year Built: ${gis?.yearBuilt || mrpc?.yearBuilt}` : null,
+              (gis?.stories   || mrpc?.stories)   ? `Stories: ${gis?.stories   || mrpc?.stories}`     : null,
+              (gis?.style     || mrpc?.style)      ? `Style: ${gis?.style       || mrpc?.style}`       : null,
+              // Building dimensions
+              (gis?.buildingArea || mrpc?.buildingArea) ? `Total Building Area: ${gis?.buildingArea || mrpc?.buildingArea} sq ft` : null,
+              gis?.footprintSqFt    ? `Building Footprint: ~${gis.footprintSqFt} sq ft`         : null,
+              gis?.estBuildingPerimFt ? `Est. Building Perimeter: ~${gis.estBuildingPerimFt} ft` : null,
+              // Lot dimensions
+              (gis?.lotWidthFt && gis?.lotDepthFt) ? `Lot Dimensions: ~${gis.lotWidthFt} ft wide × ${gis.lotDepthFt} ft deep` : null,
+              gis?.lotPerimeterFt ? `Lot Perimeter: ~${gis.lotPerimeterFt} ft` : null,
+              gis?.lotSize ? `Lot Size: ${gis.lotSize} sq ft` : null,
+              // Assessor values
+              (gis?.totalAssessedValue || mrpc?.totalAssessedValue) ? `Assessed Value: $${Number(gis?.totalAssessedValue || mrpc?.totalAssessedValue).toLocaleString()}` : null,
+              mrpc?.lastSaleDate  ? `Last Sale: ${mrpc.lastSaleDate} for $${Number(mrpc.lastSalePrice).toLocaleString()}` : null,
+              mrpc?.zoning        ? `Zoning: ${mrpc.zoning}` : null,
+              gis?.useCodeLabel   ? `Use: ${gis.useCodeLabel}` : null,
+              // Building details
+              gis?.numBedrooms    ? `Bedrooms: ${gis.numBedrooms}`   : null,
+              gis?.numBathrooms   ? `Bathrooms: ${gis.numBathrooms}` : null,
+              gis?.heatType       ? `Heat: ${gis.heatType}`          : null,
+              // Ownership
+              gis?.owner1 ? `Record Owner: ${gis.owner1}${gis.owner2 ? ' / ' + gis.owner2 : ''}` : null,
+              gis?.ownerAddress   ? `Owner Mailing: ${gis.ownerAddress}` : null,
+              // Field card — exterior photo + hand-drawn sketch with actual dimensions
+              fieldCardUrl ? `Assessor Field Card (exterior photo + sketch w/ dimensions): ${fieldCardUrl}` : null,
+            ].filter(Boolean);
+            if (parts.length) propLines = '\nProperty Record:\n' + parts.join('\n');
           } catch { /* ignore parse errors */ }
         }
         return `**${j.customer_name}** — ${j.project_address}${j.project_city ? ', ' + j.project_city : ''}\nStatus: ${j.status?.replace(/_/g, ' ')}\nValue: ${j.total_value ? '$' + Number(j.total_value).toLocaleString() : '—'}\nEmail: ${j.customer_email || '—'} | Phone: ${j.customer_phone || '—'}${propLines}`;
