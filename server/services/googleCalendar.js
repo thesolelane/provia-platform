@@ -113,7 +113,7 @@ function buildAttendees(extraEmails = []) {
 
   // Also pull all active staff from the DB so no one gets missed
   try {
-    const { getDb } = require('./db/database');
+    const { getDb } = require('../db/database');
     const db = getDb();
     const staffEmails = db
       .prepare(`SELECT email FROM users WHERE active = 1 AND email IS NOT NULL`)
@@ -158,16 +158,20 @@ async function createCalendarEvent(task, calendarId = 'primary', extraEmails = [
 
   const attendees = buildAttendees(extraEmails);
 
+  // Reminder minutes: per-task override → per-job override → default 60
+  const reminderMinutes = task.reminderMinutes || task.job_reminder_minutes || 60;
+
   const event = {
     summary: task.title,
     description: task.description || '',
+    location: task.project_address || task.projectAddress || '',
     start: { dateTime: start.toISOString(), timeZone: 'America/New_York' },
     end: { dateTime: end.toISOString(), timeZone: 'America/New_York' },
     attendees: attendees.length ? attendees : undefined,
     reminders: {
       useDefault: false,
       overrides: [
-        { method: 'email', minutes: 60 },
+        { method: 'email', minutes: reminderMinutes },
         { method: 'popup', minutes: 30 },
       ],
     },
@@ -183,6 +187,17 @@ async function createCalendarEvent(task, calendarId = 'primary', extraEmails = [
     console.log(
       `[GoogleCalendar] Event created on calendar "${resolvedId}": ${result.data.htmlLink}`,
     );
+
+    // Store the event ID back to the job if a jobId is provided
+    if (task.job_id || task.jobId) {
+      try {
+        const { getDb } = require('../db/database');
+        const db = getDb();
+        db.prepare('UPDATE jobs SET calendar_event_id = ? WHERE id = ?')
+          .run(result.data.id, task.job_id || task.jobId);
+      } catch { /* non-fatal */ }
+    }
+
     return result.data.htmlLink || null;
   } catch (err) {
     console.warn('[GoogleCalendar] Failed to create event:', err.message);
