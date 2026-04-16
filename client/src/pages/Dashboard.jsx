@@ -1376,3 +1376,10 @@ export default function Dashboard({ token }) {
     </div>
   );
 }
+
+  // ── LIVE REAL-TIME DASHBOARD UPDATES (added now) ─────────────────────
+  useRealtime('dashboard', (update) => {
+    if (['signature', 'customer_photo_upload', 'customer_change_order', 'manual_signature', 'pipeline_update'].includes(update.eventType)) {
+      fetchJobs();   // your existing function that reloads the job list
+    }
+  });
