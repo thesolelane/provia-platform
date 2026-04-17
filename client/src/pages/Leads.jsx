@@ -367,15 +367,6 @@ export default function Leads({ token }) {
     }
   };
 
-  const saveNotes = async (lead, notes) => {
-    try {
-      const data = await patchLead(lead.id, { notes });
-      updateLead(data.lead);
-    } catch (err) {
-      showToast(err.message, 'error');
-    }
-  };
-
   const confirmArchive = async (reason) => {
     try {
       const data = await patchLead(archiveModal.id, { stage: 'rejected', archive_reason: reason });
@@ -629,7 +620,6 @@ export default function Leads({ token }) {
                           onAdvance={() => advanceStage(lead)}
                           onArchive={() => setArchiveModal(lead)}
                           onDelete={() => deleteLead(lead)}
-                          onSaveNotes={(notes) => saveNotes(lead, notes)}
                           onOpenWizard={() => setWizardLead(lead)}
                         />
                       ))}
@@ -819,9 +809,11 @@ function LeadPhotoThumb({ photo, token, onDelete }) {
 }
 
 // ── Lead Card ─────────────────────────────────────────────────────────────────
-function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, onOpenWizard }) {
-  const [notes, setNotes] = useState(lead.notes || '');
-  const [saving, setSaving] = useState(false);
+function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onOpenWizard }) {
+  const [noteInput, setNoteInput] = useState('');
+  const [notesList, setNotesList] = useState([]);
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const [noteSaving, setNoteSaving] = useState(false);
   const [leadPhotos, setLeadPhotos] = useState([]);
   const [photoExpand, setPhotoExpand] = useState(false);
   const [propExpand, setPropExpand] = useState(false);
@@ -846,10 +838,35 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
     }
   };
 
-  // Keep notes in sync if lead prop updates
+  // Load notes ledger for this lead
   useEffect(() => {
-    setNotes(lead.notes || '');
-  }, [lead.notes]);
+    if (!token) return;
+    fetch(`/api/leads/${lead.id}/notes`, { headers: { 'x-auth-token': token } })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => setNotesList(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, [lead.id, token]);
+
+  const saveNote = async () => {
+    const body = noteInput.trim();
+    if (!body) return;
+    setNoteSaving(true);
+    try {
+      const res = await fetch(`/api/leads/${lead.id}/notes`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body }),
+      });
+      const note = await res.json();
+      if (!res.ok) { showToast(note.error || 'Could not save note', 'error'); return; }
+      setNoteInput('');
+      setNotesList((prev) => [note, ...prev]);
+    } catch {
+      showToast('Could not save note', 'error');
+    } finally {
+      setNoteSaving(false);
+    }
+  };
 
   // Load photos for this lead
   useEffect(() => {
@@ -931,13 +948,6 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
     follow_up_2: '✅ Mark as Signed',
   }[lead.stage];
 
-  const handleBlur = async () => {
-    if (notes === (lead.notes || '')) return;
-    setSaving(true);
-    await onSaveNotes(notes);
-    setSaving(false);
-  };
-
   const jobAddr = [lead.job_address, lead.job_city].filter(Boolean).join(', ');
   const apptFmt = fmtDateTime(lead.appointment_at);
   const calURL = lead.appointment_at ? buildCalURL(lead) : null;
@@ -953,18 +963,17 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
         borderLeft: `4px solid ${stg.color}`,
       }}
     >
-      {/* Top row */}
+      {/* 2-column card grid */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 10,
-          marginBottom: 14,
+          display: 'grid',
+          gridTemplateColumns: '1fr minmax(210px, 34%)',
+          gap: '0 20px',
+          alignItems: 'start',
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
+        {/* LEFT COLUMN — info, docs, photos */}
+        <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
             <span style={{ fontWeight: 700, color: '#1a1a2e', fontSize: 16 }}>
               {lead.caller_name}
@@ -1489,16 +1498,17 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           )}
         </div>
 
-        <div style={{ color: '#aaa', fontSize: 11, whiteSpace: 'nowrap', paddingTop: 2 }}>
-          {new Date(lead.created_at).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          })}
-        </div>
-      </div>
+        {/* RIGHT COLUMN — date, linked job, notes ledger, actions */}
+        <div style={{ borderLeft: '1px solid #eef1f6', paddingLeft: 16 }}>
+          <div style={{ color: '#aaa', fontSize: 11, marginBottom: 12 }}>
+            {new Date(lead.created_at).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </div>
 
-      {/* Linked job badge */}
+          {/* Linked job badge */}
       {lead.job_id && (
         <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <a
@@ -1534,94 +1544,132 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
         </div>
       )}
 
-      {/* Notes */}
-      <div style={{ borderTop: '1px solid #eef1f6', paddingTop: 14, marginTop: 4 }}>
-        <label style={{ fontSize: 11, color: '#aaa', fontWeight: 600, display: 'block', marginBottom: 6, letterSpacing: '.3px', textTransform: 'uppercase' }}>Notes</label>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={handleBlur}
-          placeholder="Add notes…"
-          rows={3}
-          style={{
-            width: '100%',
-            border: '1px solid #dde3ed',
-            borderRadius: 8,
-            padding: '9px 12px',
-            fontSize: 13,
-            color: '#333',
-            resize: 'vertical',
-            boxSizing: 'border-box',
-            fontFamily: 'inherit',
-            background: saving ? '#fffbe6' : '#fafafa',
-            lineHeight: 1.5,
-          }}
-        />
-      </div>
-
-      {/* Action buttons */}
-      {!isArchived && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-          {canAdvance && !isSigned && (
-            <button onClick={onAdvance} style={btnPrimary(isQuoteDraft ? GREEN : BLUE)}>
-              {nextLabel}
-            </button>
-          )}
-          {isQuoteDraft && (
-            <button onClick={onOpenWizard} style={btnPrimary('#F57C00')}>
-              📝 Open Proposal Wizard
-            </button>
-          )}
-          {!isSigned && (
-            <button
-              onClick={onArchive}
+          {/* Notes ledger */}
+          <div style={{ marginTop: 14 }}>
+            <label style={{ fontSize: 11, color: '#aaa', fontWeight: 600, display: 'block', marginBottom: 6, letterSpacing: '.3px', textTransform: 'uppercase' }}>Notes</label>
+            {notesList.length > 0 && (
+              <div style={{ marginBottom: 8 }}>
+                {(notesExpanded ? notesList : notesList.slice(0, 1)).map((n) => {
+                  const initials = (n.created_by || 'S')
+                    .split(' ')
+                    .map((w) => w[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase();
+                  return (
+                    <div key={n.id} style={{ display: 'flex', gap: 7, marginBottom: 7, alignItems: 'flex-start' }}>
+                      <span style={{ flexShrink: 0, background: '#e0e8ff', color: BLUE, fontWeight: 700, fontSize: 10, borderRadius: 4, padding: '2px 5px', lineHeight: '16px', minWidth: 24, textAlign: 'center' }}>
+                        {initials}
+                      </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, color: '#333', lineHeight: 1.45, wordBreak: 'break-word' }}>{n.body}</div>
+                        <div style={{ fontSize: 10, color: '#aaa', marginTop: 2 }}>{n.note_date} {n.note_time}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {notesList.length > 1 && (
+                  <button
+                    onClick={() => setNotesExpanded((v) => !v)}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 11, color: BLUE, fontWeight: 600 }}
+                  >
+                    {notesExpanded
+                      ? '▲ Collapse'
+                      : `▾ ${notesList.length - 1} more note${notesList.length - 1 !== 1 ? 's' : ''}`}
+                  </button>
+                )}
+              </div>
+            )}
+            {notesList.length === 0 && (
+              <div style={{ fontSize: 12, color: '#bbb', fontStyle: 'italic', marginBottom: 8 }}>No notes yet</div>
+            )}
+            <textarea
+              value={noteInput}
+              onChange={(e) => setNoteInput(e.target.value)}
+              onBlur={saveNote}
+              placeholder="Add a note…"
+              rows={2}
               style={{
-                background: '#fff',
-                color: RED,
-                border: '1px solid #ef9a9a',
+                width: '100%',
+                border: '1px solid #dde3ed',
                 borderRadius: 6,
-                padding: '7px 12px',
-                cursor: 'pointer',
+                padding: '7px 10px',
                 fontSize: 12,
+                color: '#333',
+                resize: 'vertical',
+                boxSizing: 'border-box',
+                fontFamily: 'inherit',
+                background: noteSaving ? '#fffbe6' : '#fafafa',
+                lineHeight: 1.5,
               }}
-            >
-              Archive
-            </button>
+            />
+          </div>
+
+          {/* Action buttons */}
+          {!isArchived && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
+              {canAdvance && !isSigned && (
+                <button onClick={onAdvance} style={btnPrimary(isQuoteDraft ? GREEN : BLUE)}>
+                  {nextLabel}
+                </button>
+              )}
+              {isQuoteDraft && (
+                <button onClick={onOpenWizard} style={btnPrimary('#F57C00')}>
+                  📝 Open Proposal Wizard
+                </button>
+              )}
+              {!isSigned && (
+                <button
+                  onClick={onArchive}
+                  style={{
+                    background: '#fff',
+                    color: RED,
+                    border: '1px solid #ef9a9a',
+                    borderRadius: 6,
+                    padding: '7px 12px',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                  }}
+                >
+                  Archive
+                </button>
+              )}
+              <button
+                onClick={onDelete}
+                style={{
+                  background: '#fff',
+                  color: '#aaa',
+                  border: '1px solid #ddd',
+                  borderRadius: 6,
+                  padding: '7px 10px',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                }}
+              >
+                Delete
+              </button>
+            </div>
           )}
-          <button
-            onClick={onDelete}
-            style={{
-              background: '#fff',
-              color: '#aaa',
-              border: '1px solid #ddd',
-              borderRadius: 6,
-              padding: '7px 10px',
-              cursor: 'pointer',
-              fontSize: 11,
-            }}
-          >
-            Delete
-          </button>
+          {isArchived && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+              <button
+                onClick={onDelete}
+                style={{
+                  background: '#fff',
+                  color: '#aaa',
+                  border: '1px solid #ddd',
+                  borderRadius: 6,
+                  padding: '6px 10px',
+                  cursor: 'pointer',
+                  fontSize: 11,
+                }}
+              >
+                Delete permanently
+              </button>
+            </div>
+          )}
         </div>
-      )}
-      {isArchived && (
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <button
-            onClick={onDelete}
-            style={{
-              background: '#fff',
-              color: '#aaa',
-              border: '1px solid #ddd',
-              borderRadius: 6,
-              padding: '6px 10px',
-              cursor: 'pointer',
-              fontSize: 11,
-            }}
-          >
-            Delete permanently
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

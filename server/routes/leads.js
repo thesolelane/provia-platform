@@ -708,6 +708,44 @@ router.delete('/:id/documents/:docId', requireAuth, (req, res) => {
   }
 });
 
+// ── GET  /api/leads/:id/notes — list all notes for a lead (newest first) ──────
+router.get('/:id/notes', requireAuth, (req, res) => {
+  const db = getDb();
+  const notes = db
+    .prepare(
+      `SELECT id, lead_id, body, created_by,
+              strftime('%m/%d/%Y', created_at, 'localtime')     AS note_date,
+              strftime('%I:%M %p', created_at, 'localtime')     AS note_time,
+              created_at
+       FROM lead_notes
+       WHERE lead_id = ?
+       ORDER BY created_at DESC`,
+    )
+    .all(req.params.id);
+  res.json(notes);
+});
+
+// ── POST /api/leads/:id/notes — add a new timestamped note ───────────────────
+router.post('/:id/notes', requireAuth, (req, res) => {
+  const { body } = req.body || {};
+  if (!body || !String(body).trim()) return res.status(400).json({ error: 'body is required' });
+  const db = getDb();
+  const created_by = req.session?.name || req.user?.name || 'Staff';
+  const result = db
+    .prepare('INSERT INTO lead_notes (lead_id, body, created_by) VALUES (?, ?, ?)')
+    .run(req.params.id, String(body).trim(), created_by);
+  const note = db
+    .prepare(
+      `SELECT id, lead_id, body, created_by,
+              strftime('%m/%d/%Y', created_at, 'localtime') AS note_date,
+              strftime('%I:%M %p', created_at, 'localtime') AS note_time,
+              created_at
+       FROM lead_notes WHERE id = ?`,
+    )
+    .get(result.lastInsertRowid);
+  res.json(note);
+});
+
 // ── POST /api/leads/:id/enrich — manually trigger property enrichment ──────────
 router.post('/:id/enrich', requireAuth, (req, res) => {
   try {

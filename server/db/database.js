@@ -703,6 +703,19 @@ async function initDatabase() {
   `);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_lead_documents_lead_id ON lead_documents(lead_id)`);
 
+  // ── Lead Notes ledger — timestamped note entries per lead ─────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS lead_notes (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      lead_id     INTEGER NOT NULL,
+      body        TEXT NOT NULL,
+      created_by  TEXT NOT NULL DEFAULT 'staff',
+      created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (lead_id) REFERENCES leads(id) ON DELETE CASCADE
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_lead_notes_lead_id ON lead_notes(lead_id)`);
+
   // ── Leads pipeline extra fields (must come AFTER CREATE TABLE leads) ──────────
   addColIfMissing('leads', 'appointment_at', 'DATETIME');
   addColIfMissing('leads', 'job_address', 'TEXT');
