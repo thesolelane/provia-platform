@@ -39,9 +39,11 @@ These can be built with data already in the system.
   - Any line item >40% of total base cost auto-appended to flaggedItems
   - Shows in the existing ⚠️ Flagged review section on the job detail page
 
-- [ ] **RFQ (Request for Quote) generator**
-  - From a line item in an estimate, generate a formatted RFQ to send to a sub
-  - Auto-fills trade, scope, job address, due date
+- [x] **RFQ (Request for Quote) generator** *(done Apr 2026)*
+  - 📋 RFQ button on every line item in the job detail breakdown table
+  - AI expands trade description into professional scope-of-work paragraph
+  - Vendor/sub picker (pulls from vendor directory), due date, email send
+  - History of all RFQs for that trade shown in the modal
 
 ---
 
