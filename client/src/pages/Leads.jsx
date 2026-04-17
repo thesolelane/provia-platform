@@ -590,35 +590,37 @@ export default function Leads({ token }) {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           {STAGES.filter((s) => (showArchived ? s.key === 'rejected' : s.key !== 'rejected')).map(
             (stg) => {
               const stageLeads = byStage[stg.key] || [];
               if (!showArchived && stageLeads.length === 0) return null;
               return (
                 <section key={stg.key}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                     <span
                       style={{
                         background: stg.bg,
                         color: stg.color,
                         borderRadius: 20,
-                        padding: '3px 12px',
+                        padding: '4px 14px',
                         fontSize: 12,
                         fontWeight: 700,
-                        border: `1px solid ${stg.color}30`,
+                        border: `1px solid ${stg.color}40`,
+                        letterSpacing: '.2px',
                       }}
                     >
                       {stg.label}
                     </span>
-                    <span style={{ color: '#aaa', fontSize: 12 }}>
+                    <span style={{ color: '#bbb', fontSize: 12 }}>
                       {stageLeads.length} lead{stageLeads.length !== 1 ? 's' : ''}
                     </span>
+                    <div style={{ flex: 1, height: 1, background: '#edf0f5' }} />
                   </div>
                   {stageLeads.length === 0 ? (
                     <div style={{ color: '#ddd', fontSize: 13, paddingLeft: 8 }}>—</div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                       {stageLeads.map((lead) => (
                         <LeadCard
                           key={lead.id}
@@ -944,10 +946,10 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
     <div
       style={{
         background: 'white',
-        border: '1px solid #dde3ed',
-        borderRadius: 10,
-        padding: '14px 16px',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+        border: '1px solid #e2e8f0',
+        borderRadius: 12,
+        padding: '20px 22px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
         borderLeft: `4px solid ${stg.color}`,
       }}
     >
@@ -958,18 +960,18 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           alignItems: 'flex-start',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: 8,
-          marginBottom: 10,
+          gap: 10,
+          marginBottom: 14,
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontWeight: 700, color: '#1a1a2e', fontSize: 15 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+            <span style={{ fontWeight: 700, color: '#1a1a2e', fontSize: 16 }}>
               {lead.caller_name}
             </span>
             <a
               href={`tel:${lead.caller_phone}`}
-              style={{ color: BLUE, fontSize: 13, textDecoration: 'none' }}
+              style={{ color: BLUE, fontSize: 14, textDecoration: 'none', fontWeight: 500 }}
             >
               {lead.caller_phone}
             </a>
@@ -979,8 +981,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           <div
             style={{
               display: 'flex',
-              gap: 5,
-              marginTop: 6,
+              gap: 6,
               flexWrap: 'wrap',
               alignItems: 'center',
             }}
@@ -1067,14 +1068,14 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
 
           {/* Appointment date */}
           {apptFmt && (
-            <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 12, color: '#0288D1', fontWeight: 600 }}>📅 {apptFmt}</span>
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 13, color: '#0288D1', fontWeight: 600 }}>📅 {apptFmt}</span>
               {calURL && (
                 <a
                   href={calURL}
                   target="_blank"
                   rel="noreferrer"
-                  style={{ fontSize: 11, color: BLUE, textDecoration: 'underline' }}
+                  style={{ fontSize: 12, color: BLUE, textDecoration: 'underline' }}
                 >
                   Add to Calendar
                 </a>
@@ -1083,19 +1084,19 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           )}
 
           {/* Job address / scope summary */}
-          {jobAddr && <div style={{ marginTop: 5, fontSize: 12, color: '#555' }}>📍 {jobAddr}</div>}
+          {jobAddr && <div style={{ marginTop: 10, fontSize: 13, color: '#555' }}>📍 {jobAddr}</div>}
           {lead.job_email && (
-            <div style={{ marginTop: 3, fontSize: 12, color: '#555' }}>✉ {lead.job_email}</div>
+            <div style={{ marginTop: 6, fontSize: 13, color: '#555' }}>✉ {lead.job_email}</div>
           )}
           {lead.job_scope && (
-            <div style={{ marginTop: 4, fontSize: 12, color: '#777', fontStyle: 'italic' }}>
-              {lead.job_scope.length > 120 ? lead.job_scope.slice(0, 117) + '…' : lead.job_scope}
+            <div style={{ marginTop: 8, fontSize: 12, color: '#777', fontStyle: 'italic', lineHeight: 1.5 }}>
+              {lead.job_scope.length > 140 ? lead.job_scope.slice(0, 137) + '…' : lead.job_scope}
             </div>
           )}
 
           {/* Property lookup — run if address exists but no data yet */}
           {jobAddr && !lead.property_data && (
-            <div style={{ marginTop: 6 }}>
+            <div style={{ marginTop: 10 }}>
               <button
                 onClick={runEnrichment}
                 disabled={enriching}
@@ -1341,7 +1342,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
           })()}
 
           {/* Documents section */}
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {leadDocs.length > 0 && (
                 <button
@@ -1444,7 +1445,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
 
           {/* Photo strip */}
           {leadPhotos.length > 0 && (
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 12 }}>
               <button
                 onClick={() => setPhotoExpand((v) => !v)}
                 style={{
@@ -1499,7 +1500,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
 
       {/* Linked job badge */}
       {lead.job_id && (
-        <div style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <a
             href={`/jobs/${lead.job_id}`}
             style={{
@@ -1534,29 +1535,33 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
       )}
 
       {/* Notes */}
-      <textarea
-        value={notes}
-        onChange={(e) => setNotes(e.target.value)}
-        onBlur={handleBlur}
-        placeholder="Add notes…"
-        rows={2}
-        style={{
-          width: '100%',
-          border: '1px solid #dde3ed',
-          borderRadius: 6,
-          padding: '7px 10px',
-          fontSize: 13,
-          color: '#333',
-          resize: 'vertical',
-          boxSizing: 'border-box',
-          fontFamily: 'inherit',
-          background: saving ? '#fffbe6' : '#fafafa',
-        }}
-      />
+      <div style={{ borderTop: '1px solid #eef1f6', paddingTop: 14, marginTop: 4 }}>
+        <label style={{ fontSize: 11, color: '#aaa', fontWeight: 600, display: 'block', marginBottom: 6, letterSpacing: '.3px', textTransform: 'uppercase' }}>Notes</label>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={handleBlur}
+          placeholder="Add notes…"
+          rows={3}
+          style={{
+            width: '100%',
+            border: '1px solid #dde3ed',
+            borderRadius: 8,
+            padding: '9px 12px',
+            fontSize: 13,
+            color: '#333',
+            resize: 'vertical',
+            boxSizing: 'border-box',
+            fontFamily: 'inherit',
+            background: saving ? '#fffbe6' : '#fafafa',
+            lineHeight: 1.5,
+          }}
+        />
+      </div>
 
       {/* Action buttons */}
       {!isArchived && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
           {canAdvance && !isSigned && (
             <button onClick={onAdvance} style={btnPrimary(isQuoteDraft ? GREEN : BLUE)}>
               {nextLabel}
