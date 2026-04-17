@@ -104,6 +104,28 @@ Use this when the user asks about a property's dimensions, size, exterior measur
   },
 };
 
+const EXTRACT_SKETCH_DIMENSIONS_TOOL = {
+  name: 'extract_sketch_dimensions',
+  description: `Screenshot the assessor's field card building sketch and use vision AI to read the dimension numbers annotated on each wall segment.
+Returns actual exterior wall lengths in feet, total perimeter, building shape, and any labeled sections (garage, porch, deck, etc.).
+Use this when the user asks for exact building dimensions, exterior measurements, wall lengths, or building perimeter for a specific job or address.
+You must first call lookup_property or lookup_jobs to get the assessorFieldCardUrl or recordCardUrl before calling this tool.`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      record_card_url: {
+        type: 'string',
+        description: 'The assessor field card URL (from recordCardUrl or assessorFieldCardUrl in the property record)',
+      },
+      address: {
+        type: 'string',
+        description: 'Property address for context (e.g. "123 Main St, Townsend, MA")',
+      },
+    },
+    required: ['record_card_url'],
+  },
+};
+
 const CHECK_LEAD_RECORD_TOOL = {
   name: 'check_lead_record',
   description: `Check whether a Massachusetts property has a lead paint inspection record in the CLPPP historical database.
@@ -300,6 +322,14 @@ async function runAdminTool(toolName, toolInput, db) {
     return await perplexity.search(toolInput.query, toolInput.search_type);
   }
 
+  if (toolName === 'extract_sketch_dimensions') {
+    console.log(`[Chat→SketchExtractor] url="${toolInput.record_card_url}"`);
+    const { extractBuildingDimensions } = require('./sketchExtractor');
+    const result = await extractBuildingDimensions(toolInput.record_card_url, toolInput.address);
+    if (!result) return 'Could not access the assessor sketch for this property. The field card link may require a browser session. Share the link with the user so they can open it directly.';
+    return result.raw || 'Sketch captured but no dimensions could be read from the image.';
+  }
+
   if (toolName === 'lookup_property') {
     console.log(`[Chat→MassGIS] address="${toolInput.address}"`);
     const propData = await lookupPropertyByAddress(toolInput.address);
@@ -361,7 +391,8 @@ You have live access to the database and can:
 - Look up any customer contact info (name, email, phone) using lookup_contacts
 - Look up job/project status and info using lookup_jobs
 - Create tasks, reminders, and to-do items using create_task
-- Look up MA property assessor data (year built, building area, assessed value) using lookup_property
+- Look up MA property assessor data (year built, building area, assessed value, field card link) using lookup_property
+- Extract actual wall dimensions from the assessor building sketch using extract_sketch_dimensions (call lookup_property first to get the field card URL, then call this)
 - Check lead paint inspection records at a property using check_lead_record
 ${perplexity.isConfigured() ? '- Search the web for current real-time data using web_search (use for live prices, permit fees, code sections, supplier info — NOT for general knowledge)' : ''}
 
@@ -398,6 +429,7 @@ IMPORTANT STYLE RULES:
           ? [
               ...ADMIN_TOOLS,
               LOOKUP_PROPERTY_TOOL,
+              EXTRACT_SKETCH_DIMENSIONS_TOOL,
               CHECK_LEAD_RECORD_TOOL,
               ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : []),
             ]
