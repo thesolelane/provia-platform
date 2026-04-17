@@ -235,9 +235,9 @@ async function runReachOutSMS() {
   const db = getDb();
   const dueTasks = db.prepare(`
     SELECT t.*,
-           COALESCE(j.customer_name, l.contact_name)   AS customer_name,
-           COALESCE(j.project_address, l.address)       AS project_address,
-           COALESCE(j.customer_phone, l.contact_phone)  AS customer_phone,
+           COALESCE(j.customer_name, l.caller_name)    AS customer_name,
+           COALESCE(j.project_address, l.job_address)  AS project_address,
+           COALESCE(j.customer_phone, l.caller_phone)  AS customer_phone,
            COALESCE(j.sms_opt_out, 0)                   AS sms_opt_out
     FROM tasks t
     LEFT JOIN jobs j ON t.job_id = j.id
