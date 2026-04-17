@@ -754,6 +754,8 @@ async function initDatabase() {
   addColIfMissing('purchase_orders', 'received_at', 'DATETIME');
   addColIfMissing('purchase_orders', 'closed_at', 'DATETIME');
   addColIfMissing('purchase_orders', 'created_by', 'TEXT');
+  addColIfMissing('purchase_orders', 'attachment_path', 'TEXT');
+  addColIfMissing('purchase_orders', 'attachment_name', 'TEXT');
   // Index on contact_id must come AFTER addColIfMissing for existing databases
   db.exec(`CREATE INDEX IF NOT EXISTS idx_po_contact_id ON purchase_orders(contact_id)`);
 

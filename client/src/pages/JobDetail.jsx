@@ -96,6 +96,8 @@ export default function JobDetail({ token, userName }) {
   const [poLoading, setPOLoading] = useState(false);
   const [portalUrl, setPortalUrl] = useState(null);
   const [portalCopied, setPortalCopied] = useState(false);
+  const [manualUploading, setManualUploading] = useState(false);
+  const [manualUploadDone, setManualUploadDone] = useState(null);
   const [newPO, setNewPO] = useState({
     vendor_name: '',
     description: '',
@@ -417,6 +419,33 @@ export default function JobDetail({ token, userName }) {
     } else {
       showToast(data.error || 'Failed to generate link', 'error');
     }
+  };
+
+  const uploadManualSignature = async (docType, file) => {
+    if (!file) return;
+    setManualUploading(true);
+    setManualUploadDone(null);
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('doc_type', docType);
+    try {
+      const res = await fetch(`/api/manual-signature/${id}`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token },
+        body: fd,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setManualUploadDone({ docType, filename: data.filename, path: data.path });
+        showToast(`${docType === 'contract' ? 'Contract' : 'Proposal'} uploaded — job status updated`);
+        loadJob();
+      } else {
+        showToast(data.error || 'Upload failed', 'error');
+      }
+    } catch {
+      showToast('Upload failed', 'error');
+    }
+    setManualUploading(false);
   };
 
   const reprocessJob = async () => {
@@ -3402,6 +3431,46 @@ export default function JobDetail({ token, userName }) {
               {portalUrl && (
                 <div style={{ marginTop: 10, fontSize: 11, color: '#666', wordBreak: 'break-all', background: 'white', border: '1px solid #dde4f5', borderRadius: 6, padding: '8px 10px' }}>
                   {portalUrl}
+                </div>
+              )}
+            </div>
+
+            {/* Manual Signature Upload */}
+            <div style={{ background: '#fffbf0', border: '1px solid #f0d9a0', borderRadius: 10, padding: '16px 18px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, color: '#92400e', fontSize: 13, marginBottom: 6 }}>📄 Import Manually Signed Document</div>
+              <div style={{ fontSize: 12, color: '#555', marginBottom: 12 }}>
+                Upload a scanned or photographed copy of a paper-signed proposal or contract. The job status will update automatically.
+              </div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <label style={{ cursor: manualUploading ? 'not-allowed' : 'pointer' }}>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.heic,.webp"
+                    style={{ display: 'none' }}
+                    disabled={manualUploading}
+                    onChange={(e) => uploadManualSignature('proposal', e.target.files[0])}
+                  />
+                  <span style={{ display: 'inline-block', padding: '8px 14px', background: '#fff', border: '1.5px solid #d97706', borderRadius: 7, fontSize: 12, fontWeight: 600, color: '#92400e', opacity: manualUploading ? 0.5 : 1 }}>
+                    {manualUploading ? 'Uploading...' : '📋 Upload Signed Proposal'}
+                  </span>
+                </label>
+                <label style={{ cursor: manualUploading ? 'not-allowed' : 'pointer' }}>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.heic,.webp"
+                    style={{ display: 'none' }}
+                    disabled={manualUploading}
+                    onChange={(e) => uploadManualSignature('contract', e.target.files[0])}
+                  />
+                  <span style={{ display: 'inline-block', padding: '8px 14px', background: '#fff', border: '1.5px solid #d97706', borderRadius: 7, fontSize: 12, fontWeight: 600, color: '#92400e', opacity: manualUploading ? 0.5 : 1 }}>
+                    {manualUploading ? 'Uploading...' : '📑 Upload Signed Contract'}
+                  </span>
+                </label>
+              </div>
+              {manualUploadDone && (
+                <div style={{ marginTop: 10, fontSize: 11, color: '#15803d', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, padding: '7px 10px' }}>
+                  ✅ {manualUploadDone.docType === 'contract' ? 'Contract' : 'Proposal'} saved: {manualUploadDone.filename}{' '}
+                  <a href={manualUploadDone.path} target="_blank" rel="noreferrer" style={{ color: '#1B3A6B', fontWeight: 600 }}>View</a>
                 </div>
               )}
             </div>

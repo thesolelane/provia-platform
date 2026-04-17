@@ -266,7 +266,33 @@ function POForm({ jobs, onSave, onCancel, saving }) {
   );
 }
 
-function PODetailRow({ po }) {
+function PODetailRow({ po, token, onAttachUploaded }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleAttach = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const res = await fetch(`/api/purchase-orders/${po.id}/attachment`, {
+        method: 'POST',
+        headers: { 'x-auth-token': token },
+        body: fd,
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Attachment saved');
+        onAttachUploaded(data.purchase_order);
+      } else {
+        showToast(data.error || 'Upload failed', 'error');
+      }
+    } catch {
+      showToast('Upload failed', 'error');
+    }
+    setUploading(false);
+  };
+
   return (
     <tr>
       <td
@@ -325,6 +351,46 @@ function PODetailRow({ po }) {
               <div>{fmtDate(po.closed_at)}</div>
             </div>
           )}
+          <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #e0e8f5', paddingTop: 10, marginTop: 4 }}>
+            <div style={{ color: '#888', marginBottom: 6 }}>Attachment</div>
+            {po.attachment_path ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <a
+                  href={po.attachment_path}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: BLUE, fontWeight: 600, fontSize: 12, textDecoration: 'none' }}
+                >
+                  📎 {po.attachment_name || 'View attachment'}
+                </a>
+                <label style={{ cursor: uploading ? 'not-allowed' : 'pointer' }}>
+                  <input
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg,.heic,.webp,.doc,.docx,.xlsx,.csv"
+                    style={{ display: 'none' }}
+                    disabled={uploading}
+                    onChange={(e) => handleAttach(e.target.files[0])}
+                  />
+                  <span style={{ fontSize: 11, color: '#888', textDecoration: 'underline', cursor: 'pointer' }}>
+                    {uploading ? 'Uploading...' : 'Replace'}
+                  </span>
+                </label>
+              </div>
+            ) : (
+              <label style={{ cursor: uploading ? 'not-allowed' : 'pointer' }}>
+                <input
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg,.heic,.webp,.doc,.docx,.xlsx,.csv"
+                  style={{ display: 'none' }}
+                  disabled={uploading}
+                  onChange={(e) => handleAttach(e.target.files[0])}
+                />
+                <span style={{ display: 'inline-block', padding: '6px 12px', background: 'white', border: '1.5px dashed #C8D4E4', borderRadius: 6, fontSize: 11, color: '#888', cursor: 'pointer' }}>
+                  {uploading ? 'Uploading...' : '📎 Attach invoice or document'}
+                </span>
+              </label>
+            )}
+          </div>
         </div>
       </td>
     </tr>
@@ -683,7 +749,15 @@ export default function PurchaseOrders({ token }) {
                       {expandedId === po.id ? '▲' : '▼'}
                     </td>
                   </tr>
-                  {expandedId === po.id && <PODetailRow po={po} />}
+                  {expandedId === po.id && (
+                    <PODetailRow
+                      po={po}
+                      token={token}
+                      onAttachUploaded={(updated) =>
+                        setPOs((prev) => prev.map((p) => (p.id === updated.id ? updated : p)))
+                      }
+                    />
+                  )}
                 </React.Fragment>
               ))}
             </tbody>

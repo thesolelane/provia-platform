@@ -94,6 +94,8 @@ app.use(fileUpload({ limits: { fileSize: 50 * 1024 * 1024 }, useTempFiles: true 
 const OUTPUTS_DIR = path.resolve(__dirname, '../outputs');
 const CONTACT_DOCS_DIR = path.resolve(__dirname, '../uploads/contact_docs');
 const LEAD_DOCS_DIR = path.resolve(__dirname, '../uploads/lead_docs');
+const MANUAL_SIGS_DIR = path.resolve(__dirname, '../uploads/manual_signatures');
+const PO_ATTACHMENTS_DIR = path.resolve(__dirname, '../uploads/po_attachments');
 
 app.get('/outputs/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
@@ -151,6 +153,26 @@ app.get('/lead-docs/:leadId/:filename', requireAuth, (req, res) => {
   const filename = path.basename(req.params.filename);
   const filePath = path.join(LEAD_DOCS_DIR, leadId, filename);
   if (!filePath.startsWith(LEAD_DOCS_DIR) || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  res.sendFile(filePath);
+});
+
+app.get('/manual-signatures/:jobId/:filename', requireAuth, (req, res) => {
+  const jobId = path.basename(req.params.jobId);
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(MANUAL_SIGS_DIR, jobId, filename);
+  if (!filePath.startsWith(MANUAL_SIGS_DIR) || !fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  res.sendFile(filePath);
+});
+
+app.get('/po-attachments/:poId/:filename', requireAuth, (req, res) => {
+  const poId = path.basename(req.params.poId);
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(PO_ATTACHMENTS_DIR, poId, filename);
+  if (!filePath.startsWith(PO_ATTACHMENTS_DIR) || !fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
   res.sendFile(filePath);

@@ -277,6 +277,40 @@ router.patch('/:id', requireAuth, (req, res) => {
   res.json({ success: true, purchase_order: po });
 });
 
+// ── POST /api/purchase-orders/:id/attachment ──────────────────────────────────
+router.post('/:id/attachment', requireAuth, async (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const db = getDb();
+  const existing = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Purchase order not found' });
+
+  if (!req.files || !req.files.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const file = req.files.file;
+  const ext = path.extname(file.name) || '.pdf';
+  const filename = `po_${req.params.id}_${Date.now()}${ext}`;
+  const destDir = path.resolve(__dirname, '../../uploads/po_attachments', String(req.params.id));
+  fs.mkdirSync(destDir, { recursive: true });
+  const destPath = path.join(destDir, filename);
+
+  try {
+    await file.mv(destPath);
+  } catch (err) {
+    console.error('[PO attachment] File move error:', err);
+    return res.status(500).json({ error: 'Failed to save file' });
+  }
+
+  db.prepare(
+    'UPDATE purchase_orders SET attachment_path = ?, attachment_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+  ).run(`/po-attachments/${req.params.id}/${filename}`, file.name, req.params.id);
+
+  const po = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);
+  res.json({ success: true, purchase_order: po });
+});
+
 // ── DELETE /api/purchase-orders/:id ──────────────────────────────────────────
 router.delete('/:id', requireAuth, (req, res) => {
   const db = getDb();
