@@ -25,6 +25,37 @@ const {
   extractExternalRef,
 } = require('../services/jobHelpers');
 
+// Helper: detect potential duplicate jobs (same address OR customer within 30 days)
+function checkDuplicateJob(db, customerName, projectAddress) {
+  try {
+    const conditions = [];
+    const params = [];
+    const normAddr = (projectAddress || '').trim().toLowerCase();
+    const normName = (customerName || '').trim().toLowerCase();
+    if (normAddr) {
+      conditions.push("LOWER(TRIM(project_address)) = ?");
+      params.push(normAddr);
+    }
+    if (normName) {
+      conditions.push("LOWER(TRIM(customer_name)) = ?");
+      params.push(normName);
+    }
+    if (!conditions.length) return [];
+    return db.prepare(`
+      SELECT id, pb_number, customer_name, project_address, status,
+             strftime('%m/%d/%Y', created_at) AS created_date
+      FROM jobs
+      WHERE archived = 0
+        AND datetime(created_at) >= datetime('now', '-30 days')
+        AND (${conditions.join(' OR ')})
+      ORDER BY created_at DESC
+      LIMIT 5
+    `).all(...params);
+  } catch {
+    return [];
+  }
+}
+
 // Helper: convert HEIC/HEIF buffer to JPEG buffer
 async function convertHeicToJpeg(buffer) {
   const heicConvert = require('heic-convert');
@@ -358,10 +389,12 @@ router.post('/upload-estimate', requireAuth, async (req, res) => {
     console.warn('[Upload] logActivity failed:', e.message);
   }
 
+  const dupeWarning = checkDuplicateJob(db, customerName, projectAddress);
   res.json({
     jobId,
     status: 'received',
     message: `${fileCount > 1 ? fileCount + ' files' : 'File'} uploaded. Processing estimate...`,
+    ...(dupeWarning.length ? { duplicateWarning: dupeWarning } : {}),
   });
 
   // Background property enrichment (non-blocking)
@@ -504,7 +537,13 @@ router.post(
       console.warn('[Manual] PB/Quote number generation failed:', e.message);
     }
 
-    res.json({ jobId, status: 'received', message: 'Job created. Processing estimate...' });
+    const manualDupe = checkDuplicateJob(db, customerName, projectAddress);
+    res.json({
+      jobId,
+      status: 'received',
+      message: 'Job created. Processing estimate...',
+      ...(manualDupe.length ? { duplicateWarning: manualDupe } : {}),
+    });
 
     try {
       logActivity({

@@ -1261,7 +1261,12 @@ export default function CreateQuoteWizard({ token, onClose, onSubmitted, prefill
       const data = await res.json();
       setBusy(false);
       if (res.ok) {
-        showToast('Proposal submitted — processing now');
+        if (data.duplicateWarning?.length) {
+          const names = data.duplicateWarning.map((d) => d.pb_number || d.id).join(', ');
+          showToast(`⚠️ Possible duplicate — similar job already exists: ${names}`, 'warning');
+        } else {
+          showToast('Proposal submitted — processing now');
+        }
         clearDraft();
         onSubmitted(data.jobId);
         onClose();

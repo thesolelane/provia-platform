@@ -230,7 +230,12 @@ export default function Dashboard({ token }) {
     setSubmitBusy(false);
     if (res.ok) {
       setShowManual(false);
-      showToast('Estimate submitted — processing now');
+      if (data.duplicateWarning?.length) {
+        const names = data.duplicateWarning.map((d) => d.pb_number || d.id).join(', ');
+        showToast(`⚠️ Possible duplicate — similar job already exists: ${names}`, 'warning');
+      } else {
+        showToast('Estimate submitted — processing now');
+      }
       window.location.reload();
     } else {
       showToast(data.error || 'Error submitting estimate', 'error');
@@ -267,11 +272,16 @@ export default function Dashboard({ token }) {
       setSubmitBusy(false);
       if (res.ok) {
         setShowManual(false);
-        showToast(
-          uploadFiles.length > 1
-            ? `${uploadFiles.length} files uploaded — processing now`
-            : 'File uploaded — processing now',
-        );
+        if (data.duplicateWarning?.length) {
+          const names = data.duplicateWarning.map((d) => d.pb_number || d.id).join(', ');
+          showToast(`⚠️ Possible duplicate — similar job already exists: ${names}`, 'warning');
+        } else {
+          showToast(
+            uploadFiles.length > 1
+              ? `${uploadFiles.length} files uploaded — processing now`
+              : 'File uploaded — processing now',
+          );
+        }
         window.location.reload();
       } else {
         showToast(data.error || 'Error processing file(s)', 'error');

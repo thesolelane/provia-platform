@@ -23,6 +23,28 @@ const {
   extractExternalRef,
 } = require('../services/jobHelpers');
 
+// Helper: detect potential duplicate jobs (same address OR customer within 30 days)
+function checkDuplicateJob(db, customerName, projectAddress) {
+  try {
+    const conditions = [];
+    const params = [];
+    const normAddr = (projectAddress || '').trim().toLowerCase();
+    const normName = (customerName || '').trim().toLowerCase();
+    if (normAddr) { conditions.push("LOWER(TRIM(project_address)) = ?"); params.push(normAddr); }
+    if (normName) { conditions.push("LOWER(TRIM(customer_name)) = ?"); params.push(normName); }
+    if (!conditions.length) return [];
+    return db.prepare(`
+      SELECT id, pb_number, customer_name, project_address, status,
+             strftime('%m/%d/%Y', created_at) AS created_date
+      FROM jobs
+      WHERE archived = 0
+        AND datetime(created_at) >= datetime('now', '-30 days')
+        AND (${conditions.join(' OR ')})
+      ORDER BY created_at DESC LIMIT 5
+    `).all(...params);
+  } catch { return []; }
+}
+
 // ── Build trades narrative from selected trades payload ────────────────────
 function buildTradesNarrative(selectedTrades) {
   if (!Array.isArray(selectedTrades) || selectedTrades.length === 0) return '';
@@ -109,8 +131,14 @@ router.post('/wizard', requireAuth, async (req, res) => {
     console.warn('[Wizard] logActivity failed:', e.message);
   }
 
+  const wizDupe = checkDuplicateJob(db, contactName, projectAddress);
   notifyClients('job_updated', { jobId, status: 'processing' });
-  res.json({ jobId, status: 'processing', message: 'Job created. Processing estimate...' });
+  res.json({
+    jobId,
+    status: 'processing',
+    message: 'Job created. Processing estimate...',
+    ...(wizDupe.length ? { duplicateWarning: wizDupe } : {}),
+  });
 
   // Background property enrichment (non-blocking)
   if (projectAddress) {
@@ -420,10 +448,12 @@ router.post('/wizard/submit', requireAuth, async (req, res) => {
     console.warn('[WizardSubmit] logActivity failed:', e.message);
   }
 
+  const submitDupe = checkDuplicateJob(db, customerName, projectAddress);
   res.json({
     jobId,
     status: 'received',
     message: 'Wizard submission received. Processing estimate...',
+    ...(submitDupe.length ? { duplicateWarning: submitDupe } : {}),
   });
 
   // Background property enrichment (non-blocking)
