@@ -31,13 +31,13 @@ These don't change anything the user sees. Do them when bugs become hard to find
 
 These can be built with data already in the system.
 
-- [ ] **Duplicate estimate detection**
-  - Flag when two jobs are created for the same address or customer within 30 days
-  - Prevents accidental double-quoting
+- [x] **Duplicate estimate detection** *(done Apr 2026)*
+  - Warning toast shown when same address or customer submitted within 30 days
+  - Covers all three entry paths: file upload, manual text, and wizard
 
-- [ ] **Proportionality sanity check**
-  - If one trade line item is more than 40% of the total estimate, flag it
-  - Catches typos where someone enters $150,000 instead of $15,000
+- [x] **Proportionality sanity check** *(done Apr 2026)*
+  - Any line item >40% of total base cost auto-appended to flaggedItems
+  - Shows in the existing ⚠️ Flagged review section on the job detail page
 
 - [ ] **RFQ (Request for Quote) generator**
   - From a line item in an estimate, generate a formatted RFQ to send to a sub

@@ -643,6 +643,25 @@ function applyPricing(data, rates, settings) {
     totalContractPrice += Math.round(dumpsterCost * markupMultiplier);
   }
 
+  // ── Proportionality sanity check ──────────────────────────────────────────
+  // Flag any single line item whose baseCost is >40% of the total base cost.
+  // Catches typos like $150,000 entered instead of $15,000.
+  {
+    let totalBase = 0;
+    for (const item of items) totalBase += item.baseCost || 0;
+    if (totalBase > 0) {
+      for (const item of items) {
+        const pct = ((item.baseCost || 0) / totalBase) * 100;
+        if (pct > 40) {
+          const flag = `${item.trade}: baseCost $${(item.baseCost || 0).toLocaleString()} is ${Math.round(pct)}% of total — verify this is not a typo`;
+          data.flaggedItems = data.flaggedItems || [];
+          if (!data.flaggedItems.includes(flag)) data.flaggedItems.push(flag);
+          console.warn(`[Sanity] Disproportionate line item — ${flag}`);
+        }
+      }
+    }
+  }
+
   // Tag items whose fees are paid directly by the customer (not part of deposit base)
   const SEPARATE_FEE_RE = /permit|remit|engineer/i;
   for (const item of items) {
