@@ -201,7 +201,7 @@ function portalPageHTML({ job, sessions }) {
         form.append('photo', file, file.name);
         const res = await fetch('/api/portal/' + token + '/photos', { method: 'POST', body: form });
         if (res.ok) ok++;
-      } catch(e) {}
+      } catch(e) { console.error('[Portal photo upload]', e); }
     }
 
     photoLabel.style.pointerEvents = '';

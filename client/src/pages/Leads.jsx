@@ -1173,7 +1173,7 @@ function LeadCard({ lead, token, onAdvance, onArchive, onDelete, onSaveNotes, on
               .join(' · ');
 
             return (
-              <div style={{ marginTop: 7 }}>
+              <div style={{ marginTop: 12 }}>
                 <button
                   onClick={() => setPropExpand((v) => !v)}
                   style={{

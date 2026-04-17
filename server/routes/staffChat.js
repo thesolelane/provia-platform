@@ -133,9 +133,11 @@ router.post('/dm', requireAuth, (req, res) => {
 <blockquote style="border-left:3px solid #1B3A6B;padding:8px 16px;color:#333;">${preview}</blockquote>
 ${appUrl ? `<p><a href="${appUrl}">Open Preferred Builders</a> to reply.</p>` : ''}`,
           emailType: 'staff_dm_notification',
-        }).catch(() => {});
+        }).catch((e) => console.warn('[staffChat] DM email notification failed:', e.message));
       }
-    } catch (_) {}
+    } catch (notifyErr) {
+      console.warn('[staffChat] Push notification error:', notifyErr.message);
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
