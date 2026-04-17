@@ -922,6 +922,130 @@ export default function Settings({ token, userRole }) {
         ⚠️ Switching platforms only affects new estimates going forward. All existing jobs remain in
         the system unchanged.
       </div>
+
+      {/* ── Measurement & Property Data ──────────────────── */}
+      <h3 style={{ marginTop: 32, marginBottom: 4, color: BLUE, fontSize: 15 }}>
+        Measurement &amp; Property Data
+      </h3>
+      <p style={{ color: '#888', fontSize: 13, marginBottom: 16 }}>
+        The AI bot uses these services to pull building dimensions, roof area, and property data automatically.
+        Free tiers run without any setup. Paid services are ordered per job and charged to the customer.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {[
+          {
+            id: 'microsoft_footprints',
+            name: 'Microsoft Building Footprints',
+            desc: 'Satellite-detected building polygons for every address in the US. Returns footprint width, depth, area, and perimeter. No API key required.',
+            cost: 'Free — always on',
+            status: integration.microsoft_footprints?.configured ? 'active' : 'inactive',
+            badge: 'FREE',
+            badgeColor: '#2E7D32',
+            setupUrl: null,
+            setupNote: null,
+          },
+          {
+            id: 'google_solar',
+            name: 'Google Solar API',
+            desc: 'Roof area, per-segment pitch, and building bounding box from Google\'s aerial imagery. 10,000 calls/month free. Add GOOGLE_MAPS_API_KEY to activate.',
+            cost: 'Free up to 10k calls/mo',
+            status: integration.google_solar?.configured ? 'active' : 'not_configured',
+            badge: 'FREE',
+            badgeColor: '#2E7D32',
+            setupUrl: 'https://console.cloud.google.com',
+            setupNote: 'Add secret: GOOGLE_MAPS_API_KEY',
+          },
+          {
+            id: 'hover',
+            name: 'Hover',
+            desc: '3D property models with precise wall areas, window counts, siding, and roof measurements. Best for siding, painting, and complex shapes. 24-48 hr turnaround.',
+            cost: 'Paid per job — charge to customer',
+            status: integration.hover?.configured
+              ? integration.hover?.hasToken
+                ? 'active'
+                : 'needs_token'
+              : 'not_configured',
+            badge: 'PAID / JOB',
+            badgeColor: ORANGE,
+            setupUrl: 'https://developers.hover.to',
+            setupNote: 'Add secrets: HOVER_CLIENT_ID · HOVER_CLIENT_SECRET · HOVER_ACCESS_TOKEN',
+          },
+          {
+            id: 'eagleview',
+            name: 'EagleView',
+            desc: 'Aerial satellite roof measurement reports with pitch, ridges, valleys, hip lengths, and wall areas. Best for roofing and gutter jobs. 24-48 hr turnaround.',
+            cost: 'Paid per report — charge to customer',
+            status: integration.eagleview?.configured ? 'active' : 'not_configured',
+            badge: 'PAID / JOB',
+            badgeColor: ORANGE,
+            setupUrl: 'https://developer.eagleview.com',
+            setupNote: 'Add secrets: EAGLEVIEW_CLIENT_ID · EAGLEVIEW_CLIENT_SECRET',
+          },
+        ].map((svc) => {
+          const statusConfig = {
+            active: { label: '● ACTIVE', bg: '#2E7D32', color: 'white' },
+            not_configured: { label: '○ SETUP NEEDED', bg: '#eee', color: '#888' },
+            needs_token: { label: '◑ NEEDS TOKEN', bg: '#E07B2A', color: 'white' },
+            inactive: { label: '○ INACTIVE', bg: '#eee', color: '#888' },
+          }[svc.status] || { label: svc.status, bg: '#eee', color: '#888' };
+
+          return (
+            <div
+              key={svc.id}
+              style={{
+                border: `2px solid ${svc.status === 'active' ? BLUE : '#ddd'}`,
+                borderRadius: 10,
+                padding: 18,
+                background: svc.status === 'active' ? '#E3ECFF' : 'white',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                <span style={{ fontWeight: 'bold', fontSize: 14, color: BLUE, lineHeight: 1.2 }}>{svc.name}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <span style={{ background: svc.badgeColor, color: 'white', padding: '1px 8px', borderRadius: 20, fontSize: 10, fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                    {svc.badge}
+                  </span>
+                  <span style={{ background: statusConfig.bg, color: statusConfig.color, padding: '1px 8px', borderRadius: 20, fontSize: 10, whiteSpace: 'nowrap' }}>
+                    {statusConfig.label}
+                  </span>
+                </div>
+              </div>
+              <p style={{ fontSize: 11, color: '#666', marginBottom: 6, lineHeight: 1.5 }}>{svc.desc}</p>
+              <p style={{ fontSize: 11, color: ORANGE, fontWeight: 'bold', marginBottom: svc.setupNote ? 8 : 0 }}>{svc.cost}</p>
+              {svc.setupNote && svc.status !== 'active' && (
+                <div style={{ background: '#f5f5f5', borderRadius: 6, padding: '6px 10px', fontSize: 11, color: '#444', marginBottom: 6 }}>
+                  {svc.setupNote}
+                </div>
+              )}
+              {svc.setupUrl && svc.status !== 'active' && (
+                <a href={svc.setupUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: BLUE, textDecoration: 'underline' }}>
+                  → Get API credentials
+                </a>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Other Connected Services ─────────────────────── */}
+      <h3 style={{ marginTop: 32, marginBottom: 4, color: BLUE, fontSize: 15 }}>
+        Other Connected Services
+      </h3>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginTop: 12 }}>
+        {[
+          { name: 'Twilio / WhatsApp', key: 'whatsapp', desc: 'WhatsApp messaging for customer communication and AI bot', configured: integration.whatsapp?.configured },
+          { name: 'Perplexity AI', key: 'perplexity', desc: 'Web search for live permit fees, material prices, code lookup', configured: integration.perplexity?.configured },
+          { name: 'Google Calendar', key: 'gcal', desc: 'Calendar sync for jobs, tasks, and scheduling', configured: true },
+        ].map((svc) => (
+          <div key={svc.key} style={{ border: `1px solid ${svc.configured ? '#4CAF50' : '#ddd'}`, borderRadius: 8, padding: 14, background: svc.configured ? '#f0fff4' : 'white' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontWeight: 'bold', fontSize: 12, color: BLUE }}>{svc.name}</span>
+              <span style={{ fontSize: 10, color: svc.configured ? '#2E7D32' : '#aaa' }}>{svc.configured ? '● ON' : '○ OFF'}</span>
+            </div>
+            <p style={{ fontSize: 11, color: '#666', margin: 0 }}>{svc.desc}</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 

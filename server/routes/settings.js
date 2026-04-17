@@ -95,7 +95,18 @@ router.get('/integrations/status', requireAuth, (req, res) => {
     whatsapp: { enabled: whatsappEnabled, configured: !!process.env.TWILIO_ACCOUNT_SID },
     email: { enabled: emailEnabled, configured: !!process.env.RESEND_API_KEY },
     hearth: { configured: !!process.env.HEARTH_API_KEY },
-    wave: { configured: false }, // placeholder
+    wave: { configured: false },
+    // Measurement services
+    microsoft_footprints: { configured: true, free: true },
+    google_solar: { configured: !!process.env.GOOGLE_MAPS_API_KEY, free: true },
+    hover: {
+      configured: !!(process.env.HOVER_CLIENT_ID && process.env.HOVER_CLIENT_SECRET),
+      hasToken: !!process.env.HOVER_ACCESS_TOKEN,
+    },
+    eagleview: {
+      configured: !!(process.env.EAGLEVIEW_CLIENT_ID && process.env.EAGLEVIEW_CLIENT_SECRET),
+    },
+    perplexity: { configured: !!process.env.PERPLEXITY_API_KEY },
   });
 });
 
