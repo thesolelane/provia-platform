@@ -104,6 +104,67 @@ Use this when the user asks about a property's dimensions, size, exterior measur
   },
 };
 
+const GET_BUILDING_MEASUREMENTS_TOOL = {
+  name: 'get_building_measurements',
+  description: `Get free satellite-derived building dimensions for a property address or lat/lng.
+Returns building footprint width × depth, ground floor area, building perimeter, and roof area.
+Data comes from Microsoft Building Footprints (free) and Google Solar API (free backup).
+Use this whenever a job needs exterior measurements for siding, roofing, painting, or any scope that requires square footage or perimeter.
+You must have a lat/lng coordinate — get it from lookup_property or lookup_jobs property_data first.
+These are estimates from aerial imagery. For contractor-grade precision, use order_measurement_report (Hover or EagleView, paid per job).`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      lat: { type: 'number', description: 'Latitude of the property' },
+      lng: { type: 'number', description: 'Longitude of the property' },
+      address: { type: 'string', description: 'Human-readable address for context' },
+    },
+    required: ['lat', 'lng'],
+  },
+};
+
+const ORDER_MEASUREMENT_REPORT_TOOL = {
+  name: 'order_measurement_report',
+  description: `Place a paid professional measurement order for a property via Hover or EagleView.
+- Hover: Creates a 3D model from photos. Best for complex shapes, walls, siding, windows. Turnaround: 24-48 hrs.
+- EagleView: Aerial satellite roof measurement. Best for roofing, gutters, steep-pitch situations. Turnaround: 24-48 hrs.
+The cost is charged per report and should be passed on to the customer.
+Only use this when the user explicitly asks to order a Hover or EagleView report for a specific job.`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      provider: { type: 'string', enum: ['hover', 'eagleview'], description: 'Which service to use' },
+      address: { type: 'string', description: 'Full property address' },
+      city: { type: 'string' },
+      state: { type: 'string', description: 'State abbreviation, e.g. "MA"' },
+      zip: { type: 'string' },
+      job_id: { type: 'string', description: 'Internal job ID to associate the order with' },
+      customer_name: { type: 'string' },
+      customer_email: { type: 'string' },
+      customer_phone: { type: 'string' },
+      report_type: {
+        type: 'string',
+        description: 'EagleView only: Premium (default), PremiumCommercial, Essentials',
+      },
+    },
+    required: ['provider', 'address'],
+  },
+};
+
+const CHECK_MEASUREMENT_ORDER_TOOL = {
+  name: 'check_measurement_order',
+  description: `Check the status of a previously placed Hover or EagleView measurement order.
+Returns current status, estimated delivery, and whether measurements are ready to retrieve.`,
+  input_schema: {
+    type: 'object',
+    properties: {
+      provider: { type: 'string', enum: ['hover', 'eagleview'] },
+      order_id: { type: 'string', description: 'The Hover job ID or EagleView order ID' },
+    },
+    required: ['provider', 'order_id'],
+  },
+};
+
 const EXTRACT_SKETCH_DIMENSIONS_TOOL = {
   name: 'extract_sketch_dimensions',
   description: `Screenshot the assessor's field card building sketch and use vision AI to read the dimension numbers annotated on each wall segment.
@@ -322,6 +383,45 @@ async function runAdminTool(toolName, toolInput, db) {
     return await perplexity.search(toolInput.query, toolInput.search_type);
   }
 
+  if (toolName === 'get_building_measurements') {
+    const { lat, lng, address } = toolInput;
+    console.log(`[Chat→Measurements] lat=${lat} lng=${lng} address="${address}"`);
+    const { getFreeMeasurements } = require('./measurementService');
+    const result = await getFreeMeasurements(lat, lng, address);
+    if (!result) return 'No building footprint data found for this location from free sources. Consider ordering a Hover or EagleView report for professional measurements.';
+    return result.summary || JSON.stringify(result, null, 2);
+  }
+
+  if (toolName === 'order_measurement_report') {
+    const { provider, address, city, state, zip, job_id, customer_name, customer_email, customer_phone, report_type } = toolInput;
+    console.log(`[Chat→MeasurementOrder] provider=${provider} address="${address}"`);
+    const { orderHoverReport, orderEagleViewReport } = require('./measurementService');
+    try {
+      let order;
+      if (provider === 'hover') {
+        order = await orderHoverReport({ address, name: customer_name, email: customer_email, phone: customer_phone, jobId: job_id });
+        return `Hover report ordered successfully!\n- Hover Job ID: ${order.hoverId}\n- Status: ${order.status}\n${order.captureUrl ? `- Capture link (send to customer for photos): ${order.captureUrl}` : ''}\nResults arrive in 24-48 hours. Use check_measurement_order to follow up.`;
+      } else {
+        order = await orderEagleViewReport({ address, city, state: state || 'MA', zip, reportType: report_type, jobId: job_id });
+        return `EagleView report ordered successfully!\n- EagleView Order ID: ${order.eagleViewOrderId}\n- Status: ${order.status}\n- Estimated delivery: ${order.estimatedDelivery}\nUse check_measurement_order to follow up.`;
+      }
+    } catch (err) {
+      return `Could not place ${provider} order: ${err.message}`;
+    }
+  }
+
+  if (toolName === 'check_measurement_order') {
+    const { provider, order_id } = toolInput;
+    console.log(`[Chat→OrderStatus] provider=${provider} orderId=${order_id}`);
+    const { getOrderStatus } = require('./measurementService');
+    try {
+      const status = await getOrderStatus(provider, order_id);
+      return `**${status.provider} Order ${order_id}**\nStatus: ${status.label}\nMeasurements ready: ${status.measurementsReady ? 'Yes' : 'Not yet'}`;
+    } catch (err) {
+      return `Could not check order status: ${err.message}`;
+    }
+  }
+
   if (toolName === 'extract_sketch_dimensions') {
     console.log(`[Chat→SketchExtractor] url="${toolInput.record_card_url}"`);
     const { extractBuildingDimensions } = require('./sketchExtractor');
@@ -392,6 +492,8 @@ You have live access to the database and can:
 - Look up job/project status and info using lookup_jobs
 - Create tasks, reminders, and to-do items using create_task
 - Look up MA property assessor data (year built, building area, assessed value, field card link) using lookup_property
+- Get free satellite-derived building dimensions (width, depth, area, perimeter, roof area) using get_building_measurements — needs lat/lng from lookup_property first
+- Order a professional paid measurement report from Hover (best for siding/walls) or EagleView (best for roofing) using order_measurement_report — check status later with check_measurement_order
 - Extract actual wall dimensions from the assessor building sketch using extract_sketch_dimensions (call lookup_property first to get the field card URL, then call this)
 - Check lead paint inspection records at a property using check_lead_record
 ${perplexity.isConfigured() ? '- Search the web for current real-time data using web_search (use for live prices, permit fees, code sections, supplier info — NOT for general knowledge)' : ''}
@@ -429,6 +531,9 @@ IMPORTANT STYLE RULES:
           ? [
               ...ADMIN_TOOLS,
               LOOKUP_PROPERTY_TOOL,
+              GET_BUILDING_MEASUREMENTS_TOOL,
+              ORDER_MEASUREMENT_REPORT_TOOL,
+              CHECK_MEASUREMENT_ORDER_TOOL,
               EXTRACT_SKETCH_DIMENSIONS_TOOL,
               CHECK_LEAD_RECORD_TOOL,
               ...(perplexity.isConfigured() ? [WEB_SEARCH_TOOL] : []),
