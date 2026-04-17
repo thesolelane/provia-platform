@@ -739,6 +739,28 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_po_status     ON purchase_orders(status)`);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_po_category   ON purchase_orders(category)`);
 
+  // ── RFQs (Request for Quote) ──────────────────────────────────────────────────
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS rfqs (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      job_id         TEXT NOT NULL,
+      trade          TEXT NOT NULL,
+      scope_text     TEXT,
+      target_base_cost REAL,
+      due_date       TEXT,
+      vendor_id      INTEGER,
+      vendor_name    TEXT,
+      vendor_email   TEXT,
+      sent_via       TEXT DEFAULT 'none',
+      sent_at        DATETIME,
+      status         TEXT NOT NULL DEFAULT 'draft',
+      created_by     TEXT,
+      created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+    )
+  `);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_rfqs_job_id ON rfqs(job_id)`);
+
   // ── PO counter table (per-year sequential number, format PO-YYYY-NNNN) ────────
   db.exec(`
     CREATE TABLE IF NOT EXISTS po_counter (
