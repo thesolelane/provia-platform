@@ -1,5 +1,5 @@
 // client/src/pages/JobDetail.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { showToast } from '../utils/toast';
 import { showConfirm } from '../utils/confirm';
@@ -98,6 +98,9 @@ export default function JobDetail({ token, userName }) {
   const [portalCopied, setPortalCopied] = useState(false);
   const [manualUploading, setManualUploading] = useState(false);
   const [manualUploadDone, setManualUploadDone] = useState(null);
+  const [reviseFiles, setReviseFiles] = useState([]);
+  const [reviseExtracting, setReviseExtracting] = useState(false);
+  const reviseFileRef = useRef(null);
   const [newPO, setNewPO] = useState({
     vendor_name: '',
     description: '',
@@ -560,6 +563,58 @@ export default function JobDetail({ token, userName }) {
   const reviseEstimate = async () => {
     const currentVer = job.version || 1;
     const nextVer = currentVer + 1;
+
+    // If files attached — re-run AI with new file context instead of just unlocking editor
+    if (reviseFiles.length > 0) {
+      if (
+        !(await showConfirm(
+          `Re-run AI with new files for Revision ${nextVer}?\n\nThe AI will read your attached files and regenerate the estimate using the updated scope. Version ${currentVer} stays in the activity log.`,
+        ))
+      )
+        return;
+      setReviseExtracting(true);
+      let extraContext = '';
+      try {
+        const fd = new FormData();
+        reviseFiles.forEach((f, i) => fd.append(`file_${i}`, f));
+        const extractRes = await fetch('/api/jobs/extract-from-files', {
+          method: 'POST',
+          headers,
+          body: fd,
+        });
+        if (extractRes.ok) {
+          const { extractedText } = await extractRes.json();
+          extraContext = extractedText;
+        } else {
+          showToast('Could not read attached files — try again', 'error');
+          setReviseExtracting(false);
+          return;
+        }
+      } catch {
+        showToast('File extraction failed — try again', 'error');
+        setReviseExtracting(false);
+        return;
+      }
+      setReviseExtracting(false);
+      setActionLoading(true);
+      const res = await fetch(`/api/jobs/${id}/reprocess`, {
+        method: 'POST',
+        headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ extraContext }),
+      });
+      const data = await res.json();
+      setActionLoading(false);
+      setReviseFiles([]);
+      if (res.ok) {
+        load();
+        showToast('Re-running AI with new files — refresh in a moment', 'info');
+      } else {
+        showToast(data.error || 'Failed to reprocess with new files', 'error');
+      }
+      return;
+    }
+
+    // No files — normal revise (unlock line-item editor)
     if (
       !(await showConfirm(
         `Open Revision ${nextVer} for editing?\n\nThis will reopen the line-item editor so you can adjust trades, costs, and descriptions before generating a new proposal PDF. Version ${currentVer} stays in the activity log. The existing contract PDF will be cleared.`,
@@ -1347,22 +1402,85 @@ export default function JobDetail({ token, userName }) {
           {/* Revise estimate — show whenever a proposal PDF exists and not actively processing */}
           {(job.proposal_pdf_path || job.proposal_data) &&
             !['received', 'processing', 'error', 'clarification'].includes(job.status) && (
-              <button
-                onClick={reviseEstimate}
-                disabled={actionLoading}
-                style={{
-                  padding: '9px 18px',
-                  background: 'white',
-                  color: ORANGE,
-                  border: `2px solid ${ORANGE}`,
-                  borderRadius: 6,
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 'bold',
-                }}
-              >
-                {actionLoading ? '...' : `✏️ Revise Estimate (v${job.version || 1})`}
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {/* Hidden file input */}
+                <input
+                  ref={reviseFileRef}
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const added = Array.from(e.target.files || []);
+                    setReviseFiles((prev) => {
+                      const names = new Set(prev.map((f) => f.name + f.size));
+                      return [...prev, ...added.filter((f) => !names.has(f.name + f.size))];
+                    });
+                    e.target.value = '';
+                  }}
+                />
+
+                {/* File chips */}
+                {reviseFiles.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {reviseFiles.map((f, i) => (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', gap: 3,
+                        background: '#e8f0fe', borderRadius: 20,
+                        padding: '3px 8px', fontSize: 10, color: '#1B3A6B',
+                      }}>
+                        <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                        <button
+                          onClick={() => setReviseFiles((prev) => prev.filter((_, j) => j !== i))}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0, color: '#555' }}
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={reviseEstimate}
+                    disabled={actionLoading || reviseExtracting}
+                    style={{
+                      padding: '9px 18px',
+                      background: 'white',
+                      color: ORANGE,
+                      border: `2px solid ${ORANGE}`,
+                      borderRadius: 6,
+                      cursor: actionLoading || reviseExtracting ? 'not-allowed' : 'pointer',
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {reviseExtracting ? '📖 Reading files...' : actionLoading ? '...' :
+                      reviseFiles.length > 0
+                        ? `🔄 Re-run AI with New Files (v${(job.version || 1) + 1})`
+                        : `✏️ Revise Estimate (v${job.version || 1})`}
+                  </button>
+
+                  <button
+                    onClick={() => reviseFileRef.current?.click()}
+                    title="Attach updated plans or photos to re-run AI on the revised scope"
+                    style={{
+                      padding: '8px 12px',
+                      background: reviseFiles.length ? '#e8f0fe' : '#f4f6fb',
+                      border: `1px solid ${reviseFiles.length ? '#1B3A6B' : '#ddd'}`,
+                      borderRadius: 6, cursor: 'pointer', fontSize: 13,
+                      color: reviseFiles.length ? '#1B3A6B' : '#888',
+                    }}
+                  >
+                    📎
+                  </button>
+                </div>
+
+                {reviseFiles.length > 0 && (
+                  <div style={{ fontSize: 10, color: '#888' }}>
+                    Files attached — AI will read them and regenerate the estimate
+                  </div>
+                )}
+              </div>
             )}
         </div>
 

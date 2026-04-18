@@ -578,11 +578,12 @@ router.post(
     );
     res.json({ success: true, message: 'Reprocessing started' });
 
+    const extraContext = req.body?.extraContext || '';
     const { processEstimate } = require('../services/claudeService');
     (async () => {
       try {
         console.log(`[Reprocess Job ${job.id}] Starting Claude processEstimate...`);
-        const fullEstimate = `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${job.raw_estimate_data}`;
+        const fullEstimate = `[Job ID: ${job.id}]\nProject Address: ${job.project_address || 'see estimate'}\n\nESTIMATE DETAILS:\n${job.raw_estimate_data}${extraContext ? `\n\n--- ADDITIONAL CONTEXT FROM NEW FILES ---\n${extraContext}` : ''}`;
         const { context: priorCtx } = findPriorQuoteContext(db, {
           rawText: job.raw_estimate_data,
           contactId: job.contact_id,

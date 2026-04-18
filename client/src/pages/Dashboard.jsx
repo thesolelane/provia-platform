@@ -38,6 +38,9 @@ export default function Dashboard({ token }) {
     estimateText: '',
   });
   const [uploadFiles, setUploadFiles] = useState([]);
+  const [manualFiles, setManualFiles] = useState([]);
+  const [manualExtracting, setManualExtracting] = useState(false);
+  const manualFileRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [contactSuggestions, setContactSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -209,6 +212,7 @@ export default function Dashboard({ token }) {
   const openNewJob = () => {
     setSubmitTab('text');
     setUploadFiles([]);
+    setManualFiles([]);
     setManual({
       customerName: '',
       customerEmail: '',
@@ -221,15 +225,43 @@ export default function Dashboard({ token }) {
 
   const submitManual = async () => {
     setSubmitBusy(true);
+    let finalText = manual.estimateText;
+
+    // If files are attached, extract their content and append to scope text
+    if (manualFiles.length > 0) {
+      setManualExtracting(true);
+      try {
+        const fd = new FormData();
+        manualFiles.forEach((f, i) => fd.append(`file_${i}`, f));
+        const extractRes = await fetch('/api/jobs/extract-from-files', {
+          method: 'POST',
+          headers,
+          body: fd,
+        });
+        if (extractRes.ok) {
+          const { extractedText } = await extractRes.json();
+          finalText = finalText.trim()
+            ? `${finalText.trim()}\n\n--- EXTRACTED FROM ATTACHED FILES ---\n${extractedText}`
+            : extractedText;
+        } else {
+          showToast('Could not read attached files — submitting text scope only', 'warning');
+        }
+      } catch {
+        showToast('File extraction failed — submitting text scope only', 'warning');
+      }
+      setManualExtracting(false);
+    }
+
     const res = await fetch('/api/jobs/manual', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify(manual),
+      body: JSON.stringify({ ...manual, estimateText: finalText }),
     });
     const data = await res.json();
     setSubmitBusy(false);
     if (res.ok) {
       setShowManual(false);
+      setManualFiles([]);
       if (data.duplicateWarning?.length) {
         const names = data.duplicateWarning.map((d) => d.pb_number || d.id).join(', ');
         showToast(`⚠️ Possible duplicate — similar job already exists: ${names}`, 'warning');
@@ -1191,23 +1223,69 @@ export default function Dashboard({ token }) {
                   }}
                   placeholder={`e.g. New 2-story build — 3-bay garage 1st floor, living space 2nd floor\nMetal roof, board & batten siding, mini splits x3\nPermit included. Start date flexible.\nBudget: $350,000`}
                 />
+
+                {/* File attachment — optional alongside text */}
+                <input
+                  ref={manualFileRef}
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.gif,.webp,.pdf"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const added = Array.from(e.target.files || []);
+                    setManualFiles((prev) => {
+                      const names = new Set(prev.map((f) => f.name + f.size));
+                      return [...prev, ...added.filter((f) => !names.has(f.name + f.size))];
+                    });
+                    e.target.value = '';
+                  }}
+                />
+                <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                  <button
+                    onClick={() => manualFileRef.current?.click()}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: '5px 10px',
+                      background: manualFiles.length ? '#e8f0fe' : '#f4f6fb',
+                      border: `1px solid ${manualFiles.length ? '#1B3A6B' : '#ddd'}`,
+                      borderRadius: 6, cursor: 'pointer', fontSize: 11,
+                      color: manualFiles.length ? '#1B3A6B' : '#666',
+                    }}
+                  >
+                    📎 {manualFiles.length ? `${manualFiles.length} file${manualFiles.length > 1 ? 's' : ''} attached` : 'Attach Plans / Photos (optional)'}
+                  </button>
+                  {manualFiles.map((f, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      background: '#e8f0fe', borderRadius: 20,
+                      padding: '3px 8px', fontSize: 10, color: '#1B3A6B',
+                    }}>
+                      <span style={{ maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</span>
+                      <button
+                        onClick={() => setManualFiles((prev) => prev.filter((_, j) => j !== i))}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 0, color: '#555' }}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+
                 <button
                   onClick={submitManual}
-                  disabled={submitBusy || !manual.estimateText.trim()}
+                  disabled={submitBusy || manualExtracting || (!manual.estimateText.trim() && !manualFiles.length)}
                   style={{
                     marginTop: 12,
                     width: '100%',
                     padding: 12,
-                    background: submitBusy ? '#888' : '#1B3A6B',
+                    background: submitBusy || manualExtracting ? '#888' : '#1B3A6B',
                     color: 'white',
                     border: 'none',
                     borderRadius: 6,
-                    cursor: submitBusy ? 'not-allowed' : 'pointer',
+                    cursor: submitBusy || manualExtracting ? 'not-allowed' : 'pointer',
                     fontWeight: 'bold',
                     fontSize: 14,
                   }}
                 >
-                  {submitBusy ? '⏳ Processing with AI...' : '🤖 Generate Proposal'}
+                  {manualExtracting ? '📖 Reading files...' : submitBusy ? '⏳ Processing with AI...' : '🤖 Generate Proposal'}
                 </button>
               </div>
             )}
