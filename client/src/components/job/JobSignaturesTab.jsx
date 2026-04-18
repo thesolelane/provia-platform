@@ -1,5 +1,6 @@
 import React from 'react';
 import { BLUE, GREEN } from './constants';
+import ScanButton from './ScanButton';
 
 function ReadReceiptBadge({ session, label }) {
   if (!session) return null;
@@ -60,6 +61,8 @@ function ReadReceiptBadge({ session, label }) {
 export default function JobSignaturesTab({
   sigSessions,
   job,
+  token,
+  onSuccess,
   portalUrl,
   portalCopied,
   generatePortalLink,
@@ -138,7 +141,7 @@ export default function JobSignaturesTab({
           Upload a scanned or photographed copy of a paper-signed proposal or contract. The job
           status will update automatically.
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <label style={{ cursor: manualUploading ? 'not-allowed' : 'pointer' }}>
             <input
               type="file"
@@ -163,6 +166,14 @@ export default function JobSignaturesTab({
               {manualUploading ? 'Uploading...' : '📋 Upload Signed Proposal'}
             </span>
           </label>
+          <ScanButton
+            jobId={job?.id}
+            attachType="signature"
+            docType="proposal"
+            label="Scan Signed Proposal"
+            token={token}
+            onSuccess={onSuccess}
+          />
           <label style={{ cursor: manualUploading ? 'not-allowed' : 'pointer' }}>
             <input
               type="file"
@@ -187,6 +198,14 @@ export default function JobSignaturesTab({
               {manualUploading ? 'Uploading...' : '📑 Upload Signed Contract'}
             </span>
           </label>
+          <ScanButton
+            jobId={job?.id}
+            attachType="signature"
+            docType="contract"
+            label="Scan Signed Contract"
+            token={token}
+            onSuccess={onSuccess}
+          />
         </div>
         {manualUploadDone && (
           <div
@@ -212,6 +231,49 @@ export default function JobSignaturesTab({
             </a>
           </div>
         )}
+      </div>
+
+      {/* Receipt / Check Scanner */}
+      <div
+        style={{
+          background: '#f0fdf4',
+          border: '1px solid #86efac',
+          borderRadius: 10,
+          padding: '16px 18px',
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, color: '#14532d', fontSize: 13, marginBottom: 3 }}>
+            🧾 Scan Receipt or Check
+          </div>
+          <div style={{ fontSize: 12, color: '#555' }}>
+            Scan a customer check or receipt directly into the job's photo record.
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <ScanButton
+            jobId={job?.id}
+            attachType="photo"
+            docType="receipt"
+            label="Scan Receipt"
+            token={token}
+            onSuccess={onSuccess}
+          />
+          <ScanButton
+            jobId={job?.id}
+            attachType="photo"
+            docType="check"
+            label="Scan Check"
+            token={token}
+            onSuccess={onSuccess}
+          />
+        </div>
       </div>
 
       {sigSessions.length === 0 ? (

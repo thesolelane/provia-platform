@@ -108,6 +108,28 @@ System adds: `finalPrice`, `pricing`, `totalValue`, `depositAmount`, `validUntil
 
 ---
 
+## Scanner Feature (v1.5.2)
+WIA-based scanning via PowerShell (`server/routes/scan.js`, registered at `/api/scan`).
+- **GET /api/scan/devices** — lists WIA-compatible scanner devices
+- **POST /api/scan/start** — triggers scan, saves temp JPEG, returns `{ scanId, preview }` (base64)
+- **POST /api/scan/attach/:jobId** — attaches the temp scan to a job:
+  - `attachType: 'signature'` + `docType: 'proposal'|'contract'` → updates job status, saves to `uploads/jobs/:id/`, logs to `job_photos`
+  - `attachType: 'photo'` + `docType: 'receipt'|'check'` → saves as job photo with caption
+- **DELETE /api/scan/temp/:scanId** — discards a scan preview
+
+Temp scans live in `uploads/scan_temp/` (cleaned up after attach or discard).
+
+**Frontend:** `ScanButton.jsx` — device selector, DPI picker (150/300/600), scan trigger, preview step (confirm before attaching). Used in `JobSignaturesTab` for contracts/proposals and receipts/checks.
+
+**Windows note:** Uses WIA COM via PowerShell — requires scanner WIA driver installed. PM2 must run as the logged-in user (not SYSTEM service) for COM access.
+
+## Network Printer Feature (v1.5.1)
+`server/routes/print.js` — GET /printers, POST /api/print/job/:id. Uses `pdf-to-printer` npm package.
+`PrintButton.jsx` — reusable dropdown used in `JobProposalTab` and `JobContractTab`.
+Default printer configurable via `print_printer_name` setting in the settings table.
+
+---
+
 ## Pricing Model
 Jackson submits **base costs** (what we pay subs/materials). System applies markup — Claude never does math:
 - Combined multiplier: (1 + Sub O&P 15%) × (1 + GC O&P 25%) × (1 + Contingency 10%) ≈ 1.5813×

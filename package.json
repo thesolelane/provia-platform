@@ -1,6 +1,6 @@
 {
   "name": "preferred-builders-ai",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Preferred Builders AI Contract & Estimation System",
   "main": "server/index.js",
   "scripts": {

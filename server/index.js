@@ -284,6 +284,7 @@ app.use(require('./routes/signing'));
 app.use(require('./routes/signingAdmin'));
 app.use('/api/manual-signature', require('./routes/manualSignature'));
 app.use('/api/print', require('./routes/print'));
+app.use('/api/scan', require('./routes/scan'));
 
 // ── CUSTOMER PORTAL (public page at /portal/:token + api at /api/portal/*) ─
 app.use(require('./routes/customerPortal'));

@@ -1086,6 +1086,8 @@ export default function JobDetail({ token, userName }) {
             <JobSignaturesTab
               sigSessions={sigSessions}
               job={job}
+              token={token}
+              onSuccess={load}
               portalUrl={portalUrl}
               portalCopied={portalCopied}
               generatePortalLink={generatePortalLink}
