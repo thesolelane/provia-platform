@@ -41,6 +41,7 @@
     "nodemailer": "^8.0.5",
     "pdf-lib": "^1.17.1",
     "pdf-parse": "^1.1.1",
+    "pdf-to-printer": "^5.7.0",
     "puppeteer": "^22.0.0",
     "resend": "^6.9.4",
     "socket.io": "^4.8.3",

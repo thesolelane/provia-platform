@@ -1199,6 +1199,13 @@ function seedDefaultSettings() {
       category: 'backup',
       label: 'Custom Backup Folder Path (leave blank for default)',
     },
+    // Print settings
+    {
+      key: 'print_printer_name',
+      value: '',
+      category: 'print',
+      label: 'Network Printer Name (leave blank to use system default)',
+    },
   ];
 
   const insert = db.prepare(`

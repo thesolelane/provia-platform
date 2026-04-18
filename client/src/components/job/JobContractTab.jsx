@@ -1,7 +1,8 @@
 import React from 'react';
 import { BLUE } from './constants';
+import PrintButton from './PrintButton';
 
-export default function JobContractTab({ contractData, job }) {
+export default function JobContractTab({ contractData, job, token }) {
   return (
     <div>
       {!contractData ? (
@@ -14,7 +15,15 @@ export default function JobContractTab({ contractData, job }) {
         </div>
       ) : (
         <div>
-          <h3 style={{ color: BLUE, marginBottom: 16 }}>Contract Summary</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h3 style={{ color: BLUE, margin: 0 }}>Contract Summary</h3>
+            <PrintButton
+              jobId={job?.id}
+              docType="contract"
+              hasPdf={!!job?.contract_pdf_path}
+              token={token}
+            />
+          </div>
           <pre
             style={{
               background: '#f4f6fb',

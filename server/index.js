@@ -283,6 +283,7 @@ app.use(require('./routes/signing'));
 // ── SIGNING ADMIN (send-proposal, send-contract, status) ──────
 app.use(require('./routes/signingAdmin'));
 app.use('/api/manual-signature', require('./routes/manualSignature'));
+app.use('/api/print', require('./routes/print'));
 
 // ── CUSTOMER PORTAL (public page at /portal/:token + api at /api/portal/*) ─
 app.use(require('./routes/customerPortal'));

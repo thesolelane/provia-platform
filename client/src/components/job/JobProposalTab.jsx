@@ -1,7 +1,8 @@
 import React from 'react';
 import { BLUE, ORANGE } from './constants';
+import PrintButton from './PrintButton';
 
-export default function JobProposalTab({ proposalData }) {
+export default function JobProposalTab({ proposalData, job, token }) {
   return (
     <div>
       {!proposalData ? (
@@ -10,7 +11,15 @@ export default function JobProposalTab({ proposalData }) {
         </div>
       ) : (
         <div>
-          <h3 style={{ color: BLUE, marginBottom: 16 }}>Proposal Summary</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h3 style={{ color: BLUE, margin: 0 }}>Proposal Summary</h3>
+            <PrintButton
+              jobId={job?.id}
+              docType="proposal"
+              hasPdf={!!job?.proposal_pdf_path}
+              token={token}
+            />
+          </div>
           <div
             style={{ background: '#f8f9fa', borderRadius: 8, padding: 16, marginBottom: 16 }}
           >
