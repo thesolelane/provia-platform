@@ -128,22 +128,41 @@ ${referenceLog
 
 *Assessment generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' })}*`;
 
-  // Save (upsert) assessment report
-  const existing = db
+  // Save ACTIVE → PREVIOUS, then write new report as ACTIVE
+  const activeRow = db
     .prepare(
-      "SELECT id FROM knowledge_base WHERE title = 'Competitive Assessment Report' AND category = 'pricing'",
+      "SELECT id, content FROM knowledge_base WHERE title = 'Competitive Assessment Report' AND category = 'pricing'",
     )
     .get();
-  if (existing) {
-    db.prepare('UPDATE knowledge_base SET content = ?, active = 1 WHERE id = ?').run(
-      fullReport,
-      existing.id,
-    );
+
+  if (activeRow) {
+    // Demote current ACTIVE to PREVIOUS (upsert)
+    const prevRow = db
+      .prepare(
+        "SELECT id FROM knowledge_base WHERE title = 'Previous Competitive Assessment Report' AND category = 'pricing'",
+      )
+      .get();
+    if (prevRow) {
+      db.prepare(
+        'UPDATE knowledge_base SET content = ?, active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      ).run(activeRow.content, prevRow.id);
+    } else {
+      db.prepare(
+        "INSERT INTO knowledge_base (title, category, content, language) VALUES ('Previous Competitive Assessment Report', 'pricing', ?, 'en')",
+      ).run(activeRow.content);
+    }
+    // Write new report as ACTIVE
+    db.prepare(
+      'UPDATE knowledge_base SET content = ?, active = 1 WHERE id = ?',
+    ).run(fullReport, activeRow.id);
   } else {
+    // First ever assessment — insert as ACTIVE only
     db.prepare(
       'INSERT INTO knowledge_base (title, category, content, language) VALUES (?, ?, ?, ?)',
     ).run('Competitive Assessment Report', 'pricing', fullReport, 'en');
   }
+
+  console.log('[Assessment] Active assessment updated. Previous snapshot preserved.');
 
   // Purge full past_contracts entries — bot has learned, reference log lives in the report
   const ids = contracts.map((c) => c.id);
