@@ -5,7 +5,7 @@ const fs = require('fs');
 const { getDb } = require('../db/database');
 const { requireAuth } = require('../middleware/auth');
 
-const UPLOAD_ROOT = path.join(__dirname, '../uploads');
+const UPLOAD_ROOT = path.join(__dirname, '../../uploads');
 
 // ── GET /api/ai/entity-search?q=text ────────────────────────────────────────
 // Search both contacts and leads by name / address / phone
