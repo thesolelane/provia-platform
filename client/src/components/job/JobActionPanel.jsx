@@ -82,6 +82,14 @@ export default function JobActionPanel({
   setClarFiles,
   clarFileRef,
   clarExtracting,
+  showJobFilesPicker,
+  setShowJobFilesPicker,
+  jobFiles,
+  jobFilesLoading,
+  selectedJobFiles,
+  setSelectedJobFiles,
+  loadJobFiles,
+  extractAndSubmitClarFromJobFiles,
   multiplier,
   reviseFiles,
   setReviseFiles,
@@ -962,7 +970,7 @@ export default function JobActionPanel({
                   </div>
                   <div style={{ fontSize: 13, color: '#333', marginTop: 4, marginBottom: 8 }}>{pending.question}</div>
 
-                  {/* File attach for blueprints/images */}
+                  {/* ── Attach options row ── */}
                   <input
                     ref={clarFileRef}
                     type="file"
@@ -972,6 +980,7 @@ export default function JobActionPanel({
                     onChange={(e) => setClarFiles(Array.from(e.target.files || []))}
                   />
                   <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    {/* Local file button */}
                     <button
                       onClick={() => clarFileRef.current?.click()}
                       style={{
@@ -983,14 +992,14 @@ export default function JobActionPanel({
                         fontSize: 12,
                         color: clarFiles.length ? BLUE : '#888',
                       }}
-                      title="Attach blueprints, photos, or PDFs — the AI will read them to answer this question"
+                      title="Upload blueprints, photos, or PDFs from your computer"
                     >
-                      📎 {clarFiles.length ? `${clarFiles.length} file${clarFiles.length > 1 ? 's' : ''} attached` : 'Attach blueprints / photos'}
+                      📎 {clarFiles.length ? `${clarFiles.length} local file${clarFiles.length > 1 ? 's' : ''}` : 'Upload from computer'}
                     </button>
                     {clarFiles.length > 0 && (
                       <button
                         onClick={() => { setClarFiles([]); if (clarFileRef.current) clarFileRef.current.value = ''; }}
-                        style={{ padding: '6px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#C62828' }}
+                        style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#C62828' }}
                       >
                         ✕ Clear
                       </button>
@@ -1000,8 +1009,112 @@ export default function JobActionPanel({
                         {f.name}
                       </span>
                     ))}
+
+                    {/* Server files button */}
+                    <button
+                      onClick={() => {
+                        if (!showJobFilesPicker) loadJobFiles();
+                        setShowJobFilesPicker((v) => !v);
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        background: showJobFilesPicker || selectedJobFiles.size ? '#e8f0fe' : '#f4f6fb',
+                        border: `1px solid ${showJobFilesPicker || selectedJobFiles.size ? BLUE : '#ddd'}`,
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        color: showJobFilesPicker || selectedJobFiles.size ? BLUE : '#888',
+                      }}
+                      title="Use photos/blueprints already uploaded to this job on the server"
+                    >
+                      🖼 {selectedJobFiles.size ? `${selectedJobFiles.size} server file${selectedJobFiles.size > 1 ? 's' : ''} selected` : 'Use uploaded files'}
+                    </button>
+                    {selectedJobFiles.size > 0 && (
+                      <button
+                        onClick={() => { setSelectedJobFiles(new Set()); }}
+                        style={{ padding: '4px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#C62828' }}
+                      >
+                        ✕ Clear
+                      </button>
+                    )}
                   </div>
 
+                  {/* ── Server files picker panel ── */}
+                  {showJobFilesPicker && (
+                    <div style={{ background: '#f0f4ff', border: '1px solid #c7d2fe', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 'bold', color: BLUE, marginBottom: 8 }}>
+                        Select uploaded files to read with AI:
+                      </div>
+                      {jobFilesLoading ? (
+                        <div style={{ fontSize: 12, color: '#888' }}>Loading files...</div>
+                      ) : jobFiles.length === 0 ? (
+                        <div style={{ fontSize: 12, color: '#888' }}>No photos or files uploaded to this job yet.</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {jobFiles.map((f) => {
+                            const selected = selectedJobFiles.has(f.id);
+                            return (
+                              <div
+                                key={f.id}
+                                onClick={() => {
+                                  setSelectedJobFiles((prev) => {
+                                    const n = new Set(prev);
+                                    n.has(f.id) ? n.delete(f.id) : n.add(f.id);
+                                    return n;
+                                  });
+                                }}
+                                style={{
+                                  width: 90,
+                                  cursor: 'pointer',
+                                  borderRadius: 6,
+                                  border: `2px solid ${selected ? BLUE : '#ddd'}`,
+                                  background: selected ? '#e8f0fe' : 'white',
+                                  padding: 4,
+                                  textAlign: 'center',
+                                  position: 'relative',
+                                }}
+                              >
+                                <img
+                                  src={f.url}
+                                  alt={f.label}
+                                  style={{ width: '100%', height: 64, objectFit: 'cover', borderRadius: 4, display: 'block' }}
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                                <div style={{ fontSize: 10, color: selected ? BLUE : '#555', marginTop: 3, wordBreak: 'break-all', lineHeight: 1.2 }}>
+                                  {f.label.length > 18 ? f.label.slice(0, 16) + '…' : f.label}
+                                </div>
+                                {selected && (
+                                  <div style={{ position: 'absolute', top: 2, right: 4, fontSize: 14, color: BLUE }}>✓</div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {selectedJobFiles.size > 0 && (
+                        <button
+                          onClick={() => extractAndSubmitClarFromJobFiles(pending.id)}
+                          disabled={clarExtracting || actionLoading}
+                          style={{
+                            marginTop: 10,
+                            padding: '8px 16px',
+                            background: BLUE,
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: 6,
+                            cursor: clarExtracting || actionLoading ? 'not-allowed' : 'pointer',
+                            fontSize: 12,
+                            fontWeight: 'bold',
+                            opacity: clarExtracting || actionLoading ? 0.6 : 1,
+                          }}
+                        >
+                          {clarExtracting ? '🔍 AI is reading...' : `Extract & Submit (${selectedJobFiles.size} file${selectedJobFiles.size > 1 ? 's' : ''})`}
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Text answer + local file submit ── */}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input
                       value={clarAnswer}
@@ -1033,7 +1146,7 @@ export default function JobActionPanel({
                   </div>
                   {clarExtracting && (
                     <div style={{ fontSize: 11, color: '#92400E', marginTop: 6 }}>
-                      AI is reading your blueprints/images — this takes a moment...
+                      AI is reading your images — this takes a moment...
                     </div>
                   )}
                 </div>

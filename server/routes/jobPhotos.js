@@ -119,4 +119,137 @@ router.delete('/:id/photos/:photoId', requireAuth, (req, res) => {
   }
 });
 
+// ── GET /:id/job-files — list all images already on the server for this job ──
+router.get('/:id/job-files', requireAuth, (req, res) => {
+  if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'Invalid job id' });
+  try {
+    const db = getDb();
+    const jobId = req.params.id;
+
+    const jobPhotos = db
+      .prepare('SELECT id, filename, original_name, caption, uploaded_at FROM job_photos WHERE job_id = ? ORDER BY uploaded_at DESC')
+      .all(jobId);
+
+    const fieldPhotos = db
+      .prepare('SELECT id, filename, location_label, taken_at as uploaded_at FROM field_photos WHERE job_id = ? ORDER BY taken_at DESC')
+      .all(jobId);
+
+    const files = [
+      ...jobPhotos.map((p) => ({
+        id: `job_${p.id}`,
+        type: 'job_photo',
+        filename: p.filename,
+        label: p.original_name || p.filename,
+        caption: p.caption || '',
+        uploaded_at: p.uploaded_at,
+        url: `/api/jobs/${jobId}/photos/file/${p.filename}`,
+      })),
+      ...fieldPhotos.map((p) => ({
+        id: `field_${p.id}`,
+        type: 'field_photo',
+        filename: p.filename,
+        label: p.location_label || p.filename,
+        caption: '',
+        uploaded_at: p.uploaded_at,
+        url: `/api/field-photos/file/${p.filename}`,
+      })),
+    ];
+
+    res.json({ files });
+  } catch (err) {
+    console.error('List job files error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /:id/extract-from-job-files — run AI vision on server-side files ────
+router.post('/:id/extract-from-job-files', requireAuth, async (req, res) => {
+  if (!UUID_RE.test(req.params.id)) return res.status(400).json({ error: 'Invalid job id' });
+
+  const { selectedFiles } = req.body; // [{ type, filename }]
+  if (!Array.isArray(selectedFiles) || !selectedFiles.length) {
+    return res.status(400).json({ error: 'No files selected' });
+  }
+
+  const Anthropic = require('@anthropic-ai/sdk');
+  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+  const FIELD_PHOTOS_DIR = path.resolve(__dirname, '../../uploads/field_photos');
+  const SUPPORTED = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+
+  const extractedParts = [];
+
+  for (const { type, filename } of selectedFiles) {
+    try {
+      const safeFilename = path.basename(filename);
+      let filePath;
+      if (type === 'job_photo') {
+        filePath = path.resolve(UPLOADS_BASE, req.params.id, safeFilename);
+      } else {
+        filePath = path.resolve(FIELD_PHOTOS_DIR, safeFilename);
+      }
+
+      if (!fs.existsSync(filePath)) {
+        extractedParts.push(`[File not found on server: ${safeFilename}]`);
+        continue;
+      }
+
+      const fileBuffer = fs.readFileSync(filePath);
+      const ext = path.extname(safeFilename).toLowerCase();
+      const mimeMap = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.gif': 'image/gif', '.webp': 'image/webp' };
+      const mime = mimeMap[ext] || 'image/jpeg';
+
+      if (!SUPPORTED.includes(mime)) {
+        extractedParts.push(`[Unsupported format for ${safeFilename} — convert to JPG or PNG]`);
+        continue;
+      }
+
+      const base64 = fileBuffer.toString('base64');
+      const response = await anthropic.messages.create({
+        model: 'claude-opus-4-5',
+        max_tokens: 4000,
+        temperature: 0,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } },
+              {
+                type: 'text',
+                text: `This is a construction document — blueprint, floor plan, building plan, sketch, or site photo.
+
+Extract ALL technically relevant information:
+- Project address or job site address if visible
+- Room names and dimensions
+- Square footage, linear footage, area measurements
+- Materials called out (lumber sizes, concrete, tile, roofing type, etc.)
+- Trade work visible (electrical panels, plumbing fixtures, HVAC equipment, etc.)
+- Structural elements (beams, walls, footings, etc.)
+- Any scope notes or annotations written on the plans
+- Quantities and specifications if labeled
+
+Format as a clear, detailed construction scope description. Include the project address at the very top if found, labeled "PROJECT ADDRESS: [address]". Do NOT include owner/client personal information. Focus on the technical scope.`,
+              },
+            ],
+          },
+        ],
+      });
+
+      const extracted = response.content[0].text.trim();
+      if (extracted.length > 10) {
+        extractedParts.push(`[From: ${safeFilename}]\n${extracted}`);
+      }
+    } catch (err) {
+      console.error(`[extract-from-job-files] Failed on ${filename}:`, err.message);
+      extractedParts.push(`[Could not read: ${filename}]`);
+    }
+  }
+
+  if (!extractedParts.length) {
+    return res.status(400).json({ error: 'No readable content found in the selected files.' });
+  }
+
+  res.json({ extractedText: extractedParts.join('\n\n') });
+});
+
 module.exports = router;

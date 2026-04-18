@@ -35,6 +35,10 @@ export default function JobDetail({ token, userName }) {
   const [clarFiles, setClarFiles] = useState([]);
   const [clarExtracting, setClarExtracting] = useState(false);
   const clarFileRef = useRef(null);
+  const [showJobFilesPicker, setShowJobFilesPicker] = useState(false);
+  const [jobFiles, setJobFiles] = useState([]);
+  const [jobFilesLoading, setJobFilesLoading] = useState(false);
+  const [selectedJobFiles, setSelectedJobFiles] = useState(new Set());
   const [activeTab, setActiveTab] = useState('overview');
   const [editingLineItems, setEditingLineItems] = useState(null);
   const [savingLineItems, setSavingLineItems] = useState(false);
@@ -787,6 +791,57 @@ export default function JobDetail({ token, userName }) {
     return pricing?.markupMultiplier || 1.5813;
   })();
 
+  const loadJobFiles = async () => {
+    setJobFilesLoading(true);
+    try {
+      const res = await fetch(`/api/jobs/${id}/job-files`, { headers: { 'x-auth-token': token } });
+      const data = await res.json();
+      setJobFiles(data.files || []);
+    } catch {
+      showToast('Could not load uploaded files', 'error');
+    }
+    setJobFilesLoading(false);
+  };
+
+  const extractAndSubmitClarFromJobFiles = async (clarId) => {
+    if (!selectedJobFiles.size) return;
+    setClarExtracting(true);
+    try {
+      const selected = jobFiles.filter((f) => selectedJobFiles.has(f.id));
+      const res = await fetch(`/api/jobs/${id}/extract-from-job-files`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ selectedFiles: selected.map((f) => ({ type: f.type, filename: f.filename })) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showToast(data.error || 'Extraction failed', 'error');
+        setClarExtracting(false);
+        return;
+      }
+      const answer = clarAnswer.trim()
+        ? `${clarAnswer.trim()}\n\n[From uploaded files:]\n${data.extractedText}`
+        : `[Extracted from uploaded files:]\n${data.extractedText}`;
+      setClarExtracting(false);
+      setActionLoading(true);
+      const submitRes = await fetch(`/api/jobs/${id}/clarify/${clarId}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ answer }),
+      });
+      const submitData = await submitRes.json();
+      setClarAnswer('');
+      setSelectedJobFiles(new Set());
+      setShowJobFilesPicker(false);
+      setActionLoading(false);
+      load();
+      if (submitData.allAnswered) showToast('All questions answered — generating proposal now', 'info');
+    } catch {
+      showToast('Extraction failed — check your connection', 'error');
+      setClarExtracting(false);
+    }
+  };
+
   const submitClarAnswer = async (clarId) => {
     let answer = clarAnswer.trim();
 
@@ -904,6 +959,14 @@ export default function JobDetail({ token, userName }) {
           setClarFiles={setClarFiles}
           clarFileRef={clarFileRef}
           clarExtracting={clarExtracting}
+          showJobFilesPicker={showJobFilesPicker}
+          setShowJobFilesPicker={setShowJobFilesPicker}
+          jobFiles={jobFiles}
+          jobFilesLoading={jobFilesLoading}
+          selectedJobFiles={selectedJobFiles}
+          setSelectedJobFiles={setSelectedJobFiles}
+          loadJobFiles={loadJobFiles}
+          extractAndSubmitClarFromJobFiles={extractAndSubmitClarFromJobFiles}
           multiplier={multiplier}
           reviseFiles={reviseFiles}
           setReviseFiles={setReviseFiles}
