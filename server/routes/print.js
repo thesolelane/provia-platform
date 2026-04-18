@@ -8,13 +8,19 @@ const fs = require('fs');
 
 // ── GET /api/print/printers — list available printers on this machine ────────
 router.get('/printers', requireAuth, async (req, res) => {
+  const db = getDb();
+  const setting = db.prepare("SELECT value FROM settings WHERE key = 'print_printer_name'").get();
+  const currentPrinter = setting?.value || '';
   try {
     const printer = require('pdf-to-printer');
     const printers = await printer.getPrinters();
-    res.json({ printers: printers.map((p) => (typeof p === 'string' ? p : p.name || p.deviceId || String(p))) });
+    res.json({
+      printers: printers.map((p) => (typeof p === 'string' ? p : p.name || p.deviceId || String(p))),
+      currentPrinter,
+    });
   } catch (err) {
     console.error('[print] getPrinters error:', err.message);
-    res.json({ printers: [], error: 'Could not list printers — check server OS compatibility' });
+    res.json({ printers: [], currentPrinter, error: 'Could not list printers — check server OS compatibility' });
   }
 });
 

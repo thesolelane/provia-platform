@@ -46,6 +46,12 @@ export default function Settings({ token, userRole }) {
   const [backupRunning, setBackupRunning] = useState(false);
   const [backupMsg, setBackupMsg] = useState(null);
 
+  const [printerName, setPrinterName] = useState('');
+  const [printerSaving, setPrinterSaving] = useState(false);
+  const [printerSaved, setPrinterSaved] = useState(false);
+  const [printerList, setPrinterList] = useState([]);
+  const [printerDetecting, setPrinterDetecting] = useState(false);
+
   const [depts, setDepts] = useState([]);
   const [deptsLoading, setDeptsLoading] = useState(false);
   const [deptsDraft, setDeptsDraft] = useState({});
@@ -124,7 +130,38 @@ export default function Settings({ token, userRole }) {
       .then((data) => {
         if (data && !data.error) setIntegration(data);
       });
+    fetch('/api/print/printers', { headers: { 'x-auth-token': token } })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.currentPrinter) setPrinterName(data.currentPrinter);
+      })
+      .catch(() => {});
   }, []);
+
+  const savePrinterName = async () => {
+    setPrinterSaving(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ print_printer_name: printerName }),
+      });
+      setPrinterSaved(true);
+      setTimeout(() => setPrinterSaved(false), 2500);
+    } catch {}
+    setPrinterSaving(false);
+  };
+
+  const detectPrinters = async () => {
+    setPrinterDetecting(true);
+    try {
+      const res = await fetch('/api/print/printers', { headers: { 'x-auth-token': token } });
+      const data = await res.json();
+      setPrinterList(data.printers || []);
+      if (data.currentPrinter && !printerName) setPrinterName(data.currentPrinter);
+    } catch {}
+    setPrinterDetecting(false);
+  };
 
   const update = (key, value) => {
     setSettings((prev) => ({
@@ -1045,6 +1082,56 @@ export default function Settings({ token, userRole }) {
             <p style={{ fontSize: 11, color: '#666', margin: 0 }}>{svc.desc}</p>
           </div>
         ))}
+      </div>
+
+      {/* Hardware — Printer & Scanner */}
+      <div style={{ marginTop: 28 }}>
+        <div style={{ fontWeight: 700, color: BLUE, fontSize: 14, marginBottom: 4 }}>🖨️ Hardware</div>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+          Set the default printer for proposals and contracts. Leave blank to use the Windows default printer.
+        </p>
+
+        {/* Printer name input */}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+          <input
+            value={printerName}
+            onChange={(e) => setPrinterName(e.target.value)}
+            placeholder="e.g. HP77ED59 (HP OfficeJet 8010 series)"
+            style={{ flex: 1, minWidth: 260, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}
+          />
+          <button
+            onClick={savePrinterName}
+            disabled={printerSaving}
+            style={{ padding: '8px 18px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: printerSaving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 'bold', opacity: printerSaving ? 0.6 : 1 }}
+          >
+            {printerSaved ? '✅ Saved' : printerSaving ? 'Saving...' : 'Save'}
+          </button>
+          <button
+            onClick={detectPrinters}
+            disabled={printerDetecting}
+            style={{ padding: '8px 14px', background: '#f4f6fb', border: '1px solid #ddd', borderRadius: 6, cursor: printerDetecting ? 'not-allowed' : 'pointer', fontSize: 13, color: '#555', opacity: printerDetecting ? 0.6 : 1 }}
+          >
+            {printerDetecting ? 'Detecting...' : '🔍 Detect Printers'}
+          </button>
+        </div>
+
+        {/* Detected printer list */}
+        {printerList.length > 0 && (
+          <div style={{ background: '#f8f9fa', border: '1px solid #e0e7ef', borderRadius: 8, padding: '10px 14px' }}>
+            <div style={{ fontSize: 11, color: '#555', fontWeight: 'bold', marginBottom: 8 }}>Printers found on this machine — click to select:</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {printerList.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPrinterName(p)}
+                  style={{ textAlign: 'left', padding: '6px 10px', background: printerName === p ? '#E3ECFF' : 'white', border: `1px solid ${printerName === p ? BLUE : '#ddd'}`, borderRadius: 6, cursor: 'pointer', fontSize: 12, color: printerName === p ? BLUE : '#333', fontWeight: printerName === p ? 'bold' : 'normal' }}
+                >
+                  🖨️ {p}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
