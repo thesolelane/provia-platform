@@ -3,25 +3,34 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
-const path = require('path');
 const fs = require('fs');
+const { exec } = require('child_process');
 
-// ── GET /api/print/printers — list available printers on this machine ────────
-router.get('/printers', requireAuth, async (req, res) => {
+// ── GET /api/print/printers — list available printers via PowerShell ─────────
+router.get('/printers', requireAuth, (req, res) => {
   const db = getDb();
   const setting = db.prepare("SELECT value FROM settings WHERE key = 'print_printer_name'").get();
   const currentPrinter = setting?.value || '';
-  try {
-    const printer = require('pdf-to-printer');
-    const printers = await printer.getPrinters();
-    res.json({
-      printers: printers.map((p) => (typeof p === 'string' ? p : p.name || p.deviceId || String(p))),
-      currentPrinter,
-    });
-  } catch (err) {
-    console.error('[print] getPrinters error:', err.message);
-    res.json({ printers: [], currentPrinter, error: 'Could not list printers — check server OS compatibility' });
-  }
+
+  exec(
+    'powershell -NoProfile -NonInteractive -Command "Get-Printer | Select-Object -ExpandProperty Name | ConvertTo-Json -Compress"',
+    { timeout: 15000 },
+    (err, stdout) => {
+      if (err) {
+        return res.json({ printers: [], currentPrinter, warning: 'PowerShell not available in this environment' });
+      }
+      let printers = [];
+      try {
+        const parsed = JSON.parse(stdout.trim());
+        printers = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        // single printer returns a plain string, not an array
+        const line = stdout.trim().replace(/^"|"$/g, '');
+        if (line) printers = [line];
+      }
+      res.json({ printers, currentPrinter });
+    }
+  );
 });
 
 // ── POST /api/print/job/:id — send proposal or contract PDF to printer ───────
