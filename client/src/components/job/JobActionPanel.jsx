@@ -78,6 +78,10 @@ export default function JobActionPanel({
   clarifications,
   clarAnswer,
   setClarAnswer,
+  clarFiles,
+  setClarFiles,
+  clarFileRef,
+  clarExtracting,
   multiplier,
   reviseFiles,
   setReviseFiles,
@@ -957,24 +961,81 @@ export default function JobActionPanel({
                     Question {answered.length + 1} of {clarifications.length}:
                   </div>
                   <div style={{ fontSize: 13, color: '#333', marginTop: 4, marginBottom: 8 }}>{pending.question}</div>
+
+                  {/* File attach for blueprints/images */}
+                  <input
+                    ref={clarFileRef}
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf"
+                    style={{ display: 'none' }}
+                    onChange={(e) => setClarFiles(Array.from(e.target.files || []))}
+                  />
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <button
+                      onClick={() => clarFileRef.current?.click()}
+                      style={{
+                        padding: '6px 12px',
+                        background: clarFiles.length ? '#e8f0fe' : '#f4f6fb',
+                        border: `1px solid ${clarFiles.length ? BLUE : '#ddd'}`,
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        fontSize: 12,
+                        color: clarFiles.length ? BLUE : '#888',
+                      }}
+                      title="Attach blueprints, photos, or PDFs — the AI will read them to answer this question"
+                    >
+                      📎 {clarFiles.length ? `${clarFiles.length} file${clarFiles.length > 1 ? 's' : ''} attached` : 'Attach blueprints / photos'}
+                    </button>
+                    {clarFiles.length > 0 && (
+                      <button
+                        onClick={() => { setClarFiles([]); if (clarFileRef.current) clarFileRef.current.value = ''; }}
+                        style={{ padding: '6px 8px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#C62828' }}
+                      >
+                        ✕ Clear
+                      </button>
+                    )}
+                    {clarFiles.length > 0 && clarFiles.map((f, i) => (
+                      <span key={i} style={{ fontSize: 11, color: '#555', background: '#f0f4ff', padding: '2px 6px', borderRadius: 4 }}>
+                        {f.name}
+                      </span>
+                    ))}
+                  </div>
+
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input
                       value={clarAnswer}
                       onChange={(e) => setClarAnswer(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && clarAnswer.trim()) submitClarAnswer(pending.id);
+                        if (e.key === 'Enter' && (clarAnswer.trim() || clarFiles.length)) submitClarAnswer(pending.id);
                       }}
-                      placeholder="Type your answer..."
+                      placeholder={clarFiles.length ? 'Optional: add notes to accompany the images...' : 'Type your answer...'}
                       style={{ flex: 1, padding: 8, border: '1px solid #ddd', borderRadius: 6, fontSize: 13 }}
                     />
                     <button
                       onClick={() => submitClarAnswer(pending.id)}
-                      disabled={!clarAnswer.trim() || actionLoading}
-                      style={{ padding: '8px 16px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}
+                      disabled={(!clarAnswer.trim() && !clarFiles.length) || actionLoading || clarExtracting}
+                      style={{
+                        padding: '8px 16px',
+                        background: BLUE,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: 6,
+                        cursor: ((!clarAnswer.trim() && !clarFiles.length) || actionLoading || clarExtracting) ? 'not-allowed' : 'pointer',
+                        fontSize: 12,
+                        fontWeight: 'bold',
+                        opacity: ((!clarAnswer.trim() && !clarFiles.length) || actionLoading || clarExtracting) ? 0.6 : 1,
+                        whiteSpace: 'nowrap',
+                      }}
                     >
-                      {actionLoading ? '...' : 'Submit'}
+                      {clarExtracting ? '🔍 Reading...' : actionLoading ? '...' : 'Submit'}
                     </button>
                   </div>
+                  {clarExtracting && (
+                    <div style={{ fontSize: 11, color: '#92400E', marginTop: 6 }}>
+                      AI is reading your blueprints/images — this takes a moment...
+                    </div>
+                  )}
                 </div>
               )}
             </div>

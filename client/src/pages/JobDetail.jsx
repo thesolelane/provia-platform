@@ -32,6 +32,9 @@ export default function JobDetail({ token, userName }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [note, setNote] = useState('');
   const [clarAnswer, setClarAnswer] = useState('');
+  const [clarFiles, setClarFiles] = useState([]);
+  const [clarExtracting, setClarExtracting] = useState(false);
+  const clarFileRef = useRef(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [editingLineItems, setEditingLineItems] = useState(null);
   const [savingLineItems, setSavingLineItems] = useState(false);
@@ -785,15 +788,46 @@ export default function JobDetail({ token, userName }) {
   })();
 
   const submitClarAnswer = async (clarId) => {
-    if (!clarAnswer.trim()) return;
+    let answer = clarAnswer.trim();
+
+    if (clarFiles.length > 0) {
+      setClarExtracting(true);
+      try {
+        const fd = new FormData();
+        clarFiles.forEach((f, i) => fd.append(`file_${i}`, f));
+        const extractRes = await fetch('/api/jobs/extract-from-files', {
+          method: 'POST',
+          headers: { 'x-auth-token': token },
+          body: fd,
+        });
+        if (extractRes.ok) {
+          const { extractedText } = await extractRes.json();
+          answer = answer
+            ? `${answer}\n\n[From attached blueprints/images:]\n${extractedText}`
+            : `[Extracted from attached blueprints/images:]\n${extractedText}`;
+        } else {
+          showToast('Could not read the attached images — try again', 'error');
+          setClarExtracting(false);
+          return;
+        }
+      } catch {
+        showToast('Image extraction failed — check your connection', 'error');
+        setClarExtracting(false);
+        return;
+      }
+      setClarExtracting(false);
+    }
+
+    if (!answer) return;
     setActionLoading(true);
     const res = await fetch(`/api/jobs/${id}/clarify/${clarId}`, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ answer: clarAnswer.trim() }),
+      body: JSON.stringify({ answer }),
     });
     const data = await res.json();
     setClarAnswer('');
+    setClarFiles([]);
     setActionLoading(false);
     load();
     if (data.allAnswered) showToast('All questions answered — generating proposal now', 'info');
@@ -866,6 +900,10 @@ export default function JobDetail({ token, userName }) {
           clarifications={clarifications}
           clarAnswer={clarAnswer}
           setClarAnswer={setClarAnswer}
+          clarFiles={clarFiles}
+          setClarFiles={setClarFiles}
+          clarFileRef={clarFileRef}
+          clarExtracting={clarExtracting}
           multiplier={multiplier}
           reviseFiles={reviseFiles}
           setReviseFiles={setReviseFiles}
