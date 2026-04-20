@@ -1206,6 +1206,13 @@ function seedDefaultSettings() {
       category: 'print',
       label: 'Network Printer Name (leave blank to use system default)',
     },
+    // Security — IP allowlist
+    {
+      key: 'security.allowed_ips',
+      value: JSON.stringify(['96.237.189.62']),
+      category: 'security',
+      label: 'Allowed IP Addresses',
+    },
   ];
 
   const insert = db.prepare(`

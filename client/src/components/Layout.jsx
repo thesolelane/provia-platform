@@ -21,8 +21,8 @@ const MAIN_NAV = [
   { path: '/reports', icon: '📋', label: 'Reports' },
 ];
 
-const CONFIG_NAV = [
-  { path: '/settings', icon: '⚙️', label: 'Settings' },
+const CONFIG_NAV_ALL = [
+  { path: '/settings', icon: '⚙️', label: 'Settings', adminOnly: true },
   { path: '/knowledge', icon: '📚', label: 'Knowledge Base' },
   { path: '/team', icon: '👷', label: 'Team' },
   { path: '/agents', icon: '🤖', label: 'Agents' },
@@ -36,7 +36,7 @@ const BOTTOM_NAV = [
   { path: '/payments', icon: '💰', label: 'Payments' },
 ];
 
-const ALL_NAV = [...MAIN_NAV, ...CONFIG_NAV];
+const ALL_NAV = [...MAIN_NAV, ...CONFIG_NAV_ALL];
 
 function SidebarNavItem({ item, active, collapsed }) {
   return (
@@ -72,6 +72,10 @@ export default function Layout({ children, token, onLogout, userName, userRole }
   const [collapsed, setCollapsed] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  const CONFIG_NAV = CONFIG_NAV_ALL.filter(
+    (n) => !n.adminOnly || userRole === 'system_admin',
+  );
 
   const configActive = CONFIG_NAV.some((n) => n.path === pathname);
   const currentPage = ALL_NAV.find((n) => n.path === pathname);

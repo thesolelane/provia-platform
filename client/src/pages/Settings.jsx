@@ -55,6 +55,11 @@ export default function Settings({ token, userRole }) {
   const [scanFolderSaving, setScanFolderSaving] = useState(false);
   const [scanFolderSaved, setScanFolderSaved] = useState(false);
 
+  const [allowedIps, setAllowedIps] = useState([]);
+  const [newIp, setNewIp] = useState('');
+  const [ipSaving, setIpSaving] = useState(false);
+  const [ipMsg, setIpMsg] = useState(null);
+
   const [depts, setDepts] = useState([]);
   const [deptsLoading, setDeptsLoading] = useState(false);
   const [deptsDraft, setDeptsDraft] = useState({});
@@ -102,6 +107,14 @@ export default function Settings({ token, userRole }) {
         .then((r) => r.json())
         .then((data) => {
           if (!data.error) setBackupInfo(data);
+        })
+        .catch(() => {});
+    }
+    if (activeTab === 'Integrations') {
+      fetch('/api/settings/security/allowed-ips', { headers: { 'x-auth-token': token } })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && Array.isArray(data.ips)) setAllowedIps(data.ips);
         })
         .catch(() => {});
     }
@@ -184,6 +197,43 @@ export default function Settings({ token, userRole }) {
       setTimeout(() => setScanFolderSaved(false), 2500);
     } catch {}
     setScanFolderSaving(false);
+  };
+
+  const addIp = async () => {
+    const ip = newIp.trim();
+    if (!ip) return;
+    setIpSaving(true);
+    setIpMsg(null);
+    try {
+      const res = await fetch('/api/settings/security/allowed-ips', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ip }),
+      });
+      const data = await res.json();
+      if (data.ips) {
+        setAllowedIps(data.ips);
+        setNewIp('');
+        setIpMsg({ type: 'success', text: `${ip} added` });
+      } else {
+        setIpMsg({ type: 'error', text: data.error || 'Failed' });
+      }
+    } catch {
+      setIpMsg({ type: 'error', text: 'Network error' });
+    }
+    setIpSaving(false);
+    setTimeout(() => setIpMsg(null), 3000);
+  };
+
+  const removeIp = async (ip) => {
+    try {
+      const res = await fetch(`/api/settings/security/allowed-ips/${encodeURIComponent(ip)}`, {
+        method: 'DELETE',
+        headers,
+      });
+      const data = await res.json();
+      if (data.ips) setAllowedIps(data.ips);
+    } catch {}
   };
 
   const update = (key, value) => {
@@ -1183,6 +1233,57 @@ export default function Settings({ token, userRole }) {
           </div>
         </div>
       </div>
+
+      {/* IP Allowlist — system_admin only */}
+      {userRole === 'system_admin' && (
+        <div style={{ marginTop: 28 }}>
+          <div style={{ fontWeight: 700, color: BLUE, fontSize: 14, marginBottom: 4 }}>🔒 IP Access Control</div>
+          <p style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
+            Only these IP addresses can access the app. The customer portal (signing) is always public.
+            Local network connections are always allowed automatically.
+          </p>
+          <div style={{ background: '#f8f9fa', border: '1px solid #e0e7ef', borderRadius: 8, padding: '12px 16px', marginBottom: 12 }}>
+            {allowedIps.length === 0 && (
+              <div style={{ fontSize: 12, color: '#aaa', marginBottom: 8 }}>No IPs configured — all traffic allowed</div>
+            )}
+            {allowedIps.map((ip) => (
+              <div key={ip} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #eee' }}>
+                <span style={{ fontSize: 13, fontFamily: 'monospace', color: '#1B3A6B', fontWeight: 600 }}>{ip}</span>
+                <button
+                  onClick={() => removeIp(ip)}
+                  style={{ padding: '3px 10px', background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 'bold' }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              value={newIp}
+              onChange={(e) => setNewIp(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && addIp()}
+              placeholder="e.g. 73.45.100.22 (your home IP)"
+              style={{ flex: 1, minWidth: 220, padding: '8px 12px', border: '1px solid #ddd', borderRadius: 6, fontSize: 13, fontFamily: 'monospace' }}
+            />
+            <button
+              onClick={addIp}
+              disabled={ipSaving || !newIp.trim()}
+              style={{ padding: '8px 18px', background: BLUE, color: 'white', border: 'none', borderRadius: 6, cursor: ipSaving ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 'bold', opacity: ipSaving ? 0.6 : 1 }}
+            >
+              {ipSaving ? 'Adding...' : 'Add IP'}
+            </button>
+          </div>
+          {ipMsg && (
+            <div style={{ marginTop: 8, fontSize: 12, color: ipMsg.type === 'success' ? '#2E7D32' : '#dc2626', fontWeight: 600 }}>
+              {ipMsg.type === 'success' ? '✅' : '❌'} {ipMsg.text}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: '#6b7280', marginTop: 10, lineHeight: 1.5 }}>
+            <strong>To find your home IP:</strong> Visit <a href="https://whatismyip.com" target="_blank" rel="noreferrer" style={{ color: BLUE }}>whatismyip.com</a> from home and paste the address above.
+          </div>
+        </div>
+      )}
     </div>
   );
 
