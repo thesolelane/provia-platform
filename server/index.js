@@ -223,10 +223,6 @@ const webhookLimiter = rateLimit({
 });
 app.use('/webhook/', webhookLimiter);
 
-// ── IP WHITELIST ───────────────────────────────────────────────
-const { ipWhitelist } = require('./middleware/ipWhitelist');
-app.use(ipWhitelist);
-
 // ── BLANK CONTRACT DOWNLOAD ───────────────────────────────────
 app.get('/api/blank-contract', requireAuth, async (req, res) => {
   try {

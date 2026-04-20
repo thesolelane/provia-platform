@@ -3,9 +3,9 @@ const express = require('express');
 const router = express.Router();
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { getDb } = require('../db/database');
-const { invalidateIpCache } = require('../middleware/ipWhitelist');
+const { requireOfficeIp, invalidateIpCache } = require('../middleware/ipWhitelist');
 
-const requireAdmin = [requireAuth, requireRole('system_admin')];
+const requireAdmin = [requireAuth, requireRole('system_admin'), requireOfficeIp];
 
 // GET all settings grouped by category
 router.get('/', requireAdmin, (req, res) => {
