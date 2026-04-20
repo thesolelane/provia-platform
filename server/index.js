@@ -34,6 +34,7 @@ const { Server: SocketIOServer } = require('socket.io');
 const { setIO } = require('./services/realtimeService');
 
 const app = express();
+app.set('trust proxy', 1); // trust Caddy reverse proxy X-Forwarded-For headers
 const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
