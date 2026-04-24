@@ -67,7 +67,7 @@ function portalPageHTML({ job, sessions }) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1`>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Your Project Portal — ${tenant.company.name}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
@@ -158,7 +158,7 @@ function portalPageHTML({ job, sessions }) {
     <div class="card-title">📝 Request a Change</div>
     <p style="font-size:13px;color:#666;margin-bottom:14px">Need to add, remove, or modify something in your project scope? Submit a change request and our team will follow up with an updated proposal.</p>
     <input type="text" id="coName" placeholder="Your name">
-    <textarea id="coDesc" rows="5" placeholder="Describe the change you`d like to make…"></textarea>
+    <textarea id="coDesc" rows="5" placeholder="Describe the change you&#39;d like to make…"></textarea>
     <input type="text" id="coCost" placeholder="Estimated cost (optional, e.g. 500)" style="margin-top:10px">
     <div style="margin-top:10px">
       <button class="btn btn-orange" onclick="submitChangeOrder()">📋 Submit Change Request</button>
@@ -176,7 +176,7 @@ function portalPageHTML({ job, sessions }) {
 
 <script>
 (function() {
-  const token = `${escHtml(job.portal_token)}';
+  const token = '${escHtml(job.portal_token)}';
 
   // ── Photo upload ──
   const photoInput = document.getElementById('photoInput');
