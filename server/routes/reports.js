@@ -720,9 +720,9 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
 </style></head><body>
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
   <div>
-    <h1>PREFERRED BUILDERS</h1>
-    <p class="sub">General Services Inc. · ${tenant.company.phone} · Fitchburg, MA</p>
-    <p class="sub">License #${tenant.company.license} · ${tenant.company.license}</p>
+    <h1>${tenant.company.name.toUpperCase()}</h1>
+    <p class="sub">${tenant.company.phone}${tenant.company.city ? ' · ' + tenant.company.city + (tenant.company.state ? ', ' + tenant.company.state : '') : ''}</p>
+    <p class="sub">${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}License #${tenant.company.license}</p>
   </div>
   <div style="text-align:right">
     <div style="font-size:14px;font-weight:bold;color:#1B3A6B">Document History Report</div>
@@ -1085,9 +1085,9 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
 
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
   <div>
-    <h1>PREFERRED BUILDERS</h1>
-    <p class="sub">General Services Inc. · ${tenant.company.phone} · Fitchburg, MA</p>
-    <p class="sub">License #${tenant.company.license} · ${tenant.company.license}</p>
+    <h1>${tenant.company.name.toUpperCase()}</h1>
+    <p class="sub">${tenant.company.phone}${tenant.company.city ? ' · ' + tenant.company.city + (tenant.company.state ? ', ' + tenant.company.state : '') : ''}</p>
+    <p class="sub">${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}License #${tenant.company.license}</p>
   </div>
   <div style="text-align:right">
     <div style="font-size:14px;font-weight:bold;color:#1B3A6B">Customer Full Report</div>

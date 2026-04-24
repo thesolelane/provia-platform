@@ -105,13 +105,12 @@ function portalPageHTML({ job, sessions }) {
 </head>
 <body>
 
-<div class=`hdr">
-  <img src="/images/PB logo Round.png" alt="PB" onerror="this.style.display='none'">
+<div class="hdr">
   <div>
-    <div class="co`>${tenant.company.name}</div>
-    <div class=`sub`>${tenant.company.license} · CSL CS-121662 · ${tenant.company.phone}</div>
+    <div class="co">${tenant.company.name}</div>
+    <div class="sub">${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}${tenant.company.license} · ${tenant.company.phone}</div>
   </div>
-  <div class=`badge">🏠 Customer Portal</div>
+  <div class="badge">🏠 Customer Portal</div>
 </div>
 
 <div class="wrap">
@@ -172,7 +171,7 @@ function portalPageHTML({ job, sessions }) {
 
 <div class="ftr">
   ${tenant.company.name} · ${tenant.company.license} · <a href="https://${tenant.company.website}" style="color:#aaa">${tenant.company.website}</a><br>
-  37 Duck Mill Rd, Fitchburg MA · ${tenant.company.phone}
+  ${tenant.company.address}${tenant.company.city ? ' · ' + tenant.company.city : ''} · ${tenant.company.phone}
 </div>
 
 <script>
@@ -256,7 +255,7 @@ function portalPageHTML({ job, sessions }) {
 router.get('/portal/:token', (req, res) => {
   const db = getDb();
   const job = db.prepare('SELECT * FROM jobs WHERE portal_token = ?').get(req.params.token);
-  if (!job) return res.status(404).send('<h2 style="font-family:sans-serif;padding:40px">Portal link not found. Please contact Preferred Builders.</h2>');
+  if (!job) return res.status(404).send(`<h2 style="font-family:sans-serif;padding:40px">Portal link not found. Please contact ${tenant.company.name}.</h2>`);
 
   const sessions = db
     .prepare("SELECT * FROM signing_sessions WHERE job_id = ? AND status != 'void' ORDER BY created_at DESC")

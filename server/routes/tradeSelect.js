@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../db/database');
 const DEPARTMENTS = require('../../shared/departments.json');
+const tenant = require('../../config/tenant.config');
 
 // ── GET /trade-select/:token — serve the lightweight selection page ──────────
 router.get('/trade-select/:token', (req, res) => {
@@ -118,7 +119,7 @@ function buildPage({ done, token, departments }) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trade Selection — Preferred Builders</title>
+  <title>Trade Selection — ${tenant.company.name}</title>
   <style>
     body { font-family: -apple-system, sans-serif; background: #f0f4ff; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
     .card { background: white; border-radius: 16px; padding: 32px 24px; text-align: center; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
@@ -166,7 +167,7 @@ function buildPage({ done, token, departments }) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Select Trades — Preferred Builders</title>
+  <title>Select Trades — ${tenant.company.name}</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f4ff; margin: 0; padding: 16px; }
@@ -194,7 +195,7 @@ function buildPage({ done, token, departments }) {
 <body>
   <div style="max-width:500px;margin:0 auto">
     <div class="header">
-      <h1>Preferred Builders</h1>
+      <h1>${tenant.company.name}</h1>
       <p>Select the trades involved in this project</p>
     </div>
     <div class="card">

@@ -216,7 +216,7 @@ function signingPageHTML({ docType, job, session, base: _base }) {
 <div class="hdr">
   <div>
     <div class="co">${tenant.company.name}</div>
-    <div class="sub">${tenant.company.license} · CSL CS-121662 · 37 Duck Mill Rd, Fitchburg MA · ${tenant.company.phone}</div>
+    <div class="sub">${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}${tenant.company.license} · ${tenant.company.address} · ${tenant.company.phone}</div>
   </div>
   <div class="badge">🔒 Secure Document</div>
 </div>
@@ -591,11 +591,11 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
   if (session.status === 'declined')
     return res.status(400).json({
       error:
-        'This session has been declined. Please contact Preferred Builders for a revised proposal.',
+        `This session has been declined. Please contact ${tenant.company.name} for a revised proposal.`,
     });
   if (isSessionExpired(session))
     return res.status(410).json({
-      error: 'This signing link has expired. Please contact Preferred Builders for a new link.',
+      error: `This signing link has expired. Please contact ${tenant.company.name} for a new link.`,
     });
 
   const { signer_name, signature_data } = req.body;
@@ -942,9 +942,8 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
 
 <div class="hdr">
   <div>
-    <h1>PREFERRED BUILDERS</h1>
-    <p class="sub">General Services Inc.</p>
-    <p class="sub">978-377-1784 &nbsp;·&nbsp; Fitchburg, MA &nbsp;·&nbsp; License #CS-109171 &nbsp;·&nbsp; HIC-197400</p>
+    <h1>${tenant.company.name}</h1>
+    <p class="sub">${tenant.company.phone} &nbsp;·&nbsp; ${tenant.company.city}${tenant.company.state ? ', ' + tenant.company.state : ''} &nbsp;·&nbsp; ${tenant.company.license}${tenant.company.hicLicense ? ' &nbsp;·&nbsp; ' + tenant.company.hicLicense : ''}</p>
   </div>
   <div style="text-align:right">
     <div style="font-size:20px;font-weight:bold;color:#1B3A6B">${invNum}</div>
@@ -1024,11 +1023,11 @@ ${payDirectNote}
   <div class="due-amt">${money(pbDueAmt)}</div>
 </div>
 
-<p style="font-size:12px;color:#555;margin:0">Your project will be officially scheduled once your deposit is received. Questions? Call 978-377-1784 or reply to this email.</p>
+<p style="font-size:12px;color:#555;margin:0">Your project will be officially scheduled once your deposit is received. Questions? Call ${tenant.company.phone} or reply to this email.</p>
 
 <div class="ftr">
-  ${tenant.company.name} &nbsp;·&nbsp; License #CS-109171 &nbsp;·&nbsp; HIC-197400 &nbsp;·&nbsp; 978-377-1784<br>
-  Contract No. PB-${job.quote_number || '—'} &nbsp;·&nbsp; Invoice ${invNum}
+  ${tenant.company.name} &nbsp;·&nbsp; ${tenant.company.hicLicense ? tenant.company.hicLicense + ' &nbsp;·&nbsp; ' : ''}${tenant.company.license} &nbsp;·&nbsp; ${tenant.company.phone}<br>
+  Contract No. ${job.quote_number || '—'} &nbsp;·&nbsp; Invoice ${invNum}
 </div>
 </body></html>`;
 
@@ -1047,7 +1046,7 @@ ${payDirectNote}
               html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto">
   <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
     <div style="font-size:16px;font-weight:700">Deposit Invoice — ${tenant.company.name}</div>
-    <div style="font-size:11px;opacity:.8;margin-top:4px">License #CS-109171 · HIC-197400 · 978-377-1784</div>
+    <div style="font-size:11px;opacity:.8;margin-top:4px">${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}${tenant.company.license} · ${tenant.company.phone}</div>
   </div>
   <div style="background:white;padding:24px;border:1px solid #eee;border-top:none">
     <p style="font-size:14px;color:#1B3A6B;font-weight:700">Hi ${job.customer_name || 'there'},</p>
@@ -1060,10 +1059,10 @@ ${payDirectNote}
     </div>
     ${hasPayDirect ? `<p style="font-size:12px;color:#92400e;background:#fffbeb;padding:10px;border-radius:6px;border-left:3px solid #f59e0b">Your invoice includes permit and/or architectural fees. You may write a separate check directly to the permit office or design professional for those items — please let us know if you choose this option.</p>` : ''}
     <p style="font-size:13px;color:#444;line-height:1.7">Please make checks payable to <strong>${tenant.company.name}</strong> Your project will be scheduled once your deposit is received.</p>
-    <p style="font-size:12px;color:#888">Questions? Call 978-377-1784 or reply to this email.</p>
+    <p style="font-size:12px;color:#888">Questions? Call ${tenant.company.phone} or reply to this email.</p>
   </div>
 </div>`,
-              text: `Hi ${job.customer_name || 'there'},\n\nYour deposit invoice (${invNum}) is attached.\n\nContract Value: ${money(fullContractValue)}\nAmount Due to ${tenant.company.name}: ${money(pbDueAmt)}\nProject: ${job.project_address || '—'}\n\nPlease make checks payable to ${tenant.company.name}\n\n— ${tenant.company.name} · 978-377-1784`,
+              text: `Hi ${job.customer_name || 'there'},\n\nYour deposit invoice (${invNum}) is attached.\n\nContract Value: ${money(fullContractValue)}\nAmount Due to ${tenant.company.name}: ${money(pbDueAmt)}\nProject: ${job.project_address || '—'}\n\nPlease make checks payable to ${tenant.company.name}\n\n— ${tenant.company.name} · ${tenant.company.phone}`,
               emailType: 'deposit_invoice',
               jobId: session.job_id,
               db,
@@ -1126,7 +1125,7 @@ ${payDirectNote}
           html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
             <div style="background:#059669;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
               <div style="font-size:17px;font-weight:700">✅ Contract Signed — ${tenant.company.name}</div>
-              <div style="font-size:12px;opacity:.8;margin-top:4px">HIC-197400 · CSL CS-121662 · 978-377-1784</div>
+              <div style="font-size:12px;opacity:.8;margin-top:4px">${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}${tenant.company.license} · ${tenant.company.phone}</div>
             </div>
             <div style="background:white;padding:28px 24px;border:1px solid #eee;border-top:none">
               <p style="font-size:15px;color:#1B3A6B;font-weight:700;margin-bottom:12px">Hi ${job.customer_name || 'there'},</p>
@@ -1145,7 +1144,7 @@ ${payDirectNote}
               </p>
               <div style="background:#FFF8F0;border-left:3px solid #E07B2A;padding:12px 16px;border-radius:0 6px 6px 0;margin-bottom:20px">
                 <p style="margin:0 0 6px 0;font-size:12px;color:#5D3A00;line-height:1.6">
-                  <strong>⚠️ 3-Day Right to Cancel:</strong> Per M.G.L. c. 93 §48, you have the right to cancel this agreement within 3 business days of signing if it was executed away from our principal place of business. Cancellation must be submitted in writing to jackson.deaquino@preferredbuildersusa.com.
+                  <strong>⚠️ 3-Day Right to Cancel:</strong> Per M.G.L. c. 93 §48, you have the right to cancel this agreement within 3 business days of signing if it was executed away from our principal place of business. Cancellation must be submitted in writing to ${tenant.company.email}.
                 </p>
               </div>
               <div style="background:#F0FFF6;border-radius:8px;padding:16px 20px;margin-bottom:20px">
@@ -1156,17 +1155,17 @@ ${payDirectNote}
                 </p>
               </div>
               <p style="color:#888;font-size:12px;line-height:1.6">
-                Questions? Reply to this email or call us at <strong>978-377-1784</strong>.
+                Questions? Reply to this email or call us at <strong>${tenant.company.phone}</strong>.
               </p>
             </div>
             <div style="background:#f8f9ff;padding:14px 24px;font-size:10px;color:#aaa;border-radius:0 0 8px 8px">
-              <p style="margin:0 0 4px 0">${tenant.company.name} · 37 Duck Mill Rd, Fitchburg MA 01420 · HIC-197400 · CSL CS-121662</p>
+              <p style="margin:0 0 4px 0">${tenant.company.name} · ${tenant.company.address}${tenant.company.city ? ', ' + tenant.company.city : ''}${tenant.company.state ? ' ' + tenant.company.state : ''}${tenant.company.zip ? ' ' + tenant.company.zip : ''} · ${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}${tenant.company.license}</p>
               <p style="margin:0 0 4px 0">By receiving this contract you agree to receive digital communications from ${tenant.company.name} as required for your project.</p>
               <p style="margin:0 0 4px 0">This contract is legally binding once signed and deposit is received and the 3-business-day cancellation period has elapsed.</p>
               <p style="margin:0">The approved Proposal / Scope of Work is non-binding on its own and is incorporated herein as a Contract Addendum upon execution of this agreement.</p>
             </div>
           </div>`,
-          text: `Hi ${job.customer_name || 'there'},\n\nYour construction contract with ${tenant.company.name} is signed and on file. A copy is attached.\n\nProject: ${job.project_address}\nSigned: ${signedWhen}\n\nYour deposit is due per the contract. Once received your project will be scheduled.\n\nNote: You have 3 business days to cancel per M.G.L. c. 93 §48.\n\nRefer a friend who signs a contract and receive $250 off your next project.\n\n— ${tenant.company.name}\n978-377-1784`,
+          text: `Hi ${job.customer_name || 'there'},\n\nYour construction contract with ${tenant.company.name} is signed and on file. A copy is attached.\n\nProject: ${job.project_address}\nSigned: ${signedWhen}\n\nYour deposit is due per the contract. Once received your project will be scheduled.\n\nNote: You have 3 business days to cancel per M.G.L. c. 93 §48.\n\nRefer a friend who signs a contract and receive $250 off your next project.\n\n— ${tenant.company.name}\n${tenant.company.phone}`,
           emailType: 'contract_signed',
           jobId: job.id,
         });

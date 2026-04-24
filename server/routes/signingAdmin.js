@@ -12,6 +12,7 @@ const { requireAuth } = require('../middleware/auth');
 const { logAudit } = require('../services/auditService');
 const { sendEmail } = require('../services/emailService');
 const { notifyClients } = require('../services/sseManager');
+const tenant = require('../../config/tenant.config');
 
 function baseURL(req) {
   const dev = process.env.REPLIT_DEV_DOMAIN;
@@ -55,13 +56,13 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
 
     await sendEmail({
       to: job.customer_email,
-      subject: `Your Preferred Builders Proposal is Ready for Your Review`,
+      subject: `Your ${tenant.company.name} Proposal is Ready for Your Review`,
       attachmentPath: job.proposal_pdf_path,
-      attachmentName: `Preferred-Builders-Proposal-${(job.customer_name || job.id).replace(/\s+/g, '-')}.pdf`,
+      attachmentName: `${(tenant.company.name || 'Proposal').replace(/\s+/g, '-')}-Proposal-${(job.customer_name || job.id).replace(/\s+/g, '-')}.pdf`,
       html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
       <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
-        <div style="font-size:17px;font-weight:700">Preferred Builders General Services Inc.</div>
-        <div style="font-size:12px;opacity:.8;margin-top:4px">HIC-197400 · 978-377-1784</div>
+        <div style="font-size:17px;font-weight:700">${tenant.company.name}</div>
+        <div style="font-size:12px;opacity:.8;margin-top:4px">${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}${tenant.company.phone}</div>
       </div>
       <div style="background:white;padding:28px 24px;border:1px solid #eee;border-top:none">
         <p style="font-size:15px;color:#1B3A6B;font-weight:700;margin-bottom:12px">Hi ${job.customer_name || 'there'},</p>
@@ -122,7 +123,7 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
         <div style="background:#EEF4FF;border-radius:8px;padding:16px 20px;margin-bottom:20px">
           <p style="margin:0 0 6px 0;font-size:13px;font-weight:700;color:#1B3A6B">💳 Need Financing? We Work With Hearth</p>
           <p style="margin:0 0 12px 0;font-size:13px;color:#444;line-height:1.6">
-            Preferred Builders partners with Hearth Financial to offer flexible financing options for your project.
+            ${tenant.company.name} partners with Hearth Financial to offer flexible financing options for your project.
             Check your rate in minutes — <strong>no hard credit pull required</strong>.
           </p>
           <a href="https://app.gethearth.com/financing/36650/61771/prequalify?utm_campaign=36650&utm_content=darkblue&utm_medium=contractor-website&utm_source=contractor&utm_term=61771"
@@ -134,17 +135,17 @@ router.post('/api/signing/send-proposal/:jobId', requireAuth, async (req, res) =
         <div style="background:#F0FFF6;border-radius:8px;padding:16px 20px">
           <p style="margin:0 0 6px 0;font-size:13px;font-weight:700;color:#059669">🤝 Know Someone Who Needs Work Done?</p>
           <p style="margin:0;font-size:13px;color:#444;line-height:1.6">
-            Refer a friend to Preferred Builders. If they sign a contract with us, <strong>you receive $250 off your next project</strong>.
+            Refer a friend to ${tenant.company.name}. If they sign a contract with us, <strong>you receive $250 off your next project</strong>.
             Just have them mention your name when they reach out — it's that simple.
           </p>
         </div>
       </div>
       <div style="background:#f8f9ff;padding:14px 24px;font-size:11px;color:#aaa;border-radius:0 0 8px 8px;text-align:center">
-        Preferred Builders General Services Inc. · 37 Duck Mill Rd, Fitchburg MA 01420 · 978-377-1784<br>
+        ${tenant.company.name} · ${tenant.company.address}${tenant.company.city ? ', ' + tenant.company.city : ''}${tenant.company.state ? ' ' + tenant.company.state : ''} · ${tenant.company.phone}<br>
         Questions? Reply to this email or call us directly.
       </div>
     </div>`,
-      text: `Hi ${job.customer_name || 'there'},\n\nYour proposal for ${job.project_address} is ready to review. This is your estimate and scope of work — not a contract. Nothing is binding at this stage.\n\nReview it here: ${link}\n\nWhat happens next:\n1. Review the scope and allowances\n2. We get aligned on the details\n3. You receive the formal contract\n4. Sign + deposit = project starts (after 3-business-day cancellation period)\n\nNeed financing? Apply through Hearth: https://app.gethearth.com/financing/36650/61771/prequalify\n\nRefer a friend who signs a contract and get $250 off your next project.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
+      text: `Hi ${job.customer_name || 'there'},\n\nYour proposal for ${job.project_address} is ready to review. This is your estimate and scope of work — not a contract. Nothing is binding at this stage.\n\nReview it here: ${link}\n\nWhat happens next:\n1. Review the scope and allowances\n2. We get aligned on the details\n3. You receive the formal contract\n4. Sign + deposit = project starts (after 3-business-day cancellation period)\n\nNeed financing? Apply through Hearth: https://app.gethearth.com/financing/36650/61771/prequalify\n\nRefer a friend who signs a contract and get $250 off your next project.\n\n— ${tenant.company.name}\n${tenant.company.phone}`,
       emailType: 'proposal_signing',
       jobId: job.id,
     });
@@ -189,18 +190,18 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
     job.proposal_pdf_path && fs.existsSync(job.proposal_pdf_path)
       ? {
           attachmentPath: job.proposal_pdf_path,
-          attachmentName: `Preferred-Builders-Proposal-${job.customer_name || job.id}.pdf`,
+          attachmentName: `${(tenant.company.name || 'Proposal').replace(/\s+/g, '-')}-Proposal-${(job.customer_name || job.id).replace(/\s+/g, '-')}.pdf`,
         }
       : {};
 
   await sendEmail({
     to: job.customer_email,
-    subject: `Your Preferred Builders Contract is Ready to Sign`,
+    subject: `Your ${tenant.company.name} Contract is Ready to Sign`,
     ...proposalAttachment,
     html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
       <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
-        <div style="font-size:17px;font-weight:700">Preferred Builders General Services Inc.</div>
-        <div style="font-size:12px;opacity:.8;margin-top:4px">HIC-197400 · CSL CS-121662 · 978-377-1784</div>
+        <div style="font-size:17px;font-weight:700">${tenant.company.name}</div>
+        <div style="font-size:12px;opacity:.8;margin-top:4px">${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}${tenant.company.license} · ${tenant.company.phone}</div>
       </div>
       <div style="background:white;padding:28px 24px;border:1px solid #eee;border-top:none">
         <p style="font-size:15px;color:#1B3A6B;font-weight:700;margin-bottom:12px">Hi ${job.customer_name || 'there'},</p>
@@ -262,20 +263,20 @@ router.post('/api/signing/send-contract/:jobId', requireAuth, async (req, res) =
         <hr style="border:none;border-top:1px solid #eee;margin:0 0 20px 0" />
 
         <div style="background:#F0FFF6;border-radius:8px;padding:16px 20px">
-          <p style="margin:0 0 6px 0;font-size:13px;font-weight:700;color:#059669">🤝 Welcome to the Preferred Builders Family — Refer &amp; Save!</p>
+          <p style="margin:0 0 6px 0;font-size:13px;font-weight:700;color:#059669">🤝 Welcome to the ${tenant.company.name} Family — Refer &amp; Save!</p>
           <p style="margin:0;font-size:13px;color:#444;line-height:1.6">
-            Thank you for choosing Preferred Builders. If you refer a friend or family member and they sign a contract with us,
+            Thank you for choosing ${tenant.company.name}. If you refer a friend or family member and they sign a contract with us,
             <strong>you receive $250 off your next project</strong>. Just have them mention your name when they reach out.
             There is no limit — every referral that signs earns you $250.
           </p>
         </div>
       </div>
       <div style="background:#f8f9ff;padding:14px 24px;font-size:11px;color:#aaa;border-radius:0 0 8px 8px;text-align:center">
-        Preferred Builders General Services Inc. · 37 Duck Mill Rd, Fitchburg MA 01420 · 978-377-1784<br>
+        ${tenant.company.name} · ${tenant.company.address}${tenant.company.city ? ', ' + tenant.company.city : ''}${tenant.company.state ? ' ' + tenant.company.state : ''} · ${tenant.company.phone}<br>
         Questions? Reply to this email or call us directly.
       </div>
     </div>`,
-    text: `Hi ${job.customer_name || 'there'},\n\nYour construction contract for ${job.project_address} is ready to sign. Your approved proposal scope is included.\n\nSign here: ${link}\n\nWhat happens next:\n1. Sign the contract\n2. Submit your deposit\n3. 3-business-day cancellation window (Massachusetts law)\n4. We break ground\n\nReferral: Send a friend our way — if they sign a contract you get $250 off your next project.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
+    text: `Hi ${job.customer_name || 'there'},\n\nYour construction contract for ${job.project_address} is ready to sign. Your approved proposal scope is included.\n\nSign here: ${link}\n\nWhat happens next:\n1. Sign the contract\n2. Submit your deposit\n3. 3-business-day cancellation window (Massachusetts law)\n4. We break ground\n\nReferral: Send a friend our way — if they sign a contract you get $250 off your next project.\n\n— ${tenant.company.name}\n${tenant.company.phone}`,
     emailType: 'contract',
     jobId: job.id,
   });

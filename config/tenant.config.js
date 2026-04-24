@@ -17,15 +17,17 @@ module.exports = {
 
   // ── Company identity ──────────────────────────────────────────────────────
   company: {
-    name:     process.env.COMPANY_NAME    || '',
-    license:  process.env.COMPANY_LICENSE || '',
-    address:  process.env.COMPANY_ADDRESS || '',
-    phone:    process.env.COMPANY_PHONE   || '',
-    email:    process.env.COMPANY_EMAIL   || '',
-    botEmail: process.env.BOT_EMAIL       || '',
-    website:  process.env.COMPANY_WEBSITE || '',
-    city:     process.env.COMPANY_CITY    || '',
-    state:    process.env.COMPANY_STATE   || '',
+    name:        process.env.COMPANY_NAME        || '',
+    license:     process.env.COMPANY_LICENSE     || '',
+    hicLicense:  process.env.COMPANY_HIC_LICENSE || '',
+    address:     process.env.COMPANY_ADDRESS     || '',
+    phone:       process.env.COMPANY_PHONE       || '',
+    email:       process.env.COMPANY_EMAIL       || '',
+    botEmail:    process.env.BOT_EMAIL           || '',
+    website:     process.env.COMPANY_WEBSITE     || '',
+    city:        process.env.COMPANY_CITY        || '',
+    state:       process.env.COMPANY_STATE       || '',
+    zip:         process.env.COMPANY_ZIP         || '',
   },
 
   // ── Primary contact (appears on contracts, PDFs, AI prompts) ─────────────

@@ -382,10 +382,9 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
 <body>
 <div class="header">
   <div class="logo-block">
-    <h1>PREFERRED BUILDERS</h1>
-    <p>General Services Inc.</p>
-    <p>${tenant.company.phone} | Fitchburg, MA</p>
-    <p>License #${tenant.company.license}</p>
+    <h1>${tenant.company.name.toUpperCase()}</h1>
+    <p>${tenant.company.phone}${tenant.company.city ? ' | ' + tenant.company.city + (tenant.company.state ? ', ' + tenant.company.state : '') : ''}</p>
+    <p>${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}License #${tenant.company.license}</p>
   </div>
   <div class="inv-meta">
     <div class="inv-num">${inv.invoice_number}</div>
@@ -511,10 +510,9 @@ router.post('/:id/email', requireAuth, async (req, res) => {
 </style></head><body>
 <div class="header">
   <div class="logo-block">
-    <h1>PREFERRED BUILDERS</h1>
-    <p>General Services Inc.</p>
-    <p>${tenant.company.phone} | Fitchburg, MA</p>
-    <p>License #${tenant.company.license}</p>
+    <h1>${tenant.company.name.toUpperCase()}</h1>
+    <p>${tenant.company.phone}${tenant.company.city ? ' | ' + tenant.company.city + (tenant.company.state ? ', ' + tenant.company.state : '') : ''}</p>
+    <p>${tenant.company.hicLicense ? tenant.company.hicLicense + ' · ' : ''}License #${tenant.company.license}</p>
   </div>
   <div class="inv-meta">
     <div class="inv-num">${inv.invoice_number}</div>
@@ -564,7 +562,7 @@ Please make checks payable to: <strong>${tenant.company.name}</strong></div>
 ${isPT ? '<p><em>Note: This is a pass-through cost invoice billed for direct reimbursement of permits, engineering fees, or other third-party costs paid on your behalf.</em></p>' : ''}
 <p>If you have any questions, please don't hesitate to contact us.</p>
 <p>Thank you for choosing ${tenant.company.name}.</p>
-<p>— ${tenant.company.name}<br>${tenant.company.phone} | Fitchburg, MA</p>`;
+<p>— ${tenant.company.name}<br>${tenant.company.phone}${tenant.company.city ? ' | ' + tenant.company.city + (tenant.company.state ? ', ' + tenant.company.state : '') : ''}</p>`;
 
     await sendEmail({
       to: customerEmail,

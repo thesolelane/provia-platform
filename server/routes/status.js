@@ -4,6 +4,7 @@ const router = express.Router();
 const https = require('https');
 const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
+const tenant = require('../../config/tenant.config');
 
 function httpsGet(url, headers = {}) {
   return new Promise((resolve, reject) => {
@@ -231,16 +232,16 @@ router.post('/email-test', requireAuth, async (req, res) => {
     });
     const result = await sendEmail({
       to: owners,
-      subject: `📬 Notification Test — Preferred Builders AI (${when})`,
+      subject: `📬 Notification Test — ${tenant.company.name} (${when})`,
       html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
         <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
-          <div style="font-size:17px;font-weight:700">Preferred Builders — Notification Test</div>
+          <div style="font-size:17px;font-weight:700">${tenant.company.name} — Notification Test</div>
         </div>
         <div style="background:white;padding:24px;border:1px solid #eee;border-top:none">
           <p style="font-size:15px;color:#1B3A6B;font-weight:700">📬 This is a test notification with read tracking</p>
           <p style="color:#444;font-size:14px">Sent to: <strong>${owners.join(', ')}</strong><br>Time: <strong>${when}</strong></p>
           <p style="color:#666;font-size:13px">When you open this email, the server logs the open event automatically via a 1×1 tracking pixel embedded below.</p>
-          <a href="https://preferredbuilders.duckdns.org" style="background:#1B3A6B;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;display:inline-block;margin-top:8px">Open Preferred Builders →</a>
+          ${tenant.company.website ? `<a href="${tenant.company.website.startsWith('http') ? tenant.company.website : 'https://' + tenant.company.website}" style="background:#1B3A6B;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;display:inline-block;margin-top:8px">Open ${tenant.company.name} →</a>` : ''}
         </div>
       </div>`,
       emailType: 'system_alert',
