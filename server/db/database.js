@@ -175,11 +175,6 @@ async function initDatabase() {
   addColIfMissing('jobs', 'calendar_event_id', 'TEXT');
   addColIfMissing('jobs', 'sms_opt_out', 'INTEGER DEFAULT 0');
 
-  // Migrations: job_photos columns
-  addColIfMissing('job_photos', 'location_label', 'TEXT');
-  addColIfMissing('job_photos', 'taken_at', 'DATETIME');
-  addColIfMissing('job_photos', 'source', "TEXT DEFAULT 'staff'");
-
   // Migrations: contacts columns
   addColIfMissing('contacts', 'customer_number', 'TEXT');
   db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_quote_number ON jobs(quote_number)`);
@@ -316,6 +311,11 @@ async function initDatabase() {
       FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
     )
   `);
+
+  // Migrations: job_photos columns (must run after CREATE TABLE)
+  addColIfMissing('job_photos', 'location_label', 'TEXT');
+  addColIfMissing('job_photos', 'taken_at', 'DATETIME');
+  addColIfMissing('job_photos', 'source', "TEXT DEFAULT 'staff'");
 
   db.prepare(
     `
