@@ -515,7 +515,7 @@ router.post('/api/signing/declined/:token', async (req, res) => {
   ).run(reason, req.params.token);
 
   db.prepare(
-    `UPDATE jobs SET status = 'proposal_declined', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    `UPDATE jobs SET status = 'proposal_declined', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
   ).run(session.job_id);
 
   try {
