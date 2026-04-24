@@ -32,7 +32,7 @@ export default function Login({ onLogin }) {
     <div
       style={{
         minHeight: '100vh',
-        background: '#1B3A6B',
+        background: '#2F5A7E',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -49,14 +49,14 @@ export default function Login({ onLogin }) {
       >
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <img
-            src="/images/logo-bolinha.png"
-            alt="Preferred Builders"
+            src="/images/provia-logo.svg"
+            alt="Provia"
             style={{ width: 90, height: 90, objectFit: 'contain', marginBottom: 10 }}
           />
-          <div style={{ fontWeight: 'bold', fontSize: 18, color: '#1B3A6B' }}>
-            PREFERRED BUILDERS
+          <div style={{ fontWeight: 'bold', fontSize: 18, color: '#2F5A7E' }}>
+            PROVIA
           </div>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>AI Contract System</div>
+          <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>The Way Forward</div>
         </div>
         <form onSubmit={handleSubmit}>
           <input
@@ -96,7 +96,7 @@ export default function Login({ onLogin }) {
             style={{
               width: '100%',
               padding: 12,
-              background: '#1B3A6B',
+              background: '#2F5A7E',
               color: 'white',
               border: 'none',
               borderRadius: 8,

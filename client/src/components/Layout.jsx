@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import StaffChat from './StaffChat';
 
-const BLUE = '#1B3A6B';
+const BLUE = '#2F5A7E';
 const ORANGE = '#E07B2A';
 
 const MAIN_NAV = [
@@ -98,7 +98,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
       >
         <div>
           <div style={{ fontWeight: 'bold', fontSize: 10, color: ORANGE, letterSpacing: '0.05em' }}>
-            PREFERRED BUILDERS
+            PROVIA
           </div>
           <div style={{ fontSize: 14, fontWeight: 'bold', marginTop: 1 }}>
             {currentPage ? `${currentPage.icon} ${currentPage.label}` : '📊 Dashboard'}
@@ -135,9 +135,9 @@ export default function Layout({ children, token, onLogout, userName, userRole }
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <img
-                    src="/images/logo-bolinha.png"
-                    alt="PB"
-                    style={{ width: 34, height: 34, objectFit: 'contain', borderRadius: '50%', flexShrink: 0 }}
+                    src="/images/provia-logo.svg"
+                    alt="Provia"
+                    style={{ width: 68, height: 34, objectFit: 'contain', flexShrink: 0 }}
                   />
                   <div>
                     <div
@@ -149,9 +149,9 @@ export default function Layout({ children, token, onLogout, userName, userRole }
                         lineHeight: 1.2,
                       }}
                     >
-                      PREFERRED BUILDERS
+                      PROVIA
                     </div>
-                    <div style={{ fontSize: 9, opacity: 0.6, marginTop: 1 }}>AI Contract System</div>
+                    <div style={{ fontSize: 9, opacity: 0.6, marginTop: 1 }}>The Way Forward</div>
                   </div>
                 </div>
               </>
@@ -402,7 +402,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
             >
               <div>
                 <div style={{ fontWeight: 'bold', fontSize: 13, color: ORANGE }}>
-                  PREFERRED BUILDERS
+                  PROVIA
                 </div>
                 {userName && (
                   <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>{userName}</div>
