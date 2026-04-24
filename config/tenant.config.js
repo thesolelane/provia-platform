@@ -50,11 +50,12 @@ module.exports = {
     .map(s => s.trim())
     .filter(Boolean),
 
-  // ── Brand colors ──────────────────────────────────────────────────────────
+  // ── Brand colors — Provia platform colors, not tenant-configurable ─────────
   brand: {
-    primary:   process.env.BRAND_PRIMARY   || '#1B3A6B',
-    accent:    process.env.BRAND_ACCENT    || '#E07B2A',
-    lightBlue: process.env.BRAND_LIGHT     || '#EEF3FB',
+    primary:   '#2F5A7E',   // Provia dark blue
+    accent:    '#FF9500',   // Provia orange
+    lightBlue: '#2E8CCF',   // Provia light blue
+    dark:      '#163853',   // Provia darkest blue
     lightGray: '#F8F8F8',
   },
 
