@@ -1,6 +1,7 @@
 // server/routes/rfq.js
 // Request for Quote (RFQ) — generate, save, and email scoped trade quotes to subs
 const express = require('express');
+const tenant = require('../../config/tenant.config');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { getDb } = require('../db/database');
@@ -32,7 +33,7 @@ router.post('/generate', requireAuth, async (req, res) => {
   const { trade, description, projectAddress, customerName, baseCost } = req.body;
   if (!trade) return res.status(400).json({ error: 'trade is required' });
 
-  const systemPrompt = `You are a construction scope writer for Preferred Builders General Services Inc., a licensed general contractor in Massachusetts (HIC-197400). 
+  const systemPrompt = `You are a construction scope writer for ${tenant.company.name}, a licensed general contractor in Massachusetts (${tenant.company.license}). 
 Write professional, specific Request for Quote (RFQ) scope-of-work paragraphs that sub-contractors can use to provide an accurate bid.
 Be concise but complete. Use industry-standard language. Do NOT mention dollar amounts.`;
 
@@ -137,7 +138,7 @@ router.post('/:id/send', requireAuth, async (req, res) => {
 <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
   <div style="background:#1B3A6B;padding:20px 28px;border-radius:6px 6px 0 0;">
     <h2 style="color:#F5A623;margin:0;font-size:20px;">Request for Quote</h2>
-    <p style="color:#ccc;margin:4px 0 0;font-size:13px;">Preferred Builders General Services Inc. — LIC# HIC-197400</p>
+    <p style="color:#ccc;margin:4px 0 0;font-size:13px;">${tenant.company.name} — LIC# ${tenant.company.license}</p>
   </div>
   <div style="padding:24px 28px;border:1px solid #ddd;border-top:none;border-radius:0 0 6px 6px;">
     <table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px;">
@@ -150,7 +151,7 @@ router.post('/:id/send', requireAuth, async (req, res) => {
       <p style="margin:0;font-size:14px;color:#333;line-height:1.6;">${(rfq.scope_text || '').replace(/\n/g, '<br>')}</p>
     </div>
     <p style="font-size:13px;color:#555;">Please reply to this email with your all-in price for labor and materials. If you have any questions about the scope, reply directly to this message.</p>
-    <p style="font-size:13px;color:#555;margin-top:16px;">Thank you,<br><strong>Preferred Builders General Services Inc.</strong><br>978-377-1784</p>
+    <p style="font-size:13px;color:#555;margin-top:16px;">Thank you,<br><strong>${tenant.company.name}</strong><br>${tenant.company.phone}</p>
   </div>
 </div>`;
 

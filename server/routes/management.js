@@ -1,6 +1,7 @@
 // server/routes/management.js
 // Job CRUD, status, communications, and reporting routes
 const express = require('express');
+const tenant = require('../../config/tenant.config');
 const router = express.Router();
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { requireFields, validateEmail } = require('../middleware/validate');
@@ -530,12 +531,12 @@ router.post(
     try {
       await sendEmail({
         to: job.customer_email,
-        subject: `Your Project Proposal — Preferred Builders General Services`,
+        subject: `Your Project Proposal — ${tenant.company.name}`,
         html: `
         <p>Dear ${job.customer_name},</p>
-        <p>Thank you for choosing Preferred Builders General Services Inc. Please find your project contract attached for review.</p>
-        <p>Please review the document carefully. If you have any questions, please contact us at 978-377-1784.</p>
-        <p>Best regards,<br>Jackson Deaquino<br>Preferred Builders General Services Inc.<br>LIC# HIC-197400</p>
+        <p>Thank you for choosing ${tenant.company.name} Please find your project contract attached for review.</p>
+        <p>Please review the document carefully. If you have any questions, please contact us at ${tenant.company.phone}.</p>
+        <p>Best regards,<br>${tenant.primaryContact.name}<br>${tenant.company.name}<br>LIC# ${tenant.company.license}</p>
       `,
         attachmentPath: job.contract_pdf_path,
         attachmentName: `PB_Contract_${job.customer_name?.replace(/\s/g, '_')}.pdf`,

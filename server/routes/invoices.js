@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const tenant = require('../../config/tenant.config');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { requireFields, validateEnum, validateNumber } = require('../middleware/validate');
@@ -347,13 +348,13 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
     <td style="padding:7px 10px;text-align:right;font-weight:700;color:#333;font-size:12px">$${fmt(grandTotal)}</td>
   </tr>
   <tr style="background:#1B3A6B;color:white">
-    <td colspan="3" style="padding:9px 10px;font-weight:bold;font-size:13px">Amount Due to Preferred Builders</td>
+    <td colspan="3" style="padding:9px 10px;font-weight:bold;font-size:13px">Amount Due to ${tenant.company.name}</td>
     <td style="padding:9px 10px;text-align:right;font-weight:bold;font-size:15px">$${fmt(pbDue)}</td>
   </tr>`;
 
       html += `</table>`;
       if (hasPayDirect) {
-        html += `<p style="font-size:11px;color:#92400e;margin:8px 0 0;background:#fffbeb;padding:8px 12px;border-radius:4px;border-left:3px solid #f59e0b">Items marked <strong>Pay Direct</strong> are paid by the client directly to the permit office or design professional. Strikethrough amounts are excluded from the balance due to Preferred Builders.</p>`;
+        html += `<p style="font-size:11px;color:#92400e;margin:8px 0 0;background:#fffbeb;padding:8px 12px;border-radius:4px;border-left:3px solid #f59e0b">Items marked <strong>Pay Direct</strong> are paid by the client directly to the permit office or design professional. Strikethrough amounts are excluded from the balance due to ${tenant.company.name}.</p>`;
       }
       html += `</div>`;
       return html;
@@ -383,8 +384,8 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
   <div class="logo-block">
     <h1>PREFERRED BUILDERS</h1>
     <p>General Services Inc.</p>
-    <p>978-377-1784 | Fitchburg, MA</p>
-    <p>License #CS-109171</p>
+    <p>${tenant.company.phone} | Fitchburg, MA</p>
+    <p>License #${tenant.company.license}</p>
   </div>
   <div class="inv-meta">
     <div class="inv-num">${inv.invoice_number}</div>
@@ -395,7 +396,7 @@ router.get('/:id/pdf', requireAuth, async (req, res) => {
 </div>
 <hr class="divider">
 
-${isPT || isCombined ? `<div class="pt-notice"><strong>${isCombined ? 'COMBINED INVOICE — CONTAINS PASS-THROUGH ITEMS' : 'PASS-THROUGH COST — NOT A REVENUE ITEM'}</strong><br>${isCombined ? 'This invoice includes both contract charges (revenue to Preferred Builders) and pass-through reimbursement costs (not income to PB). Totals are broken out below.' : 'This invoice covers costs paid by Preferred Builders on behalf of the customer (permits, engineers, consultants, etc.) and is billed for direct reimbursement only.'}</div>` : ''}
+${isPT || isCombined ? `<div class="pt-notice"><strong>${isCombined ? 'COMBINED INVOICE — CONTAINS PASS-THROUGH ITEMS' : 'PASS-THROUGH COST — NOT A REVENUE ITEM'}</strong><br>${isCombined ? `This invoice includes both contract charges (revenue to ${tenant.company.name}) and pass-through reimbursement costs (not income to PB). Totals are broken out below.` : `This invoice covers costs paid by ${tenant.company.name} on behalf of the customer (permits, engineers, consultants, etc.) and is billed for direct reimbursement only.`}</div>` : ''}
 
 ${
   contact || job
@@ -441,8 +442,8 @@ ${
 ${inv.notes ? `<div class="section"><h3>Notes</h3><p style="font-size:13px">${inv.notes}</p></div>` : ''}
 
 <div class="footer">
-  Preferred Builders General Services Inc. · MA License #CS-109171 · 978-377-1784<br>
-  Please make checks payable to: <strong>Preferred Builders General Services Inc.</strong>
+  ${tenant.company.name} · MA License #${tenant.company.license} · ${tenant.company.phone}<br>
+  Please make checks payable to: <strong>${tenant.company.name}</strong>
 </div>
 </body></html>`;
 
@@ -512,8 +513,8 @@ router.post('/:id/email', requireAuth, async (req, res) => {
   <div class="logo-block">
     <h1>PREFERRED BUILDERS</h1>
     <p>General Services Inc.</p>
-    <p>978-377-1784 | Fitchburg, MA</p>
-    <p>License #CS-109171</p>
+    <p>${tenant.company.phone} | Fitchburg, MA</p>
+    <p>License #${tenant.company.license}</p>
   </div>
   <div class="inv-meta">
     <div class="inv-num">${inv.invoice_number}</div>
@@ -548,8 +549,8 @@ ${
   ${inv.amount_paid > 0 ? `<div class="lbl" style="margin-top:8px;color:#2E7D32">Paid: $${Number(inv.amount_paid).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>` : ''}
 </div>
 ${inv.notes ? `<div class="section"><h3>Notes</h3><p style="font-size:13px">${inv.notes}</p></div>` : ''}
-<div class="footer">Preferred Builders General Services Inc. · MA License #CS-109171 · 978-377-1784<br>
-Please make checks payable to: <strong>Preferred Builders General Services Inc.</strong></div>
+<div class="footer">${tenant.company.name} · MA License #${tenant.company.license} · ${tenant.company.phone}<br>
+Please make checks payable to: <strong>${tenant.company.name}</strong></div>
 </body></html>`;
 
     const pdfPath = await generatePDFFromHTML(
@@ -557,13 +558,13 @@ Please make checks payable to: <strong>Preferred Builders General Services Inc.<
       `invoice_${inv.invoice_number.replace(/[^a-zA-Z0-9-]/g, '_')}_email`,
     );
 
-    const subject = `Invoice ${inv.invoice_number} from Preferred Builders${job ? ' — ' + (job.project_address || job.description || 'Your Project') : ''}`;
+    const subject = `Invoice ${inv.invoice_number} from ${tenant.company.name}${job ? ' — ' + (job.project_address || job.description || 'Your Project') : ''}`;
     const emailBody = `<p>Dear ${contact?.name || job?.customer_name || 'Valued Customer'},</p>
 <p>Please find your invoice <strong>${inv.invoice_number}</strong> (${typeLabel}) attached for <strong>$${Number(inv.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>.</p>
 ${isPT ? '<p><em>Note: This is a pass-through cost invoice billed for direct reimbursement of permits, engineering fees, or other third-party costs paid on your behalf.</em></p>' : ''}
 <p>If you have any questions, please don't hesitate to contact us.</p>
-<p>Thank you for choosing Preferred Builders.</p>
-<p>— Preferred Builders General Services Inc.<br>978-377-1784 | Fitchburg, MA</p>`;
+<p>Thank you for choosing ${tenant.company.name}.</p>
+<p>— ${tenant.company.name}<br>${tenant.company.phone} | Fitchburg, MA</p>`;
 
     await sendEmail({
       to: customerEmail,

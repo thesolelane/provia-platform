@@ -1,4 +1,5 @@
 const express = require('express');
+const tenant = require('../../config/tenant.config');
 const router = express.Router();
 const { getDb } = require('../db/database');
 const { requireAuth } = require('../middleware/auth');
@@ -720,8 +721,8 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px">
   <div>
     <h1>PREFERRED BUILDERS</h1>
-    <p class="sub">General Services Inc. · 978-377-1784 · Fitchburg, MA</p>
-    <p class="sub">License #CS-109171 · HIC-197400</p>
+    <p class="sub">General Services Inc. · ${tenant.company.phone} · Fitchburg, MA</p>
+    <p class="sub">License #${tenant.company.license} · ${tenant.company.license}</p>
   </div>
   <div style="text-align:right">
     <div style="font-size:14px;font-weight:bold;color:#1B3A6B">Document History Report</div>
@@ -760,7 +761,7 @@ router.get('/doc-history/:jobId/pdf', requireAuth, async (req, res) => {
 </table>
 
 <div class="ftr">
-  Preferred Builders General Services Inc. · License #CS-109171 · HIC-197400 · 978-377-1784<br>
+  ${tenant.company.name} · License #${tenant.company.license} · ${tenant.company.license} · ${tenant.company.phone}<br>
   Document History for ${contact?.name || job.customer_name || job.id} — Generated ${runDate}
 </div>
 </body></html>`;
@@ -1085,8 +1086,8 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
   <div>
     <h1>PREFERRED BUILDERS</h1>
-    <p class="sub">General Services Inc. · 978-377-1784 · Fitchburg, MA</p>
-    <p class="sub">License #CS-109171 · HIC-197400</p>
+    <p class="sub">General Services Inc. · ${tenant.company.phone} · Fitchburg, MA</p>
+    <p class="sub">License #${tenant.company.license} · ${tenant.company.license}</p>
   </div>
   <div style="text-align:right">
     <div style="font-size:14px;font-weight:bold;color:#1B3A6B">Customer Full Report</div>
@@ -1134,7 +1135,7 @@ router.get('/customer/pdf', requireAuth, async (req, res) => {
 ${jobSections.join('') || '<p style="color:#aaa;font-size:12px">No jobs on record for this customer.</p>'}
 
 <div class="ftr">
-  Preferred Builders General Services Inc. · License #CS-109171 · HIC-197400 · 978-377-1784<br>
+  ${tenant.company.name} · License #${tenant.company.license} · ${tenant.company.license} · ${tenant.company.phone}<br>
   Customer Report — ${displayName} — Generated ${runDate}
 </div>
 </body></html>`;

@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const tenant = require('../../config/tenant.config');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
 const { requireFields, validateNumber } = require('../middleware/validate');
@@ -342,13 +343,13 @@ router.post(
 
         await sendEmail({
           to: fullJob.customer_email,
-          subject: `Payment Received — Preferred Builders (${pTypeLabel} ${paidAmount})`,
+          subject: `Payment Received — ${tenant.company.name} (${pTypeLabel} ${paidAmount})`,
           attachmentPath: mergedPdfPath,
           attachmentName: `Preferred-Builders-Contract-and-Proposal-${safeName}.pdf`,
           html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
           <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
-            <div style="font-size:17px;font-weight:700">Preferred Builders General Services Inc.</div>
-            <div style="font-size:12px;opacity:.8;margin-top:4px">HIC-197400 · CSL CS-121662 · 978-377-1784</div>
+            <div style="font-size:17px;font-weight:700">${tenant.company.name}</div>
+            <div style="font-size:12px;opacity:.8;margin-top:4px">${tenant.company.license} · CSL CS-121662 · ${tenant.company.phone}</div>
           </div>
           <div style="background:white;padding:28px 24px;border:1px solid #eee;border-top:none">
             <p style="font-size:15px;color:#1B3A6B;font-weight:700;margin-bottom:12px">Hi ${fullJob.customer_name || 'there'},</p>
@@ -366,17 +367,17 @@ router.post(
               📎 <strong>Your signed contract and original proposal are attached together as one document</strong> for your records. Please keep this for your files.
             </p>
             <p style="color:#888;font-size:12px;line-height:1.6">
-              Questions? Reply to this email or call us at <strong>978-377-1784</strong>.
+              Questions? Reply to this email or call us at <strong>${tenant.company.phone}</strong>.
             </p>
           </div>
           <div style="background:#f8f9ff;padding:14px 24px;font-size:10px;color:#aaa;border-radius:0 0 8px 8px">
-            <p style="margin:0 0 4px 0">Preferred Builders General Services Inc. · 37 Duck Mill Rd, Fitchburg MA 01420 · HIC-197400 · CSL CS-121662</p>
-            <p style="margin:0 0 4px 0">By receiving this communication you agree to receive digital communications from Preferred Builders General Services Inc. as required for your project.</p>
+            <p style="margin:0 0 4px 0">${tenant.company.name} · ${tenant.company.address} · ${tenant.company.license} · CSL CS-121662</p>
+            <p style="margin:0 0 4px 0">By receiving this communication you agree to receive digital communications from ${tenant.company.name} as required for your project.</p>
             <p style="margin:0 0 4px 0">This contract is legally binding. The 3-business-day cancellation period per M.G.L. c. 93 §48 applies from the date of signing.</p>
             <p style="margin:0">The approved Proposal / Scope of Work is non-binding on its own and is incorporated as a Contract Addendum upon execution of this agreement.</p>
           </div>
         </div>`,
-          text: `Hi ${fullJob.customer_name || 'there'},\n\nWe received your ${pTypeLabel} of ${paidAmount} on ${paidWhen}.\n\nYour project at ${fullJob.project_address} is confirmed and scheduled. We will follow up with your start date shortly.\n\nA copy of your signed contract is attached.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
+          text: `Hi ${fullJob.customer_name || 'there'},\n\nWe received your ${pTypeLabel} of ${paidAmount} on ${paidWhen}.\n\nYour project at ${fullJob.project_address} is confirmed and scheduled. We will follow up with your start date shortly.\n\nA copy of your signed contract is attached.\n\n— ${tenant.company.name}\n${tenant.company.phone}`,
           emailType: 'general',
           jobId: job_id,
         });

@@ -2,6 +2,7 @@
 // server/routes/customerPortal.js
 // Public customer portal — no auth required, gated by portal_token on job
 const express = require('express');
+const tenant = require('../../config/tenant.config');
 const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
@@ -66,8 +67,8 @@ function portalPageHTML({ job, sessions }) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Your Project Portal — Preferred Builders</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1`>
+  <title>Your Project Portal — ${tenant.company.name}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Arial,Helvetica,sans-serif;background:#f4f6fb;min-height:100vh}
@@ -104,13 +105,13 @@ function portalPageHTML({ job, sessions }) {
 </head>
 <body>
 
-<div class="hdr">
+<div class=`hdr">
   <img src="/images/PB logo Round.png" alt="PB" onerror="this.style.display='none'">
   <div>
-    <div class="co">Preferred Builders General Services Inc.</div>
-    <div class="sub">HIC-197400 · CSL CS-121662 · 978-377-1784</div>
+    <div class="co`>${tenant.company.name}</div>
+    <div class=`sub`>${tenant.company.license} · CSL CS-121662 · ${tenant.company.phone}</div>
   </div>
-  <div class="badge">🏠 Customer Portal</div>
+  <div class=`badge">🏠 Customer Portal</div>
 </div>
 
 <div class="wrap">
@@ -158,7 +159,7 @@ function portalPageHTML({ job, sessions }) {
     <div class="card-title">📝 Request a Change</div>
     <p style="font-size:13px;color:#666;margin-bottom:14px">Need to add, remove, or modify something in your project scope? Submit a change request and our team will follow up with an updated proposal.</p>
     <input type="text" id="coName" placeholder="Your name">
-    <textarea id="coDesc" rows="5" placeholder="Describe the change you'd like to make…"></textarea>
+    <textarea id="coDesc" rows="5" placeholder="Describe the change you`d like to make…"></textarea>
     <input type="text" id="coCost" placeholder="Estimated cost (optional, e.g. 500)" style="margin-top:10px">
     <div style="margin-top:10px">
       <button class="btn btn-orange" onclick="submitChangeOrder()">📋 Submit Change Request</button>
@@ -170,13 +171,13 @@ function portalPageHTML({ job, sessions }) {
 </div>
 
 <div class="ftr">
-  Preferred Builders General Services Inc. · HIC-197400 · <a href="https://preferredbuildersusa.com" style="color:#aaa">preferredbuildersusa.com</a><br>
-  37 Duck Mill Rd, Fitchburg MA · 978-377-1784
+  ${tenant.company.name} · ${tenant.company.license} · <a href="https://${tenant.company.website}" style="color:#aaa">${tenant.company.website}</a><br>
+  37 Duck Mill Rd, Fitchburg MA · ${tenant.company.phone}
 </div>
 
 <script>
 (function() {
-  const token = '${escHtml(job.portal_token)}';
+  const token = `${escHtml(job.portal_token)}';
 
   // ── Photo upload ──
   const photoInput = document.getElementById('photoInput');

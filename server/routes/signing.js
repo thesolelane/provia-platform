@@ -1,5 +1,6 @@
 'use strict';
 const express = require('express');
+const tenant = require('../../config/tenant.config');
 const path = require('path');
 const { requireFields } = require('../middleware/validate');
 const { getDb } = require('../db/database');
@@ -51,7 +52,7 @@ function expiredPageHTML(docLabel) {
   <div class="badge">⏰ Link Expired</div>
   <h2>This signing link has expired</h2>
   <p>The ${docLabel} signing link is only valid for ${SIGNING_EXPIRY_DAYS} days from when it was sent.<br><br>
-  Please contact <strong>Preferred Builders General Services Inc.</strong> to receive a new link.</p>
+  Please contact <strong>${tenant.company.name}</strong> to receive a new link.</p>
   <p style="font-size:13px;color:#888;margin-top:24px">📞 You can reach us by replying to the original email.</p>
   </div></body></html>`;
 }
@@ -116,7 +117,7 @@ function signingPageHTML({ docType, job, session, base: _base }) {
       <p style="margin:0;font-size:13px;color:#1B3A6B;font-weight:700">
         ${
           isProposal
-            ? 'By signing below, you approve this proposal and authorize Preferred Builders General Services Inc. to proceed with contract preparation.'
+            ? 'By signing below, you approve this proposal and authorize ${tenant.company.name} to proceed with contract preparation.'
             : 'By signing below, you acknowledge that you have read, understand, and agree to all terms and conditions of this Home Improvement Construction Contract.'
         }
       </p>
@@ -192,8 +193,8 @@ function signingPageHTML({ docType, job, session, base: _base }) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>${docLabel} — Preferred Builders General Services Inc.</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1`>
+  <title>${docLabel} — ${tenant.company.name}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; background: #f4f6fb; min-height: 100vh; }
@@ -212,12 +213,12 @@ function signingPageHTML({ docType, job, session, base: _base }) {
 </head>
 <body>
 
-<div class="hdr">
+<div class=`hdr">
   <div>
-    <div class="co">Preferred Builders General Services Inc.</div>
-    <div class="sub">HIC-197400 · CSL CS-121662 · 37 Duck Mill Rd, Fitchburg MA · 978-377-1784</div>
+    <div class="co`>${tenant.company.name}</div>
+    <div class=`sub`>${tenant.company.license} · CSL CS-121662 · 37 Duck Mill Rd, Fitchburg MA · ${tenant.company.phone}</div>
   </div>
-  <div class="badge">🔒 Secure Document</div>
+  <div class=`badge">🔒 Secure Document</div>
 </div>
 
 <div class="card">
@@ -233,9 +234,9 @@ function signingPageHTML({ docType, job, session, base: _base }) {
   ${already ? alreadySigned : alreadyDeclined ? alreadyDeclinedHTML : formHTML}
 </div>
 
-<div class="ftr">
+<div class="ftr`>
   This is a secure, encrypted document link for ${job.customer_name || 'the authorized signatory'} only.<br>
-  Preferred Builders General Services Inc. · HIC-197400 · <a href="https://preferredbuildersusa.com" style="color:#aaa">preferredbuildersusa.com</a>
+  ${tenant.company.name} · ${tenant.company.license} · <a href=`https://preferredbuildersusa.com" style="color:#aaa`>${tenant.company.website}</a>
 </div>
 
 ${
@@ -318,7 +319,7 @@ ${
       const data = await res.json();
       if (res.ok) {
         document.querySelector('.card').innerHTML = \`
-          <div style="text-align:center;padding:40px 20px">
+          <div style=`text-align:center;padding:40px 20px">
             <div style="font-size:64px;margin-bottom:20px">📬</div>
             <h2 style="color:#1B3A6B;margin-bottom:10px">Feedback Received</h2>
             <p style="color:#555;font-size:14px;line-height:1.6">
@@ -367,14 +368,14 @@ ${
           <div style="text-align:center;padding:40px 20px">
             <div style="font-size:64px;margin-bottom:20px">✅</div>
             <h2 style="color:#1B3A6B;margin-bottom:10px">Thank you, \${name}!</h2>
-            <p style="color:#555;font-size:14px;line-height:1.6">
+            <p style="color:#555;font-size:14px;line-height:1.6`>
               ${
                 isProposal
-                  ? 'Your proposal has been approved. Preferred Builders will now prepare your contract and reach out shortly.'
-                  : 'Your contract has been signed. You will receive a copy by email. Welcome to the Preferred Builders family!'
+                  ? 'Your proposal has been approved. ${tenant.company.name} will now prepare your contract and reach out shortly.'
+                  : 'Your contract has been signed. You will receive a copy by email. Welcome to the ${tenant.company.name} family!'
               }
             </p>
-            <p style="color:#aaa;font-size:12px;margin-top:16px">Signed: \${new Date().toLocaleString()}</p>
+            <p style=`color:#aaa;font-size:12px;margin-top:16px">Signed: \${new Date().toLocaleString()}</p>
           </div>\`;
       } else {
         btn.disabled = false;
@@ -469,7 +470,7 @@ router.post('/api/signing/opened/:token', (req, res) => {
             html: `<p><strong>${job?.customer_name || 'The customer'}</strong> just opened their <strong>${docLabel.toLowerCase()}</strong> signing link.</p>
                    <p><strong>Project:</strong> ${job?.project_address || '—'}</p>
                    <p><strong>Time:</strong> ${when}</p>
-                   <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}">View job →</a></p>`,
+                   <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}`>View job →</a></p>`,
             emailType: 'system_alert',
             jobId: session.job_id,
           });
@@ -503,7 +504,7 @@ router.post('/api/signing/declined/:token', async (req, res) => {
 
   if (isSessionExpired(session))
     return res.status(410).json({
-      error: 'This signing link has expired. Please contact Preferred Builders for a new link.',
+      error: 'This signing link has expired. Please contact ${tenant.company.name} for a new link.',
     });
 
   const ip = clientIP(req);
@@ -514,7 +515,7 @@ router.post('/api/signing/declined/:token', async (req, res) => {
   ).run(reason, req.params.token);
 
   db.prepare(
-    "UPDATE jobs SET status = 'proposal_declined', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    `UPDATE jobs SET status = 'proposal_declined', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
   ).run(session.job_id);
 
   try {
@@ -913,7 +914,7 @@ router.post('/api/signing/signed/:token', requireFields(['signer_name']), async 
         const payDirectNote = hasPayDirect
           ? `<div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;padding:10px 14px;margin-top:14px;font-size:11px;color:#92400e">
   <strong>Pay Direct Option:</strong> For permit and/or architectural fees above, you may write a separate check
-  directly to the permit office or design professional instead of paying Preferred Builders.
+  directly to the permit office or design professional instead of paying ${tenant.company.name}.
   Please let us know if you choose this option so we can update your account accordingly.
 </div>`
           : '';
@@ -1017,8 +1018,8 @@ ${payDirectNote}
 
 <div class="due-box">
   <div>
-    <div class="due-label">Amount Due to Preferred Builders</div>
-    <div style="font-size:10px;color:#888;margin-top:3px">Make checks payable to <strong>Preferred Builders General Services Inc.</strong></div>
+    <div class="due-label">Amount Due to ${tenant.company.name}</div>
+    <div style="font-size:10px;color:#888;margin-top:3px">Make checks payable to <strong>${tenant.company.name}</strong></div>
   </div>
   <div class="due-amt">${money(pbDueAmt)}</div>
 </div>
@@ -1026,7 +1027,7 @@ ${payDirectNote}
 <p style="font-size:12px;color:#555;margin:0">Your project will be officially scheduled once your deposit is received. Questions? Call 978-377-1784 or reply to this email.</p>
 
 <div class="ftr">
-  Preferred Builders General Services Inc. &nbsp;·&nbsp; License #CS-109171 &nbsp;·&nbsp; HIC-197400 &nbsp;·&nbsp; 978-377-1784<br>
+  ${tenant.company.name} &nbsp;·&nbsp; License #CS-109171 &nbsp;·&nbsp; HIC-197400 &nbsp;·&nbsp; 978-377-1784<br>
   Contract No. PB-${job.quote_number || '—'} &nbsp;·&nbsp; Invoice ${invNum}
 </div>
 </body></html>`;
@@ -1040,29 +1041,29 @@ ${payDirectNote}
             );
             await sendEmail({
               to: job.customer_email,
-              subject: `Deposit Invoice ${invNum} — Preferred Builders General Services Inc.`,
+              subject: `Deposit Invoice ${invNum} — ${tenant.company.name}`,
               attachmentPath: pdfPath,
               attachmentName: `${invNum}.pdf`,
               html: `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto">
   <div style="background:#1B3A6B;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
-    <div style="font-size:16px;font-weight:700">Deposit Invoice — Preferred Builders General Services Inc.</div>
+    <div style="font-size:16px;font-weight:700">Deposit Invoice — ${tenant.company.name}</div>
     <div style="font-size:11px;opacity:.8;margin-top:4px">License #CS-109171 · HIC-197400 · 978-377-1784</div>
   </div>
   <div style="background:white;padding:24px;border:1px solid #eee;border-top:none">
     <p style="font-size:14px;color:#1B3A6B;font-weight:700">Hi ${job.customer_name || 'there'},</p>
-    <p style="font-size:13px;color:#444;line-height:1.7">Thank you for signing your contract with Preferred Builders! Your deposit invoice is attached.</p>
+    <p style="font-size:13px;color:#444;line-height:1.7">Thank you for signing your contract with ${tenant.company.name}! Your deposit invoice is attached.</p>
     <div style="background:#f0f4ff;border-radius:8px;padding:16px;margin:16px 0">
       <p style="margin:0 0 5px;font-size:12px;color:#555"><strong>Invoice:</strong> ${invNum}</p>
       <p style="margin:0 0 5px;font-size:12px;color:#555"><strong>Project:</strong> ${job.project_address || '—'}</p>
       <p style="margin:0 0 5px;font-size:12px;color:#555"><strong>Contract Value:</strong> ${money(fullContractValue)}</p>
-      <p style="margin:0;font-size:15px;font-weight:bold;color:#1B3A6B">Amount Due to Preferred Builders: ${money(pbDueAmt)}</p>
+      <p style="margin:0;font-size:15px;font-weight:bold;color:#1B3A6B">Amount Due to ${tenant.company.name}: ${money(pbDueAmt)}</p>
     </div>
     ${hasPayDirect ? `<p style="font-size:12px;color:#92400e;background:#fffbeb;padding:10px;border-radius:6px;border-left:3px solid #f59e0b">Your invoice includes permit and/or architectural fees. You may write a separate check directly to the permit office or design professional for those items — please let us know if you choose this option.</p>` : ''}
-    <p style="font-size:13px;color:#444;line-height:1.7">Please make checks payable to <strong>Preferred Builders General Services Inc.</strong> Your project will be scheduled once your deposit is received.</p>
+    <p style="font-size:13px;color:#444;line-height:1.7">Please make checks payable to <strong>${tenant.company.name}</strong> Your project will be scheduled once your deposit is received.</p>
     <p style="font-size:12px;color:#888">Questions? Call 978-377-1784 or reply to this email.</p>
   </div>
 </div>`,
-              text: `Hi ${job.customer_name || 'there'},\n\nYour deposit invoice (${invNum}) is attached.\n\nContract Value: ${money(fullContractValue)}\nAmount Due to Preferred Builders: ${money(pbDueAmt)}\nProject: ${job.project_address || '—'}\n\nPlease make checks payable to Preferred Builders General Services Inc.\n\n— Preferred Builders · 978-377-1784`,
+              text: `Hi ${job.customer_name || 'there'},\n\nYour deposit invoice (${invNum}) is attached.\n\nContract Value: ${money(fullContractValue)}\nAmount Due to ${tenant.company.name}: ${money(pbDueAmt)}\nProject: ${job.project_address || '—'}\n\nPlease make checks payable to ${tenant.company.name}\n\n— ${tenant.company.name} · 978-377-1784`,
               emailType: 'deposit_invoice',
               jobId: session.job_id,
               db,
@@ -1119,18 +1120,18 @@ ${payDirectNote}
 
         await sendEmail({
           to: job.customer_email,
-          subject: `Your Preferred Builders Contract is Signed — Copy Enclosed`,
+          subject: `Your ${tenant.company.name} Contract is Signed — Copy Enclosed`,
           attachmentPath: mergedPdfPath,
           attachmentName: mergedPdfName,
           html: `<div style="font-family:Arial,sans-serif;max-width:580px;margin:0 auto">
             <div style="background:#059669;padding:20px 24px;color:white;border-radius:8px 8px 0 0">
-              <div style="font-size:17px;font-weight:700">✅ Contract Signed — Preferred Builders General Services Inc.</div>
+              <div style="font-size:17px;font-weight:700">✅ Contract Signed — ${tenant.company.name}</div>
               <div style="font-size:12px;opacity:.8;margin-top:4px">HIC-197400 · CSL CS-121662 · 978-377-1784</div>
             </div>
             <div style="background:white;padding:28px 24px;border:1px solid #eee;border-top:none">
               <p style="font-size:15px;color:#1B3A6B;font-weight:700;margin-bottom:12px">Hi ${job.customer_name || 'there'},</p>
               <p style="color:#444;font-size:14px;line-height:1.7;margin-bottom:16px">
-                Thank you — your construction contract with Preferred Builders General Services Inc. has been signed and is on file.
+                Thank you — your construction contract with ${tenant.company.name} has been signed and is on file.
                 <strong>📎 Your signed contract and original proposal are combined into one document and attached to this email</strong> for your records. Please save it in a safe place.
               </p>
               <div style="background:#F0FFF6;border-radius:8px;padding:16px 20px;margin-bottom:20px">
@@ -1150,7 +1151,7 @@ ${payDirectNote}
               <div style="background:#F0FFF6;border-radius:8px;padding:16px 20px;margin-bottom:20px">
                 <p style="margin:0 0 6px 0;font-size:13px;font-weight:700;color:#059669">🤝 Refer a Friend &amp; Save $250</p>
                 <p style="margin:0;font-size:13px;color:#444;line-height:1.6">
-                  Welcome to the Preferred Builders family! Refer a friend or family member — if they sign a contract with us,
+                  Welcome to the ${tenant.company.name} family! Refer a friend or family member — if they sign a contract with us,
                   <strong>you receive $250 off your next project</strong>. Just have them mention your name when they reach out.
                 </p>
               </div>
@@ -1159,13 +1160,13 @@ ${payDirectNote}
               </p>
             </div>
             <div style="background:#f8f9ff;padding:14px 24px;font-size:10px;color:#aaa;border-radius:0 0 8px 8px">
-              <p style="margin:0 0 4px 0">Preferred Builders General Services Inc. · 37 Duck Mill Rd, Fitchburg MA 01420 · HIC-197400 · CSL CS-121662</p>
-              <p style="margin:0 0 4px 0">By receiving this contract you agree to receive digital communications from Preferred Builders General Services Inc. as required for your project.</p>
+              <p style="margin:0 0 4px 0">${tenant.company.name} · 37 Duck Mill Rd, Fitchburg MA 01420 · HIC-197400 · CSL CS-121662</p>
+              <p style="margin:0 0 4px 0">By receiving this contract you agree to receive digital communications from ${tenant.company.name} as required for your project.</p>
               <p style="margin:0 0 4px 0">This contract is legally binding once signed and deposit is received and the 3-business-day cancellation period has elapsed.</p>
               <p style="margin:0">The approved Proposal / Scope of Work is non-binding on its own and is incorporated herein as a Contract Addendum upon execution of this agreement.</p>
             </div>
           </div>`,
-          text: `Hi ${job.customer_name || 'there'},\n\nYour construction contract with Preferred Builders is signed and on file. A copy is attached.\n\nProject: ${job.project_address}\nSigned: ${signedWhen}\n\nYour deposit is due per the contract. Once received your project will be scheduled.\n\nNote: You have 3 business days to cancel per M.G.L. c. 93 §48.\n\nRefer a friend who signs a contract and receive $250 off your next project.\n\n— Preferred Builders General Services Inc.\n978-377-1784`,
+          text: `Hi ${job.customer_name || 'there'},\n\nYour construction contract with ${tenant.company.name} is signed and on file. A copy is attached.\n\nProject: ${job.project_address}\nSigned: ${signedWhen}\n\nYour deposit is due per the contract. Once received your project will be scheduled.\n\nNote: You have 3 business days to cancel per M.G.L. c. 93 §48.\n\nRefer a friend who signs a contract and receive $250 off your next project.\n\n— ${tenant.company.name}\n978-377-1784`,
           emailType: 'contract_signed',
           jobId: job.id,
         });
