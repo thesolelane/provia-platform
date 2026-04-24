@@ -22,6 +22,8 @@ async function initDatabase() {
 
   // Uses PRAGMA table_info (reads schema, not data pages — safe on any DB state)
   const addColIfMissing = (table, col, def) => {
+    const tableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(table);
+    if (!tableExists) return;
     const cols = db.prepare(`PRAGMA table_info(${table})`).all();
     if (!cols.some((c) => c.name === col)) {
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
