@@ -193,7 +193,7 @@ function signingPageHTML({ docType, job, session, base: _base }) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1`>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>${docLabel} — ${tenant.company.name}</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -213,12 +213,12 @@ function signingPageHTML({ docType, job, session, base: _base }) {
 </head>
 <body>
 
-<div class=`hdr">
+<div class="hdr">
   <div>
-    <div class="co`>${tenant.company.name}</div>
-    <div class=`sub`>${tenant.company.license} · CSL CS-121662 · 37 Duck Mill Rd, Fitchburg MA · ${tenant.company.phone}</div>
+    <div class="co">${tenant.company.name}</div>
+    <div class="sub">${tenant.company.license} · CSL CS-121662 · 37 Duck Mill Rd, Fitchburg MA · ${tenant.company.phone}</div>
   </div>
-  <div class=`badge">🔒 Secure Document</div>
+  <div class="badge">🔒 Secure Document</div>
 </div>
 
 <div class="card">
@@ -234,9 +234,9 @@ function signingPageHTML({ docType, job, session, base: _base }) {
   ${already ? alreadySigned : alreadyDeclined ? alreadyDeclinedHTML : formHTML}
 </div>
 
-<div class="ftr`>
+<div class="ftr">
   This is a secure, encrypted document link for ${job.customer_name || 'the authorized signatory'} only.<br>
-  ${tenant.company.name} · ${tenant.company.license} · <a href=`https://preferredbuildersusa.com" style="color:#aaa`>${tenant.company.website}</a>
+  ${tenant.company.name} · ${tenant.company.license} · <a href="${tenant.company.website}" style="color:#aaa">${tenant.company.website}</a>
 </div>
 
 ${
@@ -319,7 +319,7 @@ ${
       const data = await res.json();
       if (res.ok) {
         document.querySelector('.card').innerHTML = \`
-          <div style=`text-align:center;padding:40px 20px">
+          <div style="text-align:center;padding:40px 20px">
             <div style="font-size:64px;margin-bottom:20px">📬</div>
             <h2 style="color:#1B3A6B;margin-bottom:10px">Feedback Received</h2>
             <p style="color:#555;font-size:14px;line-height:1.6">
@@ -368,14 +368,14 @@ ${
           <div style="text-align:center;padding:40px 20px">
             <div style="font-size:64px;margin-bottom:20px">✅</div>
             <h2 style="color:#1B3A6B;margin-bottom:10px">Thank you, \${name}!</h2>
-            <p style="color:#555;font-size:14px;line-height:1.6`>
+            <p style="color:#555;font-size:14px;line-height:1.6">
               ${
                 isProposal
                   ? 'Your proposal has been approved. ${tenant.company.name} will now prepare your contract and reach out shortly.'
                   : 'Your contract has been signed. You will receive a copy by email. Welcome to the ${tenant.company.name} family!'
               }
             </p>
-            <p style=`color:#aaa;font-size:12px;margin-top:16px">Signed: \${new Date().toLocaleString()}</p>
+            <p style="color:#aaa;font-size:12px;margin-top:16px">Signed: \${new Date().toLocaleString()}</p>
           </div>\`;
       } else {
         btn.disabled = false;
