@@ -300,6 +300,9 @@ app.use('/webhook', require('./routes/emailLog'));
 // ── TRADE SELECT (public — tokenized one-time mobile selection page) ──
 app.use(require('./routes/tradeSelect'));
 
+// ── ONBOARDING + TENANT MANAGEMENT ────────────────────────────────────────────
+app.use(require('./routes/onboarding'));
+
 // ── SERVE REACT FRONTEND (production) ────────────────────────
 const clientBuild = path.join(__dirname, '../client/build');
 if (fs.existsSync(clientBuild)) {
@@ -351,7 +354,7 @@ async function start() {
 
     console.log(`
 ╔═══════════════════════════════════════════╗
-║   PREFERRED BUILDERS AI SYSTEM            ║
+║   PROVIA PLATFORM v2.0                    ║
 ║   Running on port ${PORT}                    ║
 ║   Admin panel: http://localhost:${PORT}      ║
 ╚═══════════════════════════════════════════╝

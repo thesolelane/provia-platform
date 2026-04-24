@@ -3,7 +3,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const DB_PATH = path.join(__dirname, '../../data/pb_system.db');
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/provia.db');
 
 let db;
 
@@ -861,6 +861,30 @@ async function initDatabase() {
     )
   `);
   db.exec(`CREATE INDEX IF NOT EXISTS idx_departments_dept_id ON departments(dept_id)`);
+
+  // ── Multi-tenant: add tenant_id to all data tables ───────────────────────────
+  addColIfMissing('jobs',               'tenant_id', 'TEXT');
+  addColIfMissing('leads',              'tenant_id', 'TEXT');
+  addColIfMissing('contacts',           'tenant_id', 'TEXT');
+  addColIfMissing('tasks',              'tenant_id', 'TEXT');
+  addColIfMissing('payments_received',  'tenant_id', 'TEXT');
+  addColIfMissing('payments_made',      'tenant_id', 'TEXT');
+  addColIfMissing('invoices',           'tenant_id', 'TEXT');
+  addColIfMissing('vendors',            'tenant_id', 'TEXT');
+  addColIfMissing('purchase_orders',    'tenant_id', 'TEXT');
+  addColIfMissing('rfqs',               'tenant_id', 'TEXT');
+  addColIfMissing('signing_sessions',   'tenant_id', 'TEXT');
+  addColIfMissing('staff_messages',     'tenant_id', 'TEXT');
+  addColIfMissing('knowledge_base',     'tenant_id', 'TEXT');
+  addColIfMissing('audit_log',          'tenant_id', 'TEXT');
+  addColIfMissing('users',              'tenant_id', 'TEXT');
+  addColIfMissing('field_photos',       'tenant_id', 'TEXT');
+
+  // Indexes for tenant filtering performance
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_tenant_id     ON jobs(tenant_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_leads_tenant_id    ON leads(tenant_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_contacts_tenant_id ON contacts(tenant_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_users_tenant_id    ON users(tenant_id)`);
 
   seedDefaultSettings();
   seedDefaultSenders();

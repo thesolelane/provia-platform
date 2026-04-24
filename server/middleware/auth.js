@@ -1,18 +1,18 @@
-// server/middleware/auth.js
+'use strict';
+const { getTenantById } = require('../services/tenantService');
+
 const sessions = new Map();
 
 function requireAuth(req, res, next) {
-  // Accept query token only on safe GET requests (e.g. photo/PDF file links in emails)
-  // All mutating endpoints (POST/PATCH/DELETE) must use the x-auth-token header only
   const token = req.headers['x-auth-token'] || (req.method === 'GET' ? req.query.token : undefined);
   if (!token || !sessions.has(token)) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
   req.session = sessions.get(token);
+  req.tenant = req.session.tenant || null;
   next();
 }
 
-// Restrict endpoint to specific roles (call after requireAuth)
 function requireRole(...roles) {
   const allowed = roles.flat();
   return (req, res, next) => {
@@ -23,9 +23,15 @@ function requireRole(...roles) {
   };
 }
 
-function createSession({ userId, name, email, role }) {
+async function createSession({ userId, name, email, role, tenantId }) {
   const token = require('crypto').randomBytes(32).toString('hex');
-  sessions.set(token, { userId, name, email, role, createdAt: Date.now() });
+
+  let tenant = null;
+  if (tenantId) {
+    try { tenant = await getTenantById(tenantId); } catch { /* ignore */ }
+  }
+
+  sessions.set(token, { userId, name, email, role, tenantId, tenant, createdAt: Date.now() });
   setTimeout(() => sessions.delete(token), 24 * 60 * 60 * 1000);
   return token;
 }

@@ -1,7 +1,7 @@
 {
-  "name": "preferred-builders-ai",
-  "version": "1.5.2",
-  "description": "Preferred Builders AI Contract & Estimation System",
+  "name": "provia-platform",
+  "version": "2.0.0",
+  "description": "Provia — Multi-Tenant Contractor Platform",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.20.0",
+    "@supabase/supabase-js": "^2.45.0",
     "axios": "^1.6.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^9.4.0",

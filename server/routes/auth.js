@@ -6,20 +6,21 @@ const { createSession, destroySession } = require('../middleware/auth');
 const { requireFields } = require('../middleware/validate');
 const { getDb } = require('../db/database');
 
-router.post('/login', requireFields(['email', 'password']), (req, res) => {
+router.post('/login', requireFields(['email', 'password']), async (req, res) => {
   const { email, password } = req.body;
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email.toLowerCase().trim());
   if (!user || !bcrypt.compareSync(password, user.password_hash)) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
-  const token = createSession({
+  const token = await createSession({
     userId: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
+    tenantId: user.tenant_id || null,
   });
-  res.json({ token, name: user.name, role: user.role, message: 'Logged in successfully' });
+  res.json({ token, name: user.name, role: user.role, tenantId: user.tenant_id || null, message: 'Logged in successfully' });
 });
 
 router.post('/logout', (req, res) => {
