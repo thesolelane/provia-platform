@@ -470,7 +470,7 @@ router.post('/api/signing/opened/:token', (req, res) => {
             html: `<p><strong>${job?.customer_name || 'The customer'}</strong> just opened their <strong>${docLabel.toLowerCase()}</strong> signing link.</p>
                    <p><strong>Project:</strong> ${job?.project_address || '—'}</p>
                    <p><strong>Time:</strong> ${when}</p>
-                   <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}`>View job →</a></p>`,
+                   <p><a href="${process.env.APP_URL || ''}/jobs/${session.job_id}">View job →</a></p>`,
             emailType: 'system_alert',
             jobId: session.job_id,
           });
