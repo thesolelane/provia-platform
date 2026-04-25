@@ -21,6 +21,7 @@ import Agents from './pages/Agents';
 import PurchaseOrders from './pages/PurchaseOrders';
 import StaffView from './components/StaffView';
 import AdminConsole from './pages/AdminConsole';
+import PlatformSettings from './pages/PlatformSettings';
 import Layout from './components/Layout';
 import Toast from './components/Toast';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -122,7 +123,16 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard token={token} />} />
           <Route path="/jobs/:id" element={<JobDetail token={token} userName={userName} />} />
-          <Route path="/settings" element={<Settings token={token} userRole={userRole} />} />
+          <Route
+            path="/settings"
+            element={
+              userRole === 'system_admin' ? (
+                <PlatformSettings token={token} />
+              ) : (
+                <Settings token={token} userRole={userRole} />
+              )
+            }
+          />
           <Route path="/knowledge" element={<KnowledgeBase token={token} />} />
           <Route path="/chat" element={<AdminChat token={token} />} />
           <Route path="/team" element={<Team token={token} userRole={userRole} />} />
@@ -140,7 +150,12 @@ function App() {
           <Route path="/guide" element={<FieldGuide />} />
           <Route path="/agents" element={<Agents token={token} userRole={userRole} />} />
           <Route path="/staff-portal" element={<StaffView token={token} />} />
-          <Route path="/admin" element={userRole === 'system_admin' ? <AdminConsole token={token} /> : <Navigate to="/" />} />
+          <Route
+            path="/admin"
+            element={
+              userRole === 'system_admin' ? <AdminConsole token={token} /> : <Navigate to="/" />
+            }
+          />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Layout>
