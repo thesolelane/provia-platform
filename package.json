@@ -17,8 +17,11 @@
     "prepare": "husky || true"
   },
   "lint-staged": {
-    "*.{js,jsx}": [
+    "server/**/*.js": [
       "eslint --no-warn-ignored",
+      "prettier --write"
+    ],
+    "client/src/**/*.{js,jsx}": [
       "prettier --write"
     ]
   },

@@ -30,6 +30,16 @@ const CONFIG_NAV_ALL = [
   { path: '/admin', icon: '🛡️', label: 'Admin Console', sysAdminOnly: true },
 ];
 
+// System admin sees a focused platform nav — no tenant-specific items
+const SYSADMIN_MAIN_NAV = [
+  { path: '/admin', icon: '🛡️', label: 'Admin Console' },
+  { path: '/contacts', icon: '👥', label: 'Tenant Contacts' },
+  { path: '/tasks', icon: '✅', label: 'Tasks' },
+  { path: '/agents', icon: '🤖', label: 'Agents' },
+];
+
+const SYSADMIN_CONFIG_NAV = [{ path: '/settings', icon: '⚙️', label: 'Settings' }];
+
 const BOTTOM_NAV = [
   { path: '/', icon: '📊', label: 'Jobs' },
   { path: '/tasks', icon: '✅', label: 'Tasks' },
@@ -74,11 +84,15 @@ export default function Layout({ children, token, onLogout, userName, userRole }
   const [configOpen, setConfigOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const CONFIG_NAV = CONFIG_NAV_ALL.filter(
-    (n) =>
-      (!n.adminOnly || userRole === 'admin' || userRole === 'system_admin') &&
-      (!n.sysAdminOnly || userRole === 'system_admin'),
-  );
+  const isSysAdmin = userRole === 'system_admin';
+  const activeMainNav = isSysAdmin ? SYSADMIN_MAIN_NAV : MAIN_NAV;
+  const CONFIG_NAV = isSysAdmin
+    ? SYSADMIN_CONFIG_NAV
+    : CONFIG_NAV_ALL.filter(
+        (n) =>
+          (!n.adminOnly || userRole === 'admin' || userRole === 'system_admin') &&
+          (!n.sysAdminOnly || userRole === 'system_admin'),
+      );
 
   const configActive = CONFIG_NAV.some((n) => n.path === pathname);
   const currentPage = ALL_NAV.find((n) => n.path === pathname);
@@ -177,7 +191,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
           </div>
 
           <nav style={{ flex: 1, paddingTop: 6, overflowY: 'auto', overflowX: 'hidden' }}>
-            {MAIN_NAV.map((item) => (
+            {activeMainNav.map((item) => (
               <SidebarNavItem
                 key={item.path}
                 item={item}
@@ -404,9 +418,7 @@ export default function Layout({ children, token, onLogout, userName, userRole }
               }}
             >
               <div>
-                <div style={{ fontWeight: 'bold', fontSize: 13, color: ORANGE }}>
-                  PROVIA
-                </div>
+                <div style={{ fontWeight: 'bold', fontSize: 13, color: ORANGE }}>PROVIA</div>
                 {userName && (
                   <div style={{ fontSize: 11, opacity: 0.7, marginTop: 2 }}>{userName}</div>
                 )}
@@ -426,34 +438,36 @@ export default function Layout({ children, token, onLogout, userName, userRole }
               </button>
             </div>
             <div style={{ padding: '4px 0 8px' }}>
-              {ALL_NAV.map((item) => {
-                const active = pathname === item.path;
-                return (
-                  <Link
-                    key={item.path}
-                    to={item.path}
-                    onClick={() => setSheetOpen(false)}
-                    style={{ textDecoration: 'none' }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 14,
-                        padding: '13px 20px',
-                        background: active ? 'rgba(224,123,42,0.25)' : 'transparent',
-                        borderLeft: active ? `3px solid ${ORANGE}` : '3px solid transparent',
-                        color: active ? 'white' : 'rgba(255,255,255,0.8)',
-                        fontSize: 15,
-                      }}
+              {(isSysAdmin ? [...SYSADMIN_MAIN_NAV, ...SYSADMIN_CONFIG_NAV] : ALL_NAV).map(
+                (item) => {
+                  const active = pathname === item.path;
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      onClick={() => setSheetOpen(false)}
+                      style={{ textDecoration: 'none' }}
                     >
-                      <span style={{ fontSize: 20 }}>{item.icon}</span>
-                      <span>{item.label}</span>
-                      {active && <span style={{ marginLeft: 'auto', color: ORANGE }}>●</span>}
-                    </div>
-                  </Link>
-                );
-              })}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 14,
+                          padding: '13px 20px',
+                          background: active ? 'rgba(224,123,42,0.25)' : 'transparent',
+                          borderLeft: active ? `3px solid ${ORANGE}` : '3px solid transparent',
+                          color: active ? 'white' : 'rgba(255,255,255,0.8)',
+                          fontSize: 15,
+                        }}
+                      >
+                        <span style={{ fontSize: 20 }}>{item.icon}</span>
+                        <span>{item.label}</span>
+                        {active && <span style={{ marginLeft: 'auto', color: ORANGE }}>●</span>}
+                      </div>
+                    </Link>
+                  );
+                },
+              )}
             </div>
             <div
               style={{ padding: '12px 20px 16px', borderTop: '1px solid rgba(255,255,255,0.1)' }}
