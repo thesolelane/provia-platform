@@ -1493,21 +1493,31 @@ function seedAgentKeys(db) {
 
 function seedUsers() {
   const bcrypt = require('bcryptjs');
-  const seedPassword = process.env.ADMIN_SEED_PASSWORD || 'Preferred2024!';
-  const hash = bcrypt.hashSync(seedPassword, 12);
 
-  const users = [
+  const accounts = [
     {
       name: 'Anthony Cooper',
       email: 'acooper@cooperanth.com',
       role: 'system_admin',
       title: 'Platform Admin',
+      passwordEnv: 'ADMIN_SEED_PASSWORD',
+      fallback: 'Provia2024!',
+    },
+    {
+      name: 'Anthony Cooper',
+      email: 'cooper@preferredbuildersusa.com',
+      role: 'admin',
+      title: 'Project Manager',
+      passwordEnv: 'PB_SEED_PASSWORD',
+      fallback: 'Preferred2024!',
     },
     {
       name: 'Jackson Deaquino',
       email: 'jackson.deaquino@preferredbuildersusa.com',
       role: 'admin',
       title: 'Project Manager',
+      passwordEnv: null,
+      fallback: 'Preferred2024!',
     },
   ];
 
@@ -1516,16 +1526,15 @@ function seedUsers() {
     VALUES (@name, @email, @hash, @role, @title)
   `);
 
-  for (const u of users) {
-    insert.run({ ...u, hash });
-  }
+  for (const u of accounts) {
+    const pwd = (u.passwordEnv && process.env[u.passwordEnv]) || u.fallback;
+    const hash = bcrypt.hashSync(pwd, 12);
+    insert.run({ name: u.name, email: u.email, role: u.role, title: u.title, hash });
 
-  // If ADMIN_SEED_PASSWORD is set, keep cooper's password in sync with it
-  if (process.env.ADMIN_SEED_PASSWORD) {
-    db.prepare(`UPDATE users SET password_hash = ? WHERE email = ? AND role = 'system_admin'`).run(
-      hash,
-      'acooper@cooperanth.com',
-    );
+    // Keep password in sync if env var is set
+    if (u.passwordEnv && process.env[u.passwordEnv]) {
+      db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(hash, u.email);
+    }
   }
 }
 
