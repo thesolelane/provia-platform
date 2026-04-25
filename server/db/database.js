@@ -1501,23 +1501,13 @@ function seedUsers() {
       role: 'system_admin',
       title: 'Platform Admin',
       passwordEnv: 'ADMIN_SEED_PASSWORD',
-      fallback: 'Provia2024!',
     },
     {
       name: 'Anthony Cooper',
       email: 'cooper@preferredbuildersusa.com',
       role: 'admin',
       title: 'Project Manager',
-      passwordEnv: 'PB_SEED_PASSWORD',
-      fallback: 'Preferred2024!',
-    },
-    {
-      name: 'Jackson Deaquino',
-      email: 'jackson.deaquino@preferredbuildersusa.com',
-      role: 'admin',
-      title: 'Project Manager',
-      passwordEnv: null,
-      fallback: 'Preferred2024!',
+      passwordEnv: 'TENANT_ADMIN_SEED_PREFERREDBUILDERS_PASSWORD',
     },
   ];
 
@@ -1527,14 +1517,11 @@ function seedUsers() {
   `);
 
   for (const u of accounts) {
-    const pwd = (u.passwordEnv && process.env[u.passwordEnv]) || u.fallback;
+    const pwd = process.env[u.passwordEnv];
+    if (!pwd) continue;
     const hash = bcrypt.hashSync(pwd, 12);
     insert.run({ name: u.name, email: u.email, role: u.role, title: u.title, hash });
-
-    // Keep password in sync if env var is set
-    if (u.passwordEnv && process.env[u.passwordEnv]) {
-      db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(hash, u.email);
-    }
+    db.prepare('UPDATE users SET password_hash = ? WHERE email = ?').run(hash, u.email);
   }
 }
 
