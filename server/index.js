@@ -46,8 +46,12 @@ const io = new SocketIOServer(httpServer, {
 });
 setIO(io);
 io.on('connection', (socket) => {
-  socket.on('join-job', (jobId) => { if (jobId) socket.join(String(jobId)); });
-  socket.on('leave-job', (jobId) => { if (jobId) socket.leave(String(jobId)); });
+  socket.on('join-job', (jobId) => {
+    if (jobId) socket.join(String(jobId));
+  });
+  socket.on('leave-job', (jobId) => {
+    if (jobId) socket.leave(String(jobId));
+  });
 });
 
 // ── SECURITY MIDDLEWARE ───────────────────────────────────────
@@ -302,6 +306,9 @@ app.use(require('./routes/tradeSelect'));
 
 // ── ONBOARDING + TENANT MANAGEMENT ────────────────────────────────────────────
 app.use(require('./routes/onboarding'));
+
+// ── TENANT ACCOUNT SETTINGS ───────────────────────────────────────────────────
+app.use(require('./routes/tenantAccount'));
 
 // ── ADMIN CONSOLE API ─────────────────────────────────────────────────────────
 app.use(require('./routes/admin'));

@@ -22,6 +22,7 @@ import PurchaseOrders from './pages/PurchaseOrders';
 import StaffView from './components/StaffView';
 import AdminConsole from './pages/AdminConsole';
 import PlatformSettings from './pages/PlatformSettings';
+import TenantSettings from './pages/TenantSettings';
 import Layout from './components/Layout';
 import Toast from './components/Toast';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -128,6 +129,8 @@ function App() {
             element={
               userRole === 'system_admin' ? (
                 <PlatformSettings token={token} />
+              ) : userRole === 'admin' ? (
+                <TenantSettings token={token} />
               ) : (
                 <Settings token={token} userRole={userRole} />
               )

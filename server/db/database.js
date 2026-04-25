@@ -167,6 +167,33 @@ async function initDatabase() {
     )
   `);
 
+  // Tenant feature flags + config (model choice, enabled integrations)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_features (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id   TEXT NOT NULL,
+      key         TEXT NOT NULL,
+      value       TEXT,
+      updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tenant_id, key)
+    )
+  `);
+
+  // Tenant secrets — API keys stored encrypted per tenant
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_secrets (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      tenant_id   TEXT NOT NULL,
+      key         TEXT NOT NULL,
+      value_enc   TEXT NOT NULL,
+      updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(tenant_id, key)
+    )
+  `);
+
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tenant_features_tid ON tenant_features(tenant_id)`);
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_tenant_secrets_tid  ON tenant_secrets(tenant_id)`);
+
   // Migrations: jobs columns
   addColIfMissing('jobs', 'archived', 'INTEGER DEFAULT 0');
   addColIfMissing('jobs', 'archived_at', 'DATETIME');
