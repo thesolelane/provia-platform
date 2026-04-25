@@ -22,7 +22,9 @@ async function initDatabase() {
 
   // Uses PRAGMA table_info (reads schema, not data pages — safe on any DB state)
   const addColIfMissing = (table, col, def) => {
-    const tableExists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(table);
+    const tableExists = db
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`)
+      .get(table);
     if (!tableExists) return;
     const cols = db.prepare(`PRAGMA table_info(${table})`).all();
     if (!cols.some((c) => c.name === col)) {
@@ -863,22 +865,22 @@ async function initDatabase() {
   db.exec(`CREATE INDEX IF NOT EXISTS idx_departments_dept_id ON departments(dept_id)`);
 
   // ── Multi-tenant: add tenant_id to all data tables ───────────────────────────
-  addColIfMissing('jobs',               'tenant_id', 'TEXT');
-  addColIfMissing('leads',              'tenant_id', 'TEXT');
-  addColIfMissing('contacts',           'tenant_id', 'TEXT');
-  addColIfMissing('tasks',              'tenant_id', 'TEXT');
-  addColIfMissing('payments_received',  'tenant_id', 'TEXT');
-  addColIfMissing('payments_made',      'tenant_id', 'TEXT');
-  addColIfMissing('invoices',           'tenant_id', 'TEXT');
-  addColIfMissing('vendors',            'tenant_id', 'TEXT');
-  addColIfMissing('purchase_orders',    'tenant_id', 'TEXT');
-  addColIfMissing('rfqs',               'tenant_id', 'TEXT');
-  addColIfMissing('signing_sessions',   'tenant_id', 'TEXT');
-  addColIfMissing('staff_messages',     'tenant_id', 'TEXT');
-  addColIfMissing('knowledge_base',     'tenant_id', 'TEXT');
-  addColIfMissing('audit_log',          'tenant_id', 'TEXT');
-  addColIfMissing('users',              'tenant_id', 'TEXT');
-  addColIfMissing('field_photos',       'tenant_id', 'TEXT');
+  addColIfMissing('jobs', 'tenant_id', 'TEXT');
+  addColIfMissing('leads', 'tenant_id', 'TEXT');
+  addColIfMissing('contacts', 'tenant_id', 'TEXT');
+  addColIfMissing('tasks', 'tenant_id', 'TEXT');
+  addColIfMissing('payments_received', 'tenant_id', 'TEXT');
+  addColIfMissing('payments_made', 'tenant_id', 'TEXT');
+  addColIfMissing('invoices', 'tenant_id', 'TEXT');
+  addColIfMissing('vendors', 'tenant_id', 'TEXT');
+  addColIfMissing('purchase_orders', 'tenant_id', 'TEXT');
+  addColIfMissing('rfqs', 'tenant_id', 'TEXT');
+  addColIfMissing('signing_sessions', 'tenant_id', 'TEXT');
+  addColIfMissing('staff_messages', 'tenant_id', 'TEXT');
+  addColIfMissing('knowledge_base', 'tenant_id', 'TEXT');
+  addColIfMissing('audit_log', 'tenant_id', 'TEXT');
+  addColIfMissing('users', 'tenant_id', 'TEXT');
+  addColIfMissing('field_photos', 'tenant_id', 'TEXT');
 
   // Indexes for tenant filtering performance
   db.exec(`CREATE INDEX IF NOT EXISTS idx_jobs_tenant_id     ON jobs(tenant_id)`);
@@ -1491,8 +1493,8 @@ function seedAgentKeys(db) {
 
 function seedUsers() {
   const bcrypt = require('bcryptjs');
-  const tempPassword = 'Preferred2024!';
-  const hash = bcrypt.hashSync(tempPassword, 10);
+  const seedPassword = process.env.ADMIN_SEED_PASSWORD || 'Preferred2024!';
+  const hash = bcrypt.hashSync(seedPassword, 12);
 
   const users = [
     {
@@ -1516,6 +1518,14 @@ function seedUsers() {
 
   for (const u of users) {
     insert.run({ ...u, hash });
+  }
+
+  // If ADMIN_SEED_PASSWORD is set, keep cooper's password in sync with it
+  if (process.env.ADMIN_SEED_PASSWORD) {
+    db.prepare(`UPDATE users SET password_hash = ? WHERE email = ? AND role = 'system_admin'`).run(
+      hash,
+      'cooper@preferredbuildersusa.com',
+    );
   }
 }
 
