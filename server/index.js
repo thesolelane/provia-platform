@@ -303,6 +303,9 @@ app.use(require('./routes/tradeSelect'));
 // ── ONBOARDING + TENANT MANAGEMENT ────────────────────────────────────────────
 app.use(require('./routes/onboarding'));
 
+// ── ADMIN CONSOLE API ─────────────────────────────────────────────────────────
+app.use(require('./routes/admin'));
+
 // ── SERVE REACT FRONTEND (production) ────────────────────────
 const clientBuild = path.join(__dirname, '../client/build');
 if (fs.existsSync(clientBuild)) {

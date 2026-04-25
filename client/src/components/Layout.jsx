@@ -27,6 +27,7 @@ const CONFIG_NAV_ALL = [
   { path: '/team', icon: '👷', label: 'Team' },
   { path: '/agents', icon: '🤖', label: 'Agents' },
   { path: '/guide', icon: '📋', label: 'Help Guide' },
+  { path: '/admin', icon: '🛡️', label: 'Admin Console', sysAdminOnly: true },
 ];
 
 const BOTTOM_NAV = [
@@ -74,7 +75,9 @@ export default function Layout({ children, token, onLogout, userName, userRole }
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const CONFIG_NAV = CONFIG_NAV_ALL.filter(
-    (n) => !n.adminOnly || userRole === 'system_admin',
+    (n) =>
+      (!n.adminOnly || userRole === 'admin' || userRole === 'system_admin') &&
+      (!n.sysAdminOnly || userRole === 'system_admin'),
   );
 
   const configActive = CONFIG_NAV.some((n) => n.path === pathname);

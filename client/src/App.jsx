@@ -20,6 +20,7 @@ import Reports from './pages/Reports';
 import Agents from './pages/Agents';
 import PurchaseOrders from './pages/PurchaseOrders';
 import StaffView from './components/StaffView';
+import AdminConsole from './pages/AdminConsole';
 import Layout from './components/Layout';
 import Toast from './components/Toast';
 import ConfirmDialog from './components/ConfirmDialog';
@@ -139,6 +140,7 @@ function App() {
           <Route path="/guide" element={<FieldGuide />} />
           <Route path="/agents" element={<Agents token={token} userRole={userRole} />} />
           <Route path="/staff-portal" element={<StaffView token={token} />} />
+          <Route path="/admin" element={userRole === 'system_admin' ? <AdminConsole token={token} /> : <Navigate to="/" />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Layout>
