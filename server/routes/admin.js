@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireOfficeIp, invalidateIpCache } = require('../middleware/ipWhitelist');
 const { getDb } = require('../db/database');
 const {
   listTenants,
@@ -13,7 +14,7 @@ const { supabaseAdmin } = require('../services/supabase');
 const bcrypt = require('bcryptjs');
 const { createSession } = require('../middleware/auth');
 
-const isAdmin = [requireAuth, requireRole('system_admin')];
+const isAdmin = [requireAuth, requireRole('system_admin'), requireOfficeIp];
 
 // ── GET /api/admin/health — platform health summary ──────────────────────────
 router.get('/api/admin/health', ...isAdmin, (req, res) => {
@@ -267,6 +268,53 @@ router.post('/api/admin/impersonate/:tenantId', ...isAdmin, async (req, res) => 
     tenantId: req.params.tenantId,
   });
   res.json({ token, name: tenantUser.name, role: tenantUser.role, tenantId: req.params.tenantId });
+});
+
+// ── GET /api/admin/security/ips — get allowed IP list ────────────────────────
+router.get('/api/admin/security/ips', ...isAdmin, (req, res) => {
+  const db = getDb();
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'security.allowed_ips'").get();
+  const ips = row ? JSON.parse(row.value) : [];
+  const myIp = (req.ip || '').replace(/^::ffff:/, '');
+  res.json({ ips, myIp });
+});
+
+// ── POST /api/admin/security/ips — add an IP ─────────────────────────────────
+router.post('/api/admin/security/ips', ...isAdmin, (req, res) => {
+  const { ip } = req.body;
+  if (!ip) return res.status(400).json({ error: 'ip required' });
+  const db = getDb();
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'security.allowed_ips'").get();
+  const ips = row ? JSON.parse(row.value) : [];
+  if (!ips.includes(ip)) ips.push(ip);
+  db.prepare(
+    `INSERT INTO settings (key, value, category) VALUES ('security.allowed_ips', ?, 'security')
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+  ).run(JSON.stringify(ips));
+  invalidateIpCache();
+  res.json({ ok: true, ips });
+});
+
+// ── DELETE /api/admin/security/ips — remove an IP ────────────────────────────
+router.delete('/api/admin/security/ips', ...isAdmin, (req, res) => {
+  const { ip } = req.body;
+  const db = getDb();
+  const row = db.prepare("SELECT value FROM settings WHERE key = 'security.allowed_ips'").get();
+  const ips = row ? JSON.parse(row.value).filter((i) => i !== ip) : [];
+  db.prepare(
+    `INSERT INTO settings (key, value, category) VALUES ('security.allowed_ips', ?, 'security')
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP`,
+  ).run(JSON.stringify(ips));
+  invalidateIpCache();
+  res.json({ ok: true, ips });
+});
+
+// ── GET /api/admin/audit — recent audit log entries ───────────────────────────
+router.get('/api/admin/audit', ...isAdmin, (req, res) => {
+  const db = getDb();
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+  const rows = db.prepare('SELECT * FROM audit_log ORDER BY created_at DESC LIMIT ?').all(limit);
+  res.json({ entries: rows });
 });
 
 module.exports = router;

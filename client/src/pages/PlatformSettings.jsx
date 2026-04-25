@@ -4,7 +4,7 @@ const BLUE = '#2F5A7E';
 const DARK = '#163853';
 const ORANGE = '#FF9500';
 
-const TABS = ['Services', 'Feature Flags', 'Platform Config'];
+const TABS = ['Services', 'Feature Flags', 'Security', 'Platform Config'];
 
 const FLAG_DEFS = [
   {
@@ -38,6 +38,12 @@ export default function PlatformSettings({ token }) {
   const [flagsLoading, setFlagsLoading] = useState(false);
   const [toggling, setToggling] = useState({});
   const [msg, setMsg] = useState(null);
+  const [ips, setIps] = useState([]);
+  const [myIp, setMyIp] = useState('');
+  const [newIp, setNewIp] = useState('');
+  const [ipBusy, setIpBusy] = useState(false);
+  const [auditLog, setAuditLog] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const headers = { 'x-auth-token': token, 'Content-Type': 'application/json' };
 
@@ -64,9 +70,26 @@ export default function PlatformSettings({ token }) {
     }
   }, []);
 
+  const loadSecurity = useCallback(async () => {
+    const [ipRes, auditRes] = await Promise.all([
+      fetch('/api/admin/security/ips', { headers }),
+      fetch('/api/admin/audit?limit=50', { headers }),
+    ]);
+    if (ipRes.ok) {
+      const d = await ipRes.json();
+      setIps(d.ips);
+      setMyIp(d.myIp);
+    }
+    if (auditRes.ok) {
+      const d = await auditRes.json();
+      setAuditLog(d.entries);
+    }
+  }, []);
+
   useEffect(() => {
     if (tab === 'Services') loadHealth();
     if (tab === 'Feature Flags') loadFlags();
+    if (tab === 'Security') loadSecurity();
   }, [tab]);
 
   const toggleFlag = async (key, current) => {
@@ -268,6 +291,195 @@ export default function PlatformSettings({ token }) {
     );
   };
 
+  const addIp = async (ip) => {
+    setIpBusy(true);
+    const res = await fetch('/api/admin/security/ips', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ip }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setIps(d.ips);
+      setNewIp('');
+    }
+    setIpBusy(false);
+  };
+
+  const removeIp = async (ip) => {
+    setIpBusy(true);
+    const res = await fetch('/api/admin/security/ips', {
+      method: 'DELETE',
+      headers,
+      body: JSON.stringify({ ip }),
+    });
+    if (res.ok) {
+      const d = await res.json();
+      setIps(d.ips);
+    }
+    setIpBusy(false);
+  };
+
+  const renderSecurity = () => (
+    <div>
+      <div style={card()}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: DARK, marginBottom: 12 }}>
+          Allowed IP Addresses
+        </div>
+        <p style={{ fontSize: 12, color: '#888', marginBottom: 12 }}>
+          Only these IPs can access admin routes. Local network (192.168.x.x) is always allowed.
+          Your current IP: <strong>{myIp || '—'}</strong>
+        </p>
+        {ips.length === 0 && (
+          <div style={{ fontSize: 13, color: '#888', marginBottom: 12 }}>
+            No IPs added — only local network has access.
+          </div>
+        )}
+        {ips.map((ip) => (
+          <div
+            key={ip}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '8px 0',
+              borderBottom: '1px solid #f1f5f9',
+            }}
+          >
+            <span style={{ fontFamily: 'monospace', fontSize: 13 }}>{ip}</span>
+            <button
+              onClick={() => removeIp(ip)}
+              disabled={ipBusy}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#ef4444',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <input
+            value={newIp}
+            onChange={(e) => setNewIp(e.target.value)}
+            placeholder="e.g. 203.0.113.42"
+            style={{
+              flex: 1,
+              padding: '8px 12px',
+              borderRadius: 6,
+              border: '1px solid #cbd5e1',
+              fontSize: 13,
+            }}
+          />
+          <button
+            onClick={() => newIp && addIp(newIp)}
+            disabled={ipBusy || !newIp}
+            style={{
+              padding: '8px 16px',
+              background: BLUE,
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontSize: 13,
+            }}
+          >
+            Add
+          </button>
+          {myIp && !ips.includes(myIp) && (
+            <button
+              onClick={() => addIp(myIp)}
+              disabled={ipBusy}
+              style={{
+                padding: '8px 16px',
+                background: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              Add My IP
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={card()}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: DARK, marginBottom: 4 }}>
+          Rate Limiting
+        </div>
+        <div style={{ fontSize: 13, color: '#888' }}>
+          Active on all routes — configured in server.
+        </div>
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {[
+            ['Login attempts', '10 per 15 min per IP'],
+            ['API requests', '300 per min per IP'],
+            ['Webhooks', '60 per min per IP'],
+          ].map(([label, val]) => (
+            <div
+              key={label}
+              style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}
+            >
+              <span style={{ color: DARK }}>{label}</span>
+              <span style={{ color: '#888', fontFamily: 'monospace' }}>{val}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={card()}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 12,
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 14, color: DARK }}>Audit Log</div>
+          <button
+            onClick={loadSecurity}
+            style={{
+              fontSize: 12,
+              padding: '4px 12px',
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            Refresh
+          </button>
+        </div>
+        {auditLoading && <div style={{ color: '#888', fontSize: 13 }}>Loading…</div>}
+        {auditLog.length === 0 && !auditLoading && (
+          <div style={{ color: '#888', fontSize: 13 }}>No audit entries yet.</div>
+        )}
+        {auditLog.map((e) => (
+          <div
+            key={e.id}
+            style={{ padding: '8px 0', borderBottom: '1px solid #f1f5f9', fontSize: 12 }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 600, color: DARK }}>{e.action}</span>
+              <span style={{ color: '#888' }}>{new Date(e.created_at).toLocaleString()}</span>
+            </div>
+            {e.details && <div style={{ color: '#888', marginTop: 2 }}>{e.details}</div>}
+            {e.performed_by && (
+              <div style={{ color: '#aaa', marginTop: 1 }}>by {e.performed_by}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   const renderConfig = () => (
     <div style={{ color: '#888', fontSize: 14, padding: 20 }}>
       Platform-wide configuration (domain, branding, SMTP defaults) — coming soon.
@@ -331,6 +543,7 @@ export default function PlatformSettings({ token }) {
 
       {tab === 'Services' && renderServices()}
       {tab === 'Feature Flags' && renderFlags()}
+      {tab === 'Security' && renderSecurity()}
       {tab === 'Platform Config' && renderConfig()}
     </div>
   );
