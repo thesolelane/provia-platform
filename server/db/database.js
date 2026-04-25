@@ -1499,7 +1499,7 @@ function seedUsers() {
   const users = [
     {
       name: 'Anthony Cooper',
-      email: 'cooper@cooperanth.com',
+      email: 'acooper@cooperanth.com',
       role: 'system_admin',
       title: 'Platform Admin',
     },
@@ -1524,7 +1524,7 @@ function seedUsers() {
   if (process.env.ADMIN_SEED_PASSWORD) {
     db.prepare(`UPDATE users SET password_hash = ? WHERE email = ? AND role = 'system_admin'`).run(
       hash,
-      'cooper@cooperanth.com',
+      'acooper@cooperanth.com',
     );
   }
 }
